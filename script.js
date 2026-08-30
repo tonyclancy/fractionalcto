@@ -20,8 +20,53 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var form = document.getElementById('contact-form');
   if (form) {
+    var formGrid = form.querySelector('.form-grid');
+    var successPanel = document.getElementById('form-success');
+    var requiredFields = form.querySelectorAll('#name, #company, #email, #need');
+    var requiredMessages = {
+      name: 'Please enter your name and title.',
+      company: 'Please enter your company name.',
+      email: 'Please enter your email address.',
+      need: 'Please select what you need.'
+    };
+
+    function validateField(field) {
+      var wrapper = field.closest('.field');
+      var errorEl = wrapper ? wrapper.querySelector('.field-error') : null;
+      var message = '';
+      if (field.validity.valueMissing) {
+        message = requiredMessages[field.id] || 'This field is required.';
+      } else if (field.validity.typeMismatch && field.type === 'email') {
+        message = 'Please enter a valid email address, like name@company.com.';
+      }
+      if (wrapper) wrapper.classList.toggle('invalid', !!message);
+      if (errorEl) errorEl.textContent = message;
+      return !message;
+    }
+
+    requiredFields.forEach(function (field) {
+      field.addEventListener('input', function () { validateField(field); });
+      field.addEventListener('change', function () { validateField(field); });
+      field.addEventListener('blur', function () { validateField(field); });
+    });
+
     form.addEventListener('submit', function (e) {
       e.preventDefault();
+
+      var formIsValid = true;
+      var firstInvalid = null;
+      requiredFields.forEach(function (field) {
+        var fieldIsValid = validateField(field);
+        if (!fieldIsValid) {
+          formIsValid = false;
+          if (!firstInvalid) firstInvalid = field;
+        }
+      });
+      if (!formIsValid) {
+        if (firstInvalid) firstInvalid.focus();
+        return;
+      }
+
       var status = form.querySelector('.form-status');
       var data = new FormData(form);
 
@@ -45,8 +90,9 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(function (response) { return response.json(); })
         .then(function (result) {
           if (!result.success) throw new Error(result.message || 'Form submission failed');
-          if (status) status.textContent = 'Thanks — I\'ll be in touch soon.';
           form.reset();
+          if (formGrid) formGrid.hidden = true;
+          if (successPanel) successPanel.hidden = false;
         })
         .catch(fallbackToEmail);
     });

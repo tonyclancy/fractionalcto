@@ -6,7 +6,23 @@
 <meta name="description" content="Contact Tony Clancy to talk about fractional or interim CTO support for your SaaS or EdTech company."/>
 <meta name="theme-color" content="#132119"/>
 <title>Contact | Tony Clancy, Fractional CTO</title>
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml"/>
+<link rel="canonical" href="https://tonyclancy.com/contact.html"/>
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png"/>
+<link rel="icon" href="assets/favicon-16.png" sizes="16x16" type="image/png"/>
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="Tony Clancy"/>
+<meta property="og:title" content="Contact | Tony Clancy, Fractional CTO"/>
+<meta property="og:description" content="Contact Tony Clancy to talk about fractional or interim CTO support for your SaaS or EdTech company."/>
+<meta property="og:url" content="https://tonyclancy.com/contact.html"/>
+<meta property="og:image" content="https://tonyclancy.com/assets/og-card.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="Tony Clancy — Fractional &amp; Interim CTO"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Contact | Tony Clancy, Fractional CTO"/>
+<meta name="twitter:description" content="Contact Tony Clancy to talk about fractional or interim CTO support for your SaaS or EdTech company."/>
+<meta name="twitter:image" content="https://tonyclancy.com/assets/og-card.png"/>
 <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
@@ -61,21 +77,24 @@
         </div>
       </div>
 
-      <form class="contact-form" id="contact-form">
-        <input type="hidden" name="access_key" value="PASTE_YOUR_WEB3FORMS_ACCESS_KEY_HERE"/>
+      <form class="contact-form" id="contact-form" novalidate>
+        <input type="hidden" name="access_key" value="3351c577-b017-454e-85af-092180a9fc42"/>
         <input type="checkbox" name="botcheck" style="display:none"/>
         <div class="form-grid">
           <div class="field full">
             <label for="name">Name and title</label>
             <input id="name" name="name" autocomplete="name" required/>
+            <p class="field-error"></p>
           </div>
           <div class="field full">
             <label for="company">Company</label>
             <input id="company" name="company" autocomplete="organization" required/>
+            <p class="field-error"></p>
           </div>
           <div class="field">
             <label for="email">Email</label>
             <input id="email" name="email" type="email" autocomplete="email" required/>
+            <p class="field-error"></p>
           </div>
           <div class="field">
             <label for="need">What do you need?</label>
@@ -86,6 +105,7 @@
               <option>Technical assessment or diligence</option>
               <option>Not sure yet</option>
             </select>
+            <p class="field-error"></p>
           </div>
           <div class="field full">
             <label for="message">What's going on?</label>
@@ -96,6 +116,10 @@
             <p class="form-note">Sends straight to my inbox — I'll reply personally, usually within a day.</p>
             <div class="form-status" aria-live="polite"></div>
           </div>
+        </div>
+        <div class="form-success" id="form-success" hidden>
+          <h3>Thanks — I'll be in touch soon.</h3>
+          <p>I received your message and will follow up personally, usually within a day.</p>
         </div>
       </form>
 
@@ -126,7 +150,6 @@
     </div>
     <div class="footer-bottom">
       <span>© <span data-year=""></span> Tony Clancy. All rights reserved.</span>
-
     </div>
   </div>
 </footer>
