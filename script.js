@@ -5,12 +5,22 @@ document.addEventListener('DOMContentLoaded', function () {
     toggle.addEventListener('click', function () {
       var open = nav.classList.toggle('open');
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
     });
     nav.querySelectorAll('a').forEach(function (link) {
       link.addEventListener('click', function () {
         nav.classList.remove('open');
         toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-label', 'Open navigation');
       });
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && nav.classList.contains('open')) {
+        nav.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-label', 'Open navigation');
+        toggle.focus();
+      }
     });
   }
 
@@ -20,8 +30,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var form = document.getElementById('contact-form');
   if (form) {
-    var formGrid = form.querySelector('.form-grid');
-    var successPanel = document.getElementById('form-success');
     var requiredFields = form.querySelectorAll('#name, #company, #email, #need');
     var requiredMessages = {
       name: 'Please enter your name and title.',
@@ -73,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
       function fallbackToEmail() {
         var lines = [];
         data.forEach(function (value, key) {
-          if (value && key !== 'access_key' && key !== 'botcheck') lines.push(key + ': ' + value);
+          if (value && key !== 'access_key' && key !== 'botcheck' && key !== 'subject') lines.push(key + ': ' + value);
         });
         var subject = encodeURIComponent('Fractional CTO inquiry — ' + (data.get('company') || ''));
         var body = encodeURIComponent(lines.join('\n'));
@@ -91,8 +99,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(function (result) {
           if (!result.success) throw new Error(result.message || 'Form submission failed');
           form.reset();
-          if (formGrid) formGrid.hidden = true;
-          if (successPanel) successPanel.hidden = false;
+          window.location.assign('thanks.html');
         })
         .catch(fallbackToEmail);
     });
