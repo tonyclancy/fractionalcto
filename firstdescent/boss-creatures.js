@@ -297,11 +297,11 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
      const q=cl((r[0]-p.pivot[0])/90,0,1),a=Math.sin(flight*2.7-q*3)*(.29+thrust*.44)*q,ca=Math.cos(a),sa=Math.sin(a),x=r[0]-p.pivot[0],y=r[1]-p.pivot[1];
      v[0]=p.pivot[0]+x*ca-y*sa;v[1]=p.pivot[1]+x*sa+y*ca;
     }else if(p.rig==='feedingArm'){
-     const length=Math.max(0,p.pivot[0]-r[0]),reach=cl(load*.55+attack*.9+jaw*.7,0,1),curvature=(.039*(1-reach)+.0045*reach+Math.sin(flight*2.3+p.side*.7)*.0018)/(p.lengthScale||1),angle=length*curvature,c=Math.cos(angle),sn=Math.sin(angle),y=r[1]-p.pivot[1],z=r[2]-p.pivot[2],spread=.13+p.side*bank*.06+reach*.26,cs=Math.cos(spread),ss=p.side*Math.sin(spread),cx=-sn/curvature-y*sn,cy=(1-c)/curvature+y*c;
+     const length=Math.max(0,p.pivot[0]-r[0]),reach=cl(load*.55+attack*.9+jaw*.7,0,1),curvature=(.039*(1-reach)+.0045*reach+Math.sin(flight*3.1+p.side*.7)*.004)/(p.lengthScale||1),angle=length*curvature,c=Math.cos(angle),sn=Math.sin(angle),y=r[1]-p.pivot[1],z=r[2]-p.pivot[2],spread=.13+p.side*bank*.06+reach*.26+Math.sin(flight*2.5+p.side)*.12,cs=Math.cos(spread),ss=p.side*Math.sin(spread),cx=-sn/curvature-y*sn,cy=(1-c)/curvature+y*c;
      v[0]=p.pivot[0]+cx;v[1]=p.pivot[1]+cy*cs-z*ss;v[2]=p.pivot[2]+cy*ss+z*cs;
     }else if(p.rig==='feeler'){
-     const q=cl(Math.hypot(r[0]-p.pivot[0],r[1]-p.pivot[1],r[2]-p.pivot[2])/(75*(p.lengthScale||1)),0,1),w=q*q,sensoryPhase=age*2.1+(p.index||0)*.86+(p.side||0)*.22;
-     v[0]+=(Math.sin(sensoryPhase-q*2)*(4+load*3)-surge*4)*w;v[1]+=(Math.sin(sensoryPhase-q*4)*14+Math.sin(sensoryPhase*1.7-q*6)*3+climb*6-load*12)*w;v[2]+=Math.cos(sensoryPhase-q*2)*w*(11+load*7);
+     const q=cl(Math.hypot(r[0]-p.pivot[0],r[1]-p.pivot[1],r[2]-p.pivot[2])/(75*(p.lengthScale||1)),0,1),w=q*q,sensoryPhase=age*3.4+(p.index||0)*.86+(p.side||0)*.22;
+     v[0]+=(Math.sin(sensoryPhase-q*2)*(7+load*4)-surge*4)*w;v[1]+=(Math.sin(sensoryPhase-q*4)*19+Math.sin(sensoryPhase*1.7-q*6)*3+climb*6-load*12)*w;v[2]+=Math.cos(sensoryPhase-q*2)*w*(16+load*8);
     }else if(p.rig==='blink')v[1]=p.pivot[1]+(r[1]-p.pivot[1])*(1-blink*.93);
     spineBend(v,spine,p.rig==='shell');
    }

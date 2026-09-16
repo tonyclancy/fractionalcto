@@ -80,7 +80,7 @@ function drawFrontShield(){if(!(ship.frontShield>0))return;const p=frontShieldPo
 
 function enemyKinematics(e,dt){
  if(e.guardian&&boss){e.age+=dt;const a=e.age*.9+e.orbit;const u=passEase(Math.min(1,e.age/1.2)),x=boss.x+Math.cos(a)*155,y=boss.y+Math.sin(a)*130;e.x=(e.emergeX??x)+(x-(e.emergeX??x))*u;e.y=(e.emergeY??y)+(y-(e.emergeY??y))*u;e.travelYaw=Math.sin(a)*.35;e.travelPitch=Math.cos(a)*.18;return;}
- if(e.verticalTravel){e.age+=dt;const organic=e.type===1||e.type===3,frequency=e.type===1?(themeIndex()===0?4.8:3.2):(themeIndex()===2?9:3.8),stroke=Math.pow((1+Math.cos((e.age+e.phase)*frequency))*.5,5);if(organic&&stroke>.65&&(e.stroke??0)<=.65)window.flightAudio?.swim(e);const speed=e.speed*(organic?.62+stroke*.65:.78*(1+.1*Math.sin(e.age*2.2+e.phase)));e.y+=e.verticalDirection*speed*dt;const desired=enemyRouteX(e,e.baseX+Math.sin(e.age*.8+e.phase)*42);e.routeX+=clamp((desired-e.routeX)*(1-Math.exp(-dt*6)),-260*dt,260*dt);e.x=e.routeX;e.travelPitch=-e.verticalDirection*.25+Math.sin(e.age*.7)*.06;e.travelYaw=(e.direction===1?Math.PI:0)+Math.sin(e.age*.8)*.12;e.depth=1;e.stroke=stroke;return;}
+ if(e.verticalTravel){e.age+=dt;const organic=e.type===1||e.type===3,frequency=e.type===1?(themeIndex()===0?4.8:3.2):(themeIndex()===2?9:3.8),stroke=Math.pow((1+Math.cos((e.age+e.phase)*frequency))*.5,5);if(organic&&stroke>.65&&(e.stroke??0)<=.65)window.flightAudio?.swim(e);const speed=e.speed*(organic?.70+stroke*.90:.78*(1+.1*Math.sin(e.age*2.2+e.phase)));e.y+=e.verticalDirection*speed*dt;const desired=enemyRouteX(e,e.baseX+Math.sin(e.age*.8+e.phase)*42);e.routeX+=clamp((desired-e.routeX)*(1-Math.exp(-dt*6)),-260*dt,260*dt);e.x=e.routeX;e.travelPitch=-e.verticalDirection*.25+Math.sin(e.age*.7)*.06;e.travelYaw=(e.direction===1?Math.PI:0)+Math.sin(e.age*.8)*.12;e.depth=1;e.stroke=stroke;return;}
  if(e.sentry){e.age+=dt;e.x=W+210-(time-e.anchorAt)*SCROLL_SPEED;const gate=obstacles.find(o=>o.shutters&&o.at===e.anchorAt);if(gate){const r=obstacleSolids(gate)[0];if(sectors[level].scrollAxis){e.x=r.side==='left'?r.x+r.w+30:r.x-30;e.y=r.y+r.h/2;}else e.y=r.h+32;}e.travelPitch=e.travelYaw=0;return;}
  if(e.satellite&&e.mother){
   if(e.mother.hp<=0){e.mother=null;e.base=e.y}
@@ -113,7 +113,7 @@ function enemyKinematics(e,dt){
   return;
  }
  const thrust=themeIndex()===1?(e.type===0?1+.5*Math.pow(Math.max(0,Math.sin(e.age*2+e.phase)),4):.8):themeIndex()===2?(e.type===1?1.05+.12*Math.cos((e.age+e.phase)*3.2):1.1+.22*Math.pow(Math.max(0,Math.sin((e.age+e.phase)*9)),2)):organic?.52+stroke*1.48:1;
- const desired=e.speed*thrust;e.swimSpeed=(e.swimSpeed??e.speed)+(desired-(e.swimSpeed??e.speed))*(1-Math.exp(-dt*7));e.x+=(e.direction||-1)*e.swimSpeed*dt;
+ const desired=e.speed*thrust*(organic?1.12+stroke*.38:1+.16*Math.pow(Math.max(0,Math.sin((e.age+e.phase)*2)),4));e.swimSpeed=(e.swimSpeed??e.speed)+(desired-(e.swimSpeed??e.speed))*(1-Math.exp(-dt*7));e.x+=(e.direction||-1)*e.swimSpeed*dt;
  const oldY=e.y,turnRate=e.brood?1.05:organic?.45:e.type===2?.35:.7,amplitude=e.brood?112:organic?34:e.type===2?10:30;
  const naturalY=themeIndex()===1?e.base+(e.type===0?Math.sin(e.age*1.7+e.phase)*52:Math.sin(e.age*.6+e.phase)*18):themeIndex()===2?e.base+(Math.sin(e.age*(e.type===1?1.3:1.8)+e.phase)-Math.sin(e.phase))*(e.type===1?65:48):e.base+(Math.sin(e.age*turnRate+e.phase)-Math.sin(e.phase))*amplitude;
  let routeTarget=enemyRouteY(e,naturalY);
@@ -127,17 +127,32 @@ function firingRig(e,isBoss=false){if(isBoss&&bossDesign()){const d=bossDesign()
  const heading=isBoss&&e.fireHeading!=null?e.fireHeading:!isBoss&&!e.elite?(e.direction===1?0:Math.PI):Math.atan2(ship.y-y,ship.x-x),pitch=Math.atan2(Math.sin(heading-Math.PI),Math.cos(heading-Math.PI)),yaw=0;
  const v=rotateVertex([-29,0,0],yaw,0,pitch,0,0),f=460/(460+v[2]);return{organic,scale,yaw,pitch,x,y,heading,muzzleX:x+v[0]*f*scale,muzzleY:y+v[1]*f*scale}}
 function drawEmitter(e,isBoss=false){const r=firingRig(e,isBoss),pulse=Math.max(0,e.muzzle||0)/.16;ctx.save();ctx.translate(r.x,r.y);ctx.scale(1,1+(r.organic?pulse*.22:0));drawModel(meshes[r.organic?'siphon':'cannon'],0,0,r.scale,r.yaw,0,r.pitch,e.age);ctx.restore();if(isBoss&&e.attack&&e.attack.age<.7){const charge=e.attack.age/.7;orb(r.muzzleX,r.muzzleY,12+charge*22,r.organic?'#b8ef89':'#ffd8a1',.2+charge*.5);}if(pulse>0)orb(r.muzzleX,r.muzzleY,12*r.scale,r.organic?'#b8ef89':'#ffd8a1',pulse*.55)}
+// A complete roll around the hull's longitudinal axis; no scale changes.
+function mechanicalFlightRoll(e){
+ const age=e.age+(e.phase||0)*.3,period=e.type===2?8.4:5.6,cycle=((age%period)+period)%period;
+ return TAU*passEase(clamp((cycle-1.5)/(e.type===2?2.7:1.9),0,1));
+}
+function drawMechanicalPropulsion(e,yaw,roll,pitch){
+ const drive=clamp((e.swimSpeed||e.speed)/Math.max(1,e.speed),.5,1.5),pulse=.5+.5*Math.sin((e.age+(e.phase||0))*18),length=30+drive*28+pulse*12;
+ for(const side of [-1,1]){
+  const mount=[35,side*(e.type===2?22:16),-3],base=projectHull(mount,yaw,roll,pitch),nozzle=projectHull([mount[0]+20,mount[1],mount[2]],yaw,roll,pitch),tip=projectHull([mount[0]+20+length,mount[1],mount[2]],yaw,roll,pitch);
+  ctx.save();ctx.translate(e.x+nozzle.x,e.y+nozzle.y);ctx.rotate(Math.atan2(tip.y-nozzle.y,tip.x-nozzle.x));ctx.globalCompositeOperation='lighter';
+  const jet=ctx.createLinearGradient(0,0,length,0);jet.addColorStop(0,'#eefaff');jet.addColorStop(.25,'#64ccff');jet.addColorStop(1,'#268bff00');
+  poly([[0,-4-pulse*2],[length,0],[0,4+pulse*2]],jet);orb(0,0,12+pulse*4,'#7cdcff',.45);ctx.restore();
+  drawModel(meshes.vectorEngine,e.x+base.x,e.y+base.y,.7,yaw,roll,pitch,e.age,e.hit);
+ }
+}
 function drawEnemy(e){
  if(e.x< -180||e.x>W+180||e.y< -180||e.y>H+180)return;
  if(e.sentry){ctx.save();ctx.strokeStyle='#83939d';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(e.x,e.y-35);ctx.lineTo(e.x,e.y);ctx.stroke();ctx.restore();drawModel(meshes.sentry,e.x,e.y,1,0,0,0,e.age,e.hit);drawEmitter(e);healthBar(e.x,e.y+40,65,e.hp,e.max,'#ffbd78');return;}
  if(e.brood){drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,1.4,e.travelYaw||0,e.broodRoll||0,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
  if(e.satellite){const a=e.age*2.1+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes[e.escortProfile?.escort||'swarmlet'],e.x,e.y,e.escortProfile?.5:.82,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'squid');if(e.escortProfile)drawEmitter(e);if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
 
- const organic=e.type===1||e.type===3,yaw=e.travelYaw||0,pitch=e.travelPitch||0,roll=organic?(themeIndex()===2?clamp(-pitch*.8,-.3,.3)+Math.sin(e.age*2+e.phase)*.06:organicSpin(e.age+e.phase).roll):-pitch*.4;
- if(!organic){const p=projectHull([46,0,0],yaw,roll,pitch);const length=e.type===2?36:58;ctx.save();ctx.translate(e.x+p.x,e.y+p.y);ctx.rotate(pitch);orb(6,0,24,'#ff9e60',.35);const jet=ctx.createLinearGradient(0,0,length,0);jet.addColorStop(0,'#ffefd9');jet.addColorStop(.3,'#ff9565');jet.addColorStop(1,'transparent');poly([[0,-5],[length,0],[0,5]],jet);ctx.restore()}
+ const organic=e.type===1||e.type===3,yaw=e.travelYaw||0,pitch=e.travelPitch||0,roll=organic?(themeIndex()===2?clamp(-pitch*.8,-.3,.3)+Math.sin(e.age*2+e.phase)*.06:organicSpin(e.age+e.phase).roll):mechanicalFlightRoll(e)-pitch*.65;
+ if(!organic)drawMechanicalPropulsion(e,yaw,roll,pitch);
  drawModel(meshes[sectors[level].models[e.type]],e.x,e.y,1,yaw,roll,pitch,e.age+e.phase,e.hit,themeIndex()===0?(e.type===1?'squid':e.type===3?'octopus':null):organic?(e.type===1?'ray':themeIndex()===2?null:'octopus'):null);
- if(e.type===0){const p=projectHull([20,0,0],yaw,roll,pitch);drawModel(meshes.rotor,e.x+p.x,e.y+p.y,.95,yaw,e.age*7,pitch,e.age,e.hit)}
- if(e.type===2)for(const side of [-1,1]){const p=projectHull([25,side*22,0],yaw,roll,pitch);drawModel(meshes.rotor,e.x+p.x,e.y+p.y,.45,yaw,-e.age*9+side,pitch,e.age,e.hit)}
+ if(e.type===0){const p=projectHull([20,0,0],yaw,roll,pitch);drawModel(meshes.rotor,e.x+p.x,e.y+p.y,.95,yaw,roll+e.age*11,pitch,e.age,e.hit)}
+ if(e.type===2)for(const side of [-1,1]){const p=projectHull([25,side*22,0],yaw,roll,pitch);drawModel(meshes.rotor,e.x+p.x,e.y+p.y,.45,yaw,roll-e.age*13+side,pitch,e.age,e.hit)}
  if(e.type===1&&e.stroke>.75){const p=projectHull([29,0,0],yaw,roll,pitch);orb(e.x+p.x+8,e.y+p.y,18,'#6cdbb2',(e.stroke-.75)*.5)}
  if(themeIndex()===2&&e.type===3)for(const side of [-1,1]){const hinge=projectHull([0,side*12,0],yaw,roll,pitch),fold=side*(.4+Math.sin((e.age+e.phase)*9)*.85);drawModel(meshes.scarabWing,e.x+hinge.x,e.y+hinge.y,1,yaw,roll+(side===1?fold:Math.PI-fold),pitch,e.age,e.hit);}
  if(themeIndex()===1)for(const side of [-1,1]){const mount=projectHull([28,side*(e.type===2?27:20),-10],yaw,roll,pitch),vector=clamp((e.travelPitch||0)*1.1,-.35,.35);drawModel(meshes.vectorEngine,e.x+mount.x,e.y+mount.y,1,yaw,roll,pitch+vector,e.age,e.hit);orb(e.x+mount.x+22,e.y+mount.y,13,'#ffb067',.3+(e.stroke||0)*.3);}
