@@ -145,10 +145,10 @@ function drawMechanicalPropulsion(e,yaw,roll,pitch){
 function drawEnemy(e){
  if(e.x< -180||e.x>W+180||e.y< -180||e.y>H+180)return;
  if(e.sentry){ctx.save();ctx.strokeStyle='#83939d';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(e.x,e.y-35);ctx.lineTo(e.x,e.y);ctx.stroke();ctx.restore();drawModel(meshes.sentry,e.x,e.y,1,0,0,0,e.age,e.hit);drawEmitter(e);healthBar(e.x,e.y+40,65,e.hp,e.max,'#ffbd78');return;}
- if(e.brood){drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,1.4,e.travelYaw||0,e.broodRoll||0,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
- if(e.satellite){const a=e.age*2.1+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes[e.escortProfile?.escort||'swarmlet'],e.x,e.y,e.escortProfile?.5:.82,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'squid');if(e.escortProfile)drawEmitter(e);if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
+ if(e.brood){drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,1.4,e.travelYaw||0,(e.broodRoll||0)+organicSpin(e.age+e.phase).roll,(e.travelPitch||0)+organicSpin(e.age+e.phase).pitch,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
+ if(e.satellite){const a=e.age*3.8+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes[e.escortProfile?.escort||'swarmlet'],e.x,e.y,e.escortProfile?.5:.82,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'squid');if(e.escortProfile)drawEmitter(e);if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
 
- const organic=e.type===1||e.type===3,yaw=e.travelYaw||0,pitch=e.travelPitch||0,roll=organic?(themeIndex()===2?clamp(-pitch*.8,-.3,.3)+Math.sin(e.age*2+e.phase)*.06:organicSpin(e.age+e.phase).roll):mechanicalFlightRoll(e)-pitch*.65;
+ const organic=e.type===1||e.type===3,activity=organic?organicSpin(e.age+e.phase):null,yaw=e.travelYaw||0,pitch=(e.travelPitch||0)+(activity?.pitch||0),roll=organic?activity.roll+clamp(-pitch*.45,-.18,.18):mechanicalFlightRoll(e)-pitch*.65;
  if(!organic)drawMechanicalPropulsion(e,yaw,roll,pitch);
  drawModel(meshes[sectors[level].models[e.type]],e.x,e.y,1,yaw,roll,pitch,e.age+e.phase,e.hit,themeIndex()===0?(e.type===1?'squid':e.type===3?'octopus':null):organic?(e.type===1?'ray':themeIndex()===2?null:'octopus'):null);
  if(e.type===0){const p=projectHull([20,0,0],yaw,roll,pitch);drawModel(meshes.rotor,e.x+p.x,e.y+p.y,.95,yaw,roll+e.age*11,pitch,e.age,e.hit)}
@@ -429,7 +429,8 @@ function drawBossArms(b){if(bossIndex()!==0)return;
 
 function drawSnakeLink(front,back,width,age,hit){const dx=back.x-front.x,dy=back.y-front.y;ctx.save();ctx.translate((front.x+back.x)/2,(front.y+back.y)/2);ctx.rotate(Math.atan2(dy,dx));ctx.scale(Math.hypot(dx,dy)/40,width);drawModel(meshes.snakeBody,0,0,1,0,0,0,age,hit);ctx.restore()}
 
-function organicSpin(age){const cycle=((age%8)+8)%8,t=clamp((cycle-2)/3,0,1),ease=t*t*(3-2*t);return{yaw:Math.sin(age*.7)*.18,roll:ease*TAU+Math.sin(age*.7)*.12,fan:Math.sin(t*Math.PI)**2}}
+// Brisk axial rolls with a brief recovery; attitude changes never alter travel speed.
+function organicSpin(age){const cycle=((age%3.6)+3.6)%3.6,t=clamp((cycle-.6)/1.05,0,1),ease=t*t*(3-2*t);return{yaw:Math.sin(age*3.7)*.10+Math.sin(age*8.1)*.035,pitch:Math.sin(age*5.3)*.055+Math.sin(age*9.7)*.018,roll:ease*TAU+Math.sin(age*4.1)*.10+Math.sin(age*7.3)*.035,fan:Math.sin(t*Math.PI)**2}}
 
 function drawWeatheredPanels(width,y,height,sector){
  ctx.save();ctx.beginPath();ctx.rect(0,y,width,height);ctx.clip();
