@@ -295,6 +295,14 @@ function musicControls(){const info=window.flightAudio?.stats();if(!info)return;
 $('#music').onclick=()=>{const info=window.flightAudio?.stats();if(!info)return;window.flightAudio.setMusicEnabled(!info.musicEnabled||(state==='title'&&info.state!=='running'));if(state==='title')window.flightAudio.setTitle(!document.hidden);else window.flightAudio.setMusicActive(state==='playing'&&!document.hidden);enableAudio();musicControls()};
 function unlockTitleMusic(event){if(state!=='title'||event.target?.closest?.('button,a'))return;window.flightAudio?.setTitle(true);enableAudio()}
 window.addEventListener('pointerdown',unlockTitleMusic);window.addEventListener('keydown',unlockTitleMusic);
+// Capture also reaches the Safari setup overlay, whose gestures stop propagation.
+function recoverGestureAudio(event){
+ if(event.isTrusted===false||document.hidden)return;
+ const info=window.flightAudio?.stats();
+ if(info&&info.state!=='running'&&(sound||info.musicEnabled))enableAudio();
+}
+for(const name of ['touchend','pointerup','keydown'])document.addEventListener(name,recoverGestureAudio,{capture:true,passive:true});
+
 document.addEventListener('visibilitychange',()=>{if(state==='title')window.flightAudio?.setTitle(!document.hidden);else window.flightAudio?.setMusicActive(state==='playing'&&!document.hidden)});
 window.flightAudio?.setTitle(true);musicControls();
 if($('#introMusic'))$('#introMusic').onclick=()=>$('#music').onclick();

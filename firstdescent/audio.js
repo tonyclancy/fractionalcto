@@ -10,6 +10,8 @@ window.flightAudio=(()=>{
  try{musicEnabled=localStorage.getItem('neon-vanguard-title-music')!=='off'}catch{}
 
  function init(){
+  // Explicit game playback uses the media output session on supported iOS versions.
+  try{if(window.navigator?.audioSession)window.navigator.audioSession.type='playback';}catch{}
   if(!context){
    const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return false;
    context=new Audio();master=context.createGain();master.gain.value=enabled?.65:0;
@@ -42,7 +44,9 @@ window.flightAudio=(()=>{
 
 
   }
-  context.resume().then(startTitleLoop).catch(()=>{});return true;
+  if(context.state==='running'){startTitleLoop();return true;}
+  // Retry on a real gesture after Safari interrupts audio during app switches.
+  context.resume().then(startTitleLoop).catch(error=>{console.warn('Audio resume failed',error);});return true;
  }
  function stopVoice(v){try{v.osc.stop()}catch{}v.dispose()}
  function sweepVoices(){if(!context)return;for(const v of [...voices,...releasing])if(v.endAt<=context.currentTime)stopVoice(v)}
