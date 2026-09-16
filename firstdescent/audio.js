@@ -110,7 +110,7 @@ window.flightAudio=(()=>{
   // needs no free-running LFO/source: automation dies with the tracked voice.
   const flutter=tremolo?context.createGain():null;
   if(flutter){
-   const rate=Math.max(70,Math.min(110,tremolo)),floor=.055;
+   const rate=Math.max(20,Math.min(110,tremolo)),floor=.055;
    flutter.gain.setValueAtTime(floor,now);
    for(let stroke=0,at=0;at<duration;stroke++){
     const cycle=(1+.055*Math.sin(stroke*1.73))/rate,crest=.9+.1*Math.sin(stroke*2.31+.4);
@@ -381,11 +381,12 @@ window.flightAudio=(()=>{
  function wingbeat(x=720,strength=.5,kind=0){
   if(!enabled||!context||context.state!=='running'||x< -80||x>1520)return;
   const force=Math.max(0,Math.min(1,strength)),heavy=kind===5,pan=(x/1440*2-1)*.65;
-  // A cicada-like chirr at every visible downstroke: a rapid, dry membrane
-  // rattle over restrained low pressure, with no tonal beep or long echo.
-  const rate=kind===2?103:kind===3?91:heavy?76:96;
-  noise({duration:(heavy?.34:.29)+force*.02,gain:(heavy?.18:.15)+force*.035,cutoff:heavy?2300:2900,end:heavy?1600:2100,band:true,resonance:.65,highpass:520,body:true,tremolo:rate,pan,priority:2});
-  noise({duration:heavy?.28:.24,gain:(heavy?.04:.018)+force*.009,cutoff:heavy?230:320,end:90,body:true,pan,priority:2});
+  // An original insect rotor texture: heavy chopped air, leathery blade
+  // chatter and a restrained membrane rasp, all triggered by the actual flap.
+  const rotor=(heavy?22:kind===2?31:kind===3?26:29)+force*5;
+  noise({duration:heavy?.52:.45,hold:.09,gain:(heavy?.14:.095)+force*.025,cutoff:heavy?380:460,end:140,highpass:38,body:true,tremolo:rotor,pan,priority:2});
+  noise({duration:heavy?.46:.40,hold:.065,gain:.11+force*.018,cutoff:1050,end:560,band:true,resonance:.55,highpass:160,body:true,tremolo:rotor*1.9,pan,priority:2});
+  noise({duration:.29,gain:.038,cutoff:2200,end:1300,band:true,resonance:.55,highpass:720,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
  return{init,setEnabled,clear,intro,shot,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,setTitle,setSector,setIntensity,setMusicActive,setMusicEnabled,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{enabled,musicEnabled,sectorTrack,musicStep,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:6},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
 })();

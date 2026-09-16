@@ -169,11 +169,16 @@ function updateShipMovement(dt,environment=true){
 let dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
 const len=Math.hypot(dx,dy)||1,maxSpeed=390+speedLevel*75;
 let targetVX=dx/len*maxSpeed,targetVY=dy/len*maxSpeed;
-if(pointer?.relative){targetVX=pointer.dx*maxSpeed;targetVY=pointer.dy*maxSpeed}
+const drag=pointer?.relative?{x:pointer.moveX||0,y:pointer.moveY||0}:null;
+if(drag){pointer.moveX=pointer.moveY=0;const magnitude=Math.hypot(drag.x,drag.y)/dt,scale=Math.min(1,maxSpeed/(magnitude||1));targetVX=drag.x/dt*scale;targetVY=drag.y/dt*scale}
 else if(pointer){const px=(pointer.x-ship.x)/dt,py=(pointer.y-ship.y)/dt,scale=Math.min(1,maxSpeed/(Math.hypot(px,py)||1));targetVX=px*scale;targetVY=py*scale}
 // Steering has no acceleration lag or release drift; only the visual attitude eases.
 ship.vx=targetVX;ship.vy=targetVY;
-const suction=environment&&boss?bossSuctionForce(boss):0;ship.x=clamp(ship.x+(ship.vx+suction)*dt,40,W-65);ship.y=clamp(ship.y+(ship.vy+(environment?sectorCurrent():0))*dt,42,H-42);if(ship.x===40||ship.x===W-65)ship.vx=0;if(ship.y===42||ship.y===H-42)ship.vy=0;
+const suction=environment&&boss?bossSuctionForce(boss):0,oldX=ship.x,oldY=ship.y;
+ship.x=clamp(ship.x+(drag?drag.x:ship.vx*dt)+suction*dt,40,W-65);ship.y=clamp(ship.y+(drag?drag.y:ship.vy*dt)+(environment?sectorCurrent()*dt:0),42,H-42);
+// A quick finger swipe still crosses solid scenery; it cannot teleport through it.
+if(drag&&environment&&ship.inv<=0&&obstacles.length){const steps=Math.ceil(Math.hypot(ship.x-oldX,ship.y-oldY)/12),solids=obstacles.flatMap(obstacleSolids);for(let i=1;i<=steps;i++){const t=i/steps,x=oldX+(ship.x-oldX)*t,y=oldY+(ship.y-oldY)*t;if(solids.some(r=>x+24>r.x&&x-24<r.x+r.w&&y+14>r.y&&y-14<r.y+r.h)||obstacles.some(o=>o.rotor&&rotorContact(o,x,y,18))){damage();break;}}}
+if(ship.x===40||ship.x===W-65)ship.vx=0;if(ship.y===42||ship.y===H-42)ship.vy=0;
 const targetPitch=clamp(ship.vy/2800,-.18,.18),targetYaw=clamp(ship.vx/3400,-.15,.15),easing=1-Math.exp(-dt*11);
 flightPose.pitch+=(targetPitch-flightPose.pitch)*easing;const rollRate=-ship.vy/maxSpeed*7;flightPose.rollRate=((flightPose.rollRate||0)+(rollRate-(flightPose.rollRate||0))*(1-Math.exp(-dt*12)));flightPose.roll+=flightPose.rollRate*dt;if(Math.abs(ship.vy)<10)flightPose.roll+=(Math.round(flightPose.roll/TAU)*TAU-flightPose.roll)*(1-Math.exp(-dt*5));flightPose.yaw+=(targetYaw-flightPose.yaw)*easing;
 const accel=Math.hypot(ship.vx-flightPose.vx,ship.vy-flightPose.vy)/dt,thrust=clamp(.15+Math.max(0,ship.vx)/800+Math.abs(ship.vy)/2400+accel/22000,.1,1.1);flightPose.thrust+=(thrust-flightPose.thrust)*(1-Math.exp(-dt*8));flightPose.vx=ship.vx;flightPose.vy=ship.vy;
@@ -192,7 +197,7 @@ for(const d of drops){d.x-=70*dt;d.age+=dt;const distance=Math.hypot(d.x-ship.x,
 if(boss&&boss.hp<=0){window.flightAudio?.clear();explodeBoss(boss);enemies=[];hazards=[];acidClouds=[];rings.push({x:boss.x,y:boss.y,r:20,life:1.1,c:'#fff'});score+=3000*(level+1);boss=null;bossDefeated=true;transition=4;hostile=[];shots=[];flash=.48;shake=20;$('#bossbar').hidden=true;announce('SECTOR CLEARED','JUMP DRIVE CHARGING');tone(55,.9,'triangle',.04,-25)}
 if(state!=='playing')return;if(bossDefeated){transition-=dt;if(transition<=0){if(level===sectors.length-1){end(true)}else{advanceSector()}}}hudClock+=dt;if(hudClock>=.08){hudClock=0;updateHUD()}}
 function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));background(dt);drawDreamAtmosphere();drawStructures();if(sectorBlend){window.gpuModels?.flush(ctx);drawNearField();drawSectorBlend();}if(state==='title'){drawShip(1020,320+Math.sin(world*.004)*8,3.15,true);for(let i=0;i<3;i++){ctx.strokeStyle='#88f8dd';ctx.globalAlpha=.2-i*.05;ctx.beginPath();ctx.moveTo(630-i*65,317+i*5);ctx.lineTo(790-i*20,317+i*5);ctx.stroke()}ctx.globalAlpha=1}else{for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'){ctx.save();ctx.globalAlpha*=ship.inv>0?.74+Math.sin(ship.inv*28)*.26:1;drawShip(ship.x,ship.y);ctx.restore();}drawFrontShield();drawWeaponOrb();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}
-window.gpuModels?.flush(ctx);drawExplosions(dt);if(!sectorBlend)drawNearField();const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}ctx.restore();window.gpuModels?.flush(ctx);drawTouchSteering()}
+window.gpuModels?.flush(ctx);drawExplosions(dt);if(!sectorBlend)drawNearField();const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}ctx.restore();window.gpuModels?.flush(ctx)}
 let accumulator=0,frameError=null;
 let renderScale=1,renderQuality=1.5,surfaceWidth=W,surfaceDirty=true;
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{surfaceDirty=true;}).observe(canvas);
@@ -217,33 +222,28 @@ function frame(now){
  try{accumulator+=dt;while(accumulator>=1/120){captureMotion();update(1/120);accumulator-=1/120}renderSmooth(dt,accumulator*120)}catch(error){reportFrameError(error)}
 }
 window.addEventListener('keydown',e=>{if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys.add(k);if(e.repeat)return;if(k==='Enter'&&state==='title'){start();return;}if(k==='p'||k==='Escape')pause();if(k==='x')nova();if(k===' ')switchOrb()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{keys.clear();pointer=null;if(state==='playing')pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause()});
-// Touch controls are relative to where the finger lands, in screen pixels so
-// the same thumb motion works in portrait, landscape and high-DPI displays.
+// Relative dragging preserves the finger-to-ship offset. A stationary finger
+// is neutral, and lifting/repositioning never attracts the ship to the contact.
 function setPointer(e){
  if(!pointer||e.pointerId!==pointer.id)return;
  const r=canvas.getBoundingClientRect();
  if(pointer.relative){
-  const x=e.clientX-pointer.anchorClientX,y=e.clientY-pointer.anchorClientY,distance=Math.hypot(x,y),amount=clamp((distance-5)/27,0,1);
-  pointer.dx=distance?x/distance*amount:0;pointer.dy=distance?y/distance*amount:0;
-  pointer.visualX=distance?x/distance*Math.min(32,distance):0;pointer.visualY=distance?y/distance*Math.min(32,distance):0;
+  // Consume displacement once, rather than treating a held offset as velocity.
+  // One screen pixel of finger travel moves the ship one screen pixel.
+  pointer.moveX+=(e.clientX-pointer.lastClientX)*W/r.width;
+  pointer.moveY+=(e.clientY-pointer.lastClientY)*H/r.height;
+  pointer.lastClientX=e.clientX;pointer.lastClientY=e.clientY;
  }else{pointer.x=(e.clientX-r.left)/r.width*W;pointer.y=(e.clientY-r.top)/r.height*H;}
 }
 function releasePointer(e){if(!pointer||e.pointerId!==pointer.id)return;pointer=null;}
 canvas.addEventListener('pointerdown',e=>{
  if(state!=='playing'||pointer)return;
  const relative=e.pointerType==='touch'||e.pointerType==='pen';
- pointer={id:e.pointerId,relative,anchorClientX:e.clientX,anchorClientY:e.clientY,dx:0,dy:0,visualX:0,visualY:0};
+ pointer={id:e.pointerId,relative,lastClientX:e.clientX,lastClientY:e.clientY,moveX:0,moveY:0};
  canvas.setPointerCapture(e.pointerId);setPointer(e);
 });
 canvas.addEventListener('pointermove',setPointer);
 canvas.addEventListener('pointerup',releasePointer);canvas.addEventListener('pointercancel',releasePointer);canvas.addEventListener('lostpointercapture',releasePointer);
-function drawTouchSteering(){
- if(state!=='playing'||!pointer?.relative)return;
- const r=canvas.getBoundingClientRect(),sx=W/r.width,sy=H/r.height;
- ctx.save();ctx.translate((pointer.anchorClientX-r.left)*sx,(pointer.anchorClientY-r.top)*sy);ctx.scale(sx,sy);
- ctx.strokeStyle='#b3ffe5';ctx.fillStyle='#b3ffe5';ctx.lineWidth=1;ctx.globalAlpha=.2;ctx.beginPath();ctx.arc(0,0,32,0,TAU);ctx.stroke();
- ctx.globalAlpha=.32;ctx.beginPath();ctx.arc(pointer.visualX,pointer.visualY,10,0,TAU);ctx.fill();ctx.restore();
-}
 $('#launch').onclick=start;$('#pause').onclick=pause;$('#novaTouch').onclick=nova;$('#orbTouch').onclick=switchOrb;$('#sound').onclick=()=>{sound=!sound;enableAudio();$('#sound').textContent=sound?'SFX ON':'SFX OFF';$('#sound').setAttribute('aria-label',sound?'Mute sound effects':'Enable sound effects');if(sound){if(state!=='title')tone(660,.12,'sine',.05)}};$('#fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('.stage').requestFullscreen()}catch{announce('FULLSCREEN UNAVAILABLE')}};
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_game_status',description:'Read the current First Descent flight status.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:(input)=>{if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length)throw new Error('Expected an empty object');return {state,sector:level+1,score,hull:ship.hp,weapon,power,novas,speedLevel,companion,renderer:window.gpuModels?.stats()||{engine:'Canvas compatibility'}}}})).catch(()=>{})}catch{}}
 $('#records').onclick=showLocalScores;$('#campaignCaption').textContent=`${sectors.length} DREAM BIOMES · ${sectors.length} BOSSES · 4 CHECKPOINTS PER SECTOR`;
