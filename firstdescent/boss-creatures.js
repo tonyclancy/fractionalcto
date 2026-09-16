@@ -270,8 +270,8 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
    if(p.rig==='wing')matrix=rotationMatrix([1,0,0],p.side*(-.12-climb*.13+flightStroke(beat)*p.amplitude*(.72+thrust*.68)));
    if(p.rig==='leg'){
     const rake=turning*.22+load*.35,stroke=flightStroke(phase);
-    matrix=rotationMatrix([1,0,0],p.side*(.07+thrust*.12+stroke*(.17+thrust*.25)+rake-attack*.24));
-    second=rotationMatrix([0,0,1],Math.sin(phase+.7)*(.18+thrust*.31)-climb*.12-attack*.63+rake*.6);
+    matrix=rotationMatrix([1,0,0],p.side*(.07+thrust*.12+stroke*(.23+thrust*.38)+rake-attack*.24));
+    second=rotationMatrix([0,0,1],Math.sin(phase+.7)*(.24+thrust*.43)-climb*.12-attack*.63+rake*.6);
    }
    const blink=naturalBlink(age,(p.phase||0)+kind*.71);
    for(let i=0;i<p.vertices.length;i++){
@@ -284,17 +284,17 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
      // Elastic trailing-edge lag follows the downstroke without changing span.
      v[1]+=Math.sin(beat-.55)*span*span*(4+thrust*7);
     }else if(p.rig==='undulate'){
-     const span=cl((Math.abs(r[2])-Math.abs(p.pivot[2]))/p.span,0,1),wave=wingPhase-r[0]*.047+(p.phase||0),stroke=flightStroke(wave),angle=(stroke*(.4+thrust*.48)+climb*.13+p.side*bank*.14+load*.2-attack*.3)*span,ca=Math.cos(angle),sa=Math.sin(angle),y=r[1]-p.pivot[1],z=r[2]-p.pivot[2];
+     const span=cl((Math.abs(r[2])-Math.abs(p.pivot[2]))/p.span,0,1),wave=wingPhase-r[0]*.047+(p.phase||0),stroke=flightStroke(wave),angle=(stroke*(.48+thrust*.6)+climb*.13+p.side*bank*.14+load*.2-attack*.3)*span,ca=Math.cos(angle),sa=Math.sin(angle),y=r[1]-p.pivot[1],z=r[2]-p.pivot[2];
      // A rotation of each fin ray gives the membrane a real power stroke.
      v[1]=p.pivot[1]+y*ca-p.side*z*sa;v[2]=p.pivot[2]+p.side*y*sa+z*ca;
      v[0]+=Math.sin(wave-.8)*(3+thrust*5)*span*span;
      const sweep=p.side*(attack*.45-load*.17)*span,cf=Math.cos(sweep),sf=Math.sin(sweep),xx=v[0]-p.pivot[0],zz=v[2]-p.pivot[2];
      v[0]=p.pivot[0]+xx*cf+zz*sf;v[2]=p.pivot[2]+zz*cf-xx*sf;
     }else if(p.rig==='leg'){
-     const weight=cl((r[1]-p.knee[1]+4)/23,0,1),bend=(Math.sin(phase-.9)*(.34+thrust*.46)+attack*.54-load*.35)*(p.amplitude||1)*weight,cb=Math.cos(bend),sb=Math.sin(bend),x=r[0]-p.knee[0],y=r[1]-p.knee[1];
+     const weight=cl((r[1]-p.knee[1]+4)/23,0,1),bend=(Math.sin(phase-.9)*(.42+thrust*.59)+attack*.54-load*.35)*(p.amplitude||1)*weight,cb=Math.cos(bend),sb=Math.sin(bend),x=r[0]-p.knee[0],y=r[1]-p.knee[1];
      v[0]=p.knee[0]+x*cb-y*sb;v[1]=p.knee[1]+x*sb+y*cb;applyRotation(v,p.pivot,matrix);applyRotation(v,p.pivot,second);
     }else if(p.rig==='tail'){
-     const q=cl((r[0]-p.pivot[0])/90,0,1),a=Math.sin(flight*2.7-q*3)*(.23+thrust*.35)*q,ca=Math.cos(a),sa=Math.sin(a),x=r[0]-p.pivot[0],y=r[1]-p.pivot[1];
+     const q=cl((r[0]-p.pivot[0])/90,0,1),a=Math.sin(flight*2.7-q*3)*(.29+thrust*.44)*q,ca=Math.cos(a),sa=Math.sin(a),x=r[0]-p.pivot[0],y=r[1]-p.pivot[1];
      v[0]=p.pivot[0]+x*ca-y*sa;v[1]=p.pivot[1]+x*sa+y*ca;
     }else if(p.rig==='feedingArm'){
      const length=Math.max(0,p.pivot[0]-r[0]),reach=cl(load*.55+attack*.9+jaw*.7,0,1),curvature=.039*(1-reach)+.0045*reach+Math.sin(flight*2.3+p.side*.7)*.0018,angle=length*curvature,c=Math.cos(angle),sn=Math.sin(angle),y=r[1]-p.pivot[1],z=r[2]-p.pivot[2],spread=.13+p.side*bank*.06+reach*.26,cs=Math.cos(spread),ss=p.side*Math.sin(spread),cx=-sn/curvature-y*sn,cy=(1-c)/curvature+y*c;

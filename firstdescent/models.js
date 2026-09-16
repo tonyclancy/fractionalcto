@@ -27,7 +27,7 @@ function buildModels(){
  m=meshBuilder();m.ellipsoid(-5,0,0,34,16,16,[105,69,153]);m.ellipsoid(-24,-5,-12,9,5,5,[240,148,255],.75);for(const side of [-1,1]){m.wedge([-20,side*8,0],[34,side*50,8],[23,side*13,-4],4,[123,72,158]);m.tube([[-12,side*10,0],[-36,side*24,-7],[-43,side*37,-4],[-16,side*33,0]],4,[180,145,198],.45);m.tube([[10,side*9,2],[35,side*15,5],[62,side*12,8],[83,side*29,2]],5,[123,80,166],1)}meshes.manta=m.faces;
 }
 buildModels();
-function rotateVertex(v,yaw,roll,pitch,age,flex){let [x,y,z]=v;if(flex){const bend=Math.max(0,x-10)*flex;y+=Math.sin(age*3-x*.07)*bend*.23;z+=Math.cos(age*2.4-x*.06)*bend*.22}const a=x*Math.cos(yaw)+z*Math.sin(yaw),b=-x*Math.sin(yaw)+z*Math.cos(yaw),c=y*Math.cos(roll)-b*Math.sin(roll),d=y*Math.sin(roll)+b*Math.cos(roll);return[a*Math.cos(pitch)-c*Math.sin(pitch),a*Math.sin(pitch)+c*Math.cos(pitch),d]}
+function rotateVertex(v,yaw,roll,pitch,age,flex){let [x,y,z]=v;if(flex){const drive=1+.75*Math.pow((1+Math.cos(age*2))*.5,5),bend=Math.max(0,x-10)*flex;y+=Math.sin(age*3-x*.07)*bend*.23*drive;z+=Math.cos(age*2.4-x*.06)*bend*.22*drive}const a=x*Math.cos(yaw)+z*Math.sin(yaw),b=-x*Math.sin(yaw)+z*Math.cos(yaw),c=y*Math.cos(roll)-b*Math.sin(roll),d=y*Math.sin(roll)+b*Math.cos(roll);return[a*Math.cos(pitch)-c*Math.sin(pitch),a*Math.sin(pitch)+c*Math.cos(pitch),d]}
 function drawModel(mesh,x,y,scale,yaw,roll,pitch,age,hit=0,rig=null){
  if(window.gpuModels){window.gpuModels.draw(mesh,ctx,x,y,scale,yaw,roll,pitch,age,hit,rig);return;}
  const faces=mesh.map(f=>{const v=f.v.map(p=>{let q=f.blink?[p[0],f.blink[0]+(p[1]-f.blink[0])*(1-.97*naturalBlink(age,f.blink[1])),p[2]]:p;if(rig==='ray')q=rayVertex(q,age);if(rig==='squid'||rig==='octopus')q=organicVertex(q,age,rig);return rotateVertex(q,yaw,roll,pitch,age,(rig==='squid'||rig==='octopus'||rig==='ray')?0:f.flex)});return{...f,v,z:v.reduce((a,p)=>a+p[2],0)/v.length}}).sort((a,b)=>b.z-a.z);
@@ -335,11 +335,11 @@ const bossLaserMeshes=bossWeaponSpecs.map((spec,sector)=>{
 function organicVertex(p,age,rig){
  const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t)},phase=age*(rig==='squid'?2.6:2);
  if(p[0]<23){const weight=smooth(-22,-4,p[0])*(1-smooth(10,23,p[0])),contraction=Math.pow((1+Math.cos(phase+(p[0]+20)*.045))*.5,4),squeeze=1-.22*weight*contraction;return[p[0]+weight*contraction*4,p[1]*squeeze,p[2]*squeeze];}
- const along=Math.max(0,p[0]-23)/67,arm=Math.atan2(p[2],p[1]),lag=phase-along*2.8+arm*.18,root=smooth(0,.4,along),bundle=1+root*(-.32*Math.pow((1+Math.cos(lag))*.5,3)+organicSpin(age).fan*.85),curl=Math.sin(lag)*along*along*18;
- return[p[0]-Math.max(0,Math.sin(lag))*root*along*12,p[1]*bundle+Math.cos(arm+.8)*curl,p[2]*bundle+Math.sin(arm+.8)*curl];
+ const along=Math.max(0,p[0]-23)/67,arm=Math.atan2(p[2],p[1]),lag=phase-along*2.8+arm*.18,root=smooth(0,.4,along),drive=1+.8*Math.pow((1+Math.cos(phase))*.5,5),bundle=1+root*(-.32*Math.pow((1+Math.cos(lag))*.5,3)+organicSpin(age).fan*.85),curl=Math.sin(lag)*along*along*26*drive;
+ return[p[0]-Math.max(0,Math.sin(lag))*root*along*19*drive,p[1]*bundle+Math.cos(arm+.8)*curl,p[2]*bundle+Math.sin(arm+.8)*curl];
 }
 
-function rayVertex(p,age){const span=Math.max(0,Math.abs(p[1])-12),wave=age*3.2-p[0]*.055;return[p[0],p[1],p[2]+Math.sin(wave)*span*.32];}
+function rayVertex(p,age){const span=Math.max(0,Math.abs(p[1])-12),wave=age*3.2-p[0]*.055,drive=1+.65*Math.pow((1+Math.cos(age*3.2))*.5,5);return[p[0],p[1],p[2]+Math.sin(wave)*span*.44*drive];}
 // Boss surface relief stays attached to the body while it turns.
 {
  for(const name of ['hiveHead','voidLeviathan']){const m=meshBuilder(),large=name==='voidLeviathan';for(let i=0;i<14;i++){const x=-12+i*(large?6:3),y=Math.sin(i*2.4)*18,z=-Math.sqrt(Math.max(20,(large?31:27)**2-y*y));m.tube([[x-4,y-3,z],[x,y,z-2],[x+5,y+4,z+1]],.8,[38,42,52]);m.ellipsoid(x,y,z-1,2.4,1.7,1.1,[155,139,120],0,12,8);}for(const side of [-1,1])m.tube([[-15,side*21,-17],[-28,side*30,-21],[-44,side*29,-23],[-51,side*18,-25]],3.8,[191,188,155]);meshes[name]=meshes[name].concat(m.faces);meshes[name].skin=true;}
