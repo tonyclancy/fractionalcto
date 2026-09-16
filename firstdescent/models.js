@@ -333,10 +333,11 @@ const bossLaserMeshes=bossWeaponSpecs.map((spec,sector)=>{
 
 // Local muscle bands contract behind a rigid head; tips trail the power stroke.
 function organicVertex(p,age,rig){
- const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t)},phase=age*(rig==='squid'?2.6:2);
+ const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t)},phase=age*(rig==='squid'?4.8:3.8);
  if(p[0]<23){const weight=smooth(-22,-4,p[0])*(1-smooth(10,23,p[0])),contraction=Math.pow((1+Math.cos(phase+(p[0]+20)*.045))*.5,4),squeeze=1-.22*weight*contraction;return[p[0]+weight*contraction*4,p[1]*squeeze,p[2]*squeeze];}
- const along=Math.max(0,p[0]-23)/67,arm=Math.atan2(p[2],p[1]),lag=phase-along*2.8+arm*.18,root=smooth(0,.4,along),drive=1+.8*Math.pow((1+Math.cos(phase))*.5,5),bundle=1+root*(-.32*Math.pow((1+Math.cos(lag))*.5,3)+organicSpin(age).fan*.85),curl=Math.sin(lag)*along*along*26*drive;
- return[p[0]-Math.max(0,Math.sin(lag))*root*along*19*drive,p[1]*bundle+Math.cos(arm+.8)*curl,p[2]*bundle+Math.sin(arm+.8)*curl];
+ const along=Math.max(0,p[0]-23)/67,arm=Math.atan2(p[2],p[1]),lag=phase-along*3.5+arm*.18,root=smooth(0,.4,along),jet=Math.pow((1+Math.cos(phase))*.5,5),release=Math.sin(lag-.65)+.32*Math.sin(2*lag-1.3),drive=1+jet*.7,bundle=1+root*(-.46*Math.pow((1+Math.cos(lag))*.5,3)+.20*Math.max(0,Math.sin(lag-.7))+organicSpin(age).fan*.55),curl=release*along*along*32*drive;
+ // A travelling recoil reaches the tips after the mantle contracts.
+ return[p[0]+root*along*(jet*9-Math.max(0,release)*24),p[1]*bundle+Math.cos(arm+.8)*curl,p[2]*bundle+Math.sin(arm+.8)*curl];
 }
 
 function rayVertex(p,age){const span=Math.max(0,Math.abs(p[1])-12),wave=age*3.2-p[0]*.055,drive=1+.65*Math.pow((1+Math.cos(age*3.2))*.5,5);return[p[0],p[1],p[2]+Math.sin(wave)*span*.44*drive];}

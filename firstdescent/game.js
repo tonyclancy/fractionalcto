@@ -82,7 +82,7 @@ function ensureGameFullscreen(){if(!nativeFullscreenElement()&&!fullscreenPanel(
 // Resume audio before fullscreen consumes the browser user activation.
 function beginDescent(){enableAudio();if(window.safariImmersion?.request(start))return;void ensureGameFullscreen();start();}
 function start(){weaponOrb={owned:false,angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:0,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
-function resetSector(){sectorBlend=null;sectorIntroLead=0;window.gpuModels?.prepare([bossDesign()?.mesh,...sectors[level].models.map(n=>meshes[n]),meshes.spore,meshes.missile,meshes.siphon,meshes.cannon,meshes.shrapnel,meshes.bone,meshes.rib,meshes.spineChip,meshes.chitinChip,meshes.orbitalRock].filter(Boolean));challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setSector(sectors[level].music);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.inv=3;saveCheckpoint();updateHUD()}
+function resetSector(){prepareSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;window.gpuModels?.prepare([bossDesign()?.mesh,...sectors[level].models.map(n=>meshes[n]),meshes.spore,meshes.missile,meshes.siphon,meshes.cannon,meshes.shrapnel,meshes.bone,meshes.rib,meshes.spineChip,meshes.chitinChip,meshes.orbitalRock].filter(Boolean));challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setSector(sectors[level].music);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.inv=3;saveCheckpoint();updateHUD()}
 function panel(title,description,label,action){$('#overlay').classList.remove('hidden','records-view','title-screen');$('#overlay').innerHTML=`<div class="intro"><div class="eyebrow mint">FIRST DESCENT / FLIGHT RECORD</div><h1 class="result-title">${title}</h1><p class="introcopy">${description}</p><button class="primary" id="panelAction">${label}<span>↗</span></button><div class="launch-caption">SCORE ${String(score).padStart(6,'0')} · SECTOR ${level+1} / ${sectors.length}</div></div>`;$('#panelAction').onclick=action;$('#panelAction').focus()}
 function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause)}else if(state==='paused'){enableAudio();const resume=()=>{state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus();updateHUD();};if(window.safariImmersion?.request(resume))return;void ensureGameFullscreen();resume()}updateHUD()}
 function end(win){if(!win&&flightRun)flightRun.deaths++;recordFlightRun(win);window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();state=win?'victory':'gameover';$('#pause').hidden=true;$('#touchControls').classList.remove('active');$('#bossbar').hidden=true;
@@ -208,11 +208,11 @@ if(boss&&boss.hp<=0){window.flightAudio?.clear();explodeBoss(boss);enemies=[];ha
 if(state!=='playing')return;if(bossDefeated){transition-=dt;if(transition<=0){if(level===sectors.length-1){end(true)}else{advanceSector()}}}hudClock+=dt;if(hudClock>=.08){hudClock=0;updateHUD()}}
 function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));background(dt);drawDreamAtmosphere();drawStructures();if(sectorBlend){window.gpuModels?.flush(ctx);drawNearField();drawSectorBlend();}if(state==='title'){drawShip(1020,320+Math.sin(world*.004)*8,3.15,true);for(let i=0;i<3;i++){ctx.strokeStyle='#88f8dd';ctx.globalAlpha=.2-i*.05;ctx.beginPath();ctx.moveTo(630-i*65,317+i*5);ctx.lineTo(790-i*20,317+i*5);ctx.stroke()}ctx.globalAlpha=1}else{for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'){ctx.save();ctx.globalAlpha*=ship.inv>0?.74+Math.sin(ship.inv*28)*.26:1;drawShip(ship.x,ship.y);ctx.restore();}drawFrontShield();drawWeaponOrb();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}
 window.gpuModels?.flush(ctx);drawExplosions(dt);if(!sectorBlend)drawNearField();const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}ctx.restore();window.gpuModels?.flush(ctx)}
-let accumulator=0,frameError=null;
-let renderScale=1,renderQuality=1.5,surfaceWidth=W,surfaceDirty=true;
+let accumulator=0,frameError=null,musicUiClock=0,sectorArtPrefetched=false;
+let renderScale=1,renderQuality=matchMedia('(pointer: coarse)').matches?1:1.5,surfaceWidth=W,surfaceDirty=true;
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{surfaceDirty=true;}).observe(canvas);
 window.addEventListener('resize',()=>{surfaceDirty=true;});
-function resizeFlightSurface(){if(surfaceDirty){surfaceWidth=canvas.getBoundingClientRect?.().width||W;surfaceDirty=false;}const width=surfaceWidth;const ratio=Math.max(1,Math.min(renderQuality,width*(window.devicePixelRatio||1)/W));if(Math.abs(renderScale-ratio)>.03||canvas.width!==Math.round(W*ratio)){renderScale=ratio;canvas.width=Math.round(W*ratio);canvas.height=Math.round(H*ratio);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';}window.flightRenderScale=renderScale;}
+function resizeFlightSurface(){if(surfaceDirty){surfaceWidth=canvas.getBoundingClientRect?.().width||W;surfaceDirty=false;}const width=surfaceWidth;const ratio=Math.max(.75,Math.min(renderQuality,width*(window.devicePixelRatio||1)/W));if(Math.abs(renderScale-ratio)>.03||canvas.width!==Math.round(W*ratio)){renderScale=ratio;canvas.width=Math.round(W*ratio);canvas.height=Math.round(H*ratio);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';}window.flightRenderScale=renderScale;}
 
 function reportFrameError(error){
  if(frameError)return;
@@ -226,9 +226,12 @@ function reportFrameError(error){
 window.addEventListener('game-render-error',event=>reportFrameError(event.detail));
 function frame(now){
  requestAnimationFrame(frame);
- const elapsed=(now-last)/1000,dt=Math.min(elapsed,.1);last=now;if(elapsed>0&&elapsed<.5)trackFrame(elapsed);
+ const elapsed=(now-last)/1000,dt=Math.min(elapsed,.1);last=now;if(!document.hidden&&state==='playing'&&elapsed>0&&elapsed<.5)trackFrame(elapsed);
  if(frameError)return;
- musicControls();
+ if(document.hidden){accumulator=0;return;}
+ musicUiClock+=dt;if(musicUiClock>=.2){musicUiClock=0;musicControls();}
+ // Fetch the following sector well before the transition, after startup.
+ if(state==='playing'&&!sectorArtPrefetched&&time>sectors[level].duration*.65){sectorArtPrefetched=true;if(sectors[level+1])prepareSectorArt(sectors[level+1]);}
  try{accumulator+=dt;while(accumulator>=1/120){captureMotion();update(1/120);accumulator-=1/120}renderSmooth(dt,accumulator*120)}catch(error){reportFrameError(error)}
 }
 window.addEventListener('keydown',e=>{if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys.add(k);if(e.repeat)return;if(k==='Enter'&&state==='title'){beginDescent();return;}if(k==='p'||k==='Escape')pause();if(k==='x')nova();if(k===' ')switchOrb()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;if(state==='playing')pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause()});
@@ -317,10 +320,34 @@ function updateChallenge(){const c=sectors[level].challenge;if(!c)return;
 // Interpolate presentation between fixed simulation ticks on high-refresh displays.
 const priorActors=new WeakMap();let priorWorld=0,priorPose=null,priorBossPose=null;
 const bossPoseFields=['turnYaw','flightPitch','flightYaw','flightBank','maneuverRoll','beamPitch','propulsionTime','propulsion','actionLoad','attackDrive','flightVX','flightVY'];
-function captureMotion(){priorWorld=world;priorPose={...flightPose};priorBossPose=boss?{actor:boss,values:Object.fromEntries(bossPoseFields.map(k=>[k,boss[k]||0]))}:null;for(const a of [ship,boss,...enemies,...shots,...hostile,...drops].filter(Boolean))priorActors.set(a,{x:a.x,y:a.y,age:a.age});}
-function renderSmooth(dt,alpha){if(state!=='playing'||!priorPose){render(dt);return;}const restore=[],savedWorld=world,savedPose={...flightPose};for(const a of [ship,boss,...enemies,...shots,...hostile,...drops].filter(Boolean)){const p=priorActors.get(a);if(!p)continue;restore.push([a,a.x,a.y,a.age]);a.x=p.x+(a.x-p.x)*alpha;a.y=p.y+(a.y-p.y)*alpha;if(Number.isFinite(a.age)&&Number.isFinite(p.age))a.age=p.age+(a.age-p.age)*alpha;}const savedBoss=priorBossPose?.actor===boss?Object.fromEntries(bossPoseFields.filter(k=>Object.prototype.hasOwnProperty.call(boss,k)).map(k=>[k,boss[k]])):null;if(savedBoss)for(const k of bossPoseFields)boss[k]=priorBossPose.values[k]+((boss[k]||0)-priorBossPose.values[k])*alpha;world=priorWorld+(world-priorWorld)*alpha;for(const key of ['pitch','yaw','roll','thrust'])flightPose[key]=priorPose[key]+(flightPose[key]-priorPose[key])*alpha;try{render(dt);}finally{world=savedWorld;Object.assign(flightPose,savedPose);if(savedBoss)for(const k of bossPoseFields){if(Object.prototype.hasOwnProperty.call(savedBoss,k))boss[k]=savedBoss[k];else delete boss[k];}for(const [a,x,y,age] of restore){a.x=x;a.y=y;if(age!==undefined)a.age=age;}}}
+// Retain interpolation snapshots rather than allocating an object per actor
+// at 120 Hz. The WeakMap releases snapshots when their actors leave play.
+const poseKeys=['pitch','yaw','roll','thrust'],restoreActors=[],restoreValues=[],savedPose={},savedBossValues=[],savedBossHas=[];
+const actorGroups=[];
+function motionGroups(){actorGroups[0]=enemies;actorGroups[1]=shots;actorGroups[2]=hostile;actorGroups[3]=drops;return actorGroups;}
+function captureActor(a){if(!a)return;let p=priorActors.get(a);if(!p){p={};priorActors.set(a,p);}p.x=a.x;p.y=a.y;p.age=a.age;}
+function captureMotion(){
+ priorWorld=world;if(!priorPose)priorPose={};for(const k of poseKeys)priorPose[k]=flightPose[k];
+ if(boss){if(!priorBossPose)priorBossPose={actor:null,values:{}};priorBossPose.actor=boss;for(const k of bossPoseFields)priorBossPose.values[k]=boss[k]||0;}else if(priorBossPose)priorBossPose.actor=null;
+ captureActor(ship);captureActor(boss);for(const group of motionGroups())for(const a of group)captureActor(a);
+}
+function renderSmooth(dt,alpha){
+ if(state!=='playing'||!priorPose){render(dt);return;}
+ let count=0;const savedWorld=world;
+ const interpolate=a=>{if(!a)return;const p=priorActors.get(a);if(!p)return;restoreActors[count]=a;const i=count++*3;restoreValues[i]=a.x;restoreValues[i+1]=a.y;restoreValues[i+2]=a.age;a.x=p.x+(a.x-p.x)*alpha;a.y=p.y+(a.y-p.y)*alpha;if(Number.isFinite(a.age)&&Number.isFinite(p.age))a.age=p.age+(a.age-p.age)*alpha;};
+ interpolate(ship);interpolate(boss);for(const group of motionGroups())for(const a of group)interpolate(a);
+ const interpolateBoss=priorBossPose?.actor===boss&&boss;
+ if(interpolateBoss)for(let i=0;i<bossPoseFields.length;i++){const k=bossPoseFields[i];savedBossHas[i]=Object.prototype.hasOwnProperty.call(boss,k);savedBossValues[i]=boss[k];boss[k]=priorBossPose.values[k]+((boss[k]||0)-priorBossPose.values[k])*alpha;}
+ world=priorWorld+(world-priorWorld)*alpha;for(const k of poseKeys){savedPose[k]=flightPose[k];flightPose[k]=priorPose[k]+(flightPose[k]-priorPose[k])*alpha;}
+ try{render(dt);}finally{
+  world=savedWorld;for(const k of poseKeys)flightPose[k]=savedPose[k];
+  if(interpolateBoss)for(let i=0;i<bossPoseFields.length;i++){const k=bossPoseFields[i];if(savedBossHas[i])boss[k]=savedBossValues[i];else delete boss[k];}
+  for(let i=0;i<count;i++){const a=restoreActors[i],j=i*3;a.x=restoreValues[j];a.y=restoreValues[j+1];if(restoreValues[j+2]!==undefined)a.age=restoreValues[j+2];}
+  restoreActors.length=0;restoreValues.length=0;
+ }
+}
 
-let frameReportTicks=0;const frameSamples=[];function trackFrame(dt){frameSamples.push(dt*1000);if(frameSamples.length>120)frameSamples.shift();if(frameSamples.length===120&&++frameReportTicks%30===0){const sorted=frameSamples.slice().sort((a,b)=>a-b);window.flightPerformance={fps:Math.round(1000/(frameSamples.reduce((a,b)=>a+b,0)/120)),p95:Math.round(sorted[114]),resolution:renderScale};if(window.flightPerformance.fps<53&&renderQuality>1){renderQuality=Math.max(1,renderQuality-.25);frameSamples.length=0;}}}
+let frameReportTicks=0;const frameSamples=[];function trackFrame(dt){frameSamples.push(dt*1000);if(frameSamples.length>120)frameSamples.shift();if(frameSamples.length===120&&++frameReportTicks%30===0){const sorted=frameSamples.slice().sort((a,b)=>a-b);window.flightPerformance={fps:Math.round(1000/(frameSamples.reduce((a,b)=>a+b,0)/120)),p95:Math.round(sorted[114]),resolution:renderScale};if(window.flightPerformance.fps<53&&renderQuality>.75){renderQuality=Math.max(.75,renderQuality-.25);frameSamples.length=0;}}}
 
 // iPhone browser tabs cannot hide Safari chrome. Home Screen web apps can.
 const homeScreenMode=window.navigator?.standalone||matchMedia('(display-mode: standalone)').matches;

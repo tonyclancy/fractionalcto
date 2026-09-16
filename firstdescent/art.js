@@ -1,8 +1,17 @@
 /* Painted scenery and sprite artwork, with procedural animation and combat effects. */
-const art={};
-for(const [key,file] of Object.entries({reefObstacle:'obstacle-reef.png',stormObstacle:'obstacle-storm.png',coreObstacle:'obstacle-core.png',colonyObstacle:'obstacle-colony.png',carrierObstacle:'obstacle-carrier.png',derelictObstacle:'obstacle-derelict.png',space:'space-panorama.png',carrier:'carrier-panorama.png',abyss:'abyss-panorama.png',reef:'reef-descent.png',storm:'storm-ascent.png',core:'core-panorama.png',enemies:'enemies.png',bosses:'bosses.png'})){
- const img=new Image();if(key.endsWith('Obstacle'))img.onload=()=>{const probe=document.createElement('canvas');probe.width=img.naturalWidth;probe.height=img.naturalHeight;const c=probe.getContext('2d');c.drawImage(img,0,0);const data=c.getImageData(0,0,probe.width,probe.height).data;let left=probe.width,top=probe.height,right=0,bottom=0;for(let y=0;y<probe.height;y++)for(let x=0;x<probe.width;x++)if(data[(y*probe.width+x)*4+3]>180){left=Math.min(left,x);top=Math.min(top,y);right=Math.max(right,x);bottom=Math.max(bottom,y)}img.solidCrop={x:left,y:top,w:right-left+1,h:bottom-top+1}};img.src='assets/'+file;art[key]=img;
+const art={},artFiles={"reefObstacle":"obstacle-reef.webp","stormObstacle":"obstacle-storm.webp","coreObstacle":"obstacle-core.webp","colonyObstacle":"obstacle-colony.webp","carrierObstacle":"obstacle-carrier.webp","derelictObstacle":"obstacle-derelict.webp","space":"space-panorama.webp","carrier":"carrier-panorama.webp","abyss":"abyss-panorama.webp","reef":"reef-descent.webp","storm":"storm-ascent.webp","core":"core-panorama.webp"};
+const artCrops={"reefObstacle":{"x":62,"y":24,"w":920,"h":1485},"stormObstacle":{"x":141,"y":14,"w":748,"h":1502},"coreObstacle":{"x":51,"y":6,"w":964,"h":1519},"colonyObstacle":{"x":260,"y":5,"w":509,"h":1525},"carrierObstacle":{"x":230,"y":2,"w":559,"h":1526},"derelictObstacle":{"x":255,"y":4,"w":530,"h":1527}};
+function loadArt(key){
+ if(art[key]||!artFiles[key])return art[key];
+ const img=new Image();img.decoding='async';if(artCrops[key])img.solidCrop=artCrops[key];art[key]=img;img.src='assets/'+artFiles[key];return img;
 }
+function prepareSectorArt(definition){
+ const theme={verdant:'space',forge:'carrier',abyss:'abyss',reef:'reef',storm:'storm',core:'core'};
+ loadArt(definition.background||theme[definition.theme]||'space');
+ loadArt(definition.obstacleArt||({verdant:'colonyObstacle',forge:'carrierObstacle',abyss:'derelictObstacle'}[definition.theme]||definition.theme+'Obstacle'));
+}
+// The title and opening sector share one image; later sectors load on demand.
+loadArt('space');
 let muzzleFlash=0,viewY=0;
 let flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};
 const lootColors={orb:'#9cf6ff',speed:'#67dfff',companion:'#c8a1ff',power:'#ffcf78',helix:'#c899ff',wave:'#6effd9',missile:'#ffab66',beam:'#7cbdff',spread:'#ffd17a',frontShield:'#80fff1',shield:'#79dfff',repair:'#8dffa3',nova:'#fff1a2'};
@@ -71,7 +80,7 @@ function drawFrontShield(){if(!(ship.frontShield>0))return;const p=frontShieldPo
 
 function enemyKinematics(e,dt){
  if(e.guardian&&boss){e.age+=dt;const a=e.age*.9+e.orbit;const u=passEase(Math.min(1,e.age/1.2)),x=boss.x+Math.cos(a)*155,y=boss.y+Math.sin(a)*130;e.x=(e.emergeX??x)+(x-(e.emergeX??x))*u;e.y=(e.emergeY??y)+(y-(e.emergeY??y))*u;e.travelYaw=Math.sin(a)*.35;e.travelPitch=Math.cos(a)*.18;return;}
- if(e.verticalTravel){e.age+=dt;const speed=e.speed*.78*(1+.1*Math.sin(e.age*2.2+e.phase));e.y+=e.verticalDirection*speed*dt;const desired=enemyRouteX(e,e.baseX+Math.sin(e.age*.8+e.phase)*42);e.routeX+=clamp((desired-e.routeX)*(1-Math.exp(-dt*6)),-260*dt,260*dt);e.x=e.routeX;e.travelPitch=-e.verticalDirection*.25+Math.sin(e.age*.7)*.06;e.travelYaw=(e.direction===1?Math.PI:0)+Math.sin(e.age*.8)*.12;e.depth=1;e.stroke=(1+Math.cos(e.age*2.6))*.5;return;}
+ if(e.verticalTravel){e.age+=dt;const organic=e.type===1||e.type===3,frequency=e.type===1?(themeIndex()===0?4.8:3.2):(themeIndex()===2?9:3.8),stroke=Math.pow((1+Math.cos((e.age+e.phase)*frequency))*.5,5);if(organic&&stroke>.65&&(e.stroke??0)<=.65)window.flightAudio?.swim(e);const speed=e.speed*(organic?.62+stroke*.65:.78*(1+.1*Math.sin(e.age*2.2+e.phase)));e.y+=e.verticalDirection*speed*dt;const desired=enemyRouteX(e,e.baseX+Math.sin(e.age*.8+e.phase)*42);e.routeX+=clamp((desired-e.routeX)*(1-Math.exp(-dt*6)),-260*dt,260*dt);e.x=e.routeX;e.travelPitch=-e.verticalDirection*.25+Math.sin(e.age*.7)*.06;e.travelYaw=(e.direction===1?Math.PI:0)+Math.sin(e.age*.8)*.12;e.depth=1;e.stroke=stroke;return;}
  if(e.sentry){e.age+=dt;e.x=W+210-(time-e.anchorAt)*SCROLL_SPEED;const gate=obstacles.find(o=>o.shutters&&o.at===e.anchorAt);if(gate){const r=obstacleSolids(gate)[0];if(sectors[level].scrollAxis){e.x=r.side==='left'?r.x+r.w+30:r.x-30;e.y=r.y+r.h/2;}else e.y=r.h+32;}e.travelPitch=e.travelYaw=0;return;}
  if(e.satellite&&e.mother){
   if(e.mother.hp<=0){e.mother=null;e.base=e.y}
@@ -85,7 +94,7 @@ function enemyKinematics(e,dt){
   }
  }
 
- e.age+=dt;const organic=e.type===1||e.type===3,frequency=e.type===1?2.6:2,cycle=(e.age+e.phase)*frequency;
+ e.age+=dt;const organic=e.type===1||e.type===3,frequency=e.type===1?(themeIndex()===0?4.8:3.2):(themeIndex()===2?9:3.8),cycle=(e.age+e.phase)*frequency;
  // A brief contraction generates thrust, followed by a longer relaxed glide.
  const stroke=Math.pow((1+Math.cos(cycle))*.5,5);if(organic&&stroke>.65&&(e.stroke??0)<=.65)window.flightAudio?.swim(e);e.stroke=stroke;
  if(e.brood){
@@ -103,7 +112,7 @@ function enemyKinematics(e,dt){
   if(routeAge>=14.2)e.x=-180-(routeAge-14.2)*240;
   return;
  }
- const thrust=themeIndex()===1?(e.type===0?1+.5*Math.pow(Math.max(0,Math.sin(e.age*2+e.phase)),4):.8):themeIndex()===2?(e.type===1?1.05+.12*Math.cos((e.age+e.phase)*3.2):1.1+.22*Math.pow(Math.max(0,Math.sin((e.age+e.phase)*9)),2)):organic?.55+stroke*1.35:1;
+ const thrust=themeIndex()===1?(e.type===0?1+.5*Math.pow(Math.max(0,Math.sin(e.age*2+e.phase)),4):.8):themeIndex()===2?(e.type===1?1.05+.12*Math.cos((e.age+e.phase)*3.2):1.1+.22*Math.pow(Math.max(0,Math.sin((e.age+e.phase)*9)),2)):organic?.52+stroke*1.48:1;
  const desired=e.speed*thrust;e.swimSpeed=(e.swimSpeed??e.speed)+(desired-(e.swimSpeed??e.speed))*(1-Math.exp(-dt*7));e.x+=(e.direction||-1)*e.swimSpeed*dt;
  const oldY=e.y,turnRate=e.brood?1.05:organic?.45:e.type===2?.35:.7,amplitude=e.brood?112:organic?34:e.type===2?10:30;
  const naturalY=themeIndex()===1?e.base+(e.type===0?Math.sin(e.age*1.7+e.phase)*52:Math.sin(e.age*.6+e.phase)*18):themeIndex()===2?e.base+(Math.sin(e.age*(e.type===1?1.3:1.8)+e.phase)-Math.sin(e.phase))*(e.type===1?65:48):e.base+(Math.sin(e.age*turnRate+e.phase)-Math.sin(e.phase))*amplitude;
