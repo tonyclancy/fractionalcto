@@ -433,7 +433,7 @@ function drawBossArms(b){if(bossIndex()!==0)return;
 function drawSnakeLink(front,back,width,age,hit){const dx=back.x-front.x,dy=back.y-front.y;ctx.save();ctx.translate((front.x+back.x)/2,(front.y+back.y)/2);ctx.rotate(Math.atan2(dy,dx));ctx.scale(Math.hypot(dx,dy)/40,width);drawModel(meshes.snakeBody,0,0,1,0,0,0,age,hit);ctx.restore()}
 
 // Brisk axial rolls with a brief recovery; attitude changes never alter travel speed.
-function organicSpin(age){const cycle=((age%3.6)+3.6)%3.6,t=clamp((cycle-.6)/.75,0,1),ease=t*t*(3-2*t);return{yaw:Math.sin(age*3.7)*.10+Math.sin(age*8.1)*.035,pitch:Math.sin(age*5.3)*.055+Math.sin(age*9.7)*.018,roll:ease*TAU+Math.sin(age*4.1)*.10+Math.sin(age*7.3)*.035,fan:Math.sin(t*Math.PI)**2}}
+function organicSpin(age){const cycle=((age%3.6)+3.6)%3.6,t=clamp((cycle-.6)/.75,0,1),ease=t*t*(3-2*t);return{yaw:Math.sin(age*3.7)*.10+Math.sin(age*8.1)*.035,pitch:Math.sin(age*5.3)*.055+Math.sin(age*9.7)*.018,roll:ease*TAU+Math.sin(age*4.1)*.10+Math.sin(age*7.3)*.035,fan:1-organicTailTuck(age),tuck:organicTailTuck(age)}}
 
 function drawWeatheredPanels(width,y,height,sector){
  ctx.save();ctx.beginPath();ctx.rect(0,y,width,height);ctx.clip();

@@ -27,7 +27,12 @@ function buildModels(){
  m=meshBuilder();m.ellipsoid(-5,0,0,34,16,16,[105,69,153]);m.ellipsoid(-24,-5,-12,9,5,5,[240,148,255],.75);for(const side of [-1,1]){m.wedge([-20,side*8,0],[34,side*50,8],[23,side*13,-4],4,[123,72,158]);m.tube([[-12,side*10,0],[-36,side*24,-7],[-43,side*37,-4],[-16,side*33,0]],4,[180,145,198],.45);m.tube([[10,side*9,2],[35,side*15,5],[62,side*12,8],[83,side*29,2]],5,[123,80,166],1)}meshes.manta=m.faces;
 }
 buildModels();
-function rotateVertex(v,yaw,roll,pitch,age,flex){let [x,y,z]=v;if(flex){const drive=1+.75*Math.pow((1+Math.cos(age*2))*.5,5),bend=Math.max(0,x-10)*flex;y+=Math.sin(age*3-x*.07)*bend*.23*drive;z+=Math.cos(age*2.4-x*.06)*bend*.22*drive}const a=x*Math.cos(yaw)+z*Math.sin(yaw),b=-x*Math.sin(yaw)+z*Math.cos(yaw),c=y*Math.cos(roll)-b*Math.sin(roll),d=y*Math.sin(roll)+b*Math.cos(roll);return[a*Math.cos(pitch)-c*Math.sin(pitch),a*Math.sin(pitch)+c*Math.cos(pitch),d]}
+// Gather before the roll; hold tightly through it, then reopen over 450 ms.
+function organicTailTuck(age){
+ const cycle=((age%3.6)+3.6)%3.6,smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)};
+ return smooth((cycle-.35)/.25)*(1-smooth((cycle-1.35)/.45));
+}
+function rotateVertex(v,yaw,roll,pitch,age,flex){let [x,y,z]=v;if(flex){const tuck=organicTailTuck(age),root=Math.max(0,Math.min(1,(x-10)/45)),gather=1-.75*tuck*root;y*=gather;z*=gather;const drive=1+.75*Math.pow((1+Math.cos(age*2))*.5,5),bend=Math.max(0,x-10)*flex*(1-.9*tuck);y+=Math.sin(age*3-x*.07)*bend*.23*drive;z+=Math.cos(age*2.4-x*.06)*bend*.22*drive}const a=x*Math.cos(yaw)+z*Math.sin(yaw),b=-x*Math.sin(yaw)+z*Math.cos(yaw),c=y*Math.cos(roll)-b*Math.sin(roll),d=y*Math.sin(roll)+b*Math.cos(roll);return[a*Math.cos(pitch)-c*Math.sin(pitch),a*Math.sin(pitch)+c*Math.cos(pitch),d]}
 function drawModel(mesh,x,y,scale,yaw,roll,pitch,age,hit=0,rig=null){
  if(window.gpuModels){window.gpuModels.draw(mesh,ctx,x,y,scale,yaw,roll,pitch,age,hit,rig);return;}
  const faces=mesh.map(f=>{const v=f.v.map(p=>{let q=f.blink?[p[0],f.blink[0]+(p[1]-f.blink[0])*(1-.97*naturalBlink(age,f.blink[1])),p[2]]:p;if(rig==='ray')q=rayVertex(q,age);if(rig==='squid'||rig==='octopus')q=organicVertex(q,age,rig);return rotateVertex(q,yaw,roll,pitch,age,(rig==='squid'||rig==='octopus'||rig==='ray')?0:f.flex)});return{...f,v,z:v.reduce((a,p)=>a+p[2],0)/v.length}}).sort((a,b)=>b.z-a.z);
@@ -335,9 +340,9 @@ const bossLaserMeshes=bossWeaponSpecs.map((spec,sector)=>{
 function organicVertex(p,age,rig){
  const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t)},phase=age*(rig==='squid'?4.8:3.8);
  if(p[0]<23){const weight=smooth(-22,-4,p[0])*(1-smooth(10,23,p[0])),contraction=Math.pow((1+Math.cos(phase+(p[0]+20)*.045))*.5,4),squeeze=1-.22*weight*contraction;return[p[0]+weight*contraction*4,p[1]*squeeze,p[2]*squeeze];}
- const along=Math.max(0,p[0]-23)/67,arm=Math.atan2(p[2],p[1]),lag=phase-along*3.5+arm*.18,root=smooth(0,.4,along),jet=Math.pow((1+Math.cos(phase))*.5,5),release=Math.sin(lag-.65)+.32*Math.sin(2*lag-1.3),drive=1+jet*.7,bundle=1+root*(-.46*Math.pow((1+Math.cos(lag))*.5,3)+.20*Math.max(0,Math.sin(lag-.7))+organicSpin(age).fan*.55),curl=release*along*along*32*drive;
+ const along=Math.max(0,p[0]-23)/67,arm=Math.atan2(p[2],p[1]),lag=phase-along*3.5+arm*.18,root=smooth(0,.4,along),jet=Math.pow((1+Math.cos(phase))*.5,5),release=Math.sin(lag-.65)+.32*Math.sin(2*lag-1.3),drive=1+jet*.7,tuck=organicTailTuck(age),bundle=(1+root*(-.46*Math.pow((1+Math.cos(lag))*.5,3)+.20*Math.max(0,Math.sin(lag-.7))+(1-tuck)*.30))*(1-.75*tuck*root),curl=release*along*along*32*drive*(1-.9*tuck);
  // A travelling recoil reaches the tips after the mantle contracts.
- return[p[0]+root*along*(jet*9-Math.max(0,release)*24),p[1]*bundle+Math.cos(arm+.8+root*.48*Math.sin(phase-along*1.8))*curl,p[2]*bundle+Math.sin(arm+.8+root*.48*Math.sin(phase-along*1.8))*curl];
+ return[p[0]+root*along*(jet*9-Math.max(0,release)*24),p[1]*bundle+Math.cos(arm+.8+root*.48*Math.sin(phase-along*1.8)+tuck*along*3)*curl,p[2]*bundle+Math.sin(arm+.8+root*.48*Math.sin(phase-along*1.8)+tuck*along*3)*curl];
 }
 
 function rayVertex(p,age){const span=Math.max(0,Math.abs(p[1])-12),wave=age*3.2-p[0]*.055,drive=1+.65*Math.pow((1+Math.cos(age*3.2))*.5,5);return[p[0],p[1],p[2]+Math.sin(wave)*span*.44*drive];}
