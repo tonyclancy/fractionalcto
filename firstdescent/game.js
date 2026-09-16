@@ -2,7 +2,7 @@
 const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d'),W=1440,H=760;
 const $=s=>document.querySelector(s),TAU=Math.PI*2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rand=(a,b)=>a+Math.random()*(b-a);
 const titleMarkup=$('#overlay').innerHTML;
-function showTitleScreen(){state='title';$('#overlay').className='overlay title-screen';$('#overlay').innerHTML=titleMarkup;$('#launch').onclick=start;const music=$('#introMusic');if(music)music.onclick=()=>$('#music').onclick();window.flightAudio?.setTitle(!document.hidden);musicControls();}
+function showTitleScreen(){state='title';$('#overlay').className='overlay title-screen';$('#overlay').innerHTML=titleMarkup;$('#launch').onclick=beginDescent;const music=$('#introMusic');if(music)music.onclick=()=>$('#music').onclick();window.flightAudio?.setTitle(!document.hidden);musicControls();}
 const sectors=campaign;
 const themeIndex=()=>LEVEL_THEMES[sectors[level].theme],bossIndex=()=>BOSS_KINDS[sectors[level].bossKind],difficulty=()=>sectors[level].difficulty;
 const currentSection=()=>sectors[level].checkpoints.reduce((section,at,i)=>time>=at?i:section,0);
@@ -48,7 +48,7 @@ function retrySection(){
  waveIndex=waveTimes[level].filter(at=>at<time).length;gateIndex=gatePlans[level].filter(g=>g.at<time).length;supplyIndex=supplyPlans[level].filter(d=>d.at<time).length;
  obstacles=gatePlans[level].slice(0,gateIndex).map((g,id)=>({...g,id,x:W+100-(time-g.at)*SCROLL_SPEED,w:g.width||82+level*8})).filter(o=>o.x+o.w>-30);
  ship={x:210,y:380,vx:0,vy:0,hp:5,inv:3,shield:0,frontShield:0,frontFlash:0};
- flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};keys.clear();pointer=null;lastTouchTap=null;shake=flash=0;accumulator=0;companionClock=0;
+ flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;shake=flash=0;accumulator=0;companionClock=0;
  // Same two recovery items, in reachable open space, on every retry.
  placeCheckpointRecovery();
  state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();
@@ -59,7 +59,7 @@ function bossDamage(amount){return amount/((1+Math.max(0,power-1)*.09+companion*
 const waveTimes=sectors.map(s=>s.waves),gatePlans=sectors.map(s=>s.obstacles),supplyPlans=sectors.map(s=>s.supplies);
 const SCROLL_SPEED=100;
 const weaponNames={pulse:'PULSE',spread:'STARFIRE',beam:'ION LANCE',helix:'HELIX',wave:'PHOTON WAVE',missile:'SEEKER'};
-let ship={x:210,y:380,hp:5,inv:0,shield:0,frontShield:0,frontFlash:0};const keys=new Set();let pointer=null,lastTouchTap=null;
+let ship={x:210,y:380,hp:5,inv:0,shield:0,frontShield:0,frontFlash:0};const keys=new Set();let pointer=null,lastTouchTap=null,pinchGesture=null;const touchContacts=new Map();
 const stars=Array.from({length:190},()=>({x:rand(0,W),y:rand(0,H),z:rand(.15,1.1),r:rand(.4,1.8)}));
 const rocks=Array.from({length:16},(_,i)=>({x:rand(0,W+500),y:i%2?rand(650,860):rand(-100,80),r:rand(45,130),seed:rand(0,10),z:rand(.2,.7)}));
 function tone(freq=440,duration=.06,type='sine',vol=.04,slide=0){if(sound)window.flightAudio?.note({frequency:freq,end:Math.max(25,freq+slide),duration,type,gain:vol})}
@@ -76,10 +76,12 @@ function drawBoss(){if(boss)drawMenace(boss)}
 function burst(x,y,color,count=22){for(let i=0;i<count;i++){const a=rand(0,TAU),v=rand(45,320);particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rand(.2,.8),max:.8,c:color,r:rand(1,4)})}rings.push({x,y,r:8,life:.5,c:color})}
 function announce(title,sub=''){const el=$('#announcement');el.textContent=title;if(sub){let small=document.createElement('small');small.textContent=sub;el.append(small)}el.className=/^SECTOR|^FIRST CONTACT/.test(title)?'':'compact';el.style.opacity=1;annTimer=/^SECTOR/.test(title)?2.4:1.8}
 function updateHUD(){$('#score').textContent=String(score).padStart(6,'0');$('#sectorNum').textContent=`${String(level+1).padStart(2,'0')} / ${String(sectors.length).padStart(2,'0')}`;$('#sectorName').textContent=sectors[level].stratum+' · '+sectors[level].short;$('#hearts').textContent='▰ '.repeat(Math.max(0,ship.hp))+'▱ '.repeat(5-Math.max(0,ship.hp));$('#weapon').textContent=`${weaponNames[weapon]} / MK ${['I','II','III'][power-1]}${ship.shield>0?' + SHIELD':''}`;$('#loadout').textContent=`BOOST ${speedLevel}/3 · DRONES ${companion}/2${ship.frontShield?' · GUARD '+ship.frontShield:''}${weaponOrb.owned?' · ORB '+(weaponOrb.target===0?'FRONT':'REAR'):''}`;$('#novas').textContent='● '.repeat(novas)+'○ '.repeat(3-novas);$('#progressLabel').textContent=`${sectors[level].scrollAxis==='down'?'DESCENT · ':sectors[level].scrollAxis==='up'?'ASCENT · ':''}SECTION ${currentSection()+1} / 4`;$('#progress').style.width=Math.min(100,time/sectors[level].duration*100)+'%';$('#status').textContent=state==='playing'?(boss?'BOSS ENGAGED':`SECTION ${currentSection()+1} / 4`):state==='title'?'AWAITING PILOT':state.toUpperCase();if(boss){$('#bosshealth').style.width=Math.max(0,boss.hp/boss.max*100)+'%';const hint=$('#bosstactic');if(hint)hint.textContent=typeof isCapitalSiege==='function'&&isCapitalSiege(boss)?capitalSiegeHint(boss):typeof bossEncounterHint==='function'?bossEncounterHint(boss):boss.exposed>0?'EXPOSED · ATTACK NOW':encounterRules[sectors[level].bossKind].hint;}}
-function start(){weaponOrb={owned:false,angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:0,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
+function ensureGameFullscreen(){if(!document.fullscreenElement&&!$('.stage').classList.contains('expanded'))return toggleGameFullscreen();return requestLandscape();}
+function beginDescent(){void ensureGameFullscreen();start();}
+function start(){weaponOrb={owned:false,angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:0,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
 function resetSector(){sectorBlend=null;sectorIntroLead=0;window.gpuModels?.prepare([bossDesign()?.mesh,...sectors[level].models.map(n=>meshes[n]),meshes.spore,meshes.missile,meshes.siphon,meshes.cannon,meshes.shrapnel,meshes.bone,meshes.rib,meshes.spineChip,meshes.chitinChip,meshes.orbitalRock].filter(Boolean));challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setSector(sectors[level].music);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.inv=3;saveCheckpoint();updateHUD()}
 function panel(title,description,label,action){$('#overlay').classList.remove('hidden','records-view','title-screen');$('#overlay').innerHTML=`<div class="intro"><div class="eyebrow mint">FIRST DESCENT / FLIGHT RECORD</div><h1 class="result-title">${title}</h1><p class="introcopy">${description}</p><button class="primary" id="panelAction">${label}<span>↗</span></button><div class="launch-caption">SCORE ${String(score).padStart(6,'0')} · SECTOR ${level+1} / ${sectors.length}</div></div>`;$('#panelAction').onclick=action;$('#panelAction').focus()}
-function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause)}else if(state==='paused'){state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus()}updateHUD()}
+function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause)}else if(state==='paused'){void ensureGameFullscreen();state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus()}updateHUD()}
 function end(win){if(!win&&flightRun)flightRun.deaths++;recordFlightRun(win);window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();state=win?'victory':'gameover';$('#pause').hidden=true;$('#touchControls').classList.remove('active');$('#bossbar').hidden=true;
  panel(win?'GALAXY<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',win?`${sectors.length} sectors cleared. Your expedition made it home.`:`Restart sector ${level+1}, section ${checkpoint.section+1} of 4.<br>Your checkpoint loadout returns, with power and shield pickups ahead.`,win?'FLY AGAIN':'RETRY SECTION',win?start:retrySection);updateHUD()}
 function makeShot(x,y,kind,angle=0,side=0){
@@ -129,7 +131,7 @@ function updateBossWeapon(b,dt){
  const origin=firingRig(b,true);a.heading=a.target?Math.atan2(a.target.y-origin.muzzleY,a.target.x-origin.muzzleX):a.heading;b.fireHeading=a.heading+offset;
  if(a.age<a.next)return;
  const r=firingRig(b,true);if(r.organic){const mouth=organicMouth(b);r.muzzleX=mouth.x;r.muzzleY=mouth.y;}else if(!bossDesign()&&bossIndex()===1&&imageReady(art.bossAtlas)){const gun=openingBossMount(b,a.index%2?'lower':'upper');r.muzzleX=gun.x;r.muzzleY=gun.y;}const speed=bossIndex()===0?560:bossIndex()===1?690:620,angle=b.fireHeading;
- hostile.push({x:r.muzzleX,y:r.muzzleY,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:bossIndex()===0?13:10,c:sectors[level].color,kind:r.organic?organicShotKind():'bolt',launchAngle:angle,scale:bossIndex()===0?1.8:1.5,bossShot:true});
+ hostile.push({x:r.muzzleX,y:r.muzzleY,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:r.organic?7:8,c:sectors[level].color,kind:r.organic?organicShotKind():'bolt',launchAngle:angle,scale:r.organic?.85:.9,bossShot:true});
  b.muzzle=.16;window.flightAudio?.shot(bossIndex()===1?'bolt':'spore',b.x,true);a.index++;a.next+=interval*(r.organic?.85:1);
  if(a.index>=count){b.attack=null;b.fireHeading=null;b.shoot=(b.hp/b.max<.5?1.15:1.8)*(r.organic?.7:1)}
 }
@@ -213,7 +215,7 @@ function reportFrameError(error){
  if(frameError)return;
  frameError={message:String(error?.message||error),stack:String(error?.stack||''),sector:level+1,time:Number(time.toFixed(2))};
  console.error('First Descent flight interrupted',frameError);
- state='error';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;accumulator=0;
+ state='error';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;accumulator=0;
  $('#pause').hidden=true;$('#touchControls').classList.remove('active');
  panel('FLIGHT<br><em>INTERRUPTED</em>','The game encountered a graphics or simulation error.<br>Reload to restore the mission.','RELOAD GAME',()=>location.reload());
  const detail=document.createElement('p');detail.className='launch-caption';detail.textContent=`Sector ${frameError.sector} · ${frameError.time}s · ${frameError.message}`;$('#overlay').append(detail);
@@ -226,7 +228,7 @@ function frame(now){
  musicControls();
  try{accumulator+=dt;while(accumulator>=1/120){captureMotion();update(1/120);accumulator-=1/120}renderSmooth(dt,accumulator*120)}catch(error){reportFrameError(error)}
 }
-window.addEventListener('keydown',e=>{if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys.add(k);if(e.repeat)return;if(k==='Enter'&&state==='title'){start();return;}if(k==='p'||k==='Escape')pause();if(k==='x')nova();if(k===' ')switchOrb()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{keys.clear();pointer=null;lastTouchTap=null;if(state==='playing')pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause()});
+window.addEventListener('keydown',e=>{if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys.add(k);if(e.repeat)return;if(k==='Enter'&&state==='title'){beginDescent();return;}if(k==='p'||k==='Escape')pause();if(k==='x')nova();if(k===' ')switchOrb()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;if(state==='playing')pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause()});
 // Relative dragging preserves the finger-to-ship offset. A stationary finger
 // is neutral, and lifting/repositioning never attracts the ship to the contact.
 function setPointer(e){
@@ -241,6 +243,7 @@ function setPointer(e){
  }else{pointer.x=(e.clientX-r.left)/r.width*W;pointer.y=(e.clientY-r.top)/r.height*H;}
 }
 function releasePointer(e,tap=false){
+ touchContacts.delete(e.pointerId);if(touchContacts.size<2)pinchGesture=null;
  if(!pointer||e.pointerId!==pointer.id)return;
  const p=pointer,elapsed=e.timeStamp-p.started;
  if(tap&&p.relative&&!p.dragged&&elapsed>=0&&elapsed<=230&&state==='playing'){
@@ -250,18 +253,32 @@ function releasePointer(e,tap=false){
  pointer=null;
 }
 canvas.addEventListener('pointerdown',e=>{
- if(state!=='playing'||pointer)return;
+ if(state!=='playing')return;
+ if(e.pointerType==='touch'){
+  touchContacts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(touchContacts.size===2){const [a,b]=[...touchContacts.values()],distance=Math.hypot(a.x-b.x,a.y-b.y);if(distance>=24&&distance<=260)pinchGesture={distance};}
+ }
+ if(pointer)return;
  const relative=e.pointerType==='touch'||e.pointerType==='pen';
  pointer={id:e.pointerId,relative,started:e.timeStamp,startX:e.clientX,startY:e.clientY,dragged:false,lastClientX:e.clientX,lastClientY:e.clientY,moveX:0,moveY:0};
  canvas.setPointerCapture(e.pointerId);setPointer(e);
 });
-canvas.addEventListener('pointermove',setPointer);
+canvas.addEventListener('pointermove',e=>{
+ if(touchContacts.has(e.pointerId))touchContacts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pinchGesture&&touchContacts.size===2){
+  const [a,b]=[...touchContacts.values()],distance=Math.hypot(a.x-b.x,a.y-b.y),change=Math.abs(distance-pinchGesture.distance);
+  if(change>Math.max(24,pinchGesture.distance*.22)&&state==='playing')pause();
+  return;
+ }
+ setPointer(e);
+});
 canvas.addEventListener('pointerup',e=>releasePointer(e,true));canvas.addEventListener('pointercancel',releasePointer);canvas.addEventListener('lostpointercapture',releasePointer);
-$('#launch').onclick=start;$('#pause').onclick=pause;$('#novaTouch').onclick=nova;$('#orbTouch').onclick=switchOrb;$('#sound').onclick=()=>{sound=!sound;enableAudio();$('#sound').textContent=sound?'SFX ON':'SFX OFF';$('#sound').setAttribute('aria-label',sound?'Mute sound effects':'Enable sound effects');if(sound){if(state!=='title')tone(660,.12,'sine',.05)}};async function toggleGameFullscreen(){
+$('#launch').onclick=beginDescent;$('#pause').onclick=pause;$('#novaTouch').onclick=nova;$('#orbTouch').onclick=switchOrb;$('#sound').onclick=()=>{sound=!sound;enableAudio();$('#sound').textContent=sound?'SFX ON':'SFX OFF';$('#sound').setAttribute('aria-label',sound?'Mute sound effects':'Enable sound effects');if(sound){if(state!=='title')tone(660,.12,'sine',.05)}};async function requestLandscape(){try{await window.screen?.orientation?.lock?.('landscape');}catch{ /* Phones without orientation locking show the rotate hint. */ }}
+async function toggleGameFullscreen(){
  const stage=$('.stage');
- if(stage.classList.contains('expanded')){stage.classList.remove('expanded');document.body?.classList.remove('game-expanded');}
- else if(document.fullscreenElement)await document.exitFullscreen();
- else{try{if(!stage.requestFullscreen)throw new Error('unsupported');await stage.requestFullscreen();}catch{stage.classList.add('expanded');document.body?.classList.add('game-expanded');}}
+ if(stage.classList.contains('expanded')){stage.classList.remove('expanded');document.body?.classList.remove('game-expanded');window.screen?.orientation?.unlock?.();}
+ else if(document.fullscreenElement){await document.exitFullscreen();window.screen?.orientation?.unlock?.();}
+ else{try{if(!stage.requestFullscreen)throw new Error('unsupported');await stage.requestFullscreen();}catch{stage.classList.add('expanded');document.body?.classList.add('game-expanded');}await requestLandscape();}
  updateFullscreenButtons();
 }
 function updateFullscreenButtons(){const active=!!document.fullscreenElement||$('.stage').classList.contains('expanded');for(const id of ['#fullscreen','#fullscreenStage']){const button=$(id);if(button){button.textContent=active?'EXIT FULLSCREEN':'FULLSCREEN';button.setAttribute('aria-label',active?'Exit fullscreen':'Enter fullscreen');}}}

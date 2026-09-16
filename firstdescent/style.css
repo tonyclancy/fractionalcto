@@ -97,3 +97,6 @@
 /* Arrow-key play keeps canvas focus without outlining the fullscreen frame. */
 .stage:fullscreen canvas:focus,.stage:fullscreen canvas:focus-visible,
 .stage.expanded canvas:focus,.stage.expanded canvas:focus-visible{outline:none;outline-offset:0}
+
+.orientation-hint{display:none;pointer-events:none}
+@media(pointer:coarse) and (orientation:portrait){.stage:fullscreen .orientation-hint,.stage.expanded .orientation-hint{display:block;position:absolute;top:74px;left:16px;right:16px;text-align:center;color:#a0f5d8;font-size:12px;letter-spacing:.6px;z-index:13}}

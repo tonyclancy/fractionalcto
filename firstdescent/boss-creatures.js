@@ -219,7 +219,7 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
  }
 
  function build(){for(const d of [warden(),sovereign(),monarch(),mother()]){delete d.tools;d.triangles=d.mesh.reduce((n,f)=>n+f.v.length-2,0);d.vertexCount=new Set(d.mesh.flatMap(f=>f.v)).size;alienBossDesigns[d.kind]=d;meshes['alienBoss'+d.kind]=d.mesh;}return alienBossDesigns;}
- function opening(b){const a=b.breath;let n=.07+.045*Math.sin((b.age||0)*3.8);if(a){n=Math.min(cl(a.age/Math.max(.1,a.warning),0,1),cl((a.warning+a.duration+.7-a.age)/.7,0,1));}else if(b.vacuum>0)n=cl(b.vacuum/.6,0,1);else if(b.charge>0)n=.12+cl(1-b.charge/1.7,0,1)*.7;if(b.roar>0)n=Math.max(n,Math.sin(cl(b.roar/1.3,0,1)*Math.PI)*.95);return n;}
+ function opening(b){const a=b.breath;let n=.07+.045*Math.sin((b.age||0)*3.8);if(a){n=Math.min(cl(a.age/Math.max(.1,a.warning),0,1),cl((a.warning+a.duration+.7-a.age)/.7,0,1));}else if(b.vacuum>0)n=cl(b.vacuum/.6,0,1);else if(b.charge>0)n=.12+cl(1-b.charge/1.7,0,1)*.7;if(b.sporePods?.length)n=Math.max(n,.78);if(b.attack)n=Math.max(n,cl(b.attack.age/.45,0,1)*.78);if(b.salvoWindup)n=Math.max(n,cl(b.salvoWindup.age/.5,0,1)*.85);if(b.muzzle>0)n=Math.max(n,.85*cl(b.muzzle/.08,0,1));if(b.roar>0)n=Math.max(n,Math.sin(cl(b.roar/1.3,0,1)*Math.PI)*.95);return n;}
  buildAlienBosses=window.buildAlienBosses=build;
  function rotationMatrix(axis,angle){const [x,y,z]=unit(axis),c=Math.cos(angle),sn=Math.sin(angle),a=1-c;return[c+x*x*a,x*y*a-z*sn,x*z*a+y*sn,y*x*a+z*sn,c+y*y*a,y*z*a-x*sn,z*x*a-y*sn,z*y*a+x*sn,c+z*z*a];}
  function applyRotation(v,p,m){const x=v[0]-p[0],y=v[1]-p[1],z=v[2]-p[2];v[0]=p[0]+m[0]*x+m[1]*y+m[2]*z;v[1]=p[1]+m[3]*x+m[4]*y+m[5]*z;v[2]=p[2]+m[6]*x+m[7]*y+m[8]*z;}
