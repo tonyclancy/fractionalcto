@@ -129,8 +129,11 @@ function firingRig(e,isBoss=false){if(isBoss&&bossDesign()){const d=bossDesign()
 function drawEmitter(e,isBoss=false){const r=firingRig(e,isBoss),pulse=Math.max(0,e.muzzle||0)/.16;ctx.save();ctx.translate(r.x,r.y);ctx.scale(1,1+(r.organic?pulse*.22:0));drawModel(meshes[r.organic?'siphon':'cannon'],0,0,r.scale,r.yaw,0,r.pitch,e.age);ctx.restore();if(isBoss&&e.attack&&e.attack.age<.7){const charge=e.attack.age/.7;orb(r.muzzleX,r.muzzleY,12+charge*22,r.organic?'#b8ef89':'#ffd8a1',.2+charge*.5);}if(pulse>0)orb(r.muzzleX,r.muzzleY,12*r.scale,r.organic?'#b8ef89':'#ffd8a1',pulse*.55)}
 // A complete roll around the hull's longitudinal axis; no scale changes.
 function mechanicalFlightRoll(e){
- const age=e.age+(e.phase||0)*.3,period=e.type===2?8.4:5.6,cycle=((age%period)+period)%period;
- return TAU*passEase(clamp((cycle-1.5)/(e.type===2?2.7:1.9),0,1));
+ const age=e.age+(e.phase||0)*.3;
+ // Light interceptors spin continuously; gunships brace briefly between rolls.
+ if(e.type!==2)return age*TAU/1.4;
+ const cycle=((age%2.8)+2.8)%2.8;
+ return TAU*passEase(clamp((cycle-.35)/1.5,0,1));
 }
 function drawMechanicalPropulsion(e,yaw,roll,pitch){
  const drive=clamp((e.swimSpeed||e.speed)/Math.max(1,e.speed),.5,1.5),pulse=.5+.5*Math.sin((e.age+(e.phase||0))*18),length=30+drive*28+pulse*12;
