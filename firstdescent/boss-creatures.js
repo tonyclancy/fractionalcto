@@ -14,14 +14,14 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
  function rotate(v,p,axis,angle){const x=sub(v,p),c=Math.cos(angle),s=Math.sin(angle),a=unit(axis),cr=cross(a,x),dp=dot(a,x);return x.map((n,k)=>p[k]+n*c+cr[k]*s+a[k]*dp*(1-c));}
  function creator(kind,name,material,scale,mouth,bodyVolumes){
   const mesh=[],parts=[];mesh.skin=true;mesh.dynamic=true;mesh.alienMaterial=material;
-  const d={kind,name,mesh,parts,scale,mouth,bodyVolumes,mouthOpening:0};let activeRig=null;
+  const d={kind,name,habitat:[2,3].includes(kind)?'water':'air',mesh,parts,scale,mouth,bodyVolumes,mouthOpening:0};let activeRig=null;
   function face(v,c,uv,options={}){mesh.push({v,c,uv:uv||v.map(p=>[p[0]/75,p[1]/75]),em:options.em||0,flex:0,textureWeight:options.textureWeight===undefined?1:options.textureWeight,wet:options.wet||0});}
   function part(name,rig,options,build){const start=mesh.length,previousRig=activeRig;activeRig=rig;build();activeRig=previousRig;const seen=new Set(),vertices=[];for(let i=start;i<mesh.length;i++)for(const v of mesh[i].v)if(!seen.has(v)){seen.add(v);vertices.push(v);}if(rig==='feeler'||rig==='feedingArm'){const extension=rig==='feedingArm'?1.65:1.7;for(const v of vertices)for(let k=0;k<3;k++)v[k]=options.pivot[k]+(v[k]-options.pivot[k])*(k===0?extension:1);options.lengthScale=extension;}const rest=vertices.map(v=>v.slice());parts.push({name,rig,...options,vertices,rest});}
   // A single watertight longitudinal loft; varying cross sections create the
   // actual skull, thorax and abdomen instead of intersecting sphere chains.
   function loft(profile,color,options={}){
    const steps=(profile.length-1)*(options.steps||4),sides=options.sides||28,rings=[];
-   for(let j=0;j<=steps;j++){const p=sample(profile,j/steps*(profile.length-1)),ring=[];for(let k=0;k<sides;k++){const a=k/sides*TAU,cc=Math.cos(a),ss=Math.sin(a),ridge=1+(options.ridge||0)*Math.cos(a*3),ex=options.exponent||1;ring.push([p[0],p[1]+Math.sign(cc)*Math.pow(Math.abs(cc),ex)*Math.max(.1,p[3])*ridge,p[2]+Math.sign(ss)*Math.pow(Math.abs(ss),ex)*Math.max(.1,p[4])]);}rings.push(ring);}
+   for(let j=0;j<=steps;j++){const p=sample(profile,j/steps*(profile.length-1)),ring=[];for(let k=0;k<sides;k++){const a=k/sides*TAU,cc=Math.cos(a),ss=Math.sin(a),ridge=1+(options.ridge||0)*Math.cos(a*3)+.009*Math.sin(a*13+j*.8),ex=options.exponent||1;ring.push([p[0],p[1]+Math.sign(cc)*Math.pow(Math.abs(cc),ex)*Math.max(.1,p[3])*ridge,p[2]+Math.sign(ss)*Math.pow(Math.abs(ss),ex)*Math.max(.1,p[4])]);}rings.push(ring);}
    for(let j=0;j<steps;j++)for(let k=0;k<sides;k++)face([rings[j][k],rings[j][(k+1)%sides],rings[j+1][(k+1)%sides],rings[j+1][k]],color,[[j/steps*2,k/sides],[j/steps*2,(k+1)/sides],[(j+1)/steps*2,(k+1)/sides],[(j+1)/steps*2,k/sides]],options);
    face(rings[0].slice().reverse(),color,rings[0].map(v=>[v[1]/60,v[2]/60]),options);face(rings[steps],color,rings[steps].map(v=>[v[1]/60,v[2]/60]),options);
    return rings;
@@ -29,7 +29,7 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
   // Parallel-transport frames keep curved tendons smooth through arbitrary
   // bends. Radius is authored at every joint, including the thick muscle root.
   function tube(profile,color,options={}){
-   if((kind===0||kind===5)&&(activeRig==='leg'||activeRig==='feeler')){const thin=activeRig==='feeler'?.48:.56;profile=profile.map(p=>p.map((v,i)=>i>=3?v*thin:v));}
+   if((kind===0||kind===5)&&(activeRig==='leg'||activeRig==='feeler'||activeRig==='jaw')){const thin=activeRig==='feeler'?.48:activeRig==='jaw'?.62:.56;profile=profile.map(p=>p.map((v,i)=>i>=3?v*thin:v));}
    const steps=(profile.length-1)*(options.steps||4),sides=options.sides||10,path=[];for(let j=0;j<=steps;j++)path.push(sample(profile,j/steps*(profile.length-1)));
    let normal=null;const rings=[];
    for(let j=0;j<=steps;j++){const p=path[j],t=unit(sub(path[Math.min(steps,j+1)].slice(0,3),path[Math.max(0,j-1)].slice(0,3)));if(!normal)normal=unit(cross(t,Math.abs(t[2])<.8?[0,0,1]:[0,1,0]));else normal=unit(sub(normal,mul(t,dot(normal,t))));const bi=unit(cross(t,normal)),ring=[];for(let k=0;k<sides;k++){const a=k/sides*TAU,r=Math.max(.08,p[3]),rr=Math.max(.08,p[4]===undefined?r:p[4]);ring.push(p.slice(0,3).map((v,i)=>v+normal[i]*Math.cos(a)*r+bi[i]*Math.sin(a)*rr));}rings.push(ring);}
@@ -64,13 +64,13 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
 
  function warden(){
   const d=creator(0,'CHITIN WARDEN','chitin',1.95,[-99,7,0],[{center:[-11,2,0],radii:[81,35,31]},{center:[-70,0,0],radii:[31,23,24]},{center:[57,7,0],radii:[49,25,24]}]),{part,loft,tube,sheet,armor,lens,sensePit}=d.tools;
-  const shell=[62,203,151],edge=[235,166,67],joint=[63,109,119],membrane=[114,184,233];
+  const shell=[48,164,110],edge=[207,160,76],joint=[47,80,68],membrane=[201,151,73];
   part('thorax and abdomen','fixed',{},()=>{
    loft([[-76,2,0,14,16],[-54,0,0,24,23],[-26,0,0,33,29],[2,3,0,32,32],[26,7,0,29,27],[56,8,0,23,22],[81,8,0,14,16],[100,8,0,2,3]],joint,{steps:4,sides:32,ridge:.035});
    armor(-39,-7,0,33,30,shell,{n:8,m:24});armor(-7,18,4,31,30,shell,{n:6,m:24});
    for(let i=0;i<5;i++){const x=20+i*14;armor(x,x+17,8,28-i*4,26-i*3.5,tint(shell,1-i*.017),{n:4,m:20});}
    // A flattened cephalic shield grows from the thorax, ending in two ridges.
-   loft([[-92,-6,0,5,9],[-83,-8,0,15,19],[-67,-9,0,20,24],[-44,-5,0,23,25],[-30,-1,0,19,21]],shell,{steps:4,sides:28,exponent:.82});
+   loft([[-92,-6,0,5,9],[-83,-8,0,11,16],[-67,-9,0,16,21],[-44,-5,0,23,25],[-30,-1,0,19,21]],shell,{steps:4,sides:28,exponent:.82});
    for(const side of [-1,1]){
     tube([[-88,-10,side*12,2],[-72,-25,side*17,3],[-48,-25,side*21,3],[-26,-22,side*21,1.4]],edge,{steps:4,sides:9});
     tube([[-24,22,side*16,2.5],[2,28,side*21,3],[29,28,side*19,1.2]],edge,{steps:4,sides:8});
@@ -107,7 +107,7 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
 
  function sovereign(){
   const d=creator(2,'ABYSS SOVEREIGN','flesh',2.15,[-86,5,0],[{center:[-6,0,0],radii:[81,28,34]},{center:[51,3,0],radii:[56,16,24]}]),{part,loft,tube,sheet,lens,sensePit}=d.tools;
-  const skin=[105,115,226],ridge=[52,226,219],fin=[194,85,197],gill=[69,55,131];
+  const skin=[42,117,166],ridge=[87,177,183],fin=[69,145,185],gill=[26,58,86];
   part('continuous mantle','fixed',{},()=>{
    loft([[-86,3,0,8,17],[-76,0,0,18,27],[-49,-2,0,26,35],[-15,0,0,28,36],[23,1,0,24,30],[59,2,0,16,21],[91,3,0,6,9],[114,3,0,.6,1.2]],skin,{steps:5,sides:36,exponent:.92});
    lens([-85,6,0],[1.6,6,15],[15,21,36],{wet:.9});
@@ -120,6 +120,11 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
   for(const side of [-1,1])sensePit(-67,-7,side*30,side,skin,2.3);
   for(const up of [-1,1])part('pressure siphon lip','jaw',{pivot:[-62,up*7,0],axis:[0,0,1],direction:-up,amount:.22},()=>{
    loft([[-88,up*6+5,0,1.5,13],[-80,up*9+4,0,3,22],[-69,up*8+3,0,3.8,24],[-61,up*7,0,2,18]],tint(skin,.9),{steps:3,sides:24});
+   for(const side of [-1,1])for(let i=0;i<7;i++)tube([[-85+i*3,5+up*7,side*(6+i*2),.8],[-87+i*3,5+up*2,side*(6+i*2),.1]],[189,196,164],{steps:2,sides:6});
+  });
+  part('dorsal swimming keel','tail',{pivot:[0,-20,0],side:1,amount:5},()=>{
+   sheet((u,v)=>[-55+u*151,-20-v*(14+Math.sin(u*Math.PI)*25)*(1+.15*Math.sin(u*Math.PI*9)),Math.sin(u*Math.PI)*v*2],fin,24,7,.45);
+   for(let i=0;i<10;i++){const x=-49+i*14;tube([[x,-19,0,1.2],[x+4,-35-Math.sin(i/10*Math.PI)*22,0,.18]],ridge,{steps:2,sides:6});}
   });
   for(const side of [-1,1]){
    part('mantle fin','undulate',{pivot:[0,0,side*24],side,span:99,amplitude:19,frequency:3.8,phase:side*.3},()=>{
@@ -137,8 +142,8 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
  }
 
  function monarch(){
-  const d=creator(3,'REEF MONARCH','flesh',2.05,[-92,18,0],[{center:[5,-5,2],radii:[61,48,43]},{center:[-59,17,0],radii:[42,26,29]}]),{part,loft,tube,sheet,lens,sensePit,face}=d.tools;
-  const skin=[43,190,161],shell=[242,155,80],rim=[161,72,105],fin=[70,165,223];
+  const d=creator(3,'REEF MONARCH','flesh',2.05,[-92,18,0],[{center:[5,-5,2],radii:[61,36,43]},{center:[-59,17,0],radii:[42,26,29]}]),{part,loft,tube,sheet,armor,lens,sensePit,face}=d.tools;
+  const skin=[128,71,63],shell=[211,144,68],rim=[120,57,49],fin=[187,95,74];
   part('muscular mantle','fixed',{},()=>{
    loft([[-92,17,0,7,17],[-74,15,0,22,28],[-51,9,0,31,34],[-23,6,0,37,38],[12,2,0,33,34],[44,5,0,23,27],[66,9,0,9,13],[76,9,0,1,2]],skin,{steps:4,sides:32});
    lens([-92,18,0],[2.1,7,14],[16,27,28],{wet:.7});
@@ -147,16 +152,19 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
   // The shell has a single asymmetrical vaulted volume with overlapping
   // growth chambers; fine sutures follow the curved surface, not a flat decal.
   part('chambered dorsal shell','shell',{},()=>{
-   const prof=[[-42,-7,5,20,25],[-21,-12,4,43,43],[8,-15,3,49,46],[35,-13,1,42,38],[58,-8,-1,25,23],[70,-4,-2,2,4]];
+   const prof=[[-42,-7,5,20,25],[-21,-9,4,31,40],[8,-10,3,34,43],[35,-9,1,29,36],[58,-8,-1,25,23],[70,-4,-2,2,4]];
    loft(prof,shell,{steps:5,sides:36,exponent:.88,ridge:.022});
    for(let i=0;i<12;i++){
     const u=.18+i*.405,p=sample(prof,u),x=p[0],ry=p[3]+1,rz=p[4]+1,pts=[];
     for(let j=0;j<=16;j++){const a=.55+j/16*(TAU-1.1);pts.push([x+Math.sin(a*2)*2,p[1]+ry*Math.cos(a),p[2]+rz*Math.sin(a),mix(1.45,.9,i/12)]);}tube(pts,rim,{steps:1,sides:7});
    }
-   // The eccentric root whorl is part of the carapace, not an oversized eye.
-   const pts=[];for(let i=0;i<=32;i++){const t=i/32,a=t*Math.PI*3.4,r=3+t*23;pts.push([19+Math.cos(a)*r,-22+Math.sin(a)*r,-42+Math.abs(Math.sin(a))*3,1.2+t*.65]);}tube(pts,rim,{steps:1,sides:8});
-   for(let i=0;i<7;i++){const x=-10+i*8; tube([[x,-56+i*1.5,-2,1.5],[x+7,-60+i*1.9,-2,2],[x+14,-51+i*2,-1,.5]],tint(shell,1.04),{steps:3,sides:8});}
+   for(let i=0;i<5;i++){const x=-32+i*19;armor(x,x+21,-8,31-Math.abs(i-2)*3,40-Math.abs(i-2)*4,tint(shell,1-i*.025),{n:3,m:16});}
+
   });
+  for(const side of [-1,1])for(let i=0;i<3;i++){
+   const root=[-8+i*21,16,side*27],knee=[-17+i*24,35,side*43];
+   part('swimming leg','leg',{pivot:root,knee,side,index:i},()=>tube([[...root,3.2],[...knee,2.1],[-28+i*27,53,side*52,1.2],[-38+i*27,60,side*47,.2]],rim,{steps:3,sides:8}));
+  }
   for(const side of [-1,1])sensePit(-67,3,side*28,side,skin,2.6);
   for(const up of [-1,1])part('feeding lip','jaw',{pivot:[-64,14,0],axis:[0,0,1],direction:-up,amount:.36},()=>{
    loft([[-94,18+up*6,0,1.5,13],[-86,18+up*10,0,3,21],[-72,16+up*12,0,4.5,25],[-59,14+up*6,0,2,20]],tint(skin,.88),{steps:3,sides:22});
@@ -180,9 +188,9 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
 
  function mother(){
   const d=creator(5,'BROOD MOTHER','chitin',1.9,[-113,5,0],[{center:[5,1,0],radii:[102,39,34]},{center:[-78,-1,0],radii:[37,26,28]},{center:[89,8,0],radii:[44,22,25]}]),{part,loft,tube,sheet,armor,lens,sensePit}=d.tools;
-  const chitin=[200,67,116],cuticle=[95,56,128],limb=[237,142,69],membrane=[177,88,220];
+  const chitin=[143,65,43],cuticle=[55,48,42],limb=[195,123,59],membrane=[174,94,47];
   part('queen axial body','fixed',{},()=>{
-   loft([[-109,0,0,8,16],[-91,-4,0,23,25],[-66,-3,0,29,29],[-38,0,0,37,34],[-7,3,0,38,37],[25,7,0,35,33],[58,9,0,31,28],[90,8,0,23,23],[118,8,0,11,15],[136,7,0,1,2]],cuticle,{steps:3,sides:32,ridge:.02});
+   loft([[-109,0,0,8,16],[-91,-4,0,17,21],[-66,-3,0,25,27],[-38,0,0,37,34],[-7,3,0,38,37],[25,7,0,35,33],[58,9,0,31,28],[90,8,0,23,23],[118,8,0,11,15],[136,7,0,1,2]],cuticle,{steps:3,sides:32,ridge:.02});
    armor(-83,-49,-5,26,27,chitin,{n:5,m:20});armor(-52,-24,0,35,32,chitin,{n:5,m:20});
    for(let i=0;i<6;i++){const x=-20+i*24;armor(x,x+27,7,37-i*4.4,35-i*3.8,tint(chitin,1-i*.02),{n:4,m:18});}
    // Ridged forehead protects a deep central intake rather than a reptile face.

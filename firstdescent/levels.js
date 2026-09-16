@@ -22,6 +22,8 @@ function validateLevels(definitions){
   if(!Array.isArray(l.routes)||!l.routes.length||l.routes.some(y=>!finite(y)||y<70||y>690))fail(l,'invalid flight routes');
   if(!Array.isArray(l.roster)||!l.roster.length||l.roster.some(t=>!Number.isInteger(t)||t<0||t>3))fail(l,'invalid enemy roster');
   if(!Array.isArray(l.models)||l.models.length!==4||l.models.some(name=>!meshes[name]))fail(l,'unknown enemy model');
+  if(typeof alienBossDesigns!=='undefined'&&l.medium){const b=alienBossDesigns[BOSS_KINDS[l.bossKind]];if(b&&b.habitat!==l.medium)fail(l,'boss habitat mismatch');}
+  if(typeof faunaCatalog!=='undefined'&&l.medium){for(const name of [...l.models,...(l.escortEncounter?[l.escortEncounter.model,l.escortEncounter.escort]:[])]){const f=faunaCatalog[name];if(f&&f.habitat!==l.medium)fail(l,'fauna habitat mismatch: '+name);}}
   if(l.escortEncounter&&(!meshes[l.escortEncounter.model]||!meshes[l.escortEncounter.escort]||l.escortEncounter.count<1||l.escortEncounter.count>6))fail(l,'invalid escort encounter');
   if(!Array.isArray(l.broodWaves)||l.broodWaves.some(i=>!Number.isInteger(i)||i<0||i>=l.waves.length))fail(l,'invalid brood wave index');
   if(!Array.isArray(l.supplies)||!Array.isArray(l.recovery)||l.recovery.length!==2)fail(l,'supply and recovery definitions required');
@@ -1729,6 +1731,11 @@ const escortEncounters=[null,
  {name:'CORE HARVESTER',model:'coreHarvester',escort:'coreMoth',organic:true,count:4,orbit:2.8,formation:'figure8',pace:1.24}
 ];
 levelDefinitions.forEach((l,i)=>{if(i){l.escortEncounter=escortEncounters[i];l.broodWaves=[5,Math.min(l.waves.length-2,13)];l.revision++;}});
+// Habitats constrain fauna as the campaign grows: swimming anatomy stays underwater.
+levelDefinitions.forEach((l,i)=>{l.medium=[2,3].includes(i)?'water':'air';l.revision++;});
+levelDefinitions[3].stratum='SUBMERGED REEF';
+levelDefinitions[3].expeditionNote='Flooded fungal reefs · symbiotic machines';
+levelDefinitions[4].models[1]='stormMoth';levelDefinitions[4].models[3]='stormPolyp';
 const campaign=freezeContent(validateLevels(levelDefinitions));
 const CAMPAIGN_VERSION=campaign.map(l=>l.id+'@'+l.revision).join('|');
 

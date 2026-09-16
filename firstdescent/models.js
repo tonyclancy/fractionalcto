@@ -10,9 +10,9 @@ function meshBuilder(){const faces=[];
  const face=(v,c,em=0,flex=0)=>faces.push({v,c,em,flex});
  function ellipsoid(cx,cy,cz,rx,ry,rz,c,em=0,segments=28,rings=18){const primitive={center:[cx,cy,cz],radii:[rx,ry,rz],color:c};for(let j=0;j<rings;j++)for(let i=0;i<segments;i++){const p=(u,v)=>{const a=u/segments*Math.PI*2,b=v/rings*Math.PI;return[cx+rx*Math.cos(b),cy+ry*Math.sin(b)*Math.cos(a),cz+rz*Math.sin(b)*Math.sin(a)]};face([p(i,j),p(i+1,j),p(i+1,j+1),p(i,j+1)],c,em);faces[faces.length-1].primitive=primitive;}}
  function wedge(a,b,c,thick,color){face([a,b,c],color);const back=[a,b,c].map(v=>[v[0],v[1],v[2]+thick]);face(back.slice().reverse(),color);for(let i=0;i<3;i++)face([[a,b,c][i],[a,b,c][(i+1)%3],back[(i+1)%3],back[i]],color)}
- function tube(points,r,color,flex=0,em=0){
- const path=[];for(let j=0;j<points.length-1;j++)for(let k=0;k<3;k++){const t=k/3,p0=points[Math.max(0,j-1)],p1=points[j],p2=points[j+1],p3=points[Math.min(points.length-1,j+2)];path.push(p1.map((v,i)=>.5*((2*v)+(-p0[i]+p2[i])*t+(2*p0[i]-5*v+4*p2[i]-p3[i])*t*t+(-p0[i]+3*v-3*p2[i]+p3[i])*t*t*t)))}path.push(points[points.length-1]);
- const rings=path.map((p,j)=>{const prev=path[Math.max(0,j-1)],next=path[Math.min(path.length-1,j+1)],t=next.map((v,i)=>v-prev[i]),len=Math.hypot(...t)||1,d=t.map(v=>v/len),axis=Math.abs(d[2])<.9?[0,0,1]:[0,1,0];let u=[d[1]*axis[2]-d[2]*axis[1],d[2]*axis[0]-d[0]*axis[2],d[0]*axis[1]-d[1]*axis[0]],ul=Math.hypot(...u)||1;u=u.map(v=>v/ul);const v=[d[1]*u[2]-d[2]*u[1],d[2]*u[0]-d[0]*u[2],d[0]*u[1]-d[1]*u[0]],rr=r*(1-j/path.length*.85);return Array.from({length:12},(_,i)=>{const a=i/12*Math.PI*2;return p.map((n,k)=>n+rr*(u[k]*Math.cos(a)+v[k]*Math.sin(a)))})});for(let j=0;j<rings.length-1;j++)for(let i=0;i<12;i++)face([rings[j][i],rings[j][(i+1)%12],rings[j+1][(i+1)%12],rings[j+1][i]],color,em,flex);face(rings[0].slice().reverse(),color,em,flex);face(rings[rings.length-1],color,em,flex);
+ function tube(points,r,color,flex=0,em=0,segments=12,steps=3){
+ const path=[];for(let j=0;j<points.length-1;j++)for(let k=0;k<steps;k++){const t=k/steps,p0=points[Math.max(0,j-1)],p1=points[j],p2=points[j+1],p3=points[Math.min(points.length-1,j+2)];path.push(p1.map((v,i)=>.5*((2*v)+(-p0[i]+p2[i])*t+(2*p0[i]-5*v+4*p2[i]-p3[i])*t*t+(-p0[i]+3*v-3*p2[i]+p3[i])*t*t*t)))}path.push(points[points.length-1]);
+ const rings=path.map((p,j)=>{const prev=path[Math.max(0,j-1)],next=path[Math.min(path.length-1,j+1)],t=next.map((v,i)=>v-prev[i]),len=Math.hypot(...t)||1,d=t.map(v=>v/len),axis=Math.abs(d[2])<.9?[0,0,1]:[0,1,0];let u=[d[1]*axis[2]-d[2]*axis[1],d[2]*axis[0]-d[0]*axis[2],d[0]*axis[1]-d[1]*axis[0]],ul=Math.hypot(...u)||1;u=u.map(v=>v/ul);const v=[d[1]*u[2]-d[2]*u[1],d[2]*u[0]-d[0]*u[2],d[0]*u[1]-d[1]*u[0]],rr=r*(1-j/path.length*.85);return Array.from({length:segments},(_,i)=>{const a=i/segments*Math.PI*2;return p.map((n,k)=>n+rr*(u[k]*Math.cos(a)+v[k]*Math.sin(a)))})});for(let j=0;j<rings.length-1;j++)for(let i=0;i<segments;i++)face([rings[j][i],rings[j][(i+1)%segments],rings[j+1][(i+1)%segments],rings[j+1][i]],color,em,flex);face(rings[0].slice().reverse(),color,em,flex);face(rings[rings.length-1],color,em,flex);
  }
  return{faces,ellipsoid,wedge,tube};
 }
@@ -34,8 +34,9 @@ function organicTailTuck(age){
 }
 function rotateVertex(v,yaw,roll,pitch,age,flex){let [x,y,z]=v;if(flex){const tuck=organicTailTuck(age),root=Math.max(0,Math.min(1,(x-10)/45)),gather=1-.75*tuck*root;y*=gather;z*=gather;const drive=1+.75*Math.pow((1+Math.cos(age*2))*.5,5),bend=Math.max(0,x-10)*flex*(1-.9*tuck);y+=Math.sin(age*3-x*.07)*bend*.23*drive;z+=Math.cos(age*2.4-x*.06)*bend*.22*drive}const a=x*Math.cos(yaw)+z*Math.sin(yaw),b=-x*Math.sin(yaw)+z*Math.cos(yaw),c=y*Math.cos(roll)-b*Math.sin(roll),d=y*Math.sin(roll)+b*Math.cos(roll);return[a*Math.cos(pitch)-c*Math.sin(pitch),a*Math.sin(pitch)+c*Math.cos(pitch),d]}
 function drawModel(mesh,x,y,scale,yaw,roll,pitch,age,hit=0,rig=null){
+ if(mesh.fauna)rig=mesh.organicRig;
  if(window.gpuModels){window.gpuModels.draw(mesh,ctx,x,y,scale,yaw,roll,pitch,age,hit,rig);return;}
- const faces=mesh.map(f=>{const v=f.v.map(p=>{let q=f.blink?[p[0],f.blink[0]+(p[1]-f.blink[0])*(1-.97*naturalBlink(age,f.blink[1])),p[2]]:p;if(rig==='ray')q=rayVertex(q,age);if(rig==='squid'||rig==='octopus')q=organicVertex(q,age,rig);return rotateVertex(q,yaw,roll,pitch,age,(rig==='squid'||rig==='octopus'||rig==='ray')?0:f.flex)});return{...f,v,z:v.reduce((a,p)=>a+p[2],0)/v.length}}).sort((a,b)=>b.z-a.z);
+ const faces=mesh.map(f=>{const v=f.v.map(p=>{let q=f.blink?[p[0],f.blink[0]+(p[1]-f.blink[0])*(1-.97*naturalBlink(age,f.blink[1])),p[2]]:p;if(f.joint)q=faunaJointVertex(q,age,f.joint);if(rig==='ray')q=rayVertex(q,age);if(!f.joint&&(rig==='squid'||rig==='octopus'))q=organicVertex(q,age,rig);return rotateVertex(q,yaw,roll,pitch,age,(rig==='squid'||rig==='octopus'||rig==='ray')?0:f.flex)});return{...f,v,z:v.reduce((a,p)=>a+p[2],0)/v.length}}).sort((a,b)=>b.z-a.z);
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);ctx.lineJoin='round';
  for(const f of faces){const [a,b,c]=f.v,u=b.map((v,i)=>v-a[i]),v=c.map((n,i)=>n-a[i]);let normal=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.hypot(...normal)||1;normal=normal.map(n=>n/len);const diffuse=Math.abs(normal[0]*-.3+normal[1]*-.6+normal[2]*-.74),spec=Math.pow(Math.abs(normal[2]*-.85+normal[1]*-.45),18)*.42;const light=.3+diffuse*.64+spec+f.em*.6;const pulse=hit>0&&((age% .12)<.022)?.55:0;const color=`rgb(${f.c.map(n=>{const base=Math.min(255,n*light+spec*110);return Math.round(base+(255-base)*pulse)}).join(',')})`;ctx.beginPath();f.v.forEach((p,i)=>{const perspective=460/(460+p[2]);i?ctx.lineTo(p[0]*perspective,p[1]*perspective):ctx.moveTo(p[0]*perspective,p[1]*perspective)});ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=.45;ctx.stroke();}
  ctx.restore();
@@ -601,3 +602,92 @@ function animateSovereignFins(age){for(const f of meshes.sovereignFins)for(let i
  for(const side of [-1,1]){d.wedge([10,side*3,0],[-16,side*16,3],[-10,side*4,-3],3,[119,107,170]);d.tube([[-15,side*6,2],[9,side*6,2],[21,side*6,2]],1.5,[166,191,202]);}
  meshes.wingmate=d.faces;
 })();
+
+// Concept-led fauna. Closed lofts, layered shells and locally rigged appendages.
+// Reference sheets and species/habitat notes live in design/fauna/.
+const faunaCatalog={};
+function faunaJointVertex(p,age,joint){
+ if(!joint||!joint[3])return p;const [px,py,pz,mode]=joint,x=p[0]-px,y=p[1]-py,z=p[2]-pz,side=pz<0?-1:1;
+ if(mode===1){const a=side*Math.sin(age*14+px*.03)*.62,c=Math.cos(a),s=Math.sin(a);return[p[0],py+y*c-z*s,pz+y*s+z*c];}
+ const weight=Math.min(1,Math.hypot(x,y,z)/35),a=Math.sin(age*(mode===2?9:6)+px*.09+pz*.07)*weight*(mode===2?.28:.2),c=Math.cos(a),s=Math.sin(a);
+ return[px+x*c-y*s,py+x*s+y*c,p[2]+Math.sin(age*7+px*.12)*weight*(mode===2?3:6)];
+}
+(function buildConceptFauna(){
+ const tint=(c,n)=>c.map(v=>Math.max(0,Math.min(255,Math.round(v*n))));
+ function build(spec){
+  const m=meshBuilder(),skin=spec.color,accent=spec.accent,small=spec.small||1,air=spec.habitat==='air',tentacles=spec.form==='tendril',crab=spec.form==='crab',winged=spec.form==='moth'||air,ray=spec.form==='ray',head=-28;
+  function mark(start,joint){for(let i=start;i<m.faces.length;i++)m.faces[i].joint=joint;}
+  function tube(points,r,c,joint){const start=m.faces.length;m.tube(points,r,c,0,0,8,2);if(joint)mark(start,joint);}
+  function loft(profile,color,sides=20){const rings=[];for(let j=0;j<profile.length-1;j++)for(let k=0;k<4;k++){const t=k/4,q=profile[j].map((v,i)=>{const a=profile[Math.max(0,j-1)][i],b=v,c=profile[j+1][i],d=profile[Math.min(profile.length-1,j+2)][i];return .5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t)}),ring=[];for(let i=0;i<sides;i++){const a=i/sides*Math.PI*2,relief=1+.022*Math.cos(a*5+q[0]*.2);ring.push([q[0],q[1]+Math.cos(a)*q[3]*relief,q[2]+Math.sin(a)*q[4]*relief]);}rings.push(ring);}const q=profile.at(-1);rings.push(Array.from({length:sides},(_,i)=>[q[0],q[1]+Math.cos(i/sides*Math.PI*2)*q[3],q[2]+Math.sin(i/sides*Math.PI*2)*q[4]]));
+   for(let j=0;j<rings.length-1;j++)for(let i=0;i<sides;i++)m.faces.push({v:[rings[j][i],rings[j][(i+1)%sides],rings[j+1][(i+1)%sides],rings[j+1][i]],c:tint(color,.92+.08*Math.sin(j*.72+i*.48)),em:0,flex:0});m.faces.push({v:rings[0].slice().reverse(),c:color,em:0,flex:0},{v:rings.at(-1),c:color,em:0,flex:0});
+  }
+  const thick=crab?23:ray?10:tentacles?17:spec.form==='scarab'?20:12;
+  loft([[-41,0,0,2,3],[-32,-1,0,8,10],[-19,-2,0,thick*.8,thick],[0,0,0,thick,thick],[22,2,0,thick*.7,thick*.8],[39,3,0,5,7],[49,3,0,.3,.5]],tint(skin,.72));
+  // One continuous cephalothorax shield; segmentation belongs to the tapering abdomen.
+  if(!ray&&!tentacles){
+   loft([[-31,-2,0,5,8],[-22,-3,0,thick*.8,thick*.95],[-8,-3,0,thick*1.07,thick*1.15],[9,-1,0,thick,thick*1.1],[18,1,0,thick*.65,thick*.8]],skin,24);
+   for(let i=0;i<4;i++){const x=12+i*7,r=thick*(.74-i*.14);loft([[x,2,0,r*.87,r],[x+2,1,0,r,r*1.08],[x+7,2,0,r*.84,r*.9],[x+8,2,0,r*.7,r*.74]],tint(skin,.9-i*.055),16);}
+  }
+  if(tentacles)loft([[-39,0,0,2,3],[-29,-1,0,7,9],[-12,-3,0,thick*.98,thick],[6,-2,0,thick,thick*.93],[23,0,0,10,12],[32,0,0,3,4]],skin,24);
+  if(crab||spec.form==='scarab'||spec.id==='broodMother'||spec.id==='coreHarvester')for(let plate=0;plate<4;plate++){
+   const x=-23+plate*10,r=thick*(.9-Math.abs(plate-1.5)*.05),rings=[];
+   for(let j=0;j<4;j++)rings.push(Array.from({length:15},(_,k)=>{const a=.35+k/14*5.58;return[x+j*3,-2+Math.cos(a)*(r+Math.sin(j/3*Math.PI)*1.2),Math.sin(a)*(r*1.12+Math.sin(j/3*Math.PI)*1.2)];}));
+   const back=rings.map(row=>row.map(v=>[v[0],-2+(v[1]+2)*.965,v[2]*.965]));
+   for(let j=0;j<3;j++)for(let k=0;k<14;k++){m.faces.push({v:[rings[j][k],rings[j][k+1],rings[j+1][k+1],rings[j+1][k]],c:tint(skin,.82+plate*.035),em:0,flex:0},{v:[back[j][k],back[j+1][k],back[j+1][k+1],back[j][k+1]],c:skin,em:0,flex:0});}
+   for(let j=0;j<3;j++)for(const k of [0,14])m.faces.push({v:[rings[j][k],back[j][k],back[j+1][k],rings[j+1][k]],c:skin,em:0,flex:0});
+   for(let k=0;k<14;k++)for(const j of [0,3])m.faces.push({v:[rings[j][k],rings[j][k+1],back[j][k+1],back[j][k]],c:skin,em:0,flex:0});
+   tube(rings[3],.45,tint(accent,.75));
+  }
+  // Deep, small eyes under a brow; synchronized eyelid motion on both renderers.
+  for(const side of [-1,1]){const x=-30,y=-5,z=side*9;
+   m.ellipsoid(x,y,z,5,3.8,2.2,tint(skin,.3),0,14,8);
+   let start=m.faces.length;m.ellipsoid(x-.8,y,z+side*1.7,2.1,1.5,1.15,[64,47,25],.03,14,8);m.ellipsoid(x-1.2,y,z+side*2.7,.65,1.1,.3,[4,10,11],0,12,8);
+   for(let i=start;i<m.faces.length;i++){m.faces[i].blink=[y,Math.abs(z)*.19];m.faces[i].textureWeight=0;m.faces[i].wet=.9;}
+   tube([[-36,-7,side*7],[-30,-10,side*10],[-23,-8,side*13]],1.5,tint(skin,1.18));
+   // Gill seams and restrained luminous organs, never giant glowing eyeballs.
+   for(let j=0;j<5;j++){const x=-15+j*7,z=side*(thick*(1-j*.06)+.9);tube([[x,-4,z],[x+2,2,z+side*.5],[x+1,7,z-side*1.8]],.65,tint(accent,.6));}
+  }
+  function fin(side,pair,flight){const start=m.faces.length,root=[-11+pair*20,-3,side*9],point=(u,v,back)=>{const span=(flight?64:58)*(pair?.68:1),chord=Math.sin(u*Math.PI*.92)*(flight?31:48)+3;return[root[0]+u*24+(v-.48)*chord,root[1]+Math.sin(u*Math.PI)*4+Math.sin(v*Math.PI)*u*3+(back?.3:-.3),side*(9+u*span*(1+.035*Math.sin(v*16)))];};
+   for(let back=0;back<2;back++)for(let i=0;i<12;i++)for(let j=0;j<6;j++){const v=[point(i/12,j/6,back),point((i+1)/12,j/6,back),point((i+1)/12,(j+1)/6,back),point(i/12,(j+1)/6,back)];m.faces.push({v:back?v:v.reverse(),c:tint(accent,.52+j*.038),em:0,flex:0});}
+   for(let i=0;i<12;i++)for(const edge of [0,1])m.faces.push({v:[point(i/12,edge,0),point((i+1)/12,edge,0),point((i+1)/12,edge,1),point(i/12,edge,1)],c:skin,em:0,flex:0});
+   for(let j=0;j<5;j++)tube(Array.from({length:5},(_,i)=>point(i/4,j/4,0)),.58,tint(skin,1.15));
+   mark(start,[...root,flight?1:3]);
+  }
+  if(winged||ray||spec.form==='herald')for(const side of [-1,1])for(let pair=0;pair<(winged?2:1);pair++)fin(side,pair,air);
+  if(tentacles||spec.form==='herald')for(let i=0;i<6;i++){const a=i/6*Math.PI*2,y=Math.cos(a),z=Math.sin(a);tube([[21,y*10,z*10],[39,y*17,z*16],[62,y*22,z*20],[82,y*16,z*24],[95,y*24,z*15]],2.6,tint(skin,1+i*.04));for(let j=0;j<4;j++)m.ellipsoid(35+j*12,y*(15+j*2),z*(15+j*2)-.7,1.3,1,.8,tint(accent,.65),0,8,5);}
+  if(crab||winged||spec.form==='scarab')for(const side of [-1,1])for(let i=0;i<3;i++){const root=[-12+i*13,7,side*10],elbow=[-22+i*16,15,side*25],tip=[-30+i*20,27,side*32],joint=[...root,2];tube([root,elbow,tip,[tip[0]-5,tip[1]+4,tip[2]-side*5]],crab?2.5:1.5,tint(skin,.83),joint);const start=m.faces.length;m.ellipsoid(...elbow,2.1,2.1,2.1,accent,0,10,6);mark(start,joint);}
+  if(!ray)for(const side of [-1,1])tube([[-31,-8,side*6],[-44,-17,side*12],[-53,-15,side*21],[-58,-8,side*24]],.75,accent,[-31,-8,side*6,3]);
+  if(ray){for(const side of [-1,1])tube([[30,0,side*5],[51,1,side*8],[73,3,side*15],[89,8,side*20]],1.7,skin,[30,0,side*5,3]);}
+  if(crab||spec.form==='scarab'||spec.form==='herald')for(let i=0;i<5;i++){
+   const x=-19+i*10,r=thick*(1-Math.abs(i-1.5)*.13);
+   for(const side of [-1,1])tube([[x,-r*.6,side*r*.75],[x+4,-r*.94,side*r*.55],[x+10,-r*1.08,side*r*.1]],1.1,tint(accent,.7));
+  }
+  // Species-specific anatomy: grasping mantis forelegs, crab pincers and brood armor.
+  if(spec.id==='furnaceMantis'||spec.id==='coreHarvester')for(const side of [-1,1]){
+   const root=[-20,4,side*9],joint=[...root,2];
+   tube([root,[-34,13,side*20],[-14,33,side*30],[-40,25,side*29]],2.1,skin,joint);
+   for(let j=0;j<5;j++)tube([[-17-j*4,30-j*.7,side*29],[-20-j*4,24-j*.5,side*29]],.6,accent,joint);
+  }
+  if(crab)for(const side of [-1,1]){
+   const joint=[-20,6,side*13,2];tube([[-20,6,side*13],[-36,12,side*26],[-46,5,side*29]],3.6,skin,joint);
+   tube([[-46,5,side*29],[-58,0,side*30],[-62,-7,side*25]],2.4,accent,joint);
+   tube([[-46,5,side*29],[-57,10,side*29],[-63,3,side*26]],2.4,skin,joint);
+  }
+  if(spec.id==='broodMother'||spec.id==='coreHarvester')for(const side of [-1,1])for(let i=0;i<5;i++){
+   const x=-3+i*8; tube([[x,-9,side*9],[x+4,-19,side*14],[x+11,-11,side*19]],1.7,accent);
+  }
+  // Fine embedded speckles follow the body rather than floating sphere ornaments.
+  for(let i=0;i<18;i++){const x=-18+i*2.9,a=i*2.399,r=thick*(1-Math.max(0,x)*.012),y=Math.cos(a)*r,z=Math.sin(a)*r; m.ellipsoid(x,y,z,1.6,.65,.65,tint(accent,.65),0,8,4);}
+  for(const f of m.faces){if(small!==1){f.v=f.v.map(p=>p.map(v=>v*small));if(f.joint)f.joint=f.joint.map((v,i)=>i<3?v*small:v);if(f.blink)f.blink=[f.blink[0]*small,f.blink[1]];}f.textureWeight=f.textureWeight??.72;}
+  m.faces.skin=true;m.faces.alienMaterial=tentacles?'flesh':'chitin';m.faces.fauna=true;m.faces.organicRig=tentacles?(spec.id==='squid'?'squid':'octopus'):'anatomical';meshes[spec.id]=m.faces;faunaCatalog[spec.id]={...spec,triangles:m.faces.reduce((n,f)=>n+f.v.length-2,0)};
+ }
+ const specs=[
+ ['squid','Needlewing','air','tendril',[51,160,113],[198,181,89]],['octopus','Ribbonwing','air','tendril',[156,65,104],[220,150,119]],['broodMother','Rust Broodcarrier','air','moth',[163,94,44],[222,170,88]],['swarmlet','Dart Larva','air','moth',[162,107,63],[225,175,91],.42],
+ ['furnaceMantis','Furnace Mantis','air','moth',[62,83,73],[224,120,49]],['emberMite','Ember Mite','air','moth',[151,77,44],[235,152,57],.45],
+ ['abyssRay','Abyss Ray','water','ray',[44,134,168],[102,193,195]],['lanternScarab','Lantern Scarab','water','scarab',[76,120,173],[201,170,77]],['abyssShepherd','Abyss Shepherd','water','tendril',[53,120,152],[146,185,169]],
+ ['reefCrab','Reef Crab','water','crab',[184,109,60],[215,171,112]],['reefGlider','Reef Glider','water','ray',[193,75,56],[223,137,93]],['reefHerald','Reef Herald','water','herald',[143,76,95],[218,153,98]],
+ ['stormMoth','Storm Moth','air','moth',[83,101,180],[170,163,211]],['stormPolyp','Storm Ribbonwing','air','tendril',[129,80,159],[188,155,207]],['coreMoth','Core Moth','air','moth',[164,58,46],[231,147,55]],['corePolyp','Core Ribbonwing','air','tendril',[159,65,70],[224,133,72]],['coreHarvester','Core Harvester','air','moth',[103,77,66],[227,139,64]]
+ ];for(const [id,name,habitat,form,color,accent,small]of specs)build({id,name,habitat,form,color,accent,small});
+})();
+
+function isOrganicEnemy(e){const id=e.satellite?e.escortProfile?.escort:e.escortProfile?.model;const name=id||(typeof sectors!=='undefined'?sectors[level]?.models[e.type]:null);return !!faunaCatalog[name]||e.type===1||e.type===3;}
