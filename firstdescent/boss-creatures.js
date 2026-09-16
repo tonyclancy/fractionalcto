@@ -300,8 +300,12 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
      const length=Math.max(0,p.pivot[0]-r[0]),reach=cl(load*.55+attack*.9+jaw*.7,0,1),curvature=(.039*(1-reach)+.0045*reach+Math.sin(flight*3.1+p.side*.7)*.004)/(p.lengthScale||1),angle=length*curvature,c=Math.cos(angle),sn=Math.sin(angle),y=r[1]-p.pivot[1],z=r[2]-p.pivot[2],spread=.13+p.side*bank*.06+reach*.26+Math.sin(flight*2.5+p.side)*.12,cs=Math.cos(spread),ss=p.side*Math.sin(spread),cx=-sn/curvature-y*sn,cy=(1-c)/curvature+y*c;
      v[0]=p.pivot[0]+cx;v[1]=p.pivot[1]+cy*cs-z*ss;v[2]=p.pivot[2]+cy*ss+z*cs;
     }else if(p.rig==='feeler'){
-     const q=cl(Math.hypot(r[0]-p.pivot[0],r[1]-p.pivot[1],r[2]-p.pivot[2])/(75*(p.lengthScale||1)),0,1),w=q*q,sensoryPhase=age*3.4+(p.index||0)*.86+(p.side||0)*.22;
-     v[0]+=(Math.sin(sensoryPhase-q*2)*(7+load*4)-surge*4)*w;v[1]+=(Math.sin(sensoryPhase-q*4)*19+Math.sin(sensoryPhase*1.7-q*6)*3+climb*6-load*12)*w;v[2]+=Math.cos(sensoryPhase-q*2)*w*(16+load*8);
+     const q=cl(Math.hypot(r[0]-p.pivot[0],r[1]-p.pivot[1],r[2]-p.pivot[2])/(75*(p.lengthScale||1)),0,1),w=q*q,sensoryPhase=age*(5.8+(p.index||0)*.17)+(p.index||0)*1.19+(p.side||0)*.83;
+     // Independent scanning sweeps with quick, smaller tip flicks and elastic lag.
+     const flick=Math.sin(age*13.7+(p.index||0)*2.1+p.side-q*7),tip=w*q;
+     v[0]+=(Math.sin(sensoryPhase-q*2)*(11+load*5)-surge*4)*w+flick*3*tip;
+     v[1]+=(Math.sin(sensoryPhase-q*4)*27+Math.sin(sensoryPhase*1.7-q*6)*5+climb*6-load*12)*w+flick*4*tip;
+     v[2]+=(Math.cos(sensoryPhase-q*2)*(23+load*8)+Math.sin(age*9.3+p.side*1.7-q*5)*4)*w;
     }else if(p.rig==='blink')v[1]=p.pivot[1]+(r[1]-p.pivot[1])*(1-blink*.93);
     spineBend(v,spine,p.rig==='shell');
    }

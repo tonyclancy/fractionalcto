@@ -131,9 +131,9 @@ function drawEmitter(e,isBoss=false){const r=firingRig(e,isBoss),pulse=Math.max(
 function mechanicalFlightRoll(e){
  const age=e.age+(e.phase||0)*.3;
  // Light interceptors spin continuously; gunships brace briefly between rolls.
- if(e.type!==2)return age*TAU/1.4;
+ if(e.type!==2)return age*TAU/.75;
  const cycle=((age%2.8)+2.8)%2.8;
- return TAU*passEase(clamp((cycle-.35)/1.5,0,1));
+ return TAU*passEase(clamp((cycle-.35)/.75,0,1));
 }
 function drawMechanicalPropulsion(e,yaw,roll,pitch){
  const drive=clamp((e.swimSpeed||e.speed)/Math.max(1,e.speed),.5,1.5),pulse=.5+.5*Math.sin((e.age+(e.phase||0))*18),length=30+drive*28+pulse*12;
@@ -148,8 +148,8 @@ function drawMechanicalPropulsion(e,yaw,roll,pitch){
 function drawEnemy(e){
  if(e.x< -180||e.x>W+180||e.y< -180||e.y>H+180)return;
  if(e.sentry){ctx.save();ctx.strokeStyle='#83939d';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(e.x,e.y-35);ctx.lineTo(e.x,e.y);ctx.stroke();ctx.restore();drawModel(meshes.sentry,e.x,e.y,1,0,0,0,e.age,e.hit);drawEmitter(e);healthBar(e.x,e.y+40,65,e.hp,e.max,'#ffbd78');return;}
- if(e.brood){drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,1.4,e.travelYaw||0,(e.broodRoll||0)+organicSpin(e.age+e.phase).roll,(e.travelPitch||0)+organicSpin(e.age+e.phase).pitch,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
- if(e.satellite){const a=e.age*3.8+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes[e.escortProfile?.escort||'swarmlet'],e.x,e.y,e.escortProfile?.5:.82,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'squid');if(e.escortProfile)drawEmitter(e);if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
+ if(e.brood){drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,1.4,e.travelYaw||0,organicSpin(e.age+e.phase).roll,(e.travelPitch||0)+organicSpin(e.age+e.phase).pitch,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
+ if(e.satellite){const a=e.age*TAU/.75+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes[e.escortProfile?.escort||'swarmlet'],e.x,e.y,e.escortProfile?.5:.82,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'squid');if(e.escortProfile)drawEmitter(e);if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
 
  const organic=e.type===1||e.type===3,activity=organic?organicSpin(e.age+e.phase):null,yaw=e.travelYaw||0,pitch=(e.travelPitch||0)+(activity?.pitch||0),roll=organic?activity.roll+clamp(-pitch*.45,-.18,.18):mechanicalFlightRoll(e)-pitch*.65;
  if(!organic)drawMechanicalPropulsion(e,yaw,roll,pitch);
@@ -433,7 +433,7 @@ function drawBossArms(b){if(bossIndex()!==0)return;
 function drawSnakeLink(front,back,width,age,hit){const dx=back.x-front.x,dy=back.y-front.y;ctx.save();ctx.translate((front.x+back.x)/2,(front.y+back.y)/2);ctx.rotate(Math.atan2(dy,dx));ctx.scale(Math.hypot(dx,dy)/40,width);drawModel(meshes.snakeBody,0,0,1,0,0,0,age,hit);ctx.restore()}
 
 // Brisk axial rolls with a brief recovery; attitude changes never alter travel speed.
-function organicSpin(age){const cycle=((age%3.6)+3.6)%3.6,t=clamp((cycle-.6)/1.05,0,1),ease=t*t*(3-2*t);return{yaw:Math.sin(age*3.7)*.10+Math.sin(age*8.1)*.035,pitch:Math.sin(age*5.3)*.055+Math.sin(age*9.7)*.018,roll:ease*TAU+Math.sin(age*4.1)*.10+Math.sin(age*7.3)*.035,fan:Math.sin(t*Math.PI)**2}}
+function organicSpin(age){const cycle=((age%3.6)+3.6)%3.6,t=clamp((cycle-.6)/.75,0,1),ease=t*t*(3-2*t);return{yaw:Math.sin(age*3.7)*.10+Math.sin(age*8.1)*.035,pitch:Math.sin(age*5.3)*.055+Math.sin(age*9.7)*.018,roll:ease*TAU+Math.sin(age*4.1)*.10+Math.sin(age*7.3)*.035,fan:Math.sin(t*Math.PI)**2}}
 
 function drawWeatheredPanels(width,y,height,sector){
  ctx.save();ctx.beginPath();ctx.rect(0,y,width,height);ctx.clip();
