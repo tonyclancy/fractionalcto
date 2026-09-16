@@ -1,0 +1,532 @@
+/* Solid, lit meshes. All visible surfaces rotate in three dimensions. */
+const meshes={};
+function meshBuilder(){const faces=[];
+ const face=(v,c,em=0,flex=0)=>faces.push({v,c,em,flex});
+ function ellipsoid(cx,cy,cz,rx,ry,rz,c,em=0,segments=28,rings=18){for(let j=0;j<rings;j++)for(let i=0;i<segments;i++){const p=(u,v)=>{const a=u/segments*Math.PI*2,b=v/rings*Math.PI;return[cx+rx*Math.cos(b),cy+ry*Math.sin(b)*Math.cos(a),cz+rz*Math.sin(b)*Math.sin(a)]};face([p(i,j),p(i+1,j),p(i+1,j+1),p(i,j+1)],c,em)}}
+ function wedge(a,b,c,thick,color){face([a,b,c],color);const back=[a,b,c].map(v=>[v[0],v[1],v[2]+thick]);face(back.slice().reverse(),color);for(let i=0;i<3;i++)face([[a,b,c][i],[a,b,c][(i+1)%3],back[(i+1)%3],back[i]],color)}
+ function tube(points,r,color,flex=0,em=0){
+ const path=[];for(let j=0;j<points.length-1;j++)for(let k=0;k<3;k++){const t=k/3,p0=points[Math.max(0,j-1)],p1=points[j],p2=points[j+1],p3=points[Math.min(points.length-1,j+2)];path.push(p1.map((v,i)=>.5*((2*v)+(-p0[i]+p2[i])*t+(2*p0[i]-5*v+4*p2[i]-p3[i])*t*t+(-p0[i]+3*v-3*p2[i]+p3[i])*t*t*t)))}path.push(points[points.length-1]);
+ const rings=path.map((p,j)=>{const prev=path[Math.max(0,j-1)],next=path[Math.min(path.length-1,j+1)],t=next.map((v,i)=>v-prev[i]),len=Math.hypot(...t)||1,d=t.map(v=>v/len),axis=Math.abs(d[2])<.9?[0,0,1]:[0,1,0];let u=[d[1]*axis[2]-d[2]*axis[1],d[2]*axis[0]-d[0]*axis[2],d[0]*axis[1]-d[1]*axis[0]],ul=Math.hypot(...u)||1;u=u.map(v=>v/ul);const v=[d[1]*u[2]-d[2]*u[1],d[2]*u[0]-d[0]*u[2],d[0]*u[1]-d[1]*u[0]],rr=r*(1-j/path.length*.85);return Array.from({length:12},(_,i)=>{const a=i/12*Math.PI*2;return p.map((n,k)=>n+rr*(u[k]*Math.cos(a)+v[k]*Math.sin(a)))})});for(let j=0;j<rings.length-1;j++)for(let i=0;i<12;i++)face([rings[j][i],rings[j][(i+1)%12],rings[j+1][(i+1)%12],rings[j+1][i]],color,em,flex);face(rings[0].slice().reverse(),color,em,flex);face(rings[rings.length-1],color,em,flex);
+ }
+ return{faces,ellipsoid,wedge,tube};
+}
+function buildModels(){
+ let m=meshBuilder();m.ellipsoid(0,0,0,49,12,11,[132,167,184]);m.ellipsoid(9,-7,-7,21,6,7,[35,117,146]);m.ellipsoid(9,-8,-11,15,3,3,[94,237,240],.55);
+ for(const side of [-1,1]){m.wedge([15,side*7,-2],[-40,side*39,1],[-26,side*8,-4],7,[102,137,163]);m.wedge([-22,side*6,-3],[-42,side*18,-19],[-38,side*5,-4],3,[142,174,188]);m.tube([[-35,side*17,0],[-23,side*18,0],[9,side*17,0]],5,[63,86,115]);m.ellipsoid(-36,side*17,0,3,4,4,[85,232,255],.9)}meshes.player=m.faces;
+ const guns=meshBuilder();for(const side of [-1,1]){guns.ellipsoid(-1,side*26,0,28,5,5,[129,155,171],0,12,7);guns.tube([[-13,side*26,-3],[18,side*26,-3],[42,side*26,-3]],3,[58,99,121]);guns.ellipsoid(43,side*26,-3,2,3,3,[153,255,230],.9,10,6)}meshes.player2=meshes.player.concat(guns.faces);
+ const lance=meshBuilder();lance.ellipsoid(30,0,0,23,7,7,[126,113,173],0,12,7);lance.ellipsoid(52,0,0,3,4,4,[208,165,255],.9,10,6);meshes.player3=meshes.player2.concat(lance.faces);
+ m=meshBuilder();m.ellipsoid(0,0,0,49,13,13,[144,39,58]);m.ellipsoid(-20,-4,-9,17,6,6,[255,151,65],.6);for(const side of [-1,1]){m.wedge([-37,side*8,0],[28,side*39,6],[23,side*7,-3],8,[126,32,49]);m.wedge([5,side*8,0],[40,side*27,-20],[27,side*5,-3],4,[178,60,71]);m.tube([[30,side*16,0],[48,side*16,0]],7,[58,63,79]);m.ellipsoid(49,side*16,0,3,5,5,[255,111,56],.85)}meshes.fighter=m.faces;
+ m=meshBuilder();m.ellipsoid(-9,0,0,34,25,23,[37,129,108]);m.ellipsoid(-22,-8,-17,13,12,9,[131,177,75]);m.ellipsoid(-25,-8,-24,8,8,4,[190,255,93],.65);m.ellipsoid(-26,-8,-27,2,7,1,[14,33,26]);for(let i=0;i<6;i++){const a=i/6*Math.PI*2,y=Math.cos(a),z=Math.sin(a);m.tube([[0,y*19,z*18],[24,y*27,z*26],[46,y*32,z*28],[72,y*22,z*30],[90,y*34,z*17]],5,[44,134+i*6,104],1);m.tube([[-22,y*17,z*17],[0,y*24,z*22],[20,y*18,z*19]],3,[102,176,133]);}meshes.squid=m.faces;
+ m=meshBuilder();m.ellipsoid(5,0,0,45,24,21,[139,110,65]);for(const side of [-1,1]){m.ellipsoid(13,side*19,0,34,9,13,[90,88,74]);m.tube([[5,side*20,-13],[-24,side*20,-13],[-55,side*20,-13]],5,[126,145,145]);m.ellipsoid(-56,side*20,-13,2,4,4,[255,191,99],.7);m.ellipsoid(39,side*15,1,6,7,9,[253,142,63],.8)}for(let i=0;i<5;i++)m.tube([[-26+i*12,-21,-12],[-26+i*12,21,-12]],2,[184,159,95]);m.ellipsoid(-12,-4,-23,12,7,4,[242,182,84],.65);meshes.gunship=m.faces;
+ m=meshBuilder();m.ellipsoid(-5,0,0,34,16,16,[105,69,153]);m.ellipsoid(-24,-5,-12,9,5,5,[240,148,255],.75);for(const side of [-1,1]){m.wedge([-20,side*8,0],[34,side*50,8],[23,side*13,-4],4,[123,72,158]);m.tube([[-12,side*10,0],[-36,side*24,-7],[-43,side*37,-4],[-16,side*33,0]],4,[180,145,198],.45);m.tube([[10,side*9,2],[35,side*15,5],[62,side*12,8],[83,side*29,2]],5,[123,80,166],1)}meshes.manta=m.faces;
+}
+buildModels();
+function rotateVertex(v,yaw,roll,pitch,age,flex){let [x,y,z]=v;if(flex){const bend=Math.max(0,x-10)*flex;y+=Math.sin(age*3-x*.07)*bend*.23;z+=Math.cos(age*2.4-x*.06)*bend*.22}const a=x*Math.cos(yaw)+z*Math.sin(yaw),b=-x*Math.sin(yaw)+z*Math.cos(yaw),c=y*Math.cos(roll)-b*Math.sin(roll),d=y*Math.sin(roll)+b*Math.cos(roll);return[a*Math.cos(pitch)-c*Math.sin(pitch),a*Math.sin(pitch)+c*Math.cos(pitch),d]}
+function drawModel(mesh,x,y,scale,yaw,roll,pitch,age,hit=0,rig=null){
+ if(window.gpuModels){window.gpuModels.draw(mesh,ctx,x,y,scale,yaw,roll,pitch,age,hit,rig);return;}
+ const faces=mesh.map(f=>{const v=f.v.map(p=>{let q=rig==='ray'?rayVertex(p,age):p;if(rig==='squid'||rig==='octopus')q=organicVertex(p,age,rig);return rotateVertex(q,yaw,roll,pitch,age,(rig==='squid'||rig==='octopus'||rig==='ray')?0:f.flex)});return{...f,v,z:v.reduce((a,p)=>a+p[2],0)/v.length}}).sort((a,b)=>b.z-a.z);
+ ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);ctx.lineJoin='round';
+ for(const f of faces){const [a,b,c]=f.v,u=b.map((v,i)=>v-a[i]),v=c.map((n,i)=>n-a[i]);let normal=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.hypot(...normal)||1;normal=normal.map(n=>n/len);const diffuse=Math.abs(normal[0]*-.3+normal[1]*-.6+normal[2]*-.74),spec=Math.pow(Math.abs(normal[2]*-.85+normal[1]*-.45),18)*.42;const light=.3+diffuse*.64+spec+f.em*.6;const pulse=hit>0&&((age% .12)<.022)?.55:0;const color=`rgb(${f.c.map(n=>{const base=Math.min(255,n*light+spec*110);return Math.round(base+(255-base)*pulse)}).join(',')})`;ctx.beginPath();f.v.forEach((p,i)=>{const perspective=460/(460+p[2]);i?ctx.lineTo(p[0]*perspective,p[1]*perspective):ctx.moveTo(p[0]*perspective,p[1]*perspective)});ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=.45;ctx.stroke();}
+ ctx.restore();
+}
+// Individually modeled armor ribs, vents, chitin ridges and luminous organs.
+function enrichEnemies(){for(const name of ['fighter','gunship','squid','manta']){const m=meshBuilder(),organic=name==='squid'||name==='manta';
+ for(let i=0;i<6;i++){const x=-23+i*9;
+ if(organic){for(const side of [-1,1]){m.tube([[x,side*9,-16],[x+4,side*17,-18],[x+8,side*20,-9]],1.4,[175,190,144]);m.ellipsoid(x,side*9,-18,2,2,2,name==='squid'?[126,239,151]:[202,137,251],.6,7,5)}}
+ else{m.tube([[x,-9,-11],[x,-4,-15],[x,7,-13]],.8,[192,163,135]);for(const side of [-1,1]){m.ellipsoid(x,side*11,-10,1.2,1.2,1.2,[206,206,176],0,6,4);m.wedge([x,side*18,-5],[x+5,side*18,-5],[x+5,side*22,-5],1,[42,46,56])}}}
+ if(organic)for(const side of [-1,1])for(let i=0;i<3;i++)m.wedge([-15+i*13,side*12,-3],[-6+i*13,side*(28+i*3),-6],[0+i*13,side*12,2],3,[182,161,185]);meshes[name]=meshes[name].concat(m.faces);
+ }
+ const head=meshBuilder();head.ellipsoid(0,0,0,42,30,27,[45,103,81]);head.ellipsoid(-27,0,-8,19,23,22,[38,44,49]);
+ for(const side of [-1,1]){head.ellipsoid(-21,side*20,-19,13,9,8,[98,154,103]);head.ellipsoid(-26,side*20,-25,7,5,4,[180,255,111],.9);for(let i=0;i<6;i++){const x=-42+i*8;head.wedge([x,side*15,-24],[x-2,side*3,-23],[x+5,side*15,-21],4,[228,220,180])}for(let i=0;i<5;i++)head.wedge([-5+i*9,side*19,0],[9+i*9,side*44,5],[14+i*9,side*15,-2],5,[133,154,117]);}meshes.hiveHead=head.faces;
+ const tentacles=meshBuilder();for(let i=0;i<8;i++){const a=i/8*Math.PI*2,yy=Math.cos(a),zz=Math.sin(a),points=[];for(let j=0;j<12;j++)points.push([12+j*10,yy*(22+j*3)+Math.sin(j*.65+i)*j*2,zz*(23+j*3)]);tentacles.tube(points,7,[58,132+i*5,112],1.8);for(let j=2;j<9;j+=2){const start=tentacles.faces.length;tentacles.ellipsoid(points[j][0],points[j][1],points[j][2]-3,3,3,2,[161,195,146],.1,7,5);for(let k=start;k<tentacles.faces.length;k++)tentacles.faces[k].flex=1.8}}meshes.hiveTendrils=tentacles.faces;
+ const vertebra=meshBuilder();vertebra.ellipsoid(0,0,0,18,23,20,[78,52,115],0,12,8);for(const side of [-1,1]){vertebra.tube([[-12,side*7,-18],[0,side*19,-19],[10,side*11,-15]],3,[172,156,190]);vertebra.wedge([-8,side*16,0],[4,side*37,2],[11,side*16,2],4,[191,173,198]);}vertebra.ellipsoid(0,0,-21,7,6,3,[222,133,255],.8,10,6);meshes.vertebra=vertebra.faces;
+ const serpent=meshBuilder();serpent.ellipsoid(0,0,0,36,23,24,[124,103,157]);for(const side of [-1,1]){serpent.ellipsoid(-16,side*13,-19,11,7,6,[240,149,255],.9);serpent.tube([[-26,side*12,-15],[-42,side*17,-16],[-49,side*5,-14]],4,[213,202,192]);serpent.wedge([0,side*15,0],[35,side*41,-7],[20,side*9,3],7,[171,155,191]);for(let i=0;i<4;i++)serpent.wedge([-30+i*7,side*10,-21],[-34+i*7,side*2,-23],[-25+i*7,side*10,-21],3,[233,224,199]);}meshes.serpentHead=serpent.faces;
+}
+enrichEnemies();
+function buildMotionParts(){
+ const rotor=meshBuilder();rotor.ellipsoid(0,0,0,5,8,8,[109,136,154],0,10,6);for(let i=0;i<4;i++){const a=i*Math.PI/2,turn=v=>[v[0],v[1]*Math.cos(a)-v[2]*Math.sin(a),v[1]*Math.sin(a)+v[2]*Math.cos(a)];rotor.wedge(turn([-7,7,-2]),turn([1,38,2]),turn([8,13,5]),2,[174,77,91]);rotor.tube([turn([0,27,2]),turn([1,35,2])],1.5,[255,177,113],0,.7)}meshes.rotor=rotor.faces;
+ const fragment=meshBuilder();fragment.wedge([-7,-4,-3],[8,-2,-2],[2,6,0],5,[122,141,158]);fragment.tube([[-4,-3,-4],[5,-2,-3]],1,[229,153,68]);meshes.shrapnel=fragment.faces;
+ const bone=meshBuilder();bone.ellipsoid(0,0,0,8,2,2,[224,210,171],0,8,5);for(const side of [-1,1])bone.ellipsoid(side*6,0,0,2,3,3,[225,221,193],0,8,5);meshes.bone=bone.faces;
+ for(const [name,color,em] of [['hotCloud',[255,135,35],.75],['emberCloud',[167,63,22],.15],['smokeCloud',[66,65,75],0]]){const cloud=meshBuilder();cloud.ellipsoid(0,0,0,10,10,10,color,em,10,7);for(const f of cloud.faces){for(const v of f.v){const n=1+.2*Math.sin(v[0]*.63+v[1]*.71)*Math.cos(v[2]*.57);v[0]*=n;v[1]*=n;v[2]*=n}const center=f.v.reduce((n,v)=>n+v[1],0)/4;f.c=color.map((c,i)=>Math.max(0,Math.min(255,c+(name==='hotCloud'?35:-12)*Math.sin(center*.65+i))))}meshes[name]=cloud.faces;}
+}
+buildMotionParts();
+function buildOctopus(){const m=meshBuilder();m.ellipsoid(-13,0,0,30,24,23,[109,66,132]);for(const side of [-1,1]){m.ellipsoid(-29,side*11,-15,9,7,7,[163,135,161]);m.ellipsoid(-34,side*11,-20,5,5,3,[219,221,139],.45);m.ellipsoid(-35,side*11,-22,1.2,4,1,[21,24,35]);}for(let i=0;i<8;i++){const a=i*Math.PI/4,y=Math.cos(a),z=Math.sin(a),points=[];for(let j=0;j<10;j++)points.push([4+j*8,y*(17+j*3.4)+Math.sin(j*.55)*8,z*(17+j*2.8)]);m.tube(points,5.5,[135+i*3,83,149],1);for(let j=2;j<8;j+=2)m.ellipsoid(points[j][0],points[j][1]-1,points[j][2]-3,2.4,2,1.5,[205,165,183],0,6,4)}meshes.octopus=m.faces;}buildOctopus();
+function buildWeapons(){let m=meshBuilder();m.ellipsoid(0,0,0,15,7,7,[85,105,122],0,12,7);m.tube([[5,0,0],[-10,0,0],[-27,0,0]],5,[124,144,153]);m.ellipsoid(-27,0,0,1.5,4,4,[23,35,42],0,10,6);m.ellipsoid(-28,0,0,1,2,2,[255,177,89],.7,8,5);meshes.cannon=m.faces;
+ m=meshBuilder();m.ellipsoid(3,0,0,15,10,9,[114,78,125],0,12,8);m.tube([[8,0,0],[-3,0,0],[-17,-2,0],[-27,0,0]],7,[152,101,140]);for(let i=0;i<4;i++)m.ellipsoid(-4-i*5,0,0,2,7-i*.5,7-i*.5,[179,128,150],0,10,6);m.ellipsoid(-28,0,0,2,4.5,4.5,[35,26,46],0,10,6);meshes.siphon=m.faces;
+ m=meshBuilder();m.ellipsoid(1,0,0,13,3.2,3.2,[194,209,210],0,12,6);m.ellipsoid(11,0,0,4,3,3,[199,92,67],0,10,6);for(const side of [-1,1])m.wedge([-8,side*2,0],[-13,side*8,0],[-1,side*2,0],1,[102,130,148]);m.wedge([-10,0,-2],[-13,0,-8],[-1,0,-2],1,[102,130,148]);meshes.missile=m.faces;
+ m=meshBuilder();m.ellipsoid(0,0,0,8,5,5,[115,171,96],.12,10,7);m.ellipsoid(3,-2,-3,3,2,2,[201,242,122],.4,8,5);for(let i=0;i<4;i++){const a=i*Math.PI/2;m.tube([[-5,Math.cos(a)*3,Math.sin(a)*3],[-12,Math.cos(a)*6,Math.sin(a)*5],[-20,Math.cos(a)*3,Math.sin(a)*3]],1.2,[172,91,155],.6)}meshes.spore=m.faces;}
+buildWeapons();
+function buildShieldAndBone(){let m=meshBuilder();m.ellipsoid(0,0,0,8,13,8,[109,150,174],0,12,8);for(const side of [-1,1]){m.tube([[0,side*8,0],[8,side*22,0],[4,side*37,0]],5,[128,166,189]);m.ellipsoid(4,side*33,-3,3,5,3,[118,246,245],.85,8,6)}m.ellipsoid(-4,0,-7,4,7,3,[102,247,249],.75,10,6);meshes.frontShield=m.faces;
+ m=meshBuilder();m.tube([[-12,5,0],[-9,-3,-1],[-2,-8,0],[7,-6,1],[12,1,0]],2.6,[224,205,174]);m.wedge([-12,5,-1],[-15,8,-1],[-11,7,0],2,[172,137,115]);meshes.rib=m.faces;
+ m=meshBuilder();m.ellipsoid(0,0,0,5,6,4,[210,198,171],0,10,7);for(const side of [-1,1]){m.wedge([side*2,0,0],[side*11,-4,1],[side*7,4,0],3,[221,212,185]);m.ellipsoid(side*3,-3,-3,1.5,2,1,[101,85,72],0,6,4)}m.wedge([-2,-3,1],[0,-13,2],[3,-3,2],3,[230,217,186]);meshes.spineChip=m.faces;
+ m=meshBuilder();m.ellipsoid(0,0,0,8,7,3,[199,194,164],0,10,6);m.ellipsoid(-3,-1,-3,2,2,1,[52,60,52],0,7,5);m.ellipsoid(3,-1,-3,2,2,1,[52,60,52],0,7,5);for(let i=0;i<3;i++)m.wedge([-5+i*4,4,-1],[-7+i*4,10,-2],[-2+i*4,5,-1],2,[235,222,186]);meshes.chitinChip=m.faces;
+}buildShieldAndBone();
+function refineBossSurfaces(){
+ const shell=meshBuilder();for(let row=0;row<5;row++){const x=-5+row*8;for(let j=0;j<7;j++){const angle=(j/6)*Math.PI+.25,y=Math.cos(angle)*24,z=Math.sin(angle)*-25;shell.ellipsoid(x,y,z,7,5,3,[69+row*7,124+row*4,99],0,16,10);if(j%2===0)shell.ellipsoid(x-2,y-1,z-3,2,1.5,1,[149,230,128],.5,10,7)}}for(const side of [-1,1])shell.tube([[-12,side*23,-12],[-29,side*32,-16],[-48,side*25,-19],[-53,side*10,-21]],4,[213,211,169]);meshes.hiveHead=meshes.hiveHead.concat(shell.faces);
+ const skull=meshBuilder();for(const side of [-1,1]){skull.tube([[18,side*16,-8],[1,side*23,-16],[-20,side*17,-23]],3,[205,194,219]);skull.tube([[0,side*12,-20],[-15,side*18,-24],[-30,side*11,-22]],1,[200,119,248],0,.7);for(let j=0;j<4;j++)skull.ellipsoid(1+j*7,side*7,-21+j,4,3,2,[147,128,167],0,14,9)}meshes.serpentHead=meshes.serpentHead.concat(skull.faces);
+}refineBossSurfaces();
+function addAnimalAnatomy(){
+ for(const [name,color,eyeX,eyeY,eyeZ,size] of [['squid',[86,139,105],-26,-10,-23,8],['octopus',[139,103,143],-30,-11,-20,7],['hiveHead',[86,130,84],-25,-20,-25,10],['serpentHead',[135,116,143],-17,-13,-21,9]]){
+ const m=meshBuilder();
+ // Fleshy orbital rims surround an iris and dark vertical pupil, with a corneal highlight.
+ m.ellipsoid(eyeX,eyeY,eyeZ,size*1.45,size*1.2,size*.64,color,0,24,16);
+ m.ellipsoid(eyeX-1,eyeY,eyeZ-size*.5,size*.97,size*.9,size*.4,[184,179,130],0,24,16);
+ m.ellipsoid(eyeX-2,eyeY,eyeZ-size*.83,size*.63,size*.74,size*.18,[112,148,71],0,20,14);
+ m.ellipsoid(eyeX-2,eyeY,eyeZ-size*.99,size*.17,size*.63,size*.08,[9,18,21],0,16,12);
+ m.ellipsoid(eyeX-4,eyeY-3,eyeZ-size*1.06,size*.14,size*.13,size*.05,[228,243,229],.15,12,8);
+ const lid=[];for(let j=0;j<9;j++){const a=Math.PI+j*Math.PI/8;lid.push([eyeX+Math.cos(a)*size*1.12,eyeY+Math.sin(a)*size*.95,eyeZ-size*.48])}m.tube(lid,1.4,color);
+ // Cheek folds and gill slits follow the mantle instead of sitting as armor plates.
+ for(let j=0;j<4;j++){const x=-5+j*6;m.tube([[x,-9,-22],[x+2,0,-24],[x+1,10,-20]],1.2,color.map(c=>Math.round(c*.72)));}
+ if(name==='hiveHead'||name==='serpentHead'){m.ellipsoid(-27,17,-12,19,8,15,color,0,28,18);m.ellipsoid(-23,-27,-10,20,6,15,color,0,28,18);m.tube([[-38,9,-22],[-26,14,-25],[-10,11,-23]],2,color.map(c=>Math.round(c*.65)));}
+ meshes[name]=meshes[name].concat(m.faces);meshes[name].skin=true;
+ }
+ for(const name of ['hiveTendrils','vertebra','siphon','spore'])meshes[name].skin=true;
+}addAnimalAnatomy();
+// Layered armor and exposed machinery make the silhouettes readable at combat scale.
+function detailStarships(){
+ const p=meshBuilder();
+ p.wedge([51,0,-5],[3,-11,-12],[3,11,-12],5,[185,208,219]);
+ p.ellipsoid(4,-5,-14,19,7,5,[18,46,65],0,24,14);
+ p.ellipsoid(7,-6,-18,13,4,2,[61,166,202],.18,20,12);
+ p.tube([[-12,-8,-17],[0,-11,-18],[19,-8,-15]],1.1,[209,223,225]);
+ p.tube([[3,-11,-17],[4,-5,-20],[5,1,-17]],.9,[154,181,194]);
+ for(const side of [-1,1]){
+  p.wedge([24,side*10,-7],[-28,side*33,-5],[-35,side*20,-10],4,[172,193,205]);
+  p.wedge([-8,side*17,-11],[-27,side*29,-9],[-30,side*22,-12],1,[35,65,85]);
+  p.tube([[-34,side*17,-5],[-19,side*17,-7],[14,side*13,-7]],1.2,[88,222,240],0,.35);
+  p.ellipsoid(-30,side*18,-5,16,6,6,[62,82,105],0,20,12);
+  p.ellipsoid(-43,side*18,-5,3,5,5,[17,29,44],0,16,10);
+  p.ellipsoid(-45,side*18,-5,1.5,3,3,[107,237,255],.9,12,8);
+  for(let i=0;i<4;i++)p.tube([[-30+i*5,side*19,-11],[-28+i*5,side*24,-9]],.8,[23,39,54]);
+  p.tube([[0,side*10,-8],[20,side*10,-8],[39,side*10,-8]],2,[57,78,98]);
+ }
+ for(const name of ['player','player2','player3'])meshes[name]=meshes[name].concat(p.faces);
+ for(const name of ['fighter','gunship']){
+  const m=meshBuilder(),heavy=name==='gunship',armor=heavy?[77,83,92]:[77,34,46];
+  for(const side of [-1,1]){
+   m.wedge([-49,side*22,-4],[22,side*36,-2],[10,side*12,-13],8,armor);
+   m.wedge([-48,side*22,-8],[-9,side*25,-12],[-22,side*15,-13],3,[151,71,65]);
+   m.tube([[-44,side*23,-9],[-21,side*27,-12],[13,side*30,-7]],1.3,[246,89,49],0,.3);
+   m.ellipsoid(22,side*23,-4,18,9,9,[39,45,58],0,20,12);
+   m.ellipsoid(38,side*23,-4,3,6,6,[255,116,42],.65,16,10);
+   for(let i=0;i<4;i++)m.wedge([i*7-13,side*15,-14],[i*7-9,side*15,-14],[i*7-11,side*23,-11],2,[29,30,39]);
+  }
+  m.wedge([-39,-7,-14],[-9,-12,-17],[-6,9,-17],4,[32,35,44]);
+  m.tube([[-33,-6,-19],[-23,-4,-20],[-12,-7,-20]],1.8,[255,64,35],0,.75);
+  m.wedge([16,-4,-14],[38,-6,-27],[32,6,-14],4,armor);
+  meshes[name]=meshes[name].concat(m.faces);
+ }
+}detailStarships();
+
+// A translucent-looking deep-space ray is unique to the final sector.
+meshes.abyssRay=meshes.manta.map(f=>({...f,c:f.c.map((v,i)=>Math.min(255,v+(i===2?35:i===0?-15:15)))}));meshes.abyssRay.skin=true;
+
+function buildAlienDetails(){
+ const arm=meshBuilder();arm.ellipsoid(0,0,0,14,12,10,[126,66,130],0,16,10);arm.ellipsoid(0,-5,-9,5,4,2,[208,146,170],0,12,8);arm.ellipsoid(0,-5,-11,2.8,2.3,1,[67,29,75],0,10,6);meshes.reachingArm=arm.faces;meshes.reachingArm.skin=true;
+ for(const name of ['squid','octopus','abyssRay']){const m=meshBuilder();
+  // Asymmetric sensory stalks, luminous vesicles and split feeding fronds.
+  for(let i=0;i<3;i++){const x=-10+i*11,y=-18-i*3,z=-12;m.tube([[x,y,z],[x-9,y-12,z-7],[x-5,y-22,z-11]],2,[109,91,143]);m.ellipsoid(x-5,y-22,z-11,4,5,4,[164,205,103],.15,14,10);m.ellipsoid(x-7,y-22,z-14,1,3,1,[15,20,33],0,10,7)}
+  for(let i=0;i<4;i++){m.ellipsoid(i*9-2,10,-23,5,4,4,[77,160,165],.15,14,10);m.ellipsoid(i*9-3,9,-26,2,2,1,[159,246,192],.5,10,7)}
+  for(const side of [-1,1])m.tube([[-28,side*8,-8],[-45,side*13,-12],[-51,side*26,-13],[-37,side*29,-16]],2.2,[171,122,162]);
+  meshes[name]=meshes[name].concat(m.faces);meshes[name].skin=true;
+ }
+}buildAlienDetails();
+
+// Permanent muscular attachment collars for the bosses' extending arms.
+{const m=meshBuilder();m.ellipsoid(0,0,0,24,23,16,[111,67,121],0,20,14);m.ellipsoid(-9,0,-10,16,17,8,[157,95,148],0,18,12);for(const side of [-1,1])m.tube([[9,side*16,-8],[-3,side*18,-14],[-14,side*10,-13]],2,[195,135,175]);meshes.armRoot=m.faces;meshes.armRoot.skin=true;}
+// Continuous reptilian trunk: open-ended muscle tube with overlapping keeled scales.
+function buildSerpentSkin(){
+ const m=meshBuilder(),color=[81,109,104],rings=9,sides=24;
+ for(let j=0;j<rings;j++)for(let k=0;k<sides;k++){
+  const vertex=(n,a)=>{const x=-21+n*42/rings,theta=a/sides*Math.PI*2,r=16.5+.5*Math.cos(x*.1);return[x,Math.cos(theta)*r,Math.sin(theta)*r*.86]};
+  m.faces.push({v:[vertex(j,k),vertex(j+1,k),vertex(j+1,k+1),vertex(j,k+1)],c:color.map(n=>Math.round(n)),em:0,flex:0});
+ }
+ for(let row=0;row<5;row++)for(let k=0;k<9;k++){
+  const x=-18+row*8+(k%2)*3,a=Math.PI+(k+.5)/9*Math.PI,y=Math.cos(a)*16.8,z=Math.sin(a)*14.7;
+  // Each diamond has a raised central keel, catching light like a real scale.
+  const along=[x-5,y,z],tip=[x+6,y,z],up=[x,y+Math.sin(a)*4,z-Math.cos(a)*3],down=[x,y-Math.sin(a)*4,z+Math.cos(a)*3],peak=[x,y*1.06,z*1.08];
+  for(const edge of [[along,up],[up,tip],[tip,down],[down,along]])m.faces.push({v:[edge[0],edge[1],peak],c:[88+row*3,121+k*2,111+k],em:0,flex:0});
+ }
+ for(let i=0;i<5;i++){const x=-18+i*8;m.tube([[x,10,-10],[x,16,-3],[x,15,7]],1.1,[149,158,127]);m.wedge([x-4,-15,0],[x+1,-24,1],[x+6,-15,0],2,[110,126,109]);}
+ meshes.snakeBody=m.faces;meshes.snakeBody.skin=true;
+ const h=meshBuilder();h.ellipsoid(-2,0,0,29,16,15,[75,112,102],0,28,18);h.ellipsoid(-24,3,-1,18,10,11,[91,127,109],0,24,16);h.ellipsoid(-23,11,0,20,5,10,[151,157,127],0,24,14);
+ h.tube([[-42,6,-7],[-24,8,-11],[-6,7,-14]],1.2,[25,39,37]);
+ for(const side of [-1,1]){h.ellipsoid(-8,-7,side*12,9,7,5,[56,86,81],0,20,12);h.ellipsoid(-11,-7,side*16,5,4,2,[198,164,78],0,18,12);h.ellipsoid(-12,-7,side*18,1,3,1,[12,22,22],0,12,8);h.tube([[-21,-11,side*12],[-9,-15,side*15],[1,-10,side*14]],2.5,[116,141,117]);h.ellipsoid(-34,-1,side*8,2,1.4,1,[17,32,31],0,10,7);for(let j=0;j<3;j++)h.wedge([-31+j*7,7,side*9],[-29+j*7,12,side*9],[-27+j*7,7,side*9],1,[222,214,178]);}
+ for(let j=0;j<4;j++)h.tube([[j*6-1,-12,-7],[j*6+3,-16,0],[j*6-1,-12,7]],1.6,[129,148,120]);meshes.snakeHead=h.faces;meshes.snakeHead.skin=true;
+}buildSerpentSkin();
+function fleshAlienSurfaces(){
+ const names=['squid','octopus','abyssRay','hiveHead','serpentHead','snakeHead'];
+ for(const name of names){
+  const original=meshes[name];
+  meshes[name]=original.map(f=>{const flesh=Math.max(...f.c)<190&&f.em<.3;return{...f,wet:f.wet||(f.em>.35||Math.max(...f.c)<45?.9:0),v:f.v.map(([x,y,z])=>{const ripple=flesh?Math.sin(x*.32+Math.sin(y*.19))*Math.cos(z*.26-y*.13)*.65:0;return[x+ripple*.3,y+ripple*.65,z+ripple]})}});meshes[name].skin=true;
+ }
+ for(const name of ['squid','octopus','abyssRay','hiveHead']){
+  const m=meshBuilder(),bossSkin=name==='hiveHead',skin=bossSkin?[86,112,77]:name==='octopus'?[122,86,114]:[77,126,113];
+  // Slit-like breathing openings, tucked into fleshy lips rather than painted stripes.
+  for(let i=0;i<4;i++){const x=-5+i*6,z=bossSkin?-28:-25,y=5+i*.5;let start=m.faces.length;m.ellipsoid(x,y,z,1.6,7-i*.5,1.2,[29,33,39],0,14,10);for(let j=start;j<m.faces.length;j++)m.faces[j].wet=.85;m.tube([[x-2,y-7,z],[x-3,y,z-1],[x-2,y+7,z]],1.5,skin);m.tube([[x+2,y-6,z],[x+3,y,z],[x+2,y+6,z]],.9,[158,115,126]);}
+  // A folded, asymmetric sensory membrane sweeps from the mantle.
+  const edge=[];for(let i=0;i<12;i++){const x=-11+i*4,y=-21-Math.sin(i/11*Math.PI)*(12+Math.sin(i*1.8)*4),z=-8-Math.sin(i*.7)*4;edge.push([x,y,z]);if(i){const root=[x,-15,0],prev=edge[i-1];m.faces.push({v:[[x-4,-15,0],prev,[x,y,z],root],c:[118+i*2,88+i,111],em:0,flex:0,wet:.35});m.tube([root,[x,y,z]],.65,[183,129,143]);}}m.tube(edge,1.1,skin);
+  // Branching capillaries embedded in the cheek and irregular mantle folds.
+  for(let i=0;i<3;i++){const x=-18+i*11;m.tube([[x,12,-19],[x+3,5,-24],[x+1,-4,-23]],.45,[103,62,82]);m.tube([[x+3,5,-24],[x+7,1,-23],[x+8,-3,-22]],.3,[117,74,95]);m.tube([[x,-13,-16],[x+4,-10,-21],[x+7,-2,-24]],1.05,skin.map(v=>Math.round(v*1.18)));}
+  // A single off-centre wet sensory organ with an iris and a deep slit.
+  let start=m.faces.length;m.ellipsoid(8,-5,-25,7,5,3,[105,146,132],0,22,14);m.ellipsoid(7,-5,-28,3,3,1,[193,153,73],0,18,12);m.ellipsoid(7,-5,-29,1,2.5,.6,[12,22,26],0,14,10);for(let j=start;j<m.faces.length;j++)m.faces[j].wet=1;
+  meshes[name]=meshes[name].concat(m.faces);meshes[name].skin=true;
+ }
+}fleshAlienSurfaces();
+function buildSectorBosses(){
+ const m=meshBuilder();m.ellipsoid(5,0,0,76,35,29,[73,83,94],0,32,20);
+ for(const side of [-1,1]){
+  m.wedge([-62,side*18,-6],[67,side*65,4],[46,side*12,-26],18,[85,96,108]);
+  m.wedge([-50,side*21,-25],[32,side*46,-26],[50,side*16,-31],7,[135,139,139]);
+  m.ellipsoid(40,side*47,3,43,13,15,[40,51,65],0,24,14);m.ellipsoid(80,side*47,3,4,9,10,[255,155,67],.8,20,12);
+  m.tube([[-20,side*42,-18],[-55,side*42,-18],[-85,side*42,-18]],7,[83,107,119]);m.ellipsoid(-85,side*42,-18,2,5,5,[16,27,33],0,14,10);
+  for(let i=0;i<7;i++){const x=-35+i*13;m.tube([[x,side*19,-28],[x+2,side*32,-27],[x+6,side*38,-20]],1,[194,179,150]);m.wedge([x,side*25,-29],[x+7,side*25,-29],[x+7,side*31,-27],2,[32,42,55]);}
+  m.tube([[20,side*18,-20],[32,side*29,-36],[50,side*25,-48]],4,[117,126,131]);
+ }
+ // A recessed reactor iris surrounded by mechanical teeth, cabling and an armored bridge.
+ m.ellipsoid(-10,0,-30,29,27,7,[20,29,39],0,28,18);m.ellipsoid(-10,0,-37,17,17,3,[253,155,63],.65,28,18);
+ for(let i=0;i<16;i++){const a=i/16*Math.PI*2,x=-10+Math.cos(a)*25,y=Math.sin(a)*25;m.wedge([x,y,-37],[x+Math.cos(a)*10,y+Math.sin(a)*10,-32],[x-Math.sin(a)*6,y+Math.cos(a)*6,-38],4,[147,151,145]);}
+ m.ellipsoid(39,-7,-33,24,12,10,[66,85,103],0,24,14);for(let i=0;i<5;i++)m.ellipsoid(24+i*7,-8,-42,2,3,1,[114,215,240],.6,10,6);meshes.cathedral=m.faces;
+ const s=meshBuilder();
+ for(const side of [-1,1]){
+  s.tube([[12,side*9,-6],[19,side*25,-12],[7,side*37,-16],[-17,side*41,-14]],5,[135,135,151]);
+  s.tube([[3,side*13,-4],[-14,side*24,-12],[-32,side*23,-14],[-43,side*13,-12]],3,[200,188,159]);
+  for(let i=0;i<7;i++){const x=i*6+2,reach=26+Math.sin(i/6*Math.PI)*21;s.wedge([x,side*12,4],[x+15,side*reach,-4],[x+9,side*12,-8],1.5,[111+i*4,95,147]);s.tube([[x+2,side*13,-7],[x+15,side*reach,-5]],.8,[181,161,185]);}
+ }
+ s.ellipsoid(11,-3,-20,13,9,6,[102,78,143],0,24,14);for(let i=0;i<3;i++){s.ellipsoid(i*7+1,-4,-26,3,4,2,[212,163,99],0,18,12);s.ellipsoid(i*7,-4,-28,1,3,1,[13,19,25],0,12,8)}
+ meshes.sovereign=meshes.snakeHead.concat(s.faces);meshes.sovereign.skin=true;
+}buildSectorBosses();
+
+// An independent brood-sac species: ribbed carapace, radial petals and egg chambers.
+{
+ const m=meshBuilder();
+ m.ellipsoid(0,0,0,38,35,32,[111,53,44],0,32,22);
+ m.ellipsoid(-23,0,0,20,24,24,[166,123,83],0,28,18);
+ for(let i=0;i<8;i++){
+  const a=i*Math.PI/4,fin=meshBuilder();
+  fin.ellipsoid(14,40,0,27,13,5,[163,104,66],0,24,14);
+  fin.tube([[-16,25,0],[0,38,0],[22,55,0],[43,59,0]],3.4,[223,179,113],.3);
+  for(const f of fin.faces){f.v=f.v.map(([x,y,z])=>[x,y*Math.cos(a)-z*Math.sin(a),y*Math.sin(a)+z*Math.cos(a)]);m.faces.push(f)}
+  const y=Math.cos(a),z=Math.sin(a);
+  m.tube([[-26,y*19,z*19],[-10,y*35,z*32],[12,y*36,z*33],[31,y*22,z*21]],3,[202,162,107]);
+  m.ellipsoid(8,y*30,z*29,10,7,7,[70,205,186],.45,20,14);
+ }
+ for(const side of [-1,1])for(const y of [-11,11]){
+  m.ellipsoid(-27,y,side*21,8,7,5,[233,202,114],.2,20,14);
+  m.ellipsoid(-30,y,side*25,3,4,2,[12,30,31],0,16,12);
+ }
+ m.tube([[28,0,0],[46,0,0],[59,5,0]],8,[127,67,51],.3);
+ meshes.broodMother=m.faces;meshes.broodMother.skin=true;
+ const pod=meshBuilder();pod.ellipsoid(0,0,0,22,15,14,[173,116,67],0,26,18);
+ pod.ellipsoid(-14,0,-9,8,9,7,[91,245,215],.65,20,14);
+ pod.ellipsoid(-18,0,-14,2,6,2,[12,40,37],0,16,10);
+ for(let i=0;i<4;i++){
+  const a=i*Math.PI/2,y=Math.cos(a),z=Math.sin(a);
+  pod.tube([[-11,y*10,z*10],[5,y*17,z*17],[23,y*20,z*20],[37,y*13,z*13]],2.8,[228,184,112],.5);
+  pod.ellipsoid(4,y*12,z*12,6,4,4,[75,220,197],.35,16,10);
+ }
+ meshes.swarmlet=pod.faces;meshes.swarmlet.skin=true;
+}
+
+// Sector-specific silhouettes retain the detailed hulls, skin and eye materials.
+{
+ const interceptor=meshBuilder(),barge=meshBuilder(),ray=meshBuilder(),medusa=meshBuilder();
+ for(const side of [-1,1]){
+  interceptor.wedge([-28,side*16,-7],[35,side*53,3],[44,side*27,-12],7,[90,111,124]);
+  interceptor.tube([[30,side*34,-4],[49,side*34,-4],[58,side*27,-5]],6,[55,69,78]);
+  for(let i=0;i<6;i++){interceptor.tube([[-10+i*7,side*15,-17],[-7+i*7,side*28,-16]],1.3,[197,150,76]);barge.ellipsoid(-25+i*11,side*26,-9,5,10,10,[82,98,111],0,16,10);}
+  barge.tube([[35,side*26,-13],[3,side*27,-20],[-43,side*27,-18],[-62,side*20,-16]],4,[198,161,99]);
+  for(let i=0;i<8;i++){const x=-16+i*8;ray.tube([[x,side*8,-6],[x+16,side*(26+Math.sin(i*.4)*18),-9],[x+28,side*16,-4]],1.8,[147,183,209],.6);ray.ellipsoid(x,side*12,-14,2.5,3.5,2,[91,225,243],.55,12,8);}
+ }
+ meshes.forgeInterceptor=meshes.fighter.concat(interceptor.faces);meshes.forgeBarge=meshes.gunship.concat(barge.faces);
+ meshes.abyssRay=meshes.abyssRay.concat(ray.faces);meshes.abyssRay.skin=true;
+ medusa.ellipsoid(-4,0,0,30,34,27,[117,123,157],0,32,22);
+ for(let i=0;i<9;i++){
+  const a=i*Math.PI*2/9,y=Math.cos(a),z=Math.sin(a),points=[];
+  for(let j=0;j<8;j++)points.push([10+j*9,y*(22+Math.sin(j*.5)*15),z*(20+Math.sin(j*.6)*12)]);
+  medusa.tube(points,4.2,[137+i*3,134,181],1);
+  medusa.tube([[-24,y*12,z*12],[-12,y*34,z*27],[8,y*33,z*28],[22,y*18,z*18]],2.6,[202,198,216]);
+  medusa.ellipsoid(-19,y*21,z*20,7,5,5,[91,226,245],.45,18,12);
+  medusa.ellipsoid(-25,y*21,z*20,2,3,3,[14,24,45],0,12,8);
+ }
+ meshes.abyssMedusa=medusa.faces;meshes.abyssMedusa.skin=true;
+ const alienArmor=meshBuilder();for(const side of [-1,1])for(let i=0;i<4;i++)alienArmor.tube([[-20+i*16,side*18,-12],[-10+i*16,side*32,-28],[5+i*16,side*22,-36]],3,[190,189,205]);
+ meshes.riftSkimmer=meshes.forgeInterceptor.concat(alienArmor.faces);meshes.riftBastion=meshes.forgeBarge.concat(alienArmor.faces);
+}
+const sectorEnemyModels=[['fighter','squid','gunship','octopus'],['forgeInterceptor','squid','forgeBarge','octopus'],['riftSkimmer','abyssRay','riftBastion','abyssMedusa']];
+
+// Void Sovereign: a continuous armored leviathan, with broad swimming membranes.
+{
+ const m=meshBuilder();
+ m.ellipsoid(12,0,0,78,37,32,[47,48,77],0,40,26);
+ m.ellipsoid(-35,0,-2,34,31,29,[78,74,107],0,36,24);
+ for(const side of [-1,1]){
+  const surface=(u,v)=>{const x=-4+u*107,reach=Math.sin(u*Math.PI)*66;return[x,side*(23+v*reach),-4+Math.sin(v*Math.PI)*12+Math.sin(u*Math.PI*2)*v*8]};
+  for(let u=0;u<28;u++)for(let v=0;v<12;v++)m.faces.push({v:[surface(u/28,v/12),surface((u+1)/28,v/12),surface((u+1)/28,(v+1)/12),surface(u/28,(v+1)/12)],c:[89+v*2,72+v,121+v*2],flex:.18,em:0});
+  for(let rib=0;rib<9;rib++){const u=(rib+1)/10;m.tube([surface(u,0),surface(u,.35),surface(u,.7),surface(u,1)],1.3,[162,135,185],.2);}
+  for(let i=0;i<4;i++){const x=-33+i*12,y=side*(16+i*2),z=-24;m.ellipsoid(x,y,z,7-i*.6,5,4,[160,146,99],0,24,16);let first=m.faces.length;m.ellipsoid(x-1,y,z-3,4,3,2,[98,239,222],.4,20,14);m.ellipsoid(x-2,y,z-5,1.1,2.7,.6,[5,15,28],0,16,12);for(let n=first;n<m.faces.length;n++)m.faces[n].wet=1;}
+  for(let i=0;i<3;i++)m.tube([[55,side*(14+i*7),0],[84,side*(24+i*10),-7],[112,side*(34+i*12),-4],[140,side*(22+i*11),8]],4.5-i*.6,[105,84,141],.7);
+ }
+ for(let row=0;row<7;row++){const x=-18+row*13;for(let band=0;band<5;band++){const a=(band-2)*.42;m.ellipsoid(x,Math.sin(a)*29,-Math.cos(a)*29,10,7,3.5,[92+row*3,89+band*4,128+row*2],0,20,14);if(band%2===0)m.tube([[x-5,Math.sin(a)*29,-Math.cos(a)*32],[x+3,Math.sin(a)*30,-Math.cos(a)*33]],.8,[90,206,200],0,.25);}}
+ meshes.voidLeviathan=m.faces;meshes.voidLeviathan.skin=true;
+}
+const bossWeaponSpecs=[
+ {rootX:-35,scale:1.9,mount:[0,0,0],length:48,color:[84,138,105],light:[137,255,205]},
+ {rootX:0,scale:2.15,mount:[-58,0,-10],length:44,color:[95,114,129],light:[255,192,104]},
+ {rootX:-20,scale:2.3,mount:[-53,0,-10],length:35,color:[106,85,135],light:[199,156,255]}
+];
+const bossLaserMeshes=bossWeaponSpecs.map((spec,sector)=>{
+ const barrel=meshBuilder(),iris=meshBuilder(),core=meshBuilder(),[cx,cy,cz]=spec.mount,tip=cx-spec.length;
+ const ring=(x,r,n)=>[x,cy+Math.cos(n/32*Math.PI*2)*r,cz+Math.sin(n/32*Math.PI*2)*r];
+ for(let j=0;j<8;j++){const x=cx-j*spec.length/8,x2=cx-(j+1)*spec.length/8,r=(sector===0?22:15)-j*.55+(sector===1?(j%2)*1.8:Math.sin(j)*.7),r2=(sector===0?22:15)-(j+1)*.55;
+  for(let n=0;n<32;n++){barrel.faces.push({v:[ring(x,r,n),ring(x,r,n+1),ring(x2,r2,n+1),ring(x2,r2,n)],c:spec.color,em:0,flex:0});barrel.faces.push({v:[ring(x2,sector===0?13:8,n),ring(x2,sector===0?13:8,n+1),ring(x,sector===0?13:8,n+1),ring(x,sector===0?13:8,n)],c:[20,27,36],em:0,flex:0});}
+ }
+ for(let n=0;n<32;n++)barrel.faces.push({v:[ring(tip,sector===0?17.6:10.6,n),ring(tip,sector===0?17.6:10.6,n+1),ring(tip,sector===0?13:8,n+1),ring(tip,sector===0?13:8,n)],c:sector===1?[190,182,156]:[176,171,156],em:0,flex:0});
+ for(let i=0;i<6;i++){
+  const a=i*Math.PI/3,y=Math.cos(a),z=Math.sin(a);
+  barrel.tube([[cx+15,cy+y*21,cz+z*21],[cx+3,cy+y*20,cz+z*20],[tip+9,cy+y*13,cz+z*13]],sector===1?2.2:3,spec.color);
+  barrel.ellipsoid(cx+2,cy+y*15,cz+z*15,7,3,3,spec.light,.25,16,10);
+  const petal=meshBuilder();petal.ellipsoid(0,0,0,3,6,5,sector===1?[137,148,153]:spec.color,0,18,12);
+  for(const f of petal.faces){f.v=f.v.map(([x,v,w])=>[tip+1+x,cy+y*(4+v)-z*w,cz+z*(4+v)+y*w]);for(const v of f.v){v.rest=v.slice();v.axis=[y,z];}iris.faces.push(f);}
+ }
+ core.ellipsoid(tip+4,cy,cz,6,11,11,spec.light,.85,28,18);
+ for(const f of core.faces)for(const v of f.v)v.rest=v.slice();
+ barrel.faces.skin=sector!==1;iris.faces.skin=sector!==1;iris.faces.dynamic=true;core.faces.dynamic=true;
+ return{barrel:barrel.faces,iris:iris.faces,core:core.faces,tip:[tip,cy,cz],center:[tip+4,cy,cz]};
+});
+
+// Visible paired launchers: armored rack sockets and soft seed-producing glands.
+{
+ const rack=meshBuilder(),gland=meshBuilder();
+ for(const side of [-1,1]){
+ rack.ellipsoid(-12,side*35,-24,23,12,13,[84,98,111],0,24,16);
+ for(let i=0;i<3;i++){const y=side*35+(i-1)*7;rack.tube([[-8,y,-30],[-22,y,-30],[-30,y,-30]],3.8,[159,151,127]);rack.ellipsoid(-31,y,-30,1.8,2.6,2.6,[21,24,29],0,16,10);}
+ gland.ellipsoid(-13,side*30,-22,20,13,12,[98,75,126],0,28,18);gland.tube([[2,side*28,-24],[-12,side*35,-26],[-28,side*35,-24]],7,[141,109,157],.15);gland.ellipsoid(-28,side*35,-24,4,6,6,[161,222,178],.5,20,14);
+ }
+ meshes.bossRacks=rack.faces;meshes.sporeGlands=gland.faces;meshes.sporeGlands.skin=true;
+}
+
+// Abyss lantern scarab: a plated shell and paired folding flight membranes.
+{
+ const body=meshBuilder(),wing=meshBuilder(),engine=meshBuilder();
+ body.ellipsoid(0,0,0,35,20,23,[66,81,111],0,36,24);
+ for(let i=0;i<6;i++){body.ellipsoid(-23+i*10,0,-15,8,22-i,11,[116+i*6,112+i*3,146],0,24,16);body.tube([[-25+i*10,-18,-16],[-24+i*10,0,-27],[-25+i*10,18,-16]],1.2,[119,227,212],0,.35);}
+ for(const side of [-1,1]){body.ellipsoid(-29,side*11,-14,8,6,5,[159,234,162],.45,20,14);body.ellipsoid(-33,side*11,-17,2,4,2,[8,18,26],0,16,12);body.tube([[-26,side*16,0],[-42,side*24,-4],[-49,side*17,-8]],2,[178,175,157]);}
+ for(let i=0;i<18;i++)for(let j=0;j<9;j++){const v=(u,t)=>[-12+u*55,8+t*Math.sin(u*Math.PI)*46,-3+Math.sin(t*Math.PI)*5];wing.faces.push({v:[v(i/18,j/9),v((i+1)/18,j/9),v((i+1)/18,(j+1)/9),v(i/18,(j+1)/9)],c:[112+j*5,127+j*4,168+j*3],em:.1,flex:.15});}
+ for(let i=1;i<9;i++){const u=i/10;wing.tube([[-12+u*55,8,-3],[-12+u*55,8+Math.sin(u*Math.PI)*23,2],[-12+u*55,8+Math.sin(u*Math.PI)*46,-3]],.9,[188,198,208],.15);}
+ engine.ellipsoid(0,0,0,17,6,6,[117,126,139],0,20,12);engine.ellipsoid(17,0,0,2,4,4,[255,185,92],.85,16,10);
+ meshes.lanternScarab=body.faces;meshes.lanternScarab.skin=true;meshes.scarabWing=wing.faces;meshes.scarabWing.skin=true;meshes.vectorEngine=engine.faces;
+ sectorEnemyModels[2][3]='lanternScarab';
+}
+
+{
+ const m=meshBuilder();m.ellipsoid(0,0,0,18,18,18,[74,126,148],0,28,18);m.ellipsoid(0,0,-14,11,11,7,[128,245,245],.7,24,16);
+ for(let i=0;i<4;i++){const a=i*Math.PI/2,y=Math.cos(a),z=Math.sin(a);m.tube([[-11,y*16,z*16],[0,y*20,z*20],[16,y*12,z*12],[24,y*7,z*7]],3,[187,203,201]);m.ellipsoid(24,y*7,z*7,2,3,3,[167,255,232],.8,12,8);}
+ meshes.weaponOrb=m.faces;
+}
+
+// Local muscle bands contract behind a rigid head; tips trail the power stroke.
+function organicVertex(p,age,rig){
+ const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t)},phase=age*(rig==='squid'?2.6:2);
+ if(p[0]<23){const weight=smooth(-22,-4,p[0])*(1-smooth(10,23,p[0])),contraction=Math.pow((1+Math.cos(phase+(p[0]+20)*.045))*.5,4),squeeze=1-.22*weight*contraction;return[p[0]+weight*contraction*4,p[1]*squeeze,p[2]*squeeze];}
+ const along=Math.max(0,p[0]-23)/67,arm=Math.atan2(p[2],p[1]),lag=phase-along*2.8+arm*.18,root=smooth(0,.4,along),bundle=1+root*(-.32*Math.pow((1+Math.cos(lag))*.5,3)+organicSpin(age).fan*.85),curl=Math.sin(lag)*along*along*18;
+ return[p[0]-Math.max(0,Math.sin(lag))*root*along*12,p[1]*bundle+Math.cos(arm+.8)*curl,p[2]*bundle+Math.sin(arm+.8)*curl];
+}
+
+function rayVertex(p,age){const span=Math.max(0,Math.abs(p[1])-12),wave=age*3.2-p[0]*.055;return[p[0],p[1],p[2]+Math.sin(wave)*span*.32];}
+// Boss surface relief stays attached to the body while it turns.
+{
+ for(const name of ['hiveHead','voidLeviathan']){const m=meshBuilder(),large=name==='voidLeviathan';for(let i=0;i<14;i++){const x=-12+i*(large?6:3),y=Math.sin(i*2.4)*18,z=-Math.sqrt(Math.max(20,(large?31:27)**2-y*y));m.tube([[x-4,y-3,z],[x,y,z-2],[x+5,y+4,z+1]],.8,[38,42,52]);m.ellipsoid(x,y,z-1,2.4,1.7,1.1,[155,139,120],0,12,8);}for(const side of [-1,1])m.tube([[-15,side*21,-17],[-28,side*30,-21],[-44,side*29,-23],[-51,side*18,-25]],3.8,[191,188,155]);meshes[name]=meshes[name].concat(m.faces);meshes[name].skin=true;}
+ const m=meshBuilder();for(let i=0;i<9;i++){const x=-28+i*9;for(const side of [-1,1]){m.tube([[x,side*16,-30],[x+2,side*25,-26]],1.5,[51,57,61]);m.ellipsoid(x,side*22,-31,1.5,1.5,1,[172,146,108],0,10,6);}}for(const side of [-1,1])m.wedge([-35,side*20,-18],[-64,side*47,-8],[9,side*35,-17],5,[89,96,101]);meshes.cathedral=meshes.cathedral.concat(m.faces);
+ const gun=meshBuilder();gun.ellipsoid(0,0,0,34,24,22,[82,93,104],0,24,16);for(const side of [-1,1])gun.tube([[10,side*12,-12],[-20,side*12,-12],[-45,side*12,-12]],5,[159,151,123]);gun.ellipsoid(-12,-7,-22,8,4,3,[255,129,79],.65,16,10);meshes.sentry=gun.faces;
+}
+// Continuous ray membranes connect the ribs; the flight rig carries a wave to each tip.
+{
+ const m=meshBuilder();for(const side of [-1,1]){const point=(u,v)=>[-24+u*75,side*(10+Math.sin(u*Math.PI)*v*46),4+Math.sin(u*Math.PI)*Math.sin(v*Math.PI)*5];for(let i=0;i<28;i++)for(let j=0;j<12;j++)m.faces.push({v:[point(i/28,j/12),point((i+1)/28,j/12),point((i+1)/28,(j+1)/12),point(i/28,(j+1)/12)],c:[68+j*3,96+j*3,135+j*3],em:0,flex:0});}meshes.abyssRay=meshes.abyssRay.concat(m.faces);meshes.abyssRay.skin=true;
+}
+
+{
+ const m=meshBuilder();m.ellipsoid(7,0,0,23,26,25,[56,79,66],0,32,20);for(const side of [-1,1]){m.tube([[18,side*22,-9],[0,side*27,-12],[-26,side*24,-15],[-48,side*19,-14]],4,[139,154,117]);m.ellipsoid(-12,side*20,-17,16,7,8,[83,173,129],.25,24,16);}meshes.laserSocket=m.faces;meshes.laserSocket.skin=true;
+}
+
+{
+ const m=meshBuilder();m.ellipsoid(0,0,0,29,29,16,[71,88,104],0,28,18);m.ellipsoid(0,0,-16,15,15,5,[112,240,216],.6,20,14);for(const side of [-1,1]){m.wedge([side*23,-13,0],[side*155,-10,0],[side*155,12,0],10,[90,113,128]);m.wedge([side*23,-13,0],[side*155,12,0],[side*23,13,0],10,[106,126,137]);for(let i=0;i<6;i++){const x=side*(35+i*20);m.tube([[x,-12,-3],[x+side*8,12,-3]],2,[211,161,86]);}m.ellipsoid(side*151,0,-4,4,11,3,[255,141,86],.65,12,8);}meshes.gateRotor=m.faces;
+}
+
+// Expedition fauna and machinery: separate silhouettes, shared portable mesh pipeline.
+function buildExpeditionModels(){
+ function eye(m,x,y,z,r,color){const begin=m.faces.length;m.ellipsoid(x,y,z,r*1.3,r*1.15,r*.6,color,0,28,18);m.ellipsoid(x-1,y,z-r*.45,r,r*.88,r*.38,[204,191,129],0,32,20);m.ellipsoid(x-2,y,z-r*.76,r*.57,r*.72,r*.13,[91,163,142],.12,28,18);m.ellipsoid(x-2,y,z-r*.9,r*.15,r*.63,r*.06,[8,16,22],0,20,14);m.ellipsoid(x-r*.3,y-r*.27,z-r*.98,r*.13,r*.12,r*.04,[230,250,255],.25,12,8);for(let i=begin;i<m.faces.length;i++)m.faces[i].wet=1;}
+ for(const [name,kind] of [['reefGlider',0],['reefCrab',1],['coreMoth',2],['corePolyp',3]]){const m=meshBuilder(),c=kind<2?[73,136,143]:[149,69,100];m.ellipsoid(0,0,0,kind===1?35:29,19,20,c,0,32,20);
+  for(const side of [-1,1]){m.tube([[-20,side*12,-10],[-9,side*21,-16],[18,side*19,-14],[37,side*9,-8]],3,c.map(v=>v+35),.15);for(let j=0;j<5;j++){const x=-12+j*9;m.tube([[x,side*13,0],[x+13,side*(30+Math.sin(j)*10),-3],[x+29,side*(23+j*3),2]],2.2,c,.7);}
+   if(kind===0||kind===2){for(let j=0;j<8;j++){const x=-20+j*6;m.wedge([x,side*12,0],[x+18,side*(43+Math.sin(j/7*Math.PI)*23),-4],[x+7,side*15,2],.8,c.map(v=>v+20));}}
+  }eye(m,-17,-7,-19,8,c);for(let j=0;j<7;j++)m.ellipsoid(-10+j*7,8,-20,2,3,1,[102,235,209],.35,10,7);meshes[name]=m.faces;meshes[name].skin=true;
+ }
+ for(const [name,heavy] of [['stormRaptor',false],['stormCarrier',true]]){const m=meshBuilder();m.ellipsoid(7,0,0,heavy?49:39,heavy?25:12,16,[66,83,112],0,28,18);for(const side of [-1,1]){m.wedge([-56,side*17,-3],[43,side*(heavy?49:35),4],[17,side*7,-12],11,[97,108,137]);m.tube([[-45,side*19,-8],[8,side*22,-16],[40,side*31,-5]],2,[159,171,185]);m.ellipsoid(35,side*27,0,19,7,8,[41,54,78],0,20,14);m.ellipsoid(52,side*27,0,2,4,5,[174,153,255],.8,16,10);for(let i=0;i<6;i++)m.tube([[-22+i*10,side*12,-16],[-20+i*10,side*23,-12]],.8,[31,46,61]);}eye(m,-21,-3,-17,6,[51,68,84]);meshes[name]=m.faces;}
+ // The reef monarch has a chambered shell, asymmetric huge eye, fins and feeding mouth.
+ let m=meshBuilder();m.ellipsoid(14,0,0,59,58,43,[56,113,120],0,48,30);for(let i=0;i<16;i++){const a=i/16*Math.PI*2;m.tube([[14+Math.cos(a)*48,Math.sin(a)*48,-19],[14+Math.cos(a)*35,Math.sin(a)*35,-38],[14+Math.cos(a)*18,Math.sin(a)*18,-45]],2.3,[144,168,152]);}m.ellipsoid(-33,4,-4,35,33,33,[85,137,139],0,40,26);eye(m,-31,-18,-28,19,[91,148,151]);for(const side of [-1,1]){m.tube([[-23,side*23,3],[12,side*72,8],[73,side*64,3],[109,side*32,8]],8,[76,145,146],.7);m.tube([[-54,side*15,0],[-72,side*32,-6],[-39,side*45,-10]],5,[172,185,149],.6);}meshes.reefMonarch=m.faces;meshes.reefMonarch.skin=true;
+ m=meshBuilder();m.ellipsoid(0,0,0,56,45,30,[42,57,83],0,36,24);for(const side of [-1,1]){m.wedge([-45,side*26,-8],[57,side*85,0],[72,side*24,-24],15,[98,112,135]);for(let i=0;i<6;i++){m.tube([[-22+i*14,side*20,-28],[-12+i*14,side*42,-22]],2,[168,177,183]);m.ellipsoid(37,side*(45+i*3),-4,24,3,4,[61,74,100],0,16,10);}m.tube([[-38,side*40,0],[-75,side*40,0]],8,[105,123,145]);}m.ellipsoid(-15,0,-31,27,27,9,[28,39,64],0,32,22);m.ellipsoid(-15,0,-40,19,19,4,[151,149,255],.6,32,22);meshes.stormRegent=m.faces;
+ m=meshBuilder();for(let i=0;i<24;i++){const a=i/24*Math.PI*2,b=(i+1)/24*Math.PI*2;m.tube([[0,Math.cos(a)*70,Math.sin(a)*70],[0,Math.cos(b)*70,Math.sin(b)*70]],3,[145,157,176]);if(i%3===0)m.ellipsoid(0,Math.cos(a)*70,Math.sin(a)*70,8,6,6,[158,133,255],.65,16,10);}meshes.regentRing=m.faces;
+ m=meshBuilder();m.ellipsoid(10,0,0,75,48,42,[119,47,76],0,48,30);m.ellipsoid(-33,1,-5,43,39,33,[157,76,99],0,40,26);for(const side of [-1,1]){for(let i=0;i<6;i++){const x=-3+i*13;m.tube([[x,side*12,-39],[x+8,side*34,-28],[x+3,side*49,-2]],3,[189,128,124]);m.ellipsoid(x,side*22,-33,5,7,4,[223,147,115],.15,16,12);}m.tube([[41,side*17,0],[79,side*47,-6],[130,side*24,3],[156,side*57,5]],9,[138,55,92],.8);eye(m,-33,side*19,-31,13,[153,79,105]);}meshes.progenitor=m.faces;meshes.progenitor.skin=true;
+ // Articulated jaws, with a real dark cavity and interleaved teeth.
+ m=meshBuilder();m.ellipsoid(0,0,0,7,25,21,[15,12,24],0,36,24);for(let i=0;i<20;i++){const a=i/20*Math.PI*2,y=Math.cos(a),z=Math.sin(a);m.tube([[0,y*26,z*23],[-7,y*28,z*24],[-15,y*23,z*20]],3,[143,84,98]);m.wedge([-15,y*22,z*19],[-24,y*14,z*12],[-13,y*17,z*18],2,[226,211,172]);}meshes.feedingMaw=m.faces;meshes.feedingMaw.skin=true;
+ m=meshBuilder();eye(m,0,0,0,13,[102,141,119]);meshes.bossEye=m.faces;meshes.bossEye.skin=true;
+ m=meshBuilder();m.ellipsoid(0,0,0,17,14,5,[91,131,108],0,32,20);meshes.bossLid=m.faces;meshes.bossLid.skin=true;
+}
+buildExpeditionModels();
+
+// Secondary anatomy and armor break up broad surfaces at boss scale.
+{
+ const m=meshBuilder();for(const side of [-1,1]){for(let row=0;row<3;row++)for(let i=0;i<5;i++){const x=-15+i*14,y=side*(24+row*12),z=-31+row*2;m.wedge([x,y,z],[x+10,y+side*5,z],[x+10,y+side*12,z+2],2,[75+row*13,92+row*11,119+row*8]);m.tube([[x+2,y+side*4,z-1],[x+8,y+side*7,z-1]],.7,[180,166,131]);}for(let i=0;i<6;i++)m.ellipsoid(-33+i*13,side*19,-31,2.5,2,2,[96,204,234],.5,12,8);m.tube([[-45,side*25,-24],[-33,side*39,-29],[1,side*47,-25],[37,side*63,-18]],2.3,[52,67,82]);m.tube([[-42,side*25,-27],[-28,side*37,-31],[5,side*43,-27],[38,side*57,-21]],.8,[213,173,102]);}
+ for(let i=0;i<12;i++){const a=i/12*Math.PI*2;m.ellipsoid(-15+Math.cos(a)*29,Math.sin(a)*29,-36,3,3,3,[131,151,173],0,12,8);}meshes.stormRegent=meshes.stormRegent.concat(m.faces);
+ for(const f of meshes.regentRing)for(const v of f.v){const [x,y,z]=v;v[0]=y;v[1]=z;v[2]=x-25;}
+ for(const [name,color,rows] of [['reefMonarch',[79,142,148],9],['progenitor',[140,70,96],12]]){const skin=meshBuilder();for(let i=0;i<rows;i++){const x=-5+i*6;for(const side of [-1,1]){skin.tube([[x,side*8,-42],[x+3,side*19,-40],[x-1,side*33,-32]],.9,color.map(v=>v*.75));skin.tube([[x+2,side*15,-42],[x+9,side*19,-40]],.55,color.map(v=>v*.6));if(i%2===0)skin.ellipsoid(x,side*32,-31,4,3,2,color,0,14,10);}}
+ for(const side of [-1,1]){skin.tube([[-53,side*18,-25],[-45,side*32,-28],[-26,side*37,-23],[-8,side*29,-27]],4,color);skin.tube([[-46,side*30,-26],[-36,side*47,-20],[-13,side*52,-16]],3,[196,181,148]);}meshes[name]=meshes[name].concat(skin.faces);meshes[name].skin=true;}
+}
+
+// Craggy mineral volumes for the orbital approach; no unsupported city towers.
+{
+ const m=meshBuilder();m.ellipsoid(0,0,0,50,50,35,[102,114,121],0,40,28);
+ for(const f of m.faces){for(const v of f.v){const n=1+.095*Math.sin(v[0]*.19+v[1]*.12)*Math.cos(v[2]*.23)+.045*Math.sin(v[0]*.6-v[1]*.45);for(let k=0;k<3;k++)v[k]*=n;}const [x,y,z]=f.v[0],grain=Math.sin(x*.28+y*.31+z*.2)*.14;f.c=[80,88,91];}
+ meshes.orbitalRock=m.faces;meshes.orbitalRock.rock=true;
+}
+
+// Closed anatomical lofts replace chains of intersecting spherical primitives.
+// profile: longitudinal position, vertical radius, lateral radius, vertical centre.
+function anatomicalLoft(m,profile,color){
+ const steps=(profile.length-1)*5,segments=32;
+ const at=(u,a)=>{const i=Math.min(profile.length-2,Math.floor(u)),t=u-i,p=profile[i],q=profile[i+1],before=profile[Math.max(0,i-1)],after=profile[Math.min(profile.length-1,i+2)],sample=k=>.5*(2*p[k]+(-before[k]+q[k])*t+(2*before[k]-5*p[k]+4*q[k]-after[k])*t*t+(-before[k]+3*p[k]-3*q[k]+after[k])*t*t*t),ry=Math.max(.15,sample(1)),rz=Math.max(.15,sample(2)),cy=sample(3),x=p[0]+(q[0]-p[0])*t,c=Math.cos(a),sn=Math.sin(a);return[x,cy+Math.sign(c)*Math.pow(Math.abs(c),.76)*ry,sn*rz];};
+ for(let i=0;i<steps;i++)for(let j=0;j<segments;j++){const a=j/segments*Math.PI*2,b=(j+1)/segments*Math.PI*2,u=i/5,v=(i+1)/5,shade=1+.025*Math.sin(i*.7+j*.6);m.faces.push({v:[at(u,a),at(v,a),at(v,b),at(u,b)],c:color.map(n=>Math.round(n)),em:0,flex:0});}
+ for(const [u,reverse] of [[0,true],[profile.length-1,false]]){const ring=Array.from({length:segments},(_,j)=>at(u,j/segments*Math.PI*2));m.faces.push({v:reverse?ring.reverse():ring,c:color.map(n=>Math.round(n)),em:0,flex:0});}
+}
+function recessedEye(m,x,y,z,side,skin,size=3.2){
+ const begin=m.faces.length;
+ // A small dark cornea sits below the supraorbital ridge, not on a stalk.
+ m.ellipsoid(x,y,z,size*1.35,size*.65,1.1,[18,23,21],0,20,12);
+ m.ellipsoid(x-.2,y,z+side*.7,size*.58,size*.45,.65,[108,103,68],0,18,12);
+ m.ellipsoid(x-.4,y,z+side*1.2,size*.18,size*.4,.25,[7,12,12],0,12,8);
+ m.tube([[x-5,y-1,z-side*.6],[x-2,y-3,z],[x+4,y-2,z-side*.5],[x+7,y+1,z-side*2]],1.7,skin);
+ m.tube([[x-4,y+1.4,z],[x,y+2,z],[x+5,y+1.4,z-side]],.8,skin.map(n=>n*.7));
+ for(let i=begin;i<m.faces.length;i++){const f=m.faces[i];f.eyeCenter=[x,y,z];f.rest=f.v.map(v=>v.slice());}
+}
+function animateAnatomicalSkin(mesh,age){const phase=(age+1.4)%6.1,blink=phase<.22?Math.sin(phase/.22*Math.PI):0;for(const f of mesh)if(f.eyeCenter)for(let i=0;i<f.v.length;i++){const q=f.rest[i];f.v[i][0]=q[0];f.v[i][1]=f.eyeCenter[1]+(q[1]-f.eyeCenter[1])*(1-blink*.92);f.v[i][2]=q[2];}mesh.dynamic=true;}
+// A wyvern silhouette: continuous neck, long jaw, flight muscles and finger-supported membranes.
+function buildDragonBoss(reef=false){
+ const m=meshBuilder(),skin=reef?[49,87,96]:[81,58,58],bone=reef?[74,108,111]:[101,84,76];
+ anatomicalLoft(m,[[-108,2,3,-12],[-100,5,8,-14],[-81,7,12,-17],[-65,14,18,-20],[-45,15,18,-16],[-25,18,20,-6],[5,26,25,1],[38,23,21,4],[61,8,11,5]],skin);
+ // Jawline, cheek tendon and nostril recesses follow the skull surface.
+ for(const side of [-1,1]){
+ recessedEye(m,-61,-25,side*17,side,skin,reef?3:3.5);
+ m.tube([[-104,-8,side*5],[-83,-8,side*11],[-62,-7,side*17],[-47,-13,side*16]],.9,[22,25,25]);
+ m.tube([[-77,-5,side*10],[-59,0,side*17],[-40,5,side*18]],2.2,skin.map(n=>n*.78));
+ m.ellipsoid(-97,-17,side*7,2.1,.75,.5,[21,28,28],0,12,8);
+ for(let i=0;i<5;i++)m.tube([[-97+i*7,-8,side*(7+i*1.5)],[-96+i*7,-4,side*(7+i*1.5)]],.8,[151,145,122]);
+ }
+ for(const side of [-1,1]){
+ m.tube([[-47,-27,side*11],[-36,-37,side*15],[-17,-35,side*17]],3.5,skin);
+ m.tube([[31,12,side*12],[46,33,side*15],[25,42,side*18]],8,skin);
+ for(let i=0;i<3;i++)m.tube([[25,41,side*(13+i*4)],[12,45,side*(14+i*4)],[8,39,side*(15+i*4)]],2.5,bone);
+ }
+ m.tube([[45,2,0],[72,7,0],[100,2,1],[128,15,2],[155,8,1]],14,skin,.6);
+ if(reef)m.wedge([-68,-28,-2],[-34,-45,0],[-13,-16,2],3,skin);
+ if(!reef)for(const [x,y] of [[-22,-24],[-6,-25],[10,-23],[26,-19],[42,-13],[56,-5]])m.wedge([x-7,y+5,-1],[x+4,y-9,0],[x+14,y+7,1],2,skin.map(n=>Math.round(n*1.08)));
+ // Overlapping flank scales, aligned with the musculature rather than disconnected lumps.
+ for(let row=0;row<5;row++)for(let i=0;i<12;i++){const x=-30+i*7+row%2*3,y=-15+row*7,z=-23*Math.sqrt(Math.max(.1,1-y*y/900));m.tube([[x-2,y-1,z],[x,y,z-.2],[x+3,y-1,z]],.23,skin.map(n=>Math.round(n*.85)));}
+ if(!reef)for(const f of m.faces){f.v=f.v.map(v=>{const q=v.slice(),weight=Math.max(0,1-Math.abs(q[0]-2)/67);q[1]+=weight*(q[1]>0?5:-3);q[2]*=1+weight*.2;return q;});if(f.eyeCenter)f.rest=f.v.map(v=>v.slice());}
+ meshes[reef?'reefMonarch':'progenitor']=m.faces;m.faces.skin=true;
+ const jaw=meshBuilder();anatomicalLoft(jaw,[[-106,1,3,-6],[-96,2.5,7,-5],[-74,4,12,-3],[-51,5,16,-7]],skin.map(n=>Math.round(n*.84)));jaw.faces.skin=true;jaw.faces.dynamic=true;for(const f of jaw.faces)f.rest=f.v.map(v=>v.slice());meshes[reef?'monarchJaw':'motherJaw']=jaw.faces;
+ const w=meshBuilder();
+ for(const side of [-1,1]){
+ const root=[-5,side*13,2],elbow=[0,side*58,5],wrist=[-29,side*91,9];
+ w.tube([root,elbow,wrist],5.5,skin);
+ const tips=[[-55,side*119,6],[5,side*128,12],[56,side*106,14],[83,side*65,10]];
+ for(let n=0;n<tips.length;n++){
+ const tip=tips[n],end=n===tips.length-1?[44,side*17,3]:tips[n+1];w.tube([wrist,tip],2.5,bone);
+ // Curved, tessellated membrane between each pair of supporting fingers.
+ const point=(u,v)=>{const edge=tip.map((a,j)=>a*(1-v)+end[j]*v),inset=Math.sin(v*Math.PI)*u*u*.09;return wrist.map((a,j)=>a*(1-u+inset)+edge[j]*(u-inset)+(j===2?Math.sin(u*Math.PI)*Math.sin(v*Math.PI)*7:0));};
+ for(let a=0;a<16;a++)for(let b=0;b<12;b++)w.faces.push({v:[point(a/16,b/12),point((a+1)/16,b/12),point((a+1)/16,(b+1)/12),point(a/16,(b+1)/12)],c:reef?[43+b,78+b,88+b]:[82+b,53+b,53+b],em:0,flex:0});
+ }
+ }
+ meshes[reef?'pteroWings':'dragonWings']=w.faces;w.faces.skin=true;w.faces.dynamic=true;
+ for(const f of w.faces){f.v=f.v.map(([x,y,z])=>[x,z,y]);f.rest=f.v.map(v=>v.slice());}
+}
+function animateDragonWings(age,reef=false){
+ const rate=reef?2.9:1.9,phase=age*rate,beat=Math.sin(phase),stroke=-.12+beat*.78;
+ for(const f of meshes[reef?'pteroWings':'dragonWings'])for(let i=0;i<f.v.length;i++){
+ const [x,y,z]=f.rest[i],side=Math.sign(z)||1,span=Math.max(0,Math.abs(z)-13),elbow=Math.max(0,span-45),fold=Math.max(0,Math.cos(phase-.45))*.3;
+ const wristAngle=stroke+fold,inner=Math.min(span,45),outer=Math.max(0,span-45);
+ f.v[i][0]=x+elbow*fold*.5;
+ f.v[i][1]=y+inner*Math.sin(stroke)+outer*Math.sin(wristAngle)+Math.sin(phase-span*.018)*outer*.05;
+ f.v[i][2]=side*(13+inner*Math.cos(stroke)+outer*Math.cos(wristAngle));
+ }
+}
+buildDragonBoss();buildDragonBoss(true);
+
+// Continuous sculpted surfaces for the opening bosses; details sit within the skin/hull.
+function buildOpeningBosses(){
+ function loft(m,profile,color,organic=true){
+ const sample=(u,a)=>{const k=Math.min(profile.length-2,Math.floor(u)),t=u-k,p=profile[k],q=profile[k+1],smooth=t*t*(3-2*t),x=p[0]+(q[0]-p[0])*t,ry=p[1]+(q[1]-p[1])*smooth,rz=p[2]+(q[2]-p[2])*smooth,cy=p[3]+(q[3]-p[3])*smooth,wrinkle=organic?1+.012*Math.sin(a*13+x*.21):1;return[x,cy+Math.cos(a)*ry*wrinkle,Math.sin(a)*rz*wrinkle];};
+ const rows=(profile.length-1)*8;for(let i=0;i<rows;i++)for(let j=0;j<48;j++){const u=i/8,v=(i+1)/8,a=j/48*Math.PI*2,b=(j+1)/48*Math.PI*2;m.faces.push({v:[sample(u,a),sample(v,a),sample(v,b),sample(u,b)],c:color.map(n=>Math.round(n)),em:0,flex:0});}
+ }
+ function eye(m,x,y,z,size,c){m.ellipsoid(x,y,z,size*1.4,size*.8,size*.42,c,0,24,16);m.ellipsoid(x-1,y,z-size*.26,size,size*.59,size*.26,[152,160,103],0,28,18);m.ellipsoid(x-2,y,z-size*.48,size*.32,size*.5,size*.06,[5,12,15],0,24,16);m.ellipsoid(x-3,y-size*.18,z-size*.55,size*.12,size*.1,size*.04,[194,222,209],.1,12,8);}
+ let m=meshBuilder(),c=[54,81,72];loft(m,[[-60,3,4,5],[-48,20,17,3],[-28,29,27,0],[3,38,33,0],[38,33,29,0],[69,15,17,2],[91,1,2,4]],c);
+ eye(m,-35,-15,-22,7,c);eye(m,-35,15,-22,6,c);
+ for(const side of [-1,1]){for(let i=0;i<7;i++){const x=-8+i*8;m.tube([[x,side*18,-27],[x+3,side*25,-24],[x+5,side*31,-18]],.7,[30,48,46]);}
+ m.tube([[-51,side*12,-5],[-46,side*23,-17],[-23,side*30,-19]],4,c);
+ for(let n=0;n<3;n++)m.tube([[44,side*(15+n*5),4],[75,side*(24+n*5),5],[112,side*(18+n*5),8],[137,side*(24+n*4),6]],5-n*.8,c,.55);}
+ meshes.hiveHead=m.faces;meshes.hiveHead.skin=true;meshes.hiveTendrils=[];
+ m=meshBuilder();c=[61,69,88];anatomicalLoft(m,[[-68,2,4,5],[-56,8,13,2],[-34,19,22,0],[2,29,28,0],[41,22,21,1],[77,10,12,3],[118,1,2,8]],c);for(const side of [-1,1]){recessedEye(m,-36,-9,side*21,side,c,2.7);m.tube([[-64,7,side*5],[-48,9,side*15],[-29,6,side*21]],.8,[24,29,34]);}
+ for(const side of [-1,1])for(let n=0;n<4;n++){const x=-23+n*5;m.tube([[x,-4,side*25],[x+2,3,side*26],[x+1,10,side*24]],.65,[27,33,40]);}
+ meshes.voidLeviathan=m.faces;meshes.voidLeviathan.skin=true;
+ const lower=meshBuilder();anatomicalLoft(lower,[[-67,1,3,8],[-55,2,10,10],[-32,4,18,10]],c.map(n=>Math.round(n*.87)));lower.faces.skin=true;lower.faces.dynamic=true;for(const f of lower.faces)f.rest=f.v.map(v=>v.slice());meshes.sovereignJaw=lower.faces;
+ const fins=meshBuilder();for(const side of [-1,1]){const point=(u,v)=>{const span=Math.sin(u*Math.PI)*65;return[-39+u*142,side*(14+span*v),4+Math.sin(u*Math.PI)*Math.sin(v*Math.PI)*7];};for(let i=0;i<36;i++)for(let j=0;j<18;j++)fins.faces.push({v:[point(i/36,j/18),point((i+1)/36,j/18),point((i+1)/36,(j+1)/18),point(i/36,(j+1)/18)],c:[65,78,96],em:0,flex:0});for(let i=1;i<12;i++){const u=i/12;fins.tube([point(u,0),point(u,.5),point(u,1)],.65,[87,102,117]);}}
+ meshes.sovereignFins=fins.faces;meshes.sovereignFins.skin=true;meshes.sovereignFins.dynamic=true;for(const f of fins.faces){f.v=f.v.map(([x,y,z])=>[x,z,y]);f.rest=f.v.map(v=>v.slice());}
+ m=meshBuilder();loft(m,[[-70,5,12,0],[-58,25,24,0],[-28,37,34,0],[30,39,34,0],[63,26,27,0],[80,9,13,0]],[65,74,82],false);
+ for(const side of [-1,1]){loft(m,[[-48,9,14,side*47],[-34,16,19,side*47],[47,16,19,side*47],[69,8,13,side*47]],[47,56,65],false);for(let i=0;i<12;i++){const x=-27+i*6;m.tube([[x,side*34,-25],[x,side*44,-30],[x,side*57,-22]],1.25,[93,102,106]);}m.tube([[-68,side*23,-14],[-33,side*28,-30],[29,side*29,-31],[55,side*20,-24]],3,[91,100,106]);for(let i=0;i<6;i++)m.ellipsoid(-25+i*10,side*22,-33,2.5,1,1,[190,130,64],.25,10,6);}
+ for(let i=0;i<8;i++){const x=-33+i*10;m.tube([[x,-15,-33],[x,15,-33]],.6,[25,32,40]);m.ellipsoid(x,-1,-35,3,5,1,[33,42,50],0,10,8);}
+ meshes.cathedral=m.faces;
+}
+buildOpeningBosses();
+
+
+for(const f of meshes.armRoot)f.c=[43,49,38];
+
+// A closed, volumetric predator. Its articulated parts share real skin geometry;
+// no atlas plane or camera-facing artwork is used for the Warden.
+function buildWardenCreature(){
+ const all=[],parts=[];
+ function part(name,pivot,build){const m=meshBuilder();build(m);const points=new Map();for(const f of m.faces){f.v=f.v.map(v=>{const key=v.map(n=>n.toFixed(5)).join(',');if(!points.has(key))points.set(key,{v,rest:v.slice()});return points.get(key).v;});all.push(f);}parts.push({name,pivot,points:[...points.values()]});}
+ const hide=[77,91,81],armor=[102,115,98],dark=[38,48,43],ivory=[148,145,124];
+ part('body',[0,0,0],m=>{
+ anatomicalLoft(m,[[-109,2,4,1],[-99,5,9,-2],[-82,8,14,-5],[-61,16,21,-4],[-38,19,22,-1],[-12,27,29,0],[22,25,26,2],[54,15,17,3],[77,5,7,3]],hide);
+ for(const [x,y] of [[-25,-20],[-8,-25],[9,-24],[26,-20],[42,-13]])m.wedge([x-7,y+4,0],[x+4,y-8,0],[x+14,y+6,0],2.5,armor);
+ for(const side of [-1,1]){
+ m.tube([[-91,-8,side*11],[-74,-17,side*18],[-54,-17,side*20],[-31,-23,side*22]],2.2,armor);
+ recessedEye(m,-70,-12,side*20,side,hide,3.4);
+ for(let i=0;i<7;i++){const x=-100+i*6;m.tube([[x,5,side*9],[x-1,9,side*8]],.9,ivory);}
+ for(let i=0;i<9;i++){const x=-28+i*10;m.tube([[x,-7,side*24],[x+6,3,side*28],[x+12,12,side*22]],.45,[61,76,64]);}
+ }
+ });
+ // Actual eyelid volumes slide over the eyes; their depth follows the skull.
+ for(const side of [-1,1])for(const upper of [-1,1])part('lid:'+side+':'+upper,[-70,-12,side*20],m=>{m.ellipsoid(-70,-12+upper*3,side*21.5,4.3,1.5,1.1,hide,0,18,10);});
+ part('throat',[-70,8,0],m=>{anatomicalLoft(m,[[-102,1,3,5],[-83,3,10,6],[-61,5,14,6]],[31,27,26]);});
+ part('jaw',[-54,7,0],m=>{anatomicalLoft(m,[[-107,1,3,7],[-95,2.5,8,9],[-75,4,13,10],[-52,6,17,7]],[79,88,70]);for(const side of [-1,1])for(let i=0;i<6;i++)m.tube([[-99+i*7,11,side*9],[-98+i*7,5,side*8]],.9,ivory);});
+ part('tail',[50,0,0],m=>{anatomicalLoft(m,[[49,14,17,3],[75,12,13,4],[103,8,9,7],[132,5,6,4],[160,2.7,3,-7],[186,.2,.2,-14]],hide);for(const [x,y] of [[68,-6],[89,0],[110,2],[131,3]])m.wedge([x-4,y+3,0],[x+5,y-5,0],[x+13,y+3,0],1.2,armor);});
+ for(const side of [-1,1])for(let i=1;i<2;i++){const root=[-12+i*43,10,side*20];part('limb'+i+':'+side,root,m=>{m.tube([root,[root[0]+6,34,side*39],[root[0]+34,49,side*58],[root[0]+59,35,side*71]],8-i,hide);m.tube([[root[0]+32,47,side*55],[root[0]+57,53,side*66],[root[0]+79,39,side*76]],3,ivory);m.ellipsoid(root[0]+7,29,side*34,12,16,9,armor,0,16,10);});}
+ for(const side of [-1,1])part('wing:'+side,[-12,0,side*20],m=>{
+ const root=[-12,0,side*20],edge=[[-30,-8,side*62],[-24,-4,side*126],[26,12,side*116],[76,23,side*86],[42,8,side*24]],outline=[root,...edge];
+ for(let j=0;j<outline.length;j++){const a=outline[j],b=outline[(j+1)%outline.length];m.faces.push({v:[[a[0],a[1]-1,a[2]],[b[0],b[1]-1,b[2]],[b[0],b[1]+1,b[2]],[a[0],a[1]+1,a[2]]],c:[71,104,95],em:0,flex:0});}
+ for(let panel=0;panel<edge.length-1;panel++)for(const sign of [-1,1]){
+ const point=(u,v)=>{const a=edge[panel],b=edge[panel+1],edgePoint=a.map((n,k)=>n*(1-v)+b[k]*v),scallop=Math.sin(v*Math.PI)*u*u*.09;return root.map((n,k)=>n+(edgePoint[k]-n)*(u-scallop)+(k===1?sign*.5+Math.sin(u*Math.PI)*Math.sin(v*Math.PI)*5:0));};
+ for(let i=0;i<10;i++)for(let j=0;j<8;j++){let vertices=[point(i/10,j/8),point((i+1)/10,j/8),point((i+1)/10,(j+1)/8),point(i/10,(j+1)/8)];if(sign<0)vertices.reverse();m.faces.push({v:vertices,c:sign<0?[82,104,89]:[71,87,77],em:0,flex:0});}
+ }
+ m.tube([root,edge[0],edge[1]],5,armor);for(let j=2;j<edge.length;j++)m.tube([root,[edge[j][0]*.5,edge[j][1]*.5,side*60],edge[j]],1.6,armor);
+ for(let j=0;j<4;j++){const t=(j+1)/5;m.tube([[root[0]+t*40,5,side*(22+t*65)],[25+t*28,14,side*(85+t*15)],[50+t*19,19,side*(99-t*10)]],.65,[138,169,128]);}
+ });
+ all.skin=true;all.dynamic=true;all.parts=parts;meshes.wardenCreature=all;
+}
+buildWardenCreature();
+
+
+meshes.cathedral.industrial=true;meshes.stormRegent.industrial=true;
+
+function animateSovereignFins(age){for(const f of meshes.sovereignFins)for(let i=0;i<f.v.length;i++){const [x,y,z]=f.rest[i],side=Math.sign(z)||1,span=Math.max(0,Math.abs(z)-14),wave=Math.sin(age*2.1-x*.036);f.v[i][0]=x;f.v[i][1]=y+wave*span*.55;f.v[i][2]=side*(14+span*(1-Math.abs(wave)*.08));}}
