@@ -358,3 +358,7 @@ updateFullscreenButtons();
 
 window.flightImmersionInterrupted=()=>{if(state==='playing')pause();};
 window.flightImmersionChanged=updateFullscreenButtons;
+
+for(const eventName of ['selectstart','contextmenu'])document.addEventListener(eventName,event=>{
+ if(event.target?.closest?.('.console, .safari-swipe'))event.preventDefault();
+});

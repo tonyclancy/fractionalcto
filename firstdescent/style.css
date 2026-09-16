@@ -134,3 +134,8 @@ html.safari-locked .console.expanded canvas{max-width:100%;width:min(100%,calc((
  #orbTouch{grid-column:1;grid-row:2}
  #touchControls span{grid-column:2;grid-row:2;justify-self:end;text-align:right}
 }
+
+/* Keep iOS drags and long presses focused on play, including HUD text. */
+.console,.console *,.safari-swipe,.safari-swipe *{
+ -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
