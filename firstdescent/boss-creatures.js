@@ -14,9 +14,9 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
  function rotate(v,p,axis,angle){const x=sub(v,p),c=Math.cos(angle),s=Math.sin(angle),a=unit(axis),cr=cross(a,x),dp=dot(a,x);return x.map((n,k)=>p[k]+n*c+cr[k]*s+a[k]*dp*(1-c));}
  function creator(kind,name,material,scale,mouth,bodyVolumes){
   const mesh=[],parts=[];mesh.skin=true;mesh.dynamic=true;mesh.alienMaterial=material;
-  const d={kind,name,mesh,parts,scale,mouth,bodyVolumes,mouthOpening:0};
+  const d={kind,name,mesh,parts,scale,mouth,bodyVolumes,mouthOpening:0};let activeRig=null;
   function face(v,c,uv,options={}){mesh.push({v,c,uv:uv||v.map(p=>[p[0]/75,p[1]/75]),em:options.em||0,flex:0,textureWeight:options.textureWeight===undefined?1:options.textureWeight,wet:options.wet||0});}
-  function part(name,rig,options,build){const start=mesh.length;build();const seen=new Set(),vertices=[];for(let i=start;i<mesh.length;i++)for(const v of mesh[i].v)if(!seen.has(v)){seen.add(v);vertices.push(v);}if(rig==='feeler'||rig==='feedingArm'){const extension=rig==='feedingArm'?1.65:1.7;for(const v of vertices)for(let k=0;k<3;k++)v[k]=options.pivot[k]+(v[k]-options.pivot[k])*(k===0?extension:1);options.lengthScale=extension;}const rest=vertices.map(v=>v.slice());parts.push({name,rig,...options,vertices,rest});}
+  function part(name,rig,options,build){const start=mesh.length,previousRig=activeRig;activeRig=rig;build();activeRig=previousRig;const seen=new Set(),vertices=[];for(let i=start;i<mesh.length;i++)for(const v of mesh[i].v)if(!seen.has(v)){seen.add(v);vertices.push(v);}if(rig==='feeler'||rig==='feedingArm'){const extension=rig==='feedingArm'?1.65:1.7;for(const v of vertices)for(let k=0;k<3;k++)v[k]=options.pivot[k]+(v[k]-options.pivot[k])*(k===0?extension:1);options.lengthScale=extension;}const rest=vertices.map(v=>v.slice());parts.push({name,rig,...options,vertices,rest});}
   // A single watertight longitudinal loft; varying cross sections create the
   // actual skull, thorax and abdomen instead of intersecting sphere chains.
   function loft(profile,color,options={}){
@@ -29,6 +29,7 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
   // Parallel-transport frames keep curved tendons smooth through arbitrary
   // bends. Radius is authored at every joint, including the thick muscle root.
   function tube(profile,color,options={}){
+   if((kind===0||kind===5)&&(activeRig==='leg'||activeRig==='feeler')){const thin=activeRig==='feeler'?.48:.56;profile=profile.map(p=>p.map((v,i)=>i>=3?v*thin:v));}
    const steps=(profile.length-1)*(options.steps||4),sides=options.sides||10,path=[];for(let j=0;j<=steps;j++)path.push(sample(profile,j/steps*(profile.length-1)));
    let normal=null;const rings=[];
    for(let j=0;j<=steps;j++){const p=path[j],t=unit(sub(path[Math.min(steps,j+1)].slice(0,3),path[Math.max(0,j-1)].slice(0,3)));if(!normal)normal=unit(cross(t,Math.abs(t[2])<.8?[0,0,1]:[0,1,0]));else normal=unit(sub(normal,mul(t,dot(normal,t))));const bi=unit(cross(t,normal)),ring=[];for(let k=0;k<sides;k++){const a=k/sides*TAU,r=Math.max(.08,p[3]),rr=Math.max(.08,p[4]===undefined?r:p[4]);ring.push(p.slice(0,3).map((v,i)=>v+normal[i]*Math.cos(a)*r+bi[i]*Math.sin(a)*rr));}rings.push(ring);}
@@ -46,7 +47,7 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
   // a narrow shadow over the next panel rather than resembling added pebbles.
   function armor(x0,x1,cy,ry,rz,color,options={}){
    const n=options.n||7,m=options.m||22,a0=options.a0===undefined?.38:options.a0,a1=options.a1===undefined?TAU-.38:options.a1,grids=[[],[]];
-   for(let s=0;s<2;s++)for(let i=0;i<=n;i++){const t=i/n,x=mix(x0,x1,t),edge=Math.sin(t*Math.PI)*1.5+(i===n?2:0),row=[];for(let j=0;j<=m;j++){const a=mix(a0,a1,j/m),r=(s?-.4:1.1)+edge,shape=1+.025*Math.cos(a*5);row.push([x+(1-Math.cos(a))*1.4,cy+(ry*(1-t*.085)+r)*Math.cos(a)*shape,(rz*(1-t*.07)+r)*Math.sin(a)]);}grids[s].push(row);}
+   for(let s=0;s<2;s++)for(let i=0;i<=n;i++){const t=i/n,x=mix(x0,x1,t),edge=Math.sin(t*Math.PI)*1.5+(i===n?2.8:0),row=[];for(let j=0;j<=m;j++){const a=mix(a0,a1,j/m),r=(s?-.4:1.1)+edge,shape=1+.025*Math.cos(a*5)+(!s?.018*Math.sin(t*Math.PI*8+a*3):0);row.push([x+(1-Math.cos(a))*1.4,cy+(ry*(1-t*.085)+r)*Math.cos(a)*shape,(rz*(1-t*.07)+r)*Math.sin(a)]);}grids[s].push(row);}
    for(let s=0;s<2;s++)for(let i=0;i<n;i++)for(let j=0;j<m;j++){let v=[grids[s][i][j],grids[s][i][j+1],grids[s][i+1][j+1],grids[s][i+1][j]],uv=[[i/n,j/m],[i/n,(j+1)/m],[(i+1)/n,(j+1)/m],[(i+1)/n,j/m]];if(s){v.reverse();uv.reverse();}face(v,color,uv);}
    for(let i=0;i<n;i++)for(const j of [0,m])face([grids[0][i][j],grids[1][i][j],grids[1][i+1][j],grids[0][i+1][j]],tint(color,.78));
    for(let j=0;j<m;j++)for(const i of [0,n])face([grids[0][i][j],grids[0][i][j+1],grids[1][i][j+1],grids[1][i][j]],tint(color,.82));

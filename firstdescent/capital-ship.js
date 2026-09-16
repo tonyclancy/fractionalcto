@@ -48,123 +48,30 @@ const capitalSiegeMeshes=(()=>{
   return{mesh,face,plate,box,hull,tube,annulus,rod,part,light};
  }
  const out={},h=build(),drives=[],guns=[];
- // One long pressure hull, with a tapered armored prow and layered aft decks.
- h.hull([[-89,0,0,10,13],[-68,0,0,24,24],[-27,0,0,35,31],[29,0,0,38,32],[70,0,0,31,26],[96,0,0,22,22]],dark,12);
- h.hull([[-69,-33,0,8,14],[-25,-39,0,14,20],[38,-40,0,13,22],[78,-35,0,9,17]],metal,8);
- h.hull([[-35,29,0,8,15],[5,37,0,12,20],[57,37,0,12,21],[87,28,0,7,16]],metal,8);
- const panels=[
-  [[-94,-12],[-62,-31],[-21,-34],[-31,-14],[-76,-3]],
-  [[-91,11],[-63,27],[-26,31],[-14,16],[-63,5]],
-  [[-20,-35],[24,-39],[46,-26],[27,-14],[-31,-15]],
-  [[-18,17],[22,15],[55,28],[36,38],[-12,31]],
-  [[35,-27],[69,-30],[91,-20],[79,-5],[49,-7]],
-  [[45,7],[82,3],[95,19],[79,31],[56,28]]
- ];
- panels.forEach((p,i)=>h.plate(p,-35-(i%2)*2,-24,i<2?armor:metal,1.6));
- // Broad ceramic armor inlays establish a few readable shapes before the fine
- // engineering details. The luminous seams sit inside dark recessed channels.
- const ceramic=[157,165,159],navy=[35,58,76];
- h.plate([[-88,-12],[-64,-25],[-42,-29],[-48,-20],[-76,-8]],-39,-35,ceramic,.7);
- h.plate([[-85,11],[-62,22],[-36,25],[-43,18],[-72,7]],-41,-37,navy,.75);
- h.plate([[-19,-31],[13,-35],[29,-29],[15,-23],[-23,-23]],-39.3,-35,navy,.85);
- h.plate([[-9,22],[19,20],[37,28],[27,33],[-7,28]],-42,-38,ceramic,.6);
- h.plate([[53,-23],[70,-25],[83,-18],[77,-11],[54,-14]],-39,-35,ceramic,.7);
- h.plate([[59,13],[80,9],[87,18],[76,25],[63,22]],-41,-36,navy,.65);
- for(const [a,b] of [
-  [[-80,-7,-39.7],[-47,-17,-39.7]],
-  [[-36,-19,-39.7],[9,-19,-39.7]],
-  [[17,-19,-40],[42,-11,-40]],
-  [[-72,10,-42],[-45,18,-42]],
-  [[-33,17,-42],[5,15,-42]],
-  [[34,17,-42],[59,25,-42]]
- ]){
-  h.rod(a,b,1.55,recess,6);const start=h.mesh.length;
-  h.rod(a.map((v,i)=>i===2?v-.65:v),b.map((v,i)=>i===2?v-.65:v),.52,cold,6);
-  for(let i=start;i<h.mesh.length;i++)h.mesh[i].em=.65;
- }
- // The dark service trench is recessed between armor banks, with separate
- // conduits and maintenance covers that give the visible broadside scale.
- h.box(-7,0,-33,118,20,4,recess);h.rod([-58,-10,-38],[56,-10,-38],1.45,edge);h.rod([-59,11,-38],[59,11,-38],1.5,brass);
- for(let i=0;i<13;i++){
-  const x=-54+i*8;h.box(x,-1,-37,5.8,11+(i%3),3,i%4===0?brass:dark,.45);
-  h.box(x,1,-39,3.8,6,.8,i%4===0?edge:metal,.2);
-  if(i%3===0)h.light(x,-6,-40,3,1.2,cold);
- }
- h.plate([[-44,-29],[-9,-34],[-15,-25],[-40,-21]],-39,-35,edge,.6);
- h.plate([[6,23],[31,25],[37,33],[4,29]],-40,-36,armor,.65);
- // Two inset heat exchanger beds have deep shadows and separate copper fins.
- // Their asymmetric covers distinguish the bow service deck from the engines.
- for(const [cx,cy,width] of [[-25,-42,30],[30,42,35]]){
-  h.box(cx,cy,-20,width+5,9,13,navy,.7);
-  h.box(cx,cy,-28,width,6,2,recess,.35);
-  for(let i=0;i<7;i++){
-   const x=cx-width*.42+i*width*.14;
-   h.plate([[x-1,cy-3],[x+.35,cy-3],[x+2.2,cy+3],[x+.8,cy+3]],-31,-27,i%3===0?brass:edge,.22);
-  }
- }
- // Deliberate broadside panel seams, fasteners, docking pads and heat exchangers.
- for(const sign of [-1,1]){
-  for(let i=0;i<11;i++){const x=-57+i*12,y=sign*(20+Math.sin((i/10)*Math.PI)*10);h.box(x,y,-38,4,1.2,1.2,edge,.15);h.box(x+3,y+sign*3,-38,.95,.95,1,brass,.12);}
-  for(let i=0;i<8;i++){h.box(42+i*4,sign*18,-38,1.4,9,2.5,dark,.15);h.box(42+i*4,sign*18,-40,.65,7,.7,edge,.1);}
-  h.rod([-25,sign*30,-17],[-9,sign*55,-26],6.5,dark);h.rod([15,sign*31,-17],[5,sign*56,-26],4.6,metal);
-  h.rod([-29,sign*32,-23],[-12,sign*52,-30],1.8,brass);
- }
- // An offset command tower is part of the aft superstructure, not an eye.
- h.plate([[23,-35],[28,-48],[52,-49],[65,-39],[57,-31]],-42,-18,dark,1.2);
- h.plate([[29,-38],[32,-46],[52,-46],[60,-39],[53,-35]],-47,-39,armor,.75);
- h.box(44,-41,-48.5,26,4,1.8,recess,.25);
- for(let i=0;i<7;i++)h.light(33+i*3.5,-41,-49.8,2.2,1.3,hot);
- h.plate([[31,-46],[54,-46],[59,-43],[56,-42],[32,-43]],-49,-45,navy,.4);
- h.plate([[30,-38],[53,-36],[59,-39],[61,-35],[49,-32],[27,-35]],-45,-40,metal,.6);
- for(let i=0;i<5;i++)h.light(32+i*5,-35,-45.6,2.3,.85,hot);
- h.rod([57,-39,-35],[66,-51,-33],.7,edge,6);h.rod([64,-43,-31],[72,-49,-31],.55,brass,6);
- h.light(66,-51,-34,1.8,1.1,cold);
- h.box(43,-48,-29,20,3,17,metal,.6);h.rod([44,-48,-25],[44,-56,-25],1.1,edge);
- const sensorStart=h.mesh.length;h.box(44,-56,-25,13,2.1,4.3,dark,.3);h.light(44,-57.2,-27,8,.9,cold);h.part('bridge scanner',sensorStart,[44,-56,-25],'y',.45);
- // Four independently built engine bells surround the recessed aft reactor.
- for(const [i,y,z,r,x] of [[0,-31,7,11.5,106],[1,31,7,11.5,106],[2,-20,-28,7.8,112],[3,20,-28,7.8,112]]){
-  h.hull([[57,y*.8,z*.7,r*.72,r*.8],[82,y,z,r*1.1,r*1.1],[x-8,y,z,r,r]],metal,10);
-  h.tube(x,x-29,y,z,r,dark,true,r*.68,24);
-  h.annulus(x-3,x-5,y,z,r*1.035,r*.76,brass,24);
-  // The collar is hollow too: a second genuine bore leaves the outlet open.
-  h.tube(x+.4,x-8,y,z,r*.96,edge,true,r*.82,24);
-  for(let j=0;j<6;j++){const a=j*Math.PI/3;h.rod([77,y+Math.cos(a)*r*1.06,z+Math.sin(a)*r*1.06],[x-6,y+Math.cos(a)*r*1.02,z+Math.sin(a)*r*1.02],.75,edge,6);}
-  // A black cooling jacket and hot ceramic inserts make each drive a complete
-  // machine when seen side-on, even while the actual outlet faces away.
-  h.plate([[70,y-r*.5],[82,y-r*.68],[x-9,y-r*.43],[x-9,y+r*.45],[80,y+r*.7],[70,y+r*.5]],z-r*1.13,z-r*.75,navy,.55);
-  for(let j=0;j<3;j++)h.light(80+j*5,y,z-r*1.2,2.1,r*.7,j===1?hot:cold);
-  const fanStart=h.mesh.length,fanX=x-4.7;
-  for(let j=0;j<7;j++){const a=j*Math.PI*2/7,cy=y+Math.cos(a)*r*.37,cz=z+Math.sin(a)*r*.37;h.rod([fanX,y,z],[fanX,cy,cz],.6,cold,6);}
-  h.tube(fanX+.5,fanX-1,y,z,r*.18,hot,false,r*.18,12);
-  for(let j=fanStart;j<h.mesh.length;j++)h.mesh[j].em=.35;
-  h.part('engine turbine '+i,fanStart,[fanX,y,z],'x',i%2?-3.1:2.8);
-  drives.push({center:[x+.5,y,z],axis:[1,0,0],radius:r*.53});
- }
- // The forward batteries are rooted in armored galleries; their existing
- // muzzle coordinates stay unchanged for the final core defense pattern.
+ // Planetary gyroscope: compact pressure sphere, revolving segmented armor,
+ // four braced weapon/drive arms. Deliberately no carrier deck or long prow.
+ h.hull([[-63,0,0,8,10],[-46,0,0,28,30],[-18,0,0,40,43],[17,0,0,40,43],[45,0,0,28,30],[61,0,0,8,10]],dark,32);
  for(const side of [-1,1]){
-  h.hull([[-40,side*31,-14,9,10],[-68,side*35,-17,10,11],[-83,side*35,-17,7,8]],dark,8);
-  h.plate([[-83,side*35-9],[-47,side*35-10],[-36,side*35],[-50,side*35+10],[-83,side*35+8]],-32,-21,metal,.8);
-  const start=h.mesh.length;h.tube(-116,-63,side*35,-17,4.4,edge,true,5.2,20);
-  for(const x of [-108,-97,-86])h.tube(x,x+2,side*35,-17,5.5,dark,true,5.5,20);
-  const part=h.part('bow gun '+side,start,[-63,side*35,-17],'recoil');part.gun=[-116,side*35,-17];part.gunRest=part.gun.slice();guns.push(part.gun);
+  h.rod([-35,side*22,-2],[-12,side*53,-23],5,metal,12);
+  h.rod([29,side*23,-4],[-12,side*53,-23],3,brass,10);
+  h.hull([[42,side*17,0,8,10],[73,side*20,0,11,12],[99,side*20,0,7,9]],metal,12);
+  h.tube(100,82,side*20,0,8,edge,true,9,20);
+  drives.push({center:[100.5,side*20,0],axis:[1,0,0],radius:5});
+  h.rod([-33,side*20,-8],[-83,side*14,-22],5,metal,12);
+  h.plate([[-89,side*17],[-65,side*29],[-43,side*18],[-66,side*8]],-29,-20,[104,132,150],1);
+  const start=h.mesh.length;h.tube(-116,-67,side*35,-17,4.3,edge,true,6,20);
+  const gun=h.part('articulated lance '+side,start,[-63,side*35,-17],'recoil');gun.gun=[-116,side*35,-17];gun.gunRest=gun.gun.slice();guns.push(gun.gun);
  }
- h.light(-73,-20,-34,4,1.4,cold);h.light(75,25,-31,3,1.6,hot);
- // Layered bow armor, recessed docking ports and vented machinery add depth
- // without changing the flight corridor or collidable hull dimensions.
- for(const sign of [-1,1]){
-  for(let i=0;i<5;i++){
-   const x=-70+i*19,y=sign*(24+Math.sin(i*.7)*4);
-   h.plate([[x-8,y-4],[x+7,y-6],[x+10,y+2],[x-5,y+5]],-44,-39,i%2?navy:ceramic,.65);
-   h.rod([x-5,y,-45],[x+5,y-1,-45],.55,brass,6);
+ for(const [radius,z,speed] of [[48,-45,.48],[35,-49,-.7]]){
+  const start=h.mesh.length;
+  for(let i=0;i<16;i++){
+   const a=i*Math.PI/8,b=a+.32,inner=radius-7;
+   h.plate([[Math.cos(a)*inner,Math.sin(a)*inner],[Math.cos(a)*radius,Math.sin(a)*radius],[Math.cos(b)*radius,Math.sin(b)*radius],[Math.cos(b)*inner,Math.sin(b)*inner]],z,z+5,i%4===0?brass:[101,136,155],.6);
+   const x=Math.cos(a+.16)*(radius-3),y=Math.sin(a+.16)*(radius-3);h.light(x,y,z-.7,2,2,cold);
   }
-  h.box(13,sign*14,-42,25,7,5,recess,.6);
-  for(let j=0;j<6;j++)h.box(3+j*4,sign*14,-45,1.3,5,1,metal,.2);
-  h.light(29,sign*14,-44,2,5,hot);
+  h.part('counter-rotating gyroscope '+radius,start,[0,0,z],'z',speed);
  }
- h.plate([[-106,-9],[-79,-18],[-61,-16],[-82,-4]],-32,-22,navy,1);
- h.plate([[-106,9],[-79,18],[-61,16],[-82,4]],-33,-23,ceramic,1);
- for(let j=0;j<4;j++){h.box(-47+j*7,0,-43,4,8,4,dark,.5);h.light(-47+j*7,-2,-46,2,1,cold);}
+ for(let i=0;i<9;i++){const x=-27+i*7;h.box(x,0,-46,4,22-Math.abs(i-4)*3,3,brass,.4);h.light(x,0,-48,1.2,7,cold);}
  h.mesh.dynamic=true;h.mesh.capitalHull=true;out.hull=h.mesh;out.drives=drives;out.guns=guns;
 
  for(const sign of [-1,1]){
@@ -211,8 +118,8 @@ function animateCapitalHull(b){
  for(const part of design.mesh.parts){
   const angle=phase*part.speed,c=Math.cos(angle),s=Math.sin(angle),p=part.pivot;
   for(const q of part.vertices){const r=q.rest,x=r[0]-p[0],y=r[1]-p[1],z=r[2]-p[2];
-   q.v[0]=part.axis==='y'?p[0]+x*c+z*s:r[0]+(part.axis==='recoil'?recoil:0);
-   q.v[1]=part.axis==='x'?p[1]+y*c-z*s:r[1];q.v[2]=part.axis==='x'?p[2]+y*s+z*c:part.axis==='y'?p[2]-x*s+z*c:r[2];
+   q.v[0]=part.axis==='z'?p[0]+x*c-y*s:part.axis==='y'?p[0]+x*c+z*s:r[0]+(part.axis==='recoil'?recoil:0);
+   q.v[1]=part.axis==='z'?p[1]+x*s+y*c:part.axis==='x'?p[1]+y*c-z*s:r[1];q.v[2]=part.axis==='x'?p[2]+y*s+z*c:part.axis==='y'?p[2]-x*s+z*c:r[2];
   }
   if(part.gun){part.gun[0]=part.gunRest[0]+recoil;part.gun[1]=part.gunRest[1];part.gun[2]=part.gunRest[2];}
  }
@@ -220,7 +127,7 @@ function animateCapitalHull(b){
 
 function isCapitalSiege(b=boss){return !!b&&!!sectors[level].siege&&bossIndex()===1;}
 function capitalShipDesign(b){
- if(!b.capitalDesign){const base=machineBossDesigns[1];b.capitalDesign={...base,mesh:capitalSiegeMeshes.hull,drives:capitalSiegeMeshes.drives,guns:capitalSiegeMeshes.guns,mouth:[-116,0,-17],scale:3.4,bodyVolumes:[...base.bodyVolumes,{center:[-7,-61,-23],radii:[34,16,18]},{center:[-7,61,-23],radii:[34,16,18]}]};}
+ if(!b.capitalDesign){const base=machineBossDesigns[1];b.capitalDesign={...base,mesh:capitalSiegeMeshes.hull,drives:capitalSiegeMeshes.drives,guns:capitalSiegeMeshes.guns,mouth:[-116,0,-17],scale:3.4,bodyVolumes:[{center:[0,0,0],radii:[62,42,43]},{center:[74,0,0],radii:[33,28,22]},{center:[-78,0,-20],radii:[28,20,16]},{center:[-7,-61,-23],radii:[34,16,18]},{center:[-7,61,-23],radii:[34,16,18]}]};}
  return b.capitalDesign;
 }
 function initCapitalSiege(b){
@@ -228,12 +135,12 @@ function initCapitalSiege(b){
  const total=b.max||b.hp||1000,node=(id,local,radii,fraction,clock)=>({id,local,radii,radius:Math.max(radii[1],radii[2])*3.4,hp:total*fraction,max:total*fraction,hit:0,clock,warning:0,muzzle:0,heading:Math.PI,cycle:0,special:null});
  b.siege={stage:'batteries',age:0,orbGranted:false,pulses:[],nodes:[node('dorsal',[-12,-65,-28],[50,16,17],.15,2.8),node('ventral',[-12,65,-28],[50,16,17],.15,4.3),node('reactor',[103,0,-8],[13,15,15],.23,2.6),node('core',[-94,0,-25],[15,15,15],.47,2.4)]};
  b.hp=total;b.max=total;b.pass=null;b.charge=0;b.attack=null;b.special=Infinity;
- announce('CAPITAL SHIP · ARMORED HULL','DESTROY THE UPPER AND LOWER DECK BATTERIES');
+ announce('GYRO SENTINEL · ARMOR LOCKED','DESTROY THE UPPER AND LOWER STABILIZER PODS');
  return b.siege;
 }
 function capitalNodePosition(b,n){return bossMount(b,n.local);}
 function capitalNodeActive(b,n){const siege=initCapitalSiege(b);return n.hp>0&&(siege.stage==='batteries'?(n.id==='dorsal'||n.id==='ventral'):n.id===siege.stage);}
-function capitalSiegeHint(b){const s=initCapitalSiege(b),special=s.nodes.find(n=>n.special)?.special;if(special)return special.kind==='purge'?'REACTOR PURGE · MOVE ABOVE OR BELOW ITS OPENING':'CAPACITOR DISCHARGE · DODGE THROUGH THE GAP';return s.stage==='batteries'?'DECK BATTERIES · '+s.nodes.slice(0,2).filter(n=>n.hp>0).length+' REMAIN':s.stage==='reactor'?'AFT REACTOR · FLY BEHIND · SPACE: REAR FIRE':'COMMAND CORE EXPOSED · ATTACK THE BOW';}
+function capitalSiegeHint(b){const s=initCapitalSiege(b),special=s.nodes.find(n=>n.special)?.special;if(special)return special.kind==='purge'?'REACTOR PURGE · MOVE ABOVE OR BELOW ITS OPENING':'CAPACITOR DISCHARGE · DODGE THROUGH THE GAP';return s.stage==='batteries'?'STABILIZER PODS · '+s.nodes.slice(0,2).filter(n=>n.hp>0).length+' REMAIN':s.stage==='reactor'?'AFT REACTOR · FLY BEHIND · SPACE: REAR FIRE':'COMMAND CORE EXPOSED · ATTACK THE BOW';}
 function capitalNodeShape(b,n,padding=0){
  const p=capitalNodePosition(b,n),scale=capitalShipDesign(b).scale,pose=bossFlightPose(b),axes=n.radii.map((r,i)=>{const a=[0,0,0];a[i]=r*scale+padding;return rotateVertex(a,pose.yaw,pose.roll,pose.pitch,0,0);});
  let xx=0,xy=0,yy=0;for(const a of axes){xx+=a[0]*a[0];xy+=a[0]*a[1];yy+=a[1]*a[1];}return{x:p.x,y:p.y,xx,xy,yy,det:xx*yy-xy*xy};
@@ -267,7 +174,7 @@ function capitalAdvanceStage(b){
   // A recovered weapon orb is guaranteed here, even after a checkpoint loss.
   // The player keeps their weapon and chooses when to move the orb to the rear.
   if(!weaponOrb.owned){weaponOrb.owned=true;weaponOrb.angle=0;weaponOrb.target=0;s.orbGranted=true;window.flightAudio?.pickup(ship.x);updateHUD();}
-  announce('DECK BATTERIES DESTROYED','FLY AROUND THE HULL · SPACE: REAR FIRE · BREAK THE AFT REACTOR');
+  announce('STABILIZER PODS DESTROYED','FLY AROUND THE HULL · SPACE: REAR FIRE · BREAK THE AFT REACTOR');
  }else if(s.stage==='reactor'&&s.nodes[2].hp<=0){s.stage='core';announce('REACTOR BREACHED · COMMAND CORE OPEN','RETURN TO THE BOW · SPACE SWITCHES THE WEAPON ORB');}
 }
 function capitalDamageNode(b,n,amount){
@@ -295,7 +202,9 @@ function capitalNovaDamage(b,amount){
 }
 function moveCapitalShip(b,dt){
  initCapitalSiege(b);const oldX=b.x,oldY=b.y,age=b.age||0;
- const targetX=820+Math.sin(age*.27)*48,targetY=H*.5+Math.sin(age*.36)*30;
+ // Destroyed stabilizers change the patrol into tighter, faster attack circuits.
+ const phase=b.siege.stage==='core'?1.55:b.siege.stage==='reactor'?1.25:1;
+ const orbit=age*.65*phase,thrust=Math.max(0,Math.sin(age*.7*phase))**6;const targetX=805+Math.cos(orbit)*82-thrust*(b.siege.stage==='core'?95:50),targetY=H*.5+Math.sin(orbit*2)*34;
  b.navVX=clamp((b.navVX||0)+((targetX-b.x)*2.1-(b.navVX||0)*2.9)*dt,-155,95);
  b.navVY=clamp((b.navVY||0)+((targetY-b.y)*2.6-(b.navVY||0)*3.2)*dt,-40,40);
  b.x+=b.navVX*dt;b.y+=b.navVY*dt;updateBossAttitude(b,dt,(b.x-oldX)/dt,(b.y-oldY)/dt);
@@ -332,8 +241,8 @@ function updateCapitalSiege(b,dt){
  for(const n of s.nodes){n.hit=Math.max(0,n.hit-dt);n.muzzle=Math.max(0,n.muzzle-dt);if(!capitalNodeActive(b,n)||b.x>W-240||n.special)continue;
   if(n.target){const gun=capitalGunMounts(b,n)[0],axis=gun.heading-(n.aimOffset||0),desired=Math.atan2(n.target.y-gun.baseY,n.target.x-gun.baseX),offset=clamp(Math.atan2(Math.sin(desired-axis),Math.cos(desired-axis)),-.65,.65);n.aimOffset=(n.aimOffset||0)+clamp(offset-(n.aimOffset||0),-dt*2,dt*2);}
   if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=n.id==='core'?6:4;n.burstClock=0;}}
-  if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?735:n.id==='reactor'?650:630;
-    hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?8:7,kind:'rocket',bossRound:true,scale:n.id==='core'?.95:.85,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.14:.17;window.flightAudio?.shot('missile',mount.x,true);
+  if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?880:n.id==='reactor'?780:810,seeking=n.id!=='reactor'&&n.cycle%3===0&&n.burst===1;
+    hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?8:7,kind:seeking?'seeker':'rocket',bossRound:true,scale:n.id==='core'?.95:.85,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.14:.17;window.flightAudio?.shot('missile',mount.x,true);
    }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=n.id==='core'?1.9:2.15;n.heading=n.id==='reactor'?0:Math.PI;
     if(n.id==='reactor'&&n.cycle%2===0){n.special={kind:'purge',age:0,warning:1.15,duration:.76};window.flightAudio?.laserCharge();}
     else if(n.id==='core'&&n.cycle%2===0){n.special={kind:'pulse',age:0,warning:1.3,duration:.3,gap:(n.cycle%4===0?-1:1)*.28};window.flightAudio?.laserCharge();}
@@ -373,7 +282,7 @@ function drawCapitalSiege(b){
  drawCapitalDischarges(b);
  ctx.save();ctx.textAlign='center';ctx.font='bold 10px "DM Sans",sans-serif';
  for(const n of s.nodes){if(n.hp<=0)continue;const p=capitalNodePosition(b,n),active=capitalNodeActive(b,n);
-  if(active){const above=n.id==='dorsal'||n.id==='core',yy=p.y+(above?-1:1)*(n.radius+20);healthBar(p.x,yy,70,n.hp,n.max,'#ffc782');ctx.fillStyle='#ffe3bb';ctx.fillText(n.id==='dorsal'?'UPPER BATTERY':n.id==='ventral'?'LOWER BATTERY':n.id==='reactor'?'AFT REACTOR':'COMMAND CORE',p.x,yy+(above?-7:17));}
+  if(active){const above=n.id==='dorsal'||n.id==='core',yy=p.y+(above?-1:1)*(n.radius+20);healthBar(p.x,yy,70,n.hp,n.max,'#ffc782');ctx.fillStyle='#ffe3bb';ctx.fillText(n.id==='dorsal'?'UPPER STABILIZER':n.id==='ventral'?'LOWER STABILIZER':n.id==='reactor'?'AFT REACTOR':'COMMAND CORE',p.x,yy+(above?-7:17));}
 
   if(n.muzzle>0){const gun=capitalGunMounts(b,n)[n.lastGun||0],strength=n.muzzle/.17;ctx.save();ctx.translate(gun.x,gun.y);ctx.rotate(gun.heading);orb(9,0,29,'#ffd399',strength*.85);ctx.globalAlpha=strength;poly([[0,-7],[39,0],[0,7]],'#fff0be');ctx.strokeStyle='#ffe8bb';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(11+(1-strength)*18,0,4,8+(1-strength)*14,0,0,TAU);ctx.stroke();ctx.restore();}
  }
