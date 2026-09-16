@@ -3,7 +3,7 @@ const capitalSiegeMeshes=(()=>{
  const metal=[84,99,108],armor=[115,129,134],edge=[170,176,166],dark=[23,35,44],recess=[10,20,28],brass=[158,124,77],hot=[246,160,79],cold=[91,202,224];
  const tint=(c,f)=>c.map(n=>Math.round(n*f));
  function build(){
-  const mesh=[],parts=[],components=[];mesh.industrial=true;mesh.parts=parts;mesh.components=components;
+  const mesh=[],parts=[],components=[];mesh.industrial=true;mesh.capitalSurface=true;mesh.parts=parts;mesh.components=components;
   const face=(v,c,em=0)=>mesh.push({v,c,em,flex:0});
   const component=(name,start)=>components.push({name,start,end:mesh.length});
   function plate(points,z0,z1,c=metal,bevel=1){
@@ -48,41 +48,73 @@ const capitalSiegeMeshes=(()=>{
   return{mesh,face,plate,box,hull,tube,annulus,rod,part,light};
  }
  const out={},h=build(),drives=[],guns=[];
- // Planetary gyroscope: compact pressure sphere, revolving segmented armor,
- // four braced weapon/drive arms. Deliberately no carrier deck or long prow.
- h.hull([[-63,0,0,8,10],[-46,0,0,28,30],[-18,0,0,40,43],[17,0,0,40,43],[45,0,0,28,30],[61,0,0,8,10]],dark,32);
+ // Reference: design/sector-2-excavator-concept.png. Solid overlapping shells
+ // surround a recessed engine chassis; each panel has its own beveled volume.
+ h.hull([[-87,0,0,7,12],[-50,0,0,23,25],[0,0,0,33,36],[48,0,0,28,31],[83,0,0,17,22]],dark,20);
+ function shell(points,z,depth,color){
+  const start=h.mesh.length;h.plate(points,z,z+depth,color,1.3);
+  const seen=new Set();for(let i=start;i<h.mesh.length;i++)for(const v of h.mesh[i].v)if(!seen.has(v)){seen.add(v);v[2]+=Math.abs(v[1])*.26+Math.abs(v[0])*.045;}
+ }
  for(const side of [-1,1]){
-  h.rod([-35,side*22,-2],[-12,side*53,-23],5,metal,12);
-  h.rod([29,side*23,-4],[-12,side*53,-23],3,brass,10);
-  h.hull([[42,side*17,0,8,10],[73,side*20,0,11,12],[99,side*20,0,7,9]],metal,12);
-  h.tube(100,82,side*20,0,8,edge,true,9,20);
-  drives.push({center:[100.5,side*20,0],axis:[1,0,0],radius:5});
-  h.rod([-33,side*20,-8],[-83,side*14,-22],5,metal,12);
-  h.plate([[-89,side*17],[-65,side*29],[-43,side*18],[-66,side*8]],-29,-20,[104,132,150],1);
-  const start=h.mesh.length;h.tube(-116,-67,side*35,-17,4.3,edge,true,6,20);
-  const gun=h.part('articulated lance '+side,start,[-63,side*35,-17],'recoil');gun.gun=[-116,side*35,-17];gun.gunRest=gun.gun.slice();guns.push(gun.gun);
+  const mirror=p=>p.map(([x,y])=>[x,y*side]);
+  // Long split mandibles, stepped shoulders and layered rear heat shields.
+  shell(mirror([[-112,9],[-72,33],[-30,43],[-12,29],[-48,14]]),-37,9,[108,113,111]);
+  shell(mirror([[-93,13],[-62,29],[-34,33],[-24,27],[-57,18]]),-40,4,[134,136,128]);
+  shell(mirror([[-31,44],[0,48],[25,34],[10,23],[-12,28]]),-40,10,[103,111,110]);
+  shell(mirror([[4,47],[39,43],[56,25],[31,20],[22,32]]),-36,10,[119,123,115]);
+  shell(mirror([[41,39],[73,33],[83,16],[61,17]]),-30,8,[89,98,97]);
+  // Rear-facing matching armor gives the hull real thickness during banking.
+  h.hull([[-102,side*12,7,2,3],[-56,side*26,8,9,16],[0,side*34,6,11,20],[48,side*27,5,8,17],[75,side*19,3,3,8]],metal,10);
+  h.rod([-42,side*13,-25],[64,side*13,-24],2.6,dark,10);
+  h.rod([-38,side*16,-27],[20,side*16,-29],1,brass,8);
+  for(let j=0;j<7;j++){const x=-53+j*18,y=side*(x<0?28:34);h.tube(x,x+3,y,-33,1.4,edge,false,1.4,8);}
+  // Articulated pod spars: broad load-bearing upper arm and polished piston.
+  h.rod([15,side*29,-9],[-2,side*51,-23],4.1,dark,12);
+  h.rod([35,side*23,-12],[7,side*52,-23],2,brass,10);
+  h.rod([31,side*27,-12],[11,side*49,-23],.9,edge,8);
+  h.box(-3,side*49,-26,11,10,10,metal,1);
+  // Integrated vector engines with recessed bores, ring ribs and armor cowls.
+  h.hull([[54,side*20,0,9,13],[81,side*20,0,13,16],[100,side*20,0,10,13]],metal,16);
+  h.tube(103,83,side*20,0,9,edge,true,8,20);
+  for(const x of [76,83,90,97])h.annulus(x,x+2,side*20,0,13,10,dark,16);
+  drives.push({center:[103.5,side*20,0],axis:[1,0,0],radius:6});
+  const turbineStart=h.mesh.length;
+  for(let i=0;i<8;i++){const a=i*Math.PI/4;h.rod([96,side*20+Math.cos(a)*5,Math.sin(a)*5],[99,side*20+Math.cos(a+.4)*8,Math.sin(a+.4)*8],.65,brass,6);}
+  h.part('recessed engine impeller '+side,turbineStart,[97,side*20,0],'x',side*5);
+  // Cannon barrels are recessed into the armored mandibles, with recoil mounts.
+  const start=h.mesh.length;h.tube(-116,-67,side*35,-17,2.5,dark,true,3.5,16);
+  for(const x of [-99,-87,-75])h.tube(x,x+2,side*35,-17,3.8,metal,false,3.8,12);
+  const gun=h.part('recessed prow cannon '+side,start,[-63,side*35,-17],'recoil');gun.gun=[-116,side*35,-17];gun.gunRest=gun.gun.slice();guns.push(gun.gun);
  }
- for(const [radius,z,speed] of [[48,-45,.48],[35,-49,-.7]]){
-  const start=h.mesh.length;
-  for(let i=0;i<16;i++){
-   const a=i*Math.PI/8,b=a+.32,inner=radius-7;
-   h.plate([[Math.cos(a)*inner,Math.sin(a)*inner],[Math.cos(a)*radius,Math.sin(a)*radius],[Math.cos(b)*radius,Math.sin(b)*radius],[Math.cos(b)*inner,Math.sin(b)*inner]],z,z+5,i%4===0?brass:[101,136,155],.6);
-   const x=Math.cos(a+.16)*(radius-3),y=Math.sin(a+.16)*(radius-3);h.light(x,y,z-.7,2,2,cold);
-  }
-  h.part('counter-rotating gyroscope '+radius,start,[0,0,z],'z',speed);
+ // Exposed ribbed heat exchanger in the deep central machinery channel.
+ h.box(13,0,-37,64,25,8,recess,1);
+ for(let i=0;i<13;i++){const x=-15+i*4.5;h.box(x,0,-43,1.4,23,9,brass,.3);h.box(x,0,-48,1.6,17,1,[114,82,53],.2);}
+ for(const side of [-1,1]){
+  h.rod([-26,side*11,-41],[50,side*11,-37],1.4,metal,10);
+  for(let i=0;i<4;i++){const x=-68+i*32;h.box(x,side*19,-38,10,5,4,dark,.5);h.light(x,side*19,-40.5,5,.8,hot);}
  }
- for(let i=0;i<9;i++){const x=-27+i*7;h.box(x,0,-46,4,22-Math.abs(i-4)*3,3,brass,.4);h.light(x,0,-48,1.2,7,cold);}
+ // Nested access panels and longitudinal rails give armor a readable scale.
+ for(const side of [-1,1])for(let i=0;i<7;i++){
+  const x=-66+i*19,y=side*(27+Math.sin(i*.6)*9),z=-42+Math.abs(y)*.26+Math.abs(x)*.045;
+  h.plate([[x-6,y-2],[x+4,y-3],[x+7,y+1],[x-4,y+3]],z-1,z,[62,71,72],.3);
+  h.rod([x-5,y,z-1.4],[x+3,y-.8,z-1.4],.35,edge,6);
+ }
+ for(const side of [-1,1])for(let i=0;i<6;i++){
+  const x=-52+i*19,y=side*8;h.tube(x,x+10,y,-34,2.4,metal,false,2.4,10);
+  h.tube(x+2,x+4,y,-34,3.1,brass,false,3.1,10);
+ }
+ // Small rigid dorsal sensor tracks the flight direction independently.
+ const scanner=h.mesh.length;h.hull([[-25,-5,-31,2,3],[-9,-5,-35,4,5],[5,-5,-34,3,4]],metal,8);h.light(-20,-5,-39,6,1,hot);h.part('recessed targeting scanner',scanner,[-7,-5,-32],'y',.3);
  h.mesh.dynamic=true;h.mesh.capitalHull=true;out.hull=h.mesh;out.drives=drives;out.guns=guns;
 
  for(const sign of [-1,1]){
   const id=sign<0?'dorsal':'ventral',y=sign*65,m=build();
-  m.box(-8,sign*51,-23,47,22,27,dark,1);
-  m.plate([[-37,y-12],[-27,y-16],[14,y-16],[24,y-6],[18,y+12],[-29,y+14]],-40,-13,armor,1.2);
-  m.box(-10,y,-41,36,16,3,recess,.65);
-  m.plate([[-31,y-10],[-6,y-12],[10,y-7],[7,y+8],[-30,y+8]],-44,-40,metal,.6);
+  m.hull([[-42,y,-23,5,7],[-26,y,-23,12,14],[9,y,-23,11,13],[23,y,-23,5,8]],dark,10);
+  m.plate([[-42,y-6],[-26,y-12],[9,y-10],[24,y-2],[6,y+10],[-29,y+10]],-38,-26,[106,113,111],1);
+  m.plate([[-32,y-5],[-20,y-8],[1,y-6],[7,y+3],[-27,y+5]],-40,-36,[128,133,124],.6);
   for(const side of [-1,1]){
-   m.tube(-61,-9,y+side*5,-28,4.2,edge,true,5,20);
-   for(const x of [-47,-32,-20])m.tube(x,x+2.6,y+side*5,-28,5.35,dark,true,5.35,16);
+   m.tube(-61,-9,y+side*5,-28,2.5,metal,true,3,16);
+   for(const x of [-47,-32,-20])m.tube(x,x+2.6,y+side*5,-28,3.3,dark,true,3.3,12);
   }
   for(let i=0;i<8;i++){m.box(1+i*2.6,y,-45,1.05,17,2,brass,.15);if(i<4)m.light(-23+i*6,y+sign*10,-45,3,1.6,hot);}
   m.light(-17,y,-45.7,12,2.4,hot);out[id]=m.mesh;
@@ -102,9 +134,9 @@ const capitalSiegeMeshes=(()=>{
   out[open?'reactorOpen':'reactorClosed']=m.mesh;
  }
  for(const open of [false,true]){
-  const m=build();m.tube(-96,-67,0,-25,16.7,dark,true,17,24);m.tube(-98,-89,0,-25,13,brass,true,13,24);
+  const m=build();m.tube(-96,-67,0,-25,10,dark,true,12,24);m.tube(-98,-89,0,-25,8,brass,true,8,24);
   for(const side of [-1,1]){
-   const y=side*(open?16:6.5);m.box(-94,y,-25,9,12,26,metal,.9);m.box(-99,y,-25,1.5,8,21,armor,.45);
+   const y=side*(open?13:5);m.box(-94,y,-25,7,8,16,metal,.9);m.box(-99,y,-25,1.5,5,13,armor,.45);
    m.light(-98,y,-39,6,1.3,open?cold:hot);
   }
   if(open){m.tube(-96,-86,0,-25,7.8,hot,false,7,24);m.tube(-97.3,-95,0,-25,4,cold,false,4,20);}
@@ -127,7 +159,7 @@ function animateCapitalHull(b){
 
 function isCapitalSiege(b=boss){return !!b&&!!sectors[level].siege&&bossIndex()===1;}
 function capitalShipDesign(b){
- if(!b.capitalDesign){const base=machineBossDesigns[1];b.capitalDesign={...base,mesh:capitalSiegeMeshes.hull,drives:capitalSiegeMeshes.drives,guns:capitalSiegeMeshes.guns,mouth:[-116,0,-17],scale:3.4,bodyVolumes:[{center:[0,0,0],radii:[62,42,43]},{center:[74,0,0],radii:[33,28,22]},{center:[-78,0,-20],radii:[28,20,16]},{center:[-7,-61,-23],radii:[34,16,18]},{center:[-7,61,-23],radii:[34,16,18]}]};}
+ if(!b.capitalDesign){const base=machineBossDesigns[1];b.capitalDesign={...base,mesh:capitalSiegeMeshes.hull,drives:capitalSiegeMeshes.drives,guns:capitalSiegeMeshes.guns,mouth:[-116,0,-17],scale:3.4,bodyVolumes:[{center:[0,0,0],radii:[70,35,33]},{center:[74,0,0],radii:[33,28,22]},{center:[-78,0,-20],radii:[28,26,20]},{center:[-7,-61,-23],radii:[34,16,18]},{center:[-7,61,-23],radii:[34,16,18]}]};}
  return b.capitalDesign;
 }
 function initCapitalSiege(b){
@@ -135,7 +167,7 @@ function initCapitalSiege(b){
  const total=b.max||b.hp||1000,node=(id,local,radii,fraction,clock)=>({id,local,radii,radius:Math.max(radii[1],radii[2])*3.4,hp:total*fraction,max:total*fraction,hit:0,clock,warning:0,muzzle:0,heading:Math.PI,cycle:0,special:null});
  b.siege={stage:'batteries',age:0,orbGranted:false,pulses:[],nodes:[node('dorsal',[-12,-65,-28],[50,16,17],.15,2.8),node('ventral',[-12,65,-28],[50,16,17],.15,4.3),node('reactor',[103,0,-8],[13,15,15],.23,2.6),node('core',[-94,0,-25],[15,15,15],.47,2.4)]};
  b.hp=total;b.max=total;b.pass=null;b.charge=0;b.attack=null;b.special=Infinity;
- announce('GYRO SENTINEL · ARMOR LOCKED','DESTROY THE UPPER AND LOWER STABILIZER PODS');
+ announce('EXCAVATOR PRIME · ARMOR LOCKED','DESTROY THE UPPER AND LOWER STABILIZER PODS');
  return b.siege;
 }
 function capitalNodePosition(b,n){return bossMount(b,n.local);}
@@ -201,7 +233,7 @@ function capitalNovaDamage(b,amount){
  for(const n of targets)capitalDamageNode(b,n,amount/Math.max(1,targets.length));return true;
 }
 function moveCapitalShip(b,dt){
- initCapitalSiege(b);const oldX=b.x,oldY=b.y,age=b.age||0;
+ initCapitalSiege(b);const oldX=b.x,oldY=b.y,age=b.age||0;b.maneuverRoll=.23+Math.sin(age*.7)*.1;
  // Destroyed stabilizers change the patrol into tighter, faster attack circuits.
  const phase=b.siege.stage==='core'?1.55:b.siege.stage==='reactor'?1.25:1;
  const orbit=age*.65*phase,thrust=Math.max(0,Math.sin(age*.7*phase))**6;const targetX=805+Math.cos(orbit)*82-thrust*(b.siege.stage==='core'?95:50),targetY=H*.5+Math.sin(orbit*2)*34;
