@@ -94,3 +94,6 @@
 .stage.expanded{position:fixed;inset:0;z-index:9999;width:100vw;height:100dvh;aspect-ratio:auto;display:flex;align-items:center;justify-content:center;background:#050b13}.game-expanded{overflow:hidden}
 .stage:fullscreen canvas,.stage.expanded canvas{width:min(100vw,189.473684vh);height:auto;max-height:100dvh;aspect-ratio:1440/760;margin:auto;flex:none}
 @media(max-width:680px){.expand-game{top:10px;right:65px;padding:10px 7px;font-size:8px}.pause{top:10px;right:10px}.header-right{gap:12px}}
+/* Arrow-key play keeps canvas focus without outlining the fullscreen frame. */
+.stage:fullscreen canvas:focus,.stage:fullscreen canvas:focus-visible,
+.stage.expanded canvas:focus,.stage.expanded canvas:focus-visible{outline:none;outline-offset:0}

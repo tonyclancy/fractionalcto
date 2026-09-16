@@ -201,8 +201,8 @@ function moveBoss(b,dt){if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)
  const crossing=![1,4].includes(kind)&&updateBossPass(b,dt);
  if(crossing){b.navVX=(b.x-oldX)/dt;b.navVY=(b.y-oldY)/dt;}
  else{
-  const route=bossFlightRoutes[kind];b.patrolTime=(b.patrolTime||0)+dt;
-  let target=bossRoutePoint(kind,b.patrolTime),drive=route.drive,speed=route.speed;
+  const route=bossFlightRoutes[kind];b.patrolTime=(b.patrolTime||0)+dt*(1.25+bossCombatPhase(b)*.12);
+  let target=bossRoutePoint(kind,b.patrolTime),drive=route.drive*1.15,speed=route.speed*1.25;
   const braced=kind===4&&(b.charge>0||hazards.some(h=>h.kind==='tech'));
   if(braced){b.weaponAnchor??={x:b.x,y:b.y};target=b.weaponAnchor;drive=5;speed=220;}
   else b.weaponAnchor=null;
@@ -230,7 +230,7 @@ function updateBossAttitude(b,dt,vx,vy){
    b.maneuverRoll=p.rollStart+(kind===3?Math.sin(u*Math.PI)**2*1.15:sign*(kind===5?-1:1)*TAU*passEase(u));
   }
  }
- const effort=clamp(Math.hypot(vx,vy)/450,0,1);b.propulsion=(b.propulsion||0)+(effort-(b.propulsion||0))*response;b.propulsionTime=(b.propulsionTime||0)+dt*(1+effort*.85);b.depth=1;
+ const effort=clamp(Math.hypot(vx,vy)/450,0,1);b.propulsion=(b.propulsion||0)+(effort-(b.propulsion||0))*response;b.propulsionTime=(b.propulsionTime||0)+dt*(1.28+effort*.9+.22*(1-clamp(b.hp/(b.max||b.hp||1),0,1)));b.depth=1;
 }
 
 function bossCombatPhase(b){const ratio=b.max>0?b.hp/b.max:1;return ratio<.28?2:ratio<.62?1:0;}
@@ -504,14 +504,14 @@ function expansionMouth(b){if(bossDesign())return bossMount(b,bossDesign().mouth
 function moveExpansionBoss(b,dt){moveBoss(b,dt);}
 function spawnBossSporePods(b,count,acid=false){
  const phase=bossCombatPhase(b),mouth=expansionMouth(b),final=bossIndex()===5;b.sporePods=[];
- // Alternating edge traps always preserve a broad centre corridor. The pods
- // visibly travel out of the mouth before their marked destinations arm.
+ // Spores alternate around a clear corridor; acid pods pursue the ship.
+ // Both visibly leave the mouth and warn before their settled pools arm.
  for(let i=0;i<count;i++){const y=i%2?Math.min(H-100,b.lockY+155):Math.max(100,b.lockY-155),x=240+i*190;
-  b.sporePods.push({age:-i*.22,fromX:mouth.x,fromY:mouth.y,x:mouth.x,y:mouth.y,toX:x,toY:y,flight:1.05,r:(final?60:48)+phase*4,visualScale:final?2.25:1.65,acid});}
+  b.sporePods.push({age:-i*.22,fromX:mouth.x,fromY:mouth.y,x:mouth.x,y:mouth.y,toX:acid?clamp(ship.x+(i-(count-1)/2)*72,90,W-90):x,toY:acid?clamp(ship.y,100,H-100):y,trackOffset:(i-(count-1)/2)*72,flight:1.05,r:(final?60:48)+phase*4,visualScale:final?2.25:1.65,acid});}
  b.muzzle=.16;window.flightAudio?.shot('spore',mouth.x,true);
 }
 function updateBossSporePods(b,dt){
- for(const p of b.sporePods||[]){p.age+=dt;if(p.age<0)continue;const u=clamp(p.age/p.flight,0,1),e=passEase(u);p.x=p.fromX+(p.toX-p.fromX)*e;p.y=p.fromY+(p.toY-p.fromY)*e-Math.sin(u*Math.PI)*65;
+ for(const p of b.sporePods||[]){p.age+=dt;if(p.age<0)continue;if(p.acid&&p.age<p.flight*.8){p.toX+=clamp(clamp(ship.x+p.trackOffset,90,W-90)-p.toX,-260*dt,260*dt);p.toY+=clamp(clamp(ship.y,100,H-100)-p.toY,-220*dt,220*dt);}const u=clamp(p.age/p.flight,0,1),e=passEase(u);p.x=p.fromX+(p.toX-p.fromX)*e;p.y=p.fromY+(p.toY-p.fromY)*e-Math.sin(u*Math.PI)*65;
   if(u>=1&&!p.landed){p.landed=true;acidClouds.push({x:p.toX,y:p.toY,age:0,warning:1.25,life:4.8,r:p.r,seed:p.toX,spore:!p.acid,bossTrap:true});}}
  if(b.sporePods)b.sporePods=b.sporePods.filter(p=>!p.landed);
 }
@@ -621,17 +621,20 @@ function startBreath(b,kind,warning=1.3,options={}){const m=organicMouth(b),targ
  const coreScale=(final?1.32:index===2?1.16:1.06)+phase*.04,plumeScale=(final?1.9:index===2?1.4:1.16)+phase*.08,speed=kind==='water'?1100+phase*20:kind==='wind'?920:final?1000+phase*30:870;
  b.breath={kind,target,age:0,warning,duration:options.duration??2.4,sweep:options.sweep||0,baseAngle:angle,coreScale,plumeScale,speed,clock:0,puffs:[],angle:angle-(options.sweep||0),sounded:false};b.attack=null;b.fireHeading=null;window.flightAudio?.breath?.('inhale',warning);}
 function breathCoreRadius(a,q){return (10+q.age*(a.kind==='water'?30:52))*(a.coreScale||1);}
-function updateBreath(b,dt){const a=b.breath;if(!a)return;a.age+=dt;const m=organicMouth(b),active=a.age>=a.warning&&a.age<a.warning+a.duration;if(a.target)a.baseAngle=Math.atan2(a.target.y-m.y,a.target.x-m.x);
+function updateBreath(b,dt){const a=b.breath;if(!a)return;a.age+=dt;const m=organicMouth(b),active=a.age>=a.warning&&a.age<a.warning+a.duration;if(a.target){a.target.x=ship.x;a.target.y=ship.y;const desired=Math.atan2(ship.y-m.y,ship.x-m.x),delta=Math.atan2(Math.sin(desired-a.baseAngle),Math.cos(desired-a.baseAngle));a.baseAngle+=clamp(delta,-dt*(active?.9:2.4),dt*(active?.9:2.4));}
  if(active&&!a.sounded){a.sounded=true;if(bossIndex()===0)window.flightAudio?.roar?.(b.x);window.flightAudio?.breath?.(a.kind,a.duration);}
  if(active){a.angle=a.baseAngle+a.sweep*(2*passEase((a.age-a.warning)/a.duration)-1);a.clock+=dt;let count=0;while(a.clock>=.025&&count++<8){a.clock-=.025;const phase=a.age*37+count*2.3,angle=a.angle+Math.sin(phase)*(a.kind==='water'?.018:.03),speed=Math.max(a.speed,Math.min(1550,a.target?Math.hypot(a.target.x-m.x,a.target.y-m.y)/.72:0));a.puffs.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,age:0,seed:phase});}}
  let windContact=false;for(const q of a.puffs){q.age+=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;const r=breathCoreRadius(a,q);if(q.age<.82&&Math.hypot(ship.x-q.x,ship.y-q.y)<r+12){if(a.kind==='wind')windContact=true;else damage();}}
  if(windContact){ship.x=clamp(ship.x+Math.cos(a.angle)*160*dt,30,W-30);ship.y=clamp(ship.y+Math.sin(a.angle)*160*dt,30,H-30);}a.puffs=a.puffs.filter(q=>q.age<.9&&q.x>-100&&q.x<W+100&&q.y>-100&&q.y<H+100).slice(-100);if(a.age>a.warning+a.duration+.9)b.breath=null;
 }
-function drawBreath(b){const a=b.breath;if(!a)return;const m=organicMouth(b),heading=a.target?Math.atan2(a.target.y-m.y,a.target.x-m.x):a.baseAngle,scale=a.plumeScale||1,fire=a.kind==='fire',color=fire?'#ff9b45':'#9fe7ff';ctx.save();
+function drawBreath(b){const a=b.breath;if(!a)return;const m=organicMouth(b),heading=a.baseAngle,scale=a.plumeScale||1,fire=a.kind==='fire',color=fire?'#ff9b45':'#9fe7ff';ctx.save();
  if(a.age<a.warning){const charge=a.age/a.warning,spread=Math.abs(a.sweep)+.13+((a.coreScale||1)-1)*.045,reach=(a.speed||870)*.84;orb(m.x,m.y,(13+charge*22)*scale,color,.38);orb(m.x,m.y,(4+charge*7)*scale,fire?'#ffeeb7':'#d8fcff',.65);ctx.strokeStyle=fire?'#ffb468':'#9fe7ff';ctx.globalAlpha=.42;ctx.lineWidth=scale>1.6?2.4:1.7;ctx.setLineDash([8,12]);for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(m.x+Math.cos(heading+side*spread)*reach,m.y+Math.sin(heading+side*spread)*reach);ctx.stroke();}}
  else if(a.age<a.warning+a.duration){orb(m.x,m.y,(19+Math.sin(a.age*39)*3)*scale,color,.52);orb(m.x,m.y,9*scale,fire?'#fff2c7':'#e7ffff',.82);}
  ctx.setLineDash([]);for(const q of a.puffs){const t=q.age/.9,r=breathCoreRadius(a,q),outer=(10+q.age*(a.kind==='water'?30:52))*scale;ctx.globalAlpha=(1-t)*.7;
-  if(a.kind==='wind'){ctx.strokeStyle='#d7eeec';ctx.lineWidth=2.2*scale;ctx.beginPath();ctx.ellipse(q.x,q.y,outer*.45,outer,a.angle,0,Math.PI*1.4);ctx.stroke();}
+  if(a.kind==='wind'){
+   const angle=Math.atan2(q.vy,q.vx);ctx.strokeStyle='#b7f5ff';ctx.lineWidth=5*scale;ctx.beginPath();ctx.ellipse(q.x,q.y,outer*.45,outer,angle,0,Math.PI*1.65);ctx.stroke();
+   ctx.strokeStyle='#f1ffff';ctx.lineWidth=1.8*scale;ctx.beginPath();ctx.moveTo(q.x-q.vx*.04,q.y-q.vy*.04);ctx.lineTo(q.x,q.y);ctx.stroke();orb(q.x,q.y,outer*.8,'#80d8e9',(1-t)*.18);
+  }
   else{const c=fire?(t<.2?'#fff0b3':t<.55?'#ff963c':'#df4c20'):'#71cbe8';ctx.save();ctx.translate(q.x,q.y);ctx.rotate(Math.atan2(q.vy,q.vx));ctx.globalAlpha=(1-t)*.84;const tail=35*scale,tip=49*scale,flame=ctx.createLinearGradient(-tail,0,tip,0);flame.addColorStop(0,fire?'#ffefac':'#e2faff');flame.addColorStop(.5,c);flame.addColorStop(1,'transparent');ctx.fillStyle=flame;ctx.beginPath();ctx.moveTo(-tail,0);ctx.bezierCurveTo(-tail*.55,-r*.7,tip*.4,-r,tip+Math.sin(q.seed)*12,0);ctx.bezierCurveTo(tip*.4,r*.8,-tail*.5,r*.6,-tail,0);ctx.fill();ctx.restore();orb(q.x,q.y,outer*1.35,c,(1-t)*.40);orb(q.x+Math.sin(q.seed)*r*.35,q.y+Math.cos(q.seed)*r*.35,r*.45,fire?'#ffe6a1':'#d2f6ff',(1-t)*.76);
    if(a.kind==='water'){ctx.strokeStyle='#cef6ff';ctx.lineWidth=2.5*scale;ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(q.x-q.vx*.029,q.y-q.vy*.029);ctx.stroke();}}
  }ctx.restore();}

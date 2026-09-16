@@ -295,9 +295,9 @@ function capitalNovaDamage(b,amount){
 }
 function moveCapitalShip(b,dt){
  initCapitalSiege(b);const oldX=b.x,oldY=b.y,age=b.age||0;
- const targetX=820+Math.sin(age*.19)*42,targetY=H*.5+Math.sin(age*.26)*26;
- b.navVX=clamp((b.navVX||0)+((targetX-b.x)*2.1-(b.navVX||0)*2.9)*dt,-135,80);
- b.navVY=clamp((b.navVY||0)+((targetY-b.y)*2.6-(b.navVY||0)*3.2)*dt,-30,30);
+ const targetX=820+Math.sin(age*.27)*48,targetY=H*.5+Math.sin(age*.36)*30;
+ b.navVX=clamp((b.navVX||0)+((targetX-b.x)*2.1-(b.navVX||0)*2.9)*dt,-155,95);
+ b.navVY=clamp((b.navVY||0)+((targetY-b.y)*2.6-(b.navVY||0)*3.2)*dt,-40,40);
  b.x+=b.navVX*dt;b.y+=b.navVY*dt;updateBossAttitude(b,dt,(b.x-oldX)/dt,(b.y-oldY)/dt);
 }
 function capitalGunMounts(b,n){

@@ -402,9 +402,9 @@ window.flightAudio=(()=>{
   // hollow membrane, or the Mother’s slower pressure rumble.
   const profile=kind===2?{rate:20,body:210,end:62,chatter:460,length:.50}:kind===3?{rate:17,body:155,end:48,chatter:370,length:.54}:heavy?{rate:14,body:130,end:38,chatter:290,length:.59}:{rate:18,body:180,end:52,chatter:560,length:.52};
   const rotor=profile.rate+force*2;
-  noise({duration:profile.length,hold:.11,gain:(heavy?.21:.185)+force*.025,cutoff:profile.body,end:profile.end,highpass:28,body:true,tremolo:rotor,pan,priority:2});
-  noise({duration:profile.length*.85,hold:.065,gain:.066+force*.014,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
-  noise({duration:.30,gain:.016,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
+  noise({duration:profile.length,hold:.11,gain:(heavy?.29:.265)+force*.035,cutoff:profile.body,end:profile.end,highpass:28,body:true,tremolo:rotor,pan,priority:2});
+  noise({duration:profile.length*.85,hold:.065,gain:.10+force*.02,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
+  noise({duration:.30,gain:.028,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
  return{init,setEnabled,clear,intro,shot,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,setTitle,setSector,setIntensity,setMusicActive,setMusicEnabled,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{enabled,musicEnabled,sectorTrack,musicStep,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:6},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
 })();
