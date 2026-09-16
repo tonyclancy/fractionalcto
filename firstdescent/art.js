@@ -476,7 +476,7 @@ function updateBossPass(b,dt){const profile=bossPassProfiles[bossIndex()];if(!pr
  b.passClock=(b.passClock??profile.first)-dt;
  if(!b.pass&&!b.breath&&!b.eyeAttack&&b.passClock<=0&&b.charge<=0&&!(b.vacuum>0)&&!(b.barrage>0)&&!hazards.length&&!b.rackShots&&!b.salvoWindup&&!b.recovery&&!b.pressureFollowup&&!b.sporePods?.length&&!acidClouds.some(h=>h.bossTrap)&&!b.broodWatch&&(!b.comboSteps?.length||b.comboPassPending)){const halfHeight=chargeLaneHalfHeight()+Math.abs(profile.curve);b.pass={stage:'warn',age:0,halfHeight,y:clamp(ship.y,halfHeight+40,H-halfHeight-40),fromX:b.x,fromY:b.y,vx0:b.navVX||0,vy0:b.navVY||0};b.attack=null;b.fireHeading=null;b.rush=0;announce('HOSTILE CHARGE','EVADE ITS CHARGE · SPACE SWITCHES YOUR ORB');}
  const p=b.pass;if(!p)return false;p.age+=dt;
- const next=stage=>{p.stage=stage;p.age=0;p.fromX=b.x;p.fromY=b.y;};
+ const next=stage=>{if(stage==='dash'||stage==='return')window.flightAudio?.bossAttack?.('lunge',bossIndex(),b.x);p.stage=stage;p.age=0;p.fromX=b.x;p.fromY=b.y;};
  if(p.stage==='warn'){const u=clamp(p.age/1.55,0,1),brake=u-6*u*u*u+8*u*u*u*u-3*u*u*u*u*u;b.x=p.fromX+(p.vx0||0)*1.55*brake;b.y=p.fromY+(p.y-p.fromY)*passEase(u)+(p.vy0||0)*1.55*brake;if(p.age>=1.55)next('dash');}
  else if(p.stage==='dash'){const t=clamp(p.age/profile.dash,0,1),ease=passEase(t);b.x=p.fromX+(profile.left-p.fromX)*ease;b.y=p.y+profile.curve*Math.pow(Math.sin(Math.PI*t),2);if(t===1)next('turn');}
  else if(p.stage==='turn'){b.turnYaw=Math.PI*passEase(p.age/profile.turn);if(p.age>=profile.turn){b.facing=1;b.shoot=.6;next('rear');announce('HOSTILE BEHIND','SWITCH ORB · ATTACK FROM THE REAR');}}
@@ -507,10 +507,10 @@ function spawnBossSporePods(b,count,acid=false){
  // Both visibly leave the mouth and warn before their settled pools arm.
  for(let i=0;i<count;i++){const y=i%2?Math.min(H-100,b.lockY+155):Math.max(100,b.lockY-155),x=240+i*190;
   b.sporePods.push({age:-i*.22,fromX:mouth.x,fromY:mouth.y,x:mouth.x,y:mouth.y,toX:acid?clamp(ship.x+(i-(count-1)/2)*72,90,W-90):x,toY:acid?clamp(ship.y,100,H-100):y,trackOffset:(i-(count-1)/2)*72,flight:1.05,r:(final?60:48)+phase*4,visualScale:final?1.15:.95,acid});}
- b.muzzle=.16;window.flightAudio?.shot('spore',mouth.x,true);
+ b.muzzle=.16;
 }
 function updateBossSporePods(b,dt){
- for(const p of b.sporePods||[]){p.age+=dt;if(p.age<0)continue;if(!p.emitted){const mouth=expansionMouth(b);p.fromX=mouth.x;p.fromY=mouth.y;p.emitted=true;b.muzzle=.16;}if(p.acid&&p.age<p.flight*.8){p.toX+=clamp(clamp(ship.x+p.trackOffset,90,W-90)-p.toX,-260*dt,260*dt);p.toY+=clamp(clamp(ship.y,100,H-100)-p.toY,-220*dt,220*dt);}const u=clamp(p.age/p.flight,0,1),e=passEase(u);p.x=p.fromX+(p.toX-p.fromX)*e;p.y=p.fromY+(p.toY-p.fromY)*e-Math.sin(u*Math.PI)*65;
+ for(const p of b.sporePods||[]){p.age+=dt;if(p.age<0)continue;if(!p.emitted){const mouth=expansionMouth(b);p.fromX=mouth.x;p.fromY=mouth.y;p.emitted=true;b.muzzle=.16;window.flightAudio?.bossAttack?.('fire',bossIndex(),mouth.x);}if(p.acid&&p.age<p.flight*.8){p.toX+=clamp(clamp(ship.x+p.trackOffset,90,W-90)-p.toX,-260*dt,260*dt);p.toY+=clamp(clamp(ship.y,100,H-100)-p.toY,-220*dt,220*dt);}const u=clamp(p.age/p.flight,0,1),e=passEase(u);p.x=p.fromX+(p.toX-p.fromX)*e;p.y=p.fromY+(p.toY-p.fromY)*e-Math.sin(u*Math.PI)*65;
   if(u>=1&&!p.landed){p.landed=true;acidClouds.push({x:p.toX,y:p.toY,age:0,warning:1.25,life:4.8,r:p.r,seed:p.toX,spore:!p.acid,bossTrap:true});}}
  if(b.sporePods)b.sporePods=b.sporePods.filter(p=>!p.landed);
 }
@@ -527,7 +527,7 @@ function updateMotherSalvo(b,dt){
  const v=b.salvoWindup;if(!v)return;if(b.pass||b.breath||b.charge>0||b.vacuum>0){b.salvoWindup=null;return;}v.age+=dt;b.muzzle=.04+.1*clamp(v.age/v.warning,0,1);if(v.age<v.warning)return;
  const m=expansionMouth(b),phase=bossCombatPhase(b),speed=720+phase*35;v.heading=v.target?Math.atan2(v.target.y-m.y,v.target.x-m.x):v.heading;
  for(const offset of v.offsets){const angle=v.heading+offset;hostile.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:8+phase,scale:.9+phase*.06,bossShot:true,kind:'fire',c:'#ffa160',launchAngle:angle});}
- b.salvoWindup=null;b.muzzle=.22;window.flightAudio?.shot('spore',m.x,true);
+ b.salvoWindup=null;b.muzzle=.22;window.flightAudio?.bossAttack?.('fire',bossIndex(),m.x);
 }
 function updateExpansionBoss(b,dt){
  const kind=bossIndex(),phase=bossCombatPhase(b);b.vacuum=Math.max(0,(b.vacuum||0)-dt);b.barrage=Math.max(0,(b.barrage||0)-dt);
@@ -556,7 +556,7 @@ function updateExpansionBoss(b,dt){
  }
  if(!busy&&!b.charge){b.shoot-=dt;if(b.shoot<=0&&b.x<W-80){const m=kind===4?techLaserOrigin(b):expansionMouth(b),a=Math.atan2(ship.y-m.y,ship.x-m.x),offsets=kind===3?[-.24,.24]:kind===4?[-.10,.10]:[-.2,0,.2];
   if(kind===5){b.salvoWindup={age:0,warning:.8,heading:a,target:{x:ship.x,y:ship.y},offsets:phase===0?[-.34,0,.34]:phase===1?[-.4,-.2,.2,.4]:[-.5,-.3,-.1,.1,.3,.5]};b.shoot=1.7-phase*.12;return;}
-  for(const offset of offsets)hostile.push({x:m.x,y:m.y,vx:Math.cos(a+offset)*(kind===3?500:600),vy:Math.sin(a+offset)*(kind===3?500:600),r:kind===3?8:7,scale:kind===3?.9:.85,bossShot:kind!==4,kind:kind===4?'rocket':organicShotKind(),c:sectors[level].color,launchAngle:a+offset});b.shoot=2-phase*.2;b.muzzle=.16;window.flightAudio?.shot(kind===4?'missile':'spore',b.x,true);}}
+  for(const offset of offsets)hostile.push({x:m.x,y:m.y,vx:Math.cos(a+offset)*(kind===3?500:600),vy:Math.sin(a+offset)*(kind===3?500:600),r:kind===3?8:7,scale:kind===3?.9:.85,bossShot:kind!==4,kind:kind===4?'rocket':organicShotKind(),c:sectors[level].color,launchAngle:a+offset});b.shoot=2-phase*.2;b.muzzle=.16;kind===4?window.flightAudio?.shot('missile',b.x,true):window.flightAudio?.bossAttack?.('fire',kind,b.x);}}
 }
 
 function drawExpansionBoss(b){const k=bossIndex(),p=bossFlightPose(b),scale=k===3?2.1:k===4?2:2.15;if(k===5||k===3){animateDragonWings(b.age,k===3);animateAnatomicalSkin(meshes[k===3?'reefMonarch':'progenitor'],b.age);}drawModel(meshes[k===3?'reefMonarch':k===4?'stormRegent':'progenitor'],b.x,b.y,scale*p.depth,p.yaw,p.roll,p.pitch,b.age,b.hit);if(k===5||k===3)drawModel(meshes[k===3?'pteroWings':'dragonWings'],b.x,b.y,scale*p.depth,p.yaw,p.roll,p.pitch,b.age,b.hit);

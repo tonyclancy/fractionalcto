@@ -135,7 +135,7 @@ function updateBossWeapon(b,dt){
  if(a.age<a.next)return;
  const r=firingRig(b,true);if(r.organic){const mouth=organicMouth(b);r.muzzleX=mouth.x;r.muzzleY=mouth.y;}else if(!bossDesign()&&bossIndex()===1&&imageReady(art.bossAtlas)){const gun=openingBossMount(b,a.index%2?'lower':'upper');r.muzzleX=gun.x;r.muzzleY=gun.y;}const speed=bossIndex()===0?560:bossIndex()===1?690:620,angle=b.fireHeading;
  hostile.push({x:r.muzzleX,y:r.muzzleY,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:r.organic?7:8,c:sectors[level].color,kind:r.organic?organicShotKind():'bolt',launchAngle:angle,scale:r.organic?.85:.9,bossShot:true});
- b.muzzle=.16;window.flightAudio?.shot(bossIndex()===1?'bolt':'spore',b.x,true);a.index++;a.next+=interval*(r.organic?.85:1);
+ b.muzzle=.16;bossIndex()===1?window.flightAudio?.shot('bolt',b.x,true):window.flightAudio?.bossAttack?.('fire',bossIndex(),b.x);a.index++;a.next+=interval*(r.organic?.85:1);
  if(a.index>=count){b.attack=null;b.fireHeading=null;b.shoot=(b.hp/b.max<.5?1.15:1.8)*(r.organic?.7:1)}
 }
 function updateBossWingAudio(b){if(!bossOrganic()||typeof organicBossWingPhase!=='function')return;const stroke=Math.floor(organicBossWingPhase(bossIndex(),b)/TAU);if(b.wingAudioStroke!==undefined&&stroke>b.wingAudioStroke)window.flightAudio?.wingbeat?.(b.x,b.propulsion||0,bossIndex());b.wingAudioStroke=stroke;}

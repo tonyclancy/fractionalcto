@@ -324,6 +324,15 @@ window.flightAudio=(()=>{
   noise({duration:1.4,gain:.045,cutoff:1800,end:180,offset:.1});
   [0,.44,.88].forEach(offset=>{note({frequency:110,end:38,duration:.3,gain:.06,offset});noise({duration:.12,gain:.065,cutoff:2800,end:600,offset})});
  }
+ // Boss attacks reserve priority above routine gunfire and wing beats.
+ function bossAttack(action='fire',kind=0,x=1000){
+  if(!enabled||!context||context.state!=='running')return;
+  const pan=Math.max(-.85,Math.min(.85,(x/1440-.5)*1.5)),lunging=action==='lunge',pitch=({0:128,2:78,3:96,5:61})[kind]||110;
+  duckMusic(lunging?.7:.88,lunging?.65:.22);
+  note({priority:5,frequency:pitch*(lunging?1:1.8),end:pitch*.42,duration:lunging?.65:.22,gain:lunging?.13:.085,type:'sawtooth',pan,cutoff:lunging?850:1500,attack:.012});
+  note({priority:5,frequency:pitch*.6,end:32,duration:lunging?.72:.25,gain:lunging?.15:.095,type:'sine',pan,cutoff:220});
+  noise({priority:5,duration:lunging?.55:.18,gain:lunging?.17:.12,cutoff:lunging?1900:2800,end:lunging?260:700,pan,body:true,wet:true});
+ }
  function shot(kind='pulse',x=720,enemy=false){
   if(x< -100||x>1540)return;
   const presets={pulse:[280,85,.045,'square'],spread:[210,70,.055,'sawtooth'],beam:[340,120,.22,'triangle'],helix:[240,100,.18,'triangle'],wave:[190,55,.23,'sawtooth'],missile:[120,35,.24,'sawtooth'],drone:[280,120,.045,'triangle'],spore:[220,65,.16,'triangle'],bolt:[320,95,.04,'square'],seeker:[150,40,.2,'sawtooth']};
@@ -410,5 +419,5 @@ window.flightAudio=(()=>{
   noise({duration:profile.length*.85,hold:.065,gain:.10+force*.02,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
   noise({duration:.30,gain:.028,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
- return{init,setEnabled,clear,intro,shot,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,setTitle,setSector,setIntensity,setMusicActive,setMusicEnabled,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{enabled,musicEnabled,sectorTrack,musicStep,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:6},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
+ return{init,setEnabled,clear,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,setTitle,setSector,setIntensity,setMusicActive,setMusicEnabled,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{enabled,musicEnabled,sectorTrack,musicStep,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:6},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
 })();
