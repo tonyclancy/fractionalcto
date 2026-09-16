@@ -2,7 +2,7 @@
 // Content only: append a definition to extend the campaign; identifiers stay stable.
 const LEVEL_THEMES={verdant:0,forge:1,abyss:2,reef:3,storm:4,core:5};
 const BOSS_KINDS={warden:0,cathedral:1,sovereign:2,monarch:3,regent:4,mother:5};
-const GAME_RULESET='2026-09-alien-flight-v19';
+const GAME_RULESET='2026-09-alien-flight-v20';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova']);
@@ -1722,7 +1722,7 @@ const descentLayers=[
 ];
 levelDefinitions.forEach((l,i)=>{l.stratum=descentLayers[i][0];l.expeditionNote=descentLayers[i][1];l.elevation=descentLayers[i][2];l.chapter=1;l.revision++;});
 const escortEncounters=[null,
- {name:'FORGE MARSHAL',model:'forgeMarshal',escort:'forgeInterceptor',organic:false,count:3,orbit:2.8,formation:'screen',pace:1.12},
+ {name:'FURNACE MANTIS',model:'furnaceMantis',escort:'emberMite',organic:true,rig:'appendages',count:4,orbit:2.8,formation:'screen',pace:1.12},
  {name:'ABYSS SHEPHERD',model:'abyssShepherd',escort:'lanternScarab',organic:true,count:4,orbit:2.3,formation:'figure8',pace:1.08},
  {name:'REEF HERALD',model:'reefHerald',escort:'reefGlider',organic:true,count:3,orbit:2.6,formation:'petals',pace:1.16},
  {name:'STORM CONDUCTOR',model:'stormConductor',escort:'stormRaptor',organic:false,count:4,orbit:3.1,formation:'screen',pace:1.20},

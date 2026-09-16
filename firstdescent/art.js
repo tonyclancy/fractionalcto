@@ -42,7 +42,7 @@ function drawShip(x,y,scale=1,preview=false){
  ctx.restore();
 }
 function dronePosition(i){const a=world*.012+i*Math.PI;return{x:ship.x-50+Math.cos(a)*16,y:ship.y+(i===0?-1:1)*66+Math.sin(a)*12}}
-function drawDrone(i){const p=dronePosition(i);ctx.save();ctx.translate(p.x,p.y);orb(-5,0,32,'#9892ff',.3);ctx.rotate(Math.sin(world*.02+i)*.18);ctx.transform(1,0,Math.sin(world*.013+i)*.16,.88+.12*Math.cos(world*.013+i),0,0);poly([[-21,-9],[1,-15],[22,0],[1,15],[-21,9],[-14,0]],'#789eb5','#e1f2ff');poly([[-5,-7],[11,0],[-5,7]],'#22284b','#c7b5ff');glow('#b3a2ff',12);ctx.fillStyle='#d2c4ff';ctx.beginPath();ctx.arc(0,0,4,0,TAU);ctx.fill();ctx.fillStyle='#c2fcff';ctx.fillRect(14,-2,15,4);noGlow();ctx.restore()}
+function drawDrone(i){const p=dronePosition(i),age=world*.012+i*Math.PI,yaw=Math.sin(age)*.22,pitch=flightPose.pitch*.65,roll=flightPose.roll*.45+Math.sin(age)*.28;orb(p.x-16,p.y,19,'#9892ff',.22);drawModel(meshes.wingmate,p.x,p.y,1,yaw,roll,pitch,age);}
 function healthBar(x,y,w,hp,max,color){ctx.save();ctx.fillStyle='#07101ddd';ctx.fillRect(x-w/2-2,y-2,w+4,8);ctx.fillStyle='#4a394b';ctx.fillRect(x-w/2,y,w,4);ctx.fillStyle=color;ctx.fillRect(x-w/2,y,w*clamp(hp/max,0,1),4);ctx.restore()}
 // Route against authored scenery even before either actor enters the viewport.
 let routeCache=null;
@@ -121,8 +121,8 @@ function drawEmitter(e,isBoss=false){const r=firingRig(e,isBoss),pulse=Math.max(
 function drawEnemy(e){
  if(e.x< -180||e.x>W+180||e.y< -180||e.y>H+180)return;
  if(e.sentry){ctx.save();ctx.strokeStyle='#83939d';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(e.x,e.y-35);ctx.lineTo(e.x,e.y);ctx.stroke();ctx.restore();drawModel(meshes.sentry,e.x,e.y,1,0,0,0,e.age,e.hit);drawEmitter(e);healthBar(e.x,e.y+40,65,e.hp,e.max,'#ffbd78');return;}
- if(e.brood){drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,1.4,e.travelYaw||0,e.broodRoll||0,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&!e.escortProfile.organic?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
- if(e.satellite){const a=e.age*2.1+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes[e.escortProfile?.escort||'swarmlet'],e.x,e.y,(e.escortProfile?.5:.82)+Math.cos(a)*.045,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&!e.escortProfile.organic?null:'squid');if(e.escortProfile)drawEmitter(e);if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
+ if(e.brood){drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,1.4,e.travelYaw||0,e.broodRoll||0,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
+ if(e.satellite){const a=e.age*2.1+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes[e.escortProfile?.escort||'swarmlet'],e.x,e.y,e.escortProfile?.5:.82,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'squid');if(e.escortProfile)drawEmitter(e);if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
 
  const organic=e.type===1||e.type===3,yaw=e.travelYaw||0,pitch=e.travelPitch||0,roll=organic?(themeIndex()===2?clamp(-pitch*.8,-.3,.3)+Math.sin(e.age*2+e.phase)*.06:organicSpin(e.age+e.phase).roll):-pitch*.4;
  if(!organic){const p=projectHull([46,0,0],yaw,roll,pitch);const length=e.type===2?36:58;ctx.save();ctx.translate(e.x+p.x,e.y+p.y);ctx.rotate(pitch);orb(6,0,24,'#ff9e60',.35);const jet=ctx.createLinearGradient(0,0,length,0);jet.addColorStop(0,'#ffefd9');jet.addColorStop(.3,'#ff9565');jet.addColorStop(1,'transparent');poly([[0,-5],[length,0],[0,5]],jet);ctx.restore()}

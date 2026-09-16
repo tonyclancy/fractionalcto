@@ -564,3 +564,34 @@ function animateSovereignFins(age){for(const f of meshes.sovereignFins)for(let i
   meshes[name]=meshes[base].concat(m.faces);meshes[name].skin=organic;
  }
 })();
+
+// A new furnace-dwelling species: narrow jaw, plated thorax, four hinged
+// flight membranes and ventral claws. No standard enemy faces are reused.
+(function buildFurnaceMantis(){
+ function creature(small){const m=meshBuilder(),shell=small?[138,112,60]:[91,104,78],rim=[167,146,89],hide=[65,77,63];
+  m.ellipsoid(5,0,0,small?24:42,small?9:18,small?8:17,hide,0,24,14);
+  for(let i=0;i<4;i++){const x=-9+i*12;m.wedge([x-10,-13,-9],[x+13,0,-23+i],[x-10,13,-9],12,i%2?shell:rim);}
+  m.ellipsoid(-31,0,0,19,10,10,shell,0,24,14);
+  for(const side of [-1,1]){
+   m.tube([[-36,side*5,-4],[-55,side*13,-7],[-66,side*6,-6]],3,rim);
+   m.tube([[-33,side*7,2],[-45,side*18,3],[-58,side*12,1]],1.8,hide);
+   const start=m.faces.length;
+   m.ellipsoid(-35,side*6,-9,4.7,3.7,3.2,[186,130,54],.1,16,10);
+   m.ellipsoid(-37,side*6,-11.5,1.1,2.8,1.1,[9,18,21],0,12,8);
+   for(let j=start;j<m.faces.length;j++)m.faces[j].blink=[side*6,side*.17];
+   for(let i=0;i<(small?1:2);i++){
+    const x=i*25,start=m.faces.length;
+    m.wedge([x-10,side*10,0],[x+14,side*(small?30:54),-7],[x+43,side*19,2],2,[114+i*20,91,55]);
+    m.tube([[x-10,side*10,0],[x+14,side*(small?30:54),-7],[x+43,side*19,2]],1.5,rim,1);
+    for(let j=start;j<m.faces.length;j++)m.faces[j].flex=1;
+    m.tube([[x,side*9,6],[x+3,side*20,23],[x+21,side*13,29]],2.2,hide,.6);
+   }
+  }
+  m.tube([[33,0,0],[56,0,5],[72,0,1]],5,shell,.5);
+  m.faces.skin=true;return m.faces;
+ }
+ meshes.furnaceMantis=creature(false);meshes.emberMite=creature(true);
+ const d=meshBuilder();d.ellipsoid(0,0,0,19,6,7,[103,131,153],0,18,10);d.ellipsoid(6,-2,-6,8,3,3,[49,195,212],.25,14,8);
+ for(const side of [-1,1]){d.wedge([10,side*3,0],[-16,side*16,3],[-10,side*4,-3],3,[119,107,170]);d.tube([[-15,side*6,2],[9,side*6,2],[21,side*6,2]],1.5,[166,191,202]);}
+ meshes.wingmate=d.faces;
+})();
