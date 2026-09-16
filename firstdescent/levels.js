@@ -2,7 +2,7 @@
 // Content only: append a definition to extend the campaign; identifiers stay stable.
 const LEVEL_THEMES={verdant:0,forge:1,abyss:2,reef:3,storm:4,core:5};
 const BOSS_KINDS={warden:0,cathedral:1,sovereign:2,monarch:3,regent:4,mother:5};
-const GAME_RULESET='2026-09-alien-flight-v17';
+const GAME_RULESET='2026-09-alien-flight-v18';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova']);
@@ -31,6 +31,7 @@ function validateLevels(definitions){
   if(l.entrySides&&(!Array.isArray(l.entrySides)||!l.entrySides.length||l.entrySides.some(side=>!['right','left','top','bottom'].includes(side))))fail(l,'invalid entry side');
   if(l.challenge){const c=l.challenge;if(typeof c.title!=='string'||!finite(c.at)||!finite(c.end)||c.at<0||c.end<=c.at||c.end>=l.duration||!Array.isArray(c.waves)||!ordered(c.waves)||c.waves.some(t=>t<c.at||t>c.end)||!Array.isArray(c.types)||!c.types.length||c.types.some(t=>!Number.isInteger(t)||t<0||t>3)||!Number.isInteger(c.count)||c.count<1||c.count>6||!finite(c.speed)||c.speed<.5||c.speed>2)fail(l,'invalid mid-sector challenge');}
   if(!Array.isArray(l.obstacles)||!ordered(l.obstacles.map(o=>o.at)))fail(l,'invalid obstacle timing');
+  if(l.enemyHealthScale!==undefined&&(!finite(l.enemyHealthScale)||l.enemyHealthScale<1||l.enemyHealthScale>2))fail(l,'invalid enemy health scale');
   if(l.bossArmor!==undefined&&(!finite(l.bossArmor)||l.bossArmor<1||l.bossArmor>2))fail(l,'boss armor must be between 1 and 2');
   if(l.siege!==undefined&&(typeof l.siege!=='boolean'||l.siege&&l.bossKind!=='cathedral'))fail(l,'capital siege requires a Cathedral hull');
   if(l.obstacleAttachment&&!['boundary','free'].includes(l.obstacleAttachment))fail(l,'unknown obstacle attachment');
@@ -1706,6 +1707,19 @@ for(const l of levelDefinitions.slice(3,6)){
  for(let at=l.waves[0];at<l.duration-3;){waves.push(Number(at.toFixed(3)));const progress=Math.max(0,(at-l.checkpoints[1])/(l.duration-l.checkpoints[1]));at+=interval*(1-.18*Math.min(1,progress));}
  l.waves=waves;l.revision++;
 }
+// The second sector expects carried upgrades, while remaining recoverable at MK I.
+{const l=levelDefinitions[1];l.hp=1850;l.bossArmor=1.12;l.enemyHealthScale=1.22;l.revision++;
+ const waves=[];for(let at=1;at<l.duration-3;at+=3.05*(1-.16*at/l.duration))waves.push(Number(at.toFixed(3)));l.waves=waves;}
+// Chapter one is one continuous journey inward, not six unrelated worlds.
+const descentLayers=[
+ ['HIGH ATMOSPHERE','Cloud sea · first contact',80000],
+ ['CRUSTAL GATE','Abandoned descent engine',0],
+ ['SUBSURFACE OCEAN','Glass trenches · bioluminescent predators',-4000],
+ ['LIVING MANTLE','Fungal reefs · symbiotic machines',-18000],
+ ['ION CAVERNS','Buried electrical storms · sentinel foundries',-45000],
+ ['INNER SANCTUM','The dreaming brood beneath the crust',-80000]
+];
+levelDefinitions.forEach((l,i)=>{l.stratum=descentLayers[i][0];l.expeditionNote=descentLayers[i][1];l.elevation=descentLayers[i][2];l.chapter=1;l.revision++;});
 const campaign=freezeContent(validateLevels(levelDefinitions));
 const CAMPAIGN_VERSION=campaign.map(l=>l.id+'@'+l.revision).join('|');
 

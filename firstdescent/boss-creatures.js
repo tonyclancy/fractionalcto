@@ -273,7 +273,7 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
     matrix=rotationMatrix([1,0,0],p.side*(.07+thrust*.12+stroke*(.17+thrust*.25)+rake-attack*.24));
     second=rotationMatrix([0,0,1],Math.sin(phase+.7)*(.18+thrust*.31)-climb*.12-attack*.63+rake*.6);
    }
-   const bt=(age+(p.phase||0))%6.7,blink=bt<.25?Math.sin(bt/.25*Math.PI):0;
+   const blink=naturalBlink(age,(p.phase||0)+kind*.71);
    for(let i=0;i<p.vertices.length;i++){
     const r=p.rest[i],v=p.vertices[i];v[0]=r[0];v[1]=r[1];v[2]=r[2];
     if(p.rig==='jaw')applyRotation(v,p.pivot,matrix);

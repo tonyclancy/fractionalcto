@@ -289,7 +289,7 @@ function capitalGunMounts(b,n){
  const sy=n.id==='dorsal'?-65:65;
  const locals=n.id==='dorsal'||n.id==='ventral'?[[-61,sy-5,-28],[-61,sy+5,-28]]:n.id==='reactor'?[[116,-21,-11],[116,21,-11]]:capitalShipDesign(b).guns;
  const direction=n.id==='reactor'?1:-1;
- return locals.map(p=>{const a=bossMount(b,p),tip=bossMount(b,[p[0]+direction*20,p[1],p[2]]);a.heading=Math.atan2(tip.y-a.y,tip.x-a.x);return a;});
+ return locals.map(p=>{const a=bossMount(b,p),tip=bossMount(b,[p[0]+direction*20,p[1],p[2]]);a.heading=Math.atan2(tip.y-a.y,tip.x-a.x)+(n.aimOffset||0);a.heading=Math.atan2(Math.sin(a.heading),Math.cos(a.heading));a.baseX=a.x;a.baseY=a.y;a.x+=Math.cos(a.heading)*22.4;a.y+=Math.sin(a.heading)*22.4;return a;});
 }
 function capitalDischargeFrame(b,kind){
  const local=kind==='purge'?[109,0,-8]:[-97,0,-25],direction=kind==='purge'?1:-1,a=bossMount(b,local),tip=bossMount(b,[local[0]+direction*20,local[1],local[2]]);
@@ -315,13 +315,14 @@ function updateCapitalSiege(b,dt){
  const s=initCapitalSiege(b);s.age+=dt;b.charge=0;b.attack=null;b.special=Infinity;
  updateCapitalDischarges(b,dt);
  for(const n of s.nodes){n.hit=Math.max(0,n.hit-dt);n.muzzle=Math.max(0,n.muzzle-dt);if(!capitalNodeActive(b,n)||b.x>W-240||n.special)continue;
+  if(n.target){const gun=capitalGunMounts(b,n)[0],axis=gun.heading-(n.aimOffset||0),desired=Math.atan2(n.target.y-gun.baseY,n.target.x-gun.baseX),offset=clamp(Math.atan2(Math.sin(desired-axis),Math.cos(desired-axis)),-.65,.65);n.aimOffset=(n.aimOffset||0)+clamp(offset-(n.aimOffset||0),-dt*2,dt*2);}
   if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=n.id==='core'?5:3;n.burstClock=0;}}
   if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?735:n.id==='reactor'?650:630;
     hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?12:11,kind:'rocket',bossRound:true,scale:n.id==='core'?1.48:1.26,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.14:.17;window.flightAudio?.shot('missile',mount.x,true);
    }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=n.id==='core'?2.25:2.55;n.heading=n.id==='reactor'?0:Math.PI;
     if(n.id==='reactor'&&n.cycle%2===0){n.special={kind:'purge',age:0,warning:1.15,duration:.76};window.flightAudio?.laserCharge();}
     else if(n.id==='core'&&n.cycle%2===0){n.special={kind:'pulse',age:0,warning:1.3,duration:.3,gap:(n.cycle%4===0?-1:1)*.28};window.flightAudio?.laserCharge();}
-    else n.warning=.8;
+    else{n.target={x:ship.x,y:ship.y};n.warning=.8;}
    }}
  }
  const active=s.nodes.filter(n=>capitalNodeActive(b,n));b.siegeLoad=active.reduce((load,n)=>Math.max(load,n.special?Math.min(1,n.special.age/n.special.warning):n.warning>0?1-n.warning/.8:n.burst>0?1:0),0);b.siegeStrike=active.some(n=>n.burst>0||n.special&&n.special.age>=n.special.warning);
@@ -350,6 +351,7 @@ function drawCapitalSiege(b){
   else if(n.id==='reactor')mesh(capitalSiegeMeshes[s.stage==='batteries'?'reactorClosed':'reactorOpen'],n.hit);
   else mesh(capitalSiegeMeshes[s.stage==='core'?'coreOpen':'coreClosed'],n.hit);
  }
+ for(const n of s.nodes)if(capitalNodeActive(b,n))for(const gun of capitalGunMounts(b,n))drawModel(meshes.cannon,gun.baseX,gun.baseY,.8,0,0,gun.heading-Math.PI,b.age,n.hit);
  // Flush modules before drawing their targeting information, keeping labels
  // clear while the actual objects remain solid GPU-rendered geometry.
  window.gpuModels?.flush(ctx);

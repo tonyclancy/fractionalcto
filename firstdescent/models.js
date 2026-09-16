@@ -1,8 +1,14 @@
 /* Solid, lit meshes. All visible surfaces rotate in three dimensions. */
 const meshes={};
+// Irregular, repeatable blinks: quick closure, relaxed reopening, occasional double blink.
+function naturalBlink(age,seed=0){
+ const t=((age+seed*1.73)%17.3+17.3)%17.3;
+ const pulse=x=>x<0||x>.26?0:x<.065?Math.sin(x/.065*Math.PI/2):Math.cos((x-.065)/.195*Math.PI/2);
+ return Math.max(pulse(t-2.1),pulse(t-6.7),pulse(t-10.2),pulse(t-10.57),pulse(t-15.4));
+}
 function meshBuilder(){const faces=[];
  const face=(v,c,em=0,flex=0)=>faces.push({v,c,em,flex});
- function ellipsoid(cx,cy,cz,rx,ry,rz,c,em=0,segments=28,rings=18){for(let j=0;j<rings;j++)for(let i=0;i<segments;i++){const p=(u,v)=>{const a=u/segments*Math.PI*2,b=v/rings*Math.PI;return[cx+rx*Math.cos(b),cy+ry*Math.sin(b)*Math.cos(a),cz+rz*Math.sin(b)*Math.sin(a)]};face([p(i,j),p(i+1,j),p(i+1,j+1),p(i,j+1)],c,em)}}
+ function ellipsoid(cx,cy,cz,rx,ry,rz,c,em=0,segments=28,rings=18){const primitive={center:[cx,cy,cz],radii:[rx,ry,rz],color:c};for(let j=0;j<rings;j++)for(let i=0;i<segments;i++){const p=(u,v)=>{const a=u/segments*Math.PI*2,b=v/rings*Math.PI;return[cx+rx*Math.cos(b),cy+ry*Math.sin(b)*Math.cos(a),cz+rz*Math.sin(b)*Math.sin(a)]};face([p(i,j),p(i+1,j),p(i+1,j+1),p(i,j+1)],c,em);faces[faces.length-1].primitive=primitive;}}
  function wedge(a,b,c,thick,color){face([a,b,c],color);const back=[a,b,c].map(v=>[v[0],v[1],v[2]+thick]);face(back.slice().reverse(),color);for(let i=0;i<3;i++)face([[a,b,c][i],[a,b,c][(i+1)%3],back[(i+1)%3],back[i]],color)}
  function tube(points,r,color,flex=0,em=0){
  const path=[];for(let j=0;j<points.length-1;j++)for(let k=0;k<3;k++){const t=k/3,p0=points[Math.max(0,j-1)],p1=points[j],p2=points[j+1],p3=points[Math.min(points.length-1,j+2)];path.push(p1.map((v,i)=>.5*((2*v)+(-p0[i]+p2[i])*t+(2*p0[i]-5*v+4*p2[i]-p3[i])*t*t+(-p0[i]+3*v-3*p2[i]+p3[i])*t*t*t)))}path.push(points[points.length-1]);
@@ -24,7 +30,7 @@ buildModels();
 function rotateVertex(v,yaw,roll,pitch,age,flex){let [x,y,z]=v;if(flex){const bend=Math.max(0,x-10)*flex;y+=Math.sin(age*3-x*.07)*bend*.23;z+=Math.cos(age*2.4-x*.06)*bend*.22}const a=x*Math.cos(yaw)+z*Math.sin(yaw),b=-x*Math.sin(yaw)+z*Math.cos(yaw),c=y*Math.cos(roll)-b*Math.sin(roll),d=y*Math.sin(roll)+b*Math.cos(roll);return[a*Math.cos(pitch)-c*Math.sin(pitch),a*Math.sin(pitch)+c*Math.cos(pitch),d]}
 function drawModel(mesh,x,y,scale,yaw,roll,pitch,age,hit=0,rig=null){
  if(window.gpuModels){window.gpuModels.draw(mesh,ctx,x,y,scale,yaw,roll,pitch,age,hit,rig);return;}
- const faces=mesh.map(f=>{const v=f.v.map(p=>{let q=rig==='ray'?rayVertex(p,age):p;if(rig==='squid'||rig==='octopus')q=organicVertex(p,age,rig);return rotateVertex(q,yaw,roll,pitch,age,(rig==='squid'||rig==='octopus'||rig==='ray')?0:f.flex)});return{...f,v,z:v.reduce((a,p)=>a+p[2],0)/v.length}}).sort((a,b)=>b.z-a.z);
+ const faces=mesh.map(f=>{const v=f.v.map(p=>{let q=f.blink?[p[0],f.blink[0]+(p[1]-f.blink[0])*(1-.97*naturalBlink(age,f.blink[1])),p[2]]:p;if(rig==='ray')q=rayVertex(q,age);if(rig==='squid'||rig==='octopus')q=organicVertex(q,age,rig);return rotateVertex(q,yaw,roll,pitch,age,(rig==='squid'||rig==='octopus'||rig==='ray')?0:f.flex)});return{...f,v,z:v.reduce((a,p)=>a+p[2],0)/v.length}}).sort((a,b)=>b.z-a.z);
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);ctx.lineJoin='round';
  for(const f of faces){const [a,b,c]=f.v,u=b.map((v,i)=>v-a[i]),v=c.map((n,i)=>n-a[i]);let normal=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.hypot(...normal)||1;normal=normal.map(n=>n/len);const diffuse=Math.abs(normal[0]*-.3+normal[1]*-.6+normal[2]*-.74),spec=Math.pow(Math.abs(normal[2]*-.85+normal[1]*-.45),18)*.42;const light=.3+diffuse*.64+spec+f.em*.6;const pulse=hit>0&&((age% .12)<.022)?.55:0;const color=`rgb(${f.c.map(n=>{const base=Math.min(255,n*light+spec*110);return Math.round(base+(255-base)*pulse)}).join(',')})`;ctx.beginPath();f.v.forEach((p,i)=>{const perspective=460/(460+p[2]);i?ctx.lineTo(p[0]*perspective,p[1]*perspective):ctx.moveTo(p[0]*perspective,p[1]*perspective)});ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=.45;ctx.stroke();}
  ctx.restore();
@@ -408,7 +414,7 @@ function recessedEye(m,x,y,z,side,skin,size=3.2){
  m.tube([[x-4,y+1.4,z],[x,y+2,z],[x+5,y+1.4,z-side]],.8,skin.map(n=>n*.7));
  for(let i=begin;i<m.faces.length;i++){const f=m.faces[i];f.eyeCenter=[x,y,z];f.rest=f.v.map(v=>v.slice());}
 }
-function animateAnatomicalSkin(mesh,age){const phase=(age+1.4)%6.1,blink=phase<.22?Math.sin(phase/.22*Math.PI):0;for(const f of mesh)if(f.eyeCenter)for(let i=0;i<f.v.length;i++){const q=f.rest[i];f.v[i][0]=q[0];f.v[i][1]=f.eyeCenter[1]+(q[1]-f.eyeCenter[1])*(1-blink*.92);f.v[i][2]=q[2];}mesh.dynamic=true;}
+function animateAnatomicalSkin(mesh,age){const blink=naturalBlink(age,1.4);for(const f of mesh)if(f.eyeCenter)for(let i=0;i<f.v.length;i++){const q=f.rest[i];f.v[i][0]=q[0];f.v[i][1]=f.eyeCenter[1]+(q[1]-f.eyeCenter[1])*(1-blink*.92);f.v[i][2]=q[2];}mesh.dynamic=true;}
 // A wyvern silhouette: continuous neck, long jaw, flight muscles and finger-supported membranes.
 function buildDragonBoss(reef=false){
  const m=meshBuilder(),skin=reef?[49,87,96]:[81,58,58],bone=reef?[74,108,111]:[101,84,76];
@@ -530,3 +536,18 @@ buildWardenCreature();
 meshes.cathedral.industrial=true;meshes.stormRegent.industrial=true;
 
 function animateSovereignFins(age){for(const f of meshes.sovereignFins)for(let i=0;i<f.v.length;i++){const [x,y,z]=f.rest[i],side=Math.sign(z)||1,span=Math.max(0,Math.abs(z)-14),wave=Math.sin(age*2.1-x*.036);f.v[i][0]=x;f.v[i][1]=y+wave*span*.55;f.v[i][2]=side*(14+span*(1-Math.abs(wave)*.08));}}
+
+// Tag complete eye apertures once; instances animate in the vertex shader, never
+// by mutating a shared enemy mesh. Primitive colours identify authored pupils.
+(function prepareOrganicBlinks(){
+ const pupils=new Set(['14,33,26','21,24,35','9,18,21','15,20,33','12,22,22','12,22,26','12,30,31','12,40,37','14,24,45','5,15,28','8,18,26','8,16,22','5,12,15']);
+ for(const mesh of Object.values(meshes)){
+  if(!mesh.skin||mesh.dynamic)continue;
+  const primitives=[...new Set(mesh.map(f=>f.primitive).filter(Boolean))];
+  const eyes=primitives.filter(p=>pupils.has(p.color.join(',')));
+  for(const f of mesh){const p=f.primitive;if(!p)continue;
+   const eye=eyes.find(e=>Math.abs(p.center[1]-e.center[1])<2 && Math.hypot(p.center[0]-e.center[0],p.center[2]-e.center[2])<12 && Math.max(...p.radii)<16);
+   if(eye)f.blink=[eye.center[1],eye.center[0]*.013+eye.center[1]*.021];
+  }
+ }
+})();
