@@ -2,7 +2,7 @@
 // Content only: append a definition to extend the campaign; identifiers stay stable.
 const LEVEL_THEMES={verdant:0,forge:1,abyss:2,reef:3,storm:4,core:5};
 const BOSS_KINDS={warden:0,cathedral:1,sovereign:2,monarch:3,regent:4,mother:5};
-const GAME_RULESET='2026-09-alien-flight-v18';
+const GAME_RULESET='2026-09-alien-flight-v19';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova']);
@@ -22,6 +22,7 @@ function validateLevels(definitions){
   if(!Array.isArray(l.routes)||!l.routes.length||l.routes.some(y=>!finite(y)||y<70||y>690))fail(l,'invalid flight routes');
   if(!Array.isArray(l.roster)||!l.roster.length||l.roster.some(t=>!Number.isInteger(t)||t<0||t>3))fail(l,'invalid enemy roster');
   if(!Array.isArray(l.models)||l.models.length!==4||l.models.some(name=>!meshes[name]))fail(l,'unknown enemy model');
+  if(l.escortEncounter&&(!meshes[l.escortEncounter.model]||!meshes[l.escortEncounter.escort]||l.escortEncounter.count<1||l.escortEncounter.count>6))fail(l,'invalid escort encounter');
   if(!Array.isArray(l.broodWaves)||l.broodWaves.some(i=>!Number.isInteger(i)||i<0||i>=l.waves.length))fail(l,'invalid brood wave index');
   if(!Array.isArray(l.supplies)||!Array.isArray(l.recovery)||l.recovery.length!==2)fail(l,'supply and recovery definitions required');
   for(const d of [...l.supplies,...l.recovery])if(!loot.has(d.type)||!finite(d.y)||d.y<42||d.y>718)fail(l,'invalid pickup');
@@ -1708,8 +1709,8 @@ for(const l of levelDefinitions.slice(3,6)){
  l.waves=waves;l.revision++;
 }
 // The second sector expects carried upgrades, while remaining recoverable at MK I.
-{const l=levelDefinitions[1];l.hp=1850;l.bossArmor=1.12;l.enemyHealthScale=1.22;l.revision++;
- const waves=[];for(let at=1;at<l.duration-3;at+=3.05*(1-.16*at/l.duration))waves.push(Number(at.toFixed(3)));l.waves=waves;}
+{const l=levelDefinitions[1];l.hp=2350;l.bossArmor=1.2;l.enemyHealthScale=1.38;l.revision++;
+ const waves=[];for(let at=1;at<l.duration-3;at+=2.65*(1-.18*at/l.duration))waves.push(Number(at.toFixed(3)));l.waves=waves;}
 // Chapter one is one continuous journey inward, not six unrelated worlds.
 const descentLayers=[
  ['HIGH ATMOSPHERE','Cloud sea · first contact',80000],
@@ -1720,6 +1721,14 @@ const descentLayers=[
  ['INNER SANCTUM','The dreaming brood beneath the crust',-80000]
 ];
 levelDefinitions.forEach((l,i)=>{l.stratum=descentLayers[i][0];l.expeditionNote=descentLayers[i][1];l.elevation=descentLayers[i][2];l.chapter=1;l.revision++;});
+const escortEncounters=[null,
+ {name:'FORGE MARSHAL',model:'forgeMarshal',escort:'forgeInterceptor',organic:false,count:3,orbit:2.8,formation:'screen',pace:1.12},
+ {name:'ABYSS SHEPHERD',model:'abyssShepherd',escort:'lanternScarab',organic:true,count:4,orbit:2.3,formation:'figure8',pace:1.08},
+ {name:'REEF HERALD',model:'reefHerald',escort:'reefGlider',organic:true,count:3,orbit:2.6,formation:'petals',pace:1.16},
+ {name:'STORM CONDUCTOR',model:'stormConductor',escort:'stormRaptor',organic:false,count:4,orbit:3.1,formation:'screen',pace:1.20},
+ {name:'CORE HARVESTER',model:'coreHarvester',escort:'coreMoth',organic:true,count:4,orbit:2.8,formation:'figure8',pace:1.24}
+];
+levelDefinitions.forEach((l,i)=>{if(i){l.escortEncounter=escortEncounters[i];l.broodWaves=[5,Math.min(l.waves.length-2,13)];l.revision++;}});
 const campaign=freezeContent(validateLevels(levelDefinitions));
 const CAMPAIGN_VERSION=campaign.map(l=>l.id+'@'+l.revision).join('|');
 

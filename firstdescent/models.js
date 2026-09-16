@@ -551,3 +551,16 @@ function animateSovereignFins(age){for(const f of meshes.sovereignFins)for(let i
   }
  }
 })();
+
+// Depth-specific command creatures and escort craft, sharing retained base geometry.
+(function buildEscortLeaders(){
+ const specs=[['forgeMarshal','forgeBarge',false,[117,151,165]],['abyssShepherd','abyssRay',true,[57,154,177]],['reefHerald','reefCrab',true,[180,125,88]],['stormConductor','stormCarrier',false,[109,126,179]],['coreHarvester','corePolyp',true,[153,69,112]]];
+ for(const [name,base,organic,color] of specs){
+  const m=meshBuilder();
+  for(const side of [-1,1]){
+   if(organic){m.tube([[-5,side*16,-10],[12,side*36,-17],[43,side*45,-14],[64,side*27,-8]],3.5,color,1);m.wedge([0,side*15,-6],[27,side*43,-12],[48,side*20,-7],2,color);}
+   else{m.wedge([-18,side*15,-5],[8,side*39,-12],[43,side*20,-2],6,color);m.tube([[14,side*24,-12],[41,side*24,-12]],3,[45,64,83]);m.ellipsoid(43,side*24,-12,2,3,3,[113,232,255],.5,10,6);}
+  }
+  meshes[name]=meshes[base].concat(m.faces);meshes[name].skin=organic;
+ }
+})();

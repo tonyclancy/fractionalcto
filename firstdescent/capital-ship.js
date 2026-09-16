@@ -150,6 +150,21 @@ const capitalSiegeMeshes=(()=>{
   const part=h.part('bow gun '+side,start,[-63,side*35,-17],'recoil');part.gun=[-116,side*35,-17];part.gunRest=part.gun.slice();guns.push(part.gun);
  }
  h.light(-73,-20,-34,4,1.4,cold);h.light(75,25,-31,3,1.6,hot);
+ // Layered bow armor, recessed docking ports and vented machinery add depth
+ // without changing the flight corridor or collidable hull dimensions.
+ for(const sign of [-1,1]){
+  for(let i=0;i<5;i++){
+   const x=-70+i*19,y=sign*(24+Math.sin(i*.7)*4);
+   h.plate([[x-8,y-4],[x+7,y-6],[x+10,y+2],[x-5,y+5]],-44,-39,i%2?navy:ceramic,.65);
+   h.rod([x-5,y,-45],[x+5,y-1,-45],.55,brass,6);
+  }
+  h.box(13,sign*14,-42,25,7,5,recess,.6);
+  for(let j=0;j<6;j++)h.box(3+j*4,sign*14,-45,1.3,5,1,metal,.2);
+  h.light(29,sign*14,-44,2,5,hot);
+ }
+ h.plate([[-106,-9],[-79,-18],[-61,-16],[-82,-4]],-32,-22,navy,1);
+ h.plate([[-106,9],[-79,18],[-61,16],[-82,4]],-33,-23,ceramic,1);
+ for(let j=0;j<4;j++){h.box(-47+j*7,0,-43,4,8,4,dark,.5);h.light(-47+j*7,-2,-46,2,1,cold);}
  h.mesh.dynamic=true;h.mesh.capitalHull=true;out.hull=h.mesh;out.drives=drives;out.guns=guns;
 
  for(const sign of [-1,1]){
@@ -316,10 +331,10 @@ function updateCapitalSiege(b,dt){
  updateCapitalDischarges(b,dt);
  for(const n of s.nodes){n.hit=Math.max(0,n.hit-dt);n.muzzle=Math.max(0,n.muzzle-dt);if(!capitalNodeActive(b,n)||b.x>W-240||n.special)continue;
   if(n.target){const gun=capitalGunMounts(b,n)[0],axis=gun.heading-(n.aimOffset||0),desired=Math.atan2(n.target.y-gun.baseY,n.target.x-gun.baseX),offset=clamp(Math.atan2(Math.sin(desired-axis),Math.cos(desired-axis)),-.65,.65);n.aimOffset=(n.aimOffset||0)+clamp(offset-(n.aimOffset||0),-dt*2,dt*2);}
-  if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=n.id==='core'?5:3;n.burstClock=0;}}
+  if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=n.id==='core'?6:4;n.burstClock=0;}}
   if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?735:n.id==='reactor'?650:630;
     hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?12:11,kind:'rocket',bossRound:true,scale:n.id==='core'?1.48:1.26,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.14:.17;window.flightAudio?.shot('missile',mount.x,true);
-   }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=n.id==='core'?2.25:2.55;n.heading=n.id==='reactor'?0:Math.PI;
+   }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=n.id==='core'?1.9:2.15;n.heading=n.id==='reactor'?0:Math.PI;
     if(n.id==='reactor'&&n.cycle%2===0){n.special={kind:'purge',age:0,warning:1.15,duration:.76};window.flightAudio?.laserCharge();}
     else if(n.id==='core'&&n.cycle%2===0){n.special={kind:'pulse',age:0,warning:1.3,duration:.3,gap:(n.cycle%4===0?-1:1)*.28};window.flightAudio?.laserCharge();}
     else{n.target={x:ship.x,y:ship.y};n.warning=.8;}

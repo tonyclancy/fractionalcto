@@ -76,9 +76,10 @@ function enemyKinematics(e,dt){
  if(e.satellite&&e.mother){
   if(e.mother.hp<=0){e.mother=null;e.base=e.y}
   else{
-   e.age+=dt;const angle=e.age*2.1+e.orbit,spread=1+.16*Math.sin(e.age*1.3),oldY=e.y;
-   e.x=e.mother.x+Math.cos(angle)*145*spread;
-   e.y=enemyRouteY(e,clamp(e.mother.y+Math.sin(angle)*108*spread,70,H-70));
+   e.age+=dt;const angle=e.age*(e.escortProfile?.orbit||2.1)+e.orbit,spread=1+.16*Math.sin(e.age*1.3),oldY=e.y;
+   const formation=e.escortProfile?.formation;
+   e.x=e.mother.x+(formation==='screen'?-100+Math.cos(angle)*50:Math.cos(angle)*145*spread);
+   e.y=enemyRouteY(e,clamp(e.mother.y+(formation==='figure8'?Math.sin(angle*2):Math.sin(angle))*(formation==='petals'?135:108)*spread,70,H-70));
    e.travelYaw=Math.sin(angle)*.18;e.travelPitch=clamp(-(e.y-oldY)/dt/700,-.35,.35);e.depth=1;
    return;
   }
@@ -90,7 +91,7 @@ function enemyKinematics(e,dt){
  if(e.brood){
   e.entryX??=e.x;
   const route=[[e.entryX,380],[W*.75,H*.28],[W*.43,H*.70],[W*.79,H*.40],[W*.39,H*.23],[W*.64,H*.68],[-180,380]];
-  const entry=e.age<2.2,leg=entry?0:Math.min(5,1+Math.floor((e.age-2.2)/2.4)),local=entry?e.age:(e.age-2.2)%2.4;
+  const routeAge=e.age*(e.escortProfile?.pace||1),entry=routeAge<2.2,leg=entry?0:Math.min(5,1+Math.floor((routeAge-2.2)/2.4)),local=entry?routeAge:(routeAge-2.2)%2.4;
   const from=route[leg],to=route[leg+1],t=clamp(entry?local/2.2:(local-1.55)/.85,0,1),ease=t*t*(3-2*t),oldX=e.x,oldY=e.y;
   // Brief readable wind-up, then a fast full barrel roll into the next position.
   const hover=!entry&&local<1.55?Math.sin(local/1.55*Math.PI):0;
@@ -99,7 +100,7 @@ function enemyKinematics(e,dt){
   e.broodRoll=entry?0:(leg-1+ease)*TAU;
   e.travelPitch=clamp(-Math.atan2((e.y-oldY)/dt,Math.max(180,Math.abs(e.x-oldX)/dt))*.45,-.4,.4);
   e.travelYaw=Math.sin(e.age*.8)*.12;e.depth=1;
-  if(e.age>=14.2)e.x=-180-(e.age-14.2)*240;
+  if(routeAge>=14.2)e.x=-180-(routeAge-14.2)*240;
   return;
  }
  const thrust=themeIndex()===1?(e.type===0?1+.5*Math.pow(Math.max(0,Math.sin(e.age*2+e.phase)),4):.8):themeIndex()===2?(e.type===1?1.05+.12*Math.cos((e.age+e.phase)*3.2):1.1+.22*Math.pow(Math.max(0,Math.sin((e.age+e.phase)*9)),2)):organic?.55+stroke*1.35:1;
@@ -120,8 +121,8 @@ function drawEmitter(e,isBoss=false){const r=firingRig(e,isBoss),pulse=Math.max(
 function drawEnemy(e){
  if(e.x< -180||e.x>W+180||e.y< -180||e.y>H+180)return;
  if(e.sentry){ctx.save();ctx.strokeStyle='#83939d';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(e.x,e.y-35);ctx.lineTo(e.x,e.y);ctx.stroke();ctx.restore();drawModel(meshes.sentry,e.x,e.y,1,0,0,0,e.age,e.hit);drawEmitter(e);healthBar(e.x,e.y+40,65,e.hp,e.max,'#ffbd78');return;}
- if(e.brood){drawModel(meshes.broodMother,e.x,e.y,1.4,e.travelYaw||0,e.broodRoll||0,e.travelPitch||0,e.age+e.phase,e.hit,'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
- if(e.satellite){const a=e.age*2.1+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes.swarmlet,e.x,e.y,.82+Math.cos(a)*.065,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,'squid');if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
+ if(e.brood){drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,1.4,e.travelYaw||0,e.broodRoll||0,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&!e.escortProfile.organic?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
+ if(e.satellite){const a=e.age*2.1+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes[e.escortProfile?.escort||'swarmlet'],e.x,e.y,(e.escortProfile?.5:.82)+Math.cos(a)*.045,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&!e.escortProfile.organic?null:'squid');if(e.escortProfile)drawEmitter(e);if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
 
  const organic=e.type===1||e.type===3,yaw=e.travelYaw||0,pitch=e.travelPitch||0,roll=organic?(themeIndex()===2?clamp(-pitch*.8,-.3,.3)+Math.sin(e.age*2+e.phase)*.06:organicSpin(e.age+e.phase).roll):-pitch*.4;
  if(!organic){const p=projectHull([46,0,0],yaw,roll,pitch);const length=e.type===2?36:58;ctx.save();ctx.translate(e.x+p.x,e.y+p.y);ctx.rotate(pitch);orb(6,0,24,'#ff9e60',.35);const jet=ctx.createLinearGradient(0,0,length,0);jet.addColorStop(0,'#ffefd9');jet.addColorStop(.3,'#ff9565');jet.addColorStop(1,'transparent');poly([[0,-5],[length,0],[0,5]],jet);ctx.restore()}
@@ -616,18 +617,18 @@ function drawOrbitalObstacle(o){const parts=o.shutters?shutterSolids(o):o.parts.
 
 // Finite, advecting breath volumes: particles retain launch direction as the mouth moves.
 function organicMouth(b){if(bossDesign())return bossMount(b,bossDesign().mouth);if(bossIndex()===0)return wardenMount(b,[-106,10,0]);if(bossIndex()>=3)return expansionMouth(b);const p=bossFlightPose(b),v=rotateVertex([-65,7,0],p.yaw,p.roll,p.pitch,0,0);return{x:b.x+(bossIndex()===0?-35:-20)+v[0]*2.3*p.depth,y:b.y+v[1]*2.3*p.depth};}
-function startBreath(b,kind,warning=1.3,options={}){const m=organicMouth(b),angle=Math.atan2(b.lockY-m.y,(b.lockX??ship.x)-m.x),index=bossIndex(),phase=bossCombatPhase(b),final=index===5;
+function startBreath(b,kind,warning=1.3,options={}){const m=organicMouth(b),target={x:ship.x,y:ship.y},angle=Math.atan2(target.y-m.y,target.x-m.x),index=bossIndex(),phase=bossCombatPhase(b),final=index===5;
  const coreScale=(final?1.32:index===2?1.16:1.06)+phase*.04,plumeScale=(final?1.9:index===2?1.4:1.16)+phase*.08,speed=kind==='water'?1100+phase*20:kind==='wind'?920:final?1000+phase*30:870;
- b.breath={kind,age:0,warning,duration:options.duration??2.4,sweep:options.sweep||0,baseAngle:angle,coreScale,plumeScale,speed,clock:0,puffs:[],angle:angle-(options.sweep||0),sounded:false};b.attack=null;b.fireHeading=null;window.flightAudio?.breath?.('inhale',warning);}
+ b.breath={kind,target,age:0,warning,duration:options.duration??2.4,sweep:options.sweep||0,baseAngle:angle,coreScale,plumeScale,speed,clock:0,puffs:[],angle:angle-(options.sweep||0),sounded:false};b.attack=null;b.fireHeading=null;window.flightAudio?.breath?.('inhale',warning);}
 function breathCoreRadius(a,q){return (10+q.age*(a.kind==='water'?30:52))*(a.coreScale||1);}
-function updateBreath(b,dt){const a=b.breath;if(!a)return;a.age+=dt;const m=organicMouth(b),active=a.age>=a.warning&&a.age<a.warning+a.duration;
+function updateBreath(b,dt){const a=b.breath;if(!a)return;a.age+=dt;const m=organicMouth(b),active=a.age>=a.warning&&a.age<a.warning+a.duration;if(a.target)a.baseAngle=Math.atan2(a.target.y-m.y,a.target.x-m.x);
  if(active&&!a.sounded){a.sounded=true;if(bossIndex()===0)window.flightAudio?.roar?.(b.x);window.flightAudio?.breath?.(a.kind,a.duration);}
- if(active){a.angle=a.baseAngle+a.sweep*(2*passEase((a.age-a.warning)/a.duration)-1);a.clock+=dt;let count=0;while(a.clock>=.025&&count++<8){a.clock-=.025;const phase=a.age*37+count*2.3,angle=a.angle+Math.sin(phase)*.085,speed=a.speed;a.puffs.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,age:0,seed:phase});}}
+ if(active){a.angle=a.baseAngle+a.sweep*(2*passEase((a.age-a.warning)/a.duration)-1);a.clock+=dt;let count=0;while(a.clock>=.025&&count++<8){a.clock-=.025;const phase=a.age*37+count*2.3,angle=a.angle+Math.sin(phase)*(a.kind==='water'?.018:.03),speed=Math.max(a.speed,Math.min(1550,a.target?Math.hypot(a.target.x-m.x,a.target.y-m.y)/.72:0));a.puffs.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,age:0,seed:phase});}}
  let windContact=false;for(const q of a.puffs){q.age+=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;const r=breathCoreRadius(a,q);if(q.age<.82&&Math.hypot(ship.x-q.x,ship.y-q.y)<r+12){if(a.kind==='wind')windContact=true;else damage();}}
  if(windContact){ship.x=clamp(ship.x+Math.cos(a.angle)*160*dt,30,W-30);ship.y=clamp(ship.y+Math.sin(a.angle)*160*dt,30,H-30);}a.puffs=a.puffs.filter(q=>q.age<.9&&q.x>-100&&q.x<W+100&&q.y>-100&&q.y<H+100).slice(-100);if(a.age>a.warning+a.duration+.9)b.breath=null;
 }
-function drawBreath(b){const a=b.breath;if(!a)return;const m=organicMouth(b),scale=a.plumeScale||1,fire=a.kind==='fire',color=fire?'#ff9b45':'#9fe7ff';ctx.save();
- if(a.age<a.warning){const charge=a.age/a.warning,spread=Math.abs(a.sweep)+.13+((a.coreScale||1)-1)*.045,reach=(a.speed||870)*.84;orb(m.x,m.y,(13+charge*22)*scale,color,.38);orb(m.x,m.y,(4+charge*7)*scale,fire?'#ffeeb7':'#d8fcff',.65);ctx.strokeStyle=fire?'#ffb468':'#9fe7ff';ctx.globalAlpha=.42;ctx.lineWidth=scale>1.6?2.4:1.7;ctx.setLineDash([8,12]);for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(m.x+Math.cos(a.baseAngle+side*spread)*reach,m.y+Math.sin(a.baseAngle+side*spread)*reach);ctx.stroke();}}
+function drawBreath(b){const a=b.breath;if(!a)return;const m=organicMouth(b),heading=a.target?Math.atan2(a.target.y-m.y,a.target.x-m.x):a.baseAngle,scale=a.plumeScale||1,fire=a.kind==='fire',color=fire?'#ff9b45':'#9fe7ff';ctx.save();
+ if(a.age<a.warning){const charge=a.age/a.warning,spread=Math.abs(a.sweep)+.13+((a.coreScale||1)-1)*.045,reach=(a.speed||870)*.84;orb(m.x,m.y,(13+charge*22)*scale,color,.38);orb(m.x,m.y,(4+charge*7)*scale,fire?'#ffeeb7':'#d8fcff',.65);ctx.strokeStyle=fire?'#ffb468':'#9fe7ff';ctx.globalAlpha=.42;ctx.lineWidth=scale>1.6?2.4:1.7;ctx.setLineDash([8,12]);for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(m.x+Math.cos(heading+side*spread)*reach,m.y+Math.sin(heading+side*spread)*reach);ctx.stroke();}}
  else if(a.age<a.warning+a.duration){orb(m.x,m.y,(19+Math.sin(a.age*39)*3)*scale,color,.52);orb(m.x,m.y,9*scale,fire?'#fff2c7':'#e7ffff',.82);}
  ctx.setLineDash([]);for(const q of a.puffs){const t=q.age/.9,r=breathCoreRadius(a,q),outer=(10+q.age*(a.kind==='water'?30:52))*scale;ctx.globalAlpha=(1-t)*.7;
   if(a.kind==='wind'){ctx.strokeStyle='#d7eeec';ctx.lineWidth=2.2*scale;ctx.beginPath();ctx.ellipse(q.x,q.y,outer*.45,outer,a.angle,0,Math.PI*1.4);ctx.stroke();}

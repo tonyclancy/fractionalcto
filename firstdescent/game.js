@@ -48,7 +48,7 @@ function retrySection(){
  waveIndex=waveTimes[level].filter(at=>at<time).length;gateIndex=gatePlans[level].filter(g=>g.at<time).length;supplyIndex=supplyPlans[level].filter(d=>d.at<time).length;
  obstacles=gatePlans[level].slice(0,gateIndex).map((g,id)=>({...g,id,x:W+100-(time-g.at)*SCROLL_SPEED,w:g.width||82+level*8})).filter(o=>o.x+o.w>-30);
  ship={x:210,y:380,vx:0,vy:0,hp:5,inv:3,shield:0,frontShield:0,frontFlash:0};
- flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};keys.clear();pointer=null;shake=flash=0;accumulator=0;companionClock=0;
+ flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};keys.clear();pointer=null;lastTouchTap=null;shake=flash=0;accumulator=0;companionClock=0;
  // Same two recovery items, in reachable open space, on every retry.
  placeCheckpointRecovery();
  state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();
@@ -59,7 +59,7 @@ function bossDamage(amount){return amount/((1+Math.max(0,power-1)*.09+companion*
 const waveTimes=sectors.map(s=>s.waves),gatePlans=sectors.map(s=>s.obstacles),supplyPlans=sectors.map(s=>s.supplies);
 const SCROLL_SPEED=100;
 const weaponNames={pulse:'PULSE',spread:'STARFIRE',beam:'ION LANCE',helix:'HELIX',wave:'PHOTON WAVE',missile:'SEEKER'};
-let ship={x:210,y:380,hp:5,inv:0,shield:0,frontShield:0,frontFlash:0};const keys=new Set();let pointer=null;
+let ship={x:210,y:380,hp:5,inv:0,shield:0,frontShield:0,frontFlash:0};const keys=new Set();let pointer=null,lastTouchTap=null;
 const stars=Array.from({length:190},()=>({x:rand(0,W),y:rand(0,H),z:rand(.15,1.1),r:rand(.4,1.8)}));
 const rocks=Array.from({length:16},(_,i)=>({x:rand(0,W+500),y:i%2?rand(650,860):rand(-100,80),r:rand(45,130),seed:rand(0,10),z:rand(.2,.7)}));
 function tone(freq=440,duration=.06,type='sine',vol=.04,slide=0){if(sound)window.flightAudio?.note({frequency:freq,end:Math.max(25,freq+slide),duration,type,gain:vol})}
@@ -76,10 +76,10 @@ function drawBoss(){if(boss)drawMenace(boss)}
 function burst(x,y,color,count=22){for(let i=0;i<count;i++){const a=rand(0,TAU),v=rand(45,320);particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rand(.2,.8),max:.8,c:color,r:rand(1,4)})}rings.push({x,y,r:8,life:.5,c:color})}
 function announce(title,sub=''){const el=$('#announcement');el.textContent=title;if(sub){let small=document.createElement('small');small.textContent=sub;el.append(small)}el.className=/^SECTOR|^FIRST CONTACT/.test(title)?'':'compact';el.style.opacity=1;annTimer=/^SECTOR/.test(title)?2.4:1.8}
 function updateHUD(){$('#score').textContent=String(score).padStart(6,'0');$('#sectorNum').textContent=`${String(level+1).padStart(2,'0')} / ${String(sectors.length).padStart(2,'0')}`;$('#sectorName').textContent=sectors[level].stratum+' · '+sectors[level].short;$('#hearts').textContent='▰ '.repeat(Math.max(0,ship.hp))+'▱ '.repeat(5-Math.max(0,ship.hp));$('#weapon').textContent=`${weaponNames[weapon]} / MK ${['I','II','III'][power-1]}${ship.shield>0?' + SHIELD':''}`;$('#loadout').textContent=`BOOST ${speedLevel}/3 · DRONES ${companion}/2${ship.frontShield?' · GUARD '+ship.frontShield:''}${weaponOrb.owned?' · ORB '+(weaponOrb.target===0?'FRONT':'REAR'):''}`;$('#novas').textContent='● '.repeat(novas)+'○ '.repeat(3-novas);$('#progressLabel').textContent=`${sectors[level].scrollAxis==='down'?'DESCENT · ':sectors[level].scrollAxis==='up'?'ASCENT · ':''}SECTION ${currentSection()+1} / 4`;$('#progress').style.width=Math.min(100,time/sectors[level].duration*100)+'%';$('#status').textContent=state==='playing'?(boss?'BOSS ENGAGED':`SECTION ${currentSection()+1} / 4`):state==='title'?'AWAITING PILOT':state.toUpperCase();if(boss){$('#bosshealth').style.width=Math.max(0,boss.hp/boss.max*100)+'%';const hint=$('#bosstactic');if(hint)hint.textContent=typeof isCapitalSiege==='function'&&isCapitalSiege(boss)?capitalSiegeHint(boss):typeof bossEncounterHint==='function'?bossEncounterHint(boss):boss.exposed>0?'EXPOSED · ATTACK NOW':encounterRules[sectors[level].bossKind].hint;}}
-function start(){weaponOrb={owned:false,angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:0,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
+function start(){weaponOrb={owned:false,angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:0,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
 function resetSector(){sectorBlend=null;sectorIntroLead=0;window.gpuModels?.prepare([bossDesign()?.mesh,...sectors[level].models.map(n=>meshes[n]),meshes.spore,meshes.missile,meshes.siphon,meshes.cannon,meshes.shrapnel,meshes.bone,meshes.rib,meshes.spineChip,meshes.chitinChip,meshes.orbitalRock].filter(Boolean));challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setSector(sectors[level].music);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.inv=3;saveCheckpoint();updateHUD()}
 function panel(title,description,label,action){$('#overlay').classList.remove('hidden','records-view','title-screen');$('#overlay').innerHTML=`<div class="intro"><div class="eyebrow mint">FIRST DESCENT / FLIGHT RECORD</div><h1 class="result-title">${title}</h1><p class="introcopy">${description}</p><button class="primary" id="panelAction">${label}<span>↗</span></button><div class="launch-caption">SCORE ${String(score).padStart(6,'0')} · SECTOR ${level+1} / ${sectors.length}</div></div>`;$('#panelAction').onclick=action;$('#panelAction').focus()}
-function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause)}else if(state==='paused'){state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus()}updateHUD()}
+function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause)}else if(state==='paused'){state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus()}updateHUD()}
 function end(win){if(!win&&flightRun)flightRun.deaths++;recordFlightRun(win);window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();state=win?'victory':'gameover';$('#pause').hidden=true;$('#touchControls').classList.remove('active');$('#bossbar').hidden=true;
  panel(win?'GALAXY<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',win?`${sectors.length} sectors cleared. Your expedition made it home.`:`Restart sector ${level+1}, section ${checkpoint.section+1} of 4.<br>Your checkpoint loadout returns, with power and shield pickups ahead.`,win?'FLY AGAIN':'RETRY SECTION',win?start:retrySection);updateHUD()}
 function makeShot(x,y,kind,angle=0,side=0){
@@ -98,7 +98,12 @@ function fire(origin=ship,direction=1,fromOrb=false){
 function damage(){if(ship.inv>0||state!=='playing')return;if(ship.shield>0){ship.shield--;ship.inv=1.2;window.flightAudio?.shipHit(ship.x,true);burst(ship.x,ship.y,'#8ddfff',15)}else{ship.hp--;ship.inv=2;shake=10;flash=.12;burst(ship.x,ship.y,'#ffa782',30);window.flightAudio?.shipHit(ship.x);if(ship.hp<=0)end(false)}updateHUD()}
 function nova(){if(state!=='playing'||sectorBlend||novas<=0)return;novas--;flash=.55;shake=14;for(const e of enemies){explode(e.x,e.y,e.type===1||e.type===3?'#87ffd1':'#ffb36b',enemyExplosionSize(e),e.type===1||e.type===3,organicVoice(e));score+=100}enemies=[];hostile=[];if(boss){if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))capitalNovaDamage(boss,95);else{boss.hp-=95;boss.hit=.2}}rings.push({x:ship.x,y:ship.y,r:10,life:1.2,c:'#c0fff0'});window.flightAudio?.explosion(ship.x,3,false);updateHUD()}
 function spawn(){
- if(sectors[level].broodWaves.includes(waveIndex)){const hp=130+difficulty()*35,mother={brood:true,type:3,x:W+110,y:380,base:380,age:0,phase:waveIndex*.4,speed:115,hp,max:hp,hit:0,r:54,shoot:2};enemies.push(mother);for(let n=0;n<6;n++)enemies.push({satellite:true,mother,orbit:n*TAU/6,type:1,x:mother.x,y:mother.y,base:380,age:0,phase:n*.3,speed:245,hp:14,max:14,hit:0,r:20,shoot:Infinity});return}
+ if(sectors[level].broodWaves.includes(waveIndex)){
+  const profile=sectors[level].escortEncounter||null,hp=(130+difficulty()*35)*(profile?1.15:1),type=profile&&!profile.organic?2:3;
+  const mother={brood:true,escortProfile:profile,type,x:W+210,y:380,base:380,age:0,phase:waveIndex*.4,speed:115,hp,max:hp,hit:0,r:54,shoot:2};enemies.push(mother);
+  const count=profile?.count||6;
+  for(let n=0;n<count;n++)enemies.push({satellite:true,mother,escortProfile:profile,orbit:n*TAU/count,type:profile&&!profile.organic?0:1,x:mother.x,y:mother.y,base:380,age:0,phase:n*.3,speed:245,hp:profile?20+difficulty()*2:14,max:profile?20+difficulty()*2:14,hit:0,r:20,shoot:profile?3+n*.65:Infinity});return;
+ }
 
  const i=waveIndex,elite=i===11?'hunter':i%10===7?(Math.floor(i/10)%2?'hunter':'ace'):null,type=elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length],center=sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=elite?3:i===0?3:4+(difficulty()>0?1:0);
  for(let n=0;n<count;n++){const leader=n===0?elite:null,memberType=elite&&n>0?0:type,offset=i%3===0?(n-(count-1)/2)*52:i%3===1?Math.sin(n*1.15)*75:(n%2?1:-1)*Math.ceil(n/2)*42,y=clamp(center+offset,100,H-100),hp=([7,9,22,13][memberType]+difficulty()*3)*(leader?2.5:1)*(sectors[level].enemyHealthScale||1);
@@ -208,7 +213,7 @@ function reportFrameError(error){
  if(frameError)return;
  frameError={message:String(error?.message||error),stack:String(error?.stack||''),sector:level+1,time:Number(time.toFixed(2))};
  console.error('First Descent flight interrupted',frameError);
- state='error';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;accumulator=0;
+ state='error';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;accumulator=0;
  $('#pause').hidden=true;$('#touchControls').classList.remove('active');
  panel('FLIGHT<br><em>INTERRUPTED</em>','The game encountered a graphics or simulation error.<br>Reload to restore the mission.','RELOAD GAME',()=>location.reload());
  const detail=document.createElement('p');detail.className='launch-caption';detail.textContent=`Sector ${frameError.sector} · ${frameError.time}s · ${frameError.message}`;$('#overlay').append(detail);
@@ -221,7 +226,7 @@ function frame(now){
  musicControls();
  try{accumulator+=dt;while(accumulator>=1/120){captureMotion();update(1/120);accumulator-=1/120}renderSmooth(dt,accumulator*120)}catch(error){reportFrameError(error)}
 }
-window.addEventListener('keydown',e=>{if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys.add(k);if(e.repeat)return;if(k==='Enter'&&state==='title'){start();return;}if(k==='p'||k==='Escape')pause();if(k==='x')nova();if(k===' ')switchOrb()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{keys.clear();pointer=null;if(state==='playing')pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause()});
+window.addEventListener('keydown',e=>{if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys.add(k);if(e.repeat)return;if(k==='Enter'&&state==='title'){start();return;}if(k==='p'||k==='Escape')pause();if(k==='x')nova();if(k===' ')switchOrb()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{keys.clear();pointer=null;lastTouchTap=null;if(state==='playing')pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause()});
 // Relative dragging preserves the finger-to-ship offset. A stationary finger
 // is neutral, and lifting/repositioning never attracts the ship to the contact.
 function setPointer(e){
@@ -232,19 +237,35 @@ function setPointer(e){
   // One screen pixel of finger travel moves the ship one screen pixel.
   pointer.moveX+=(e.clientX-pointer.lastClientX)*W/r.width;
   pointer.moveY+=(e.clientY-pointer.lastClientY)*H/r.height;
-  pointer.lastClientX=e.clientX;pointer.lastClientY=e.clientY;
+  pointer.lastClientX=e.clientX;pointer.lastClientY=e.clientY;if(Math.hypot(e.clientX-pointer.startX,e.clientY-pointer.startY)>12){pointer.dragged=true;lastTouchTap=null;}
  }else{pointer.x=(e.clientX-r.left)/r.width*W;pointer.y=(e.clientY-r.top)/r.height*H;}
 }
-function releasePointer(e){if(!pointer||e.pointerId!==pointer.id)return;pointer=null;}
+function releasePointer(e,tap=false){
+ if(!pointer||e.pointerId!==pointer.id)return;
+ const p=pointer,elapsed=e.timeStamp-p.started;
+ if(tap&&p.relative&&!p.dragged&&elapsed>=0&&elapsed<=230&&state==='playing'){
+  if(lastTouchTap&&e.timeStamp-lastTouchTap.at<=320&&Math.hypot(e.clientX-lastTouchTap.x,e.clientY-lastTouchTap.y)<=40){switchOrb();lastTouchTap=null;}
+  else lastTouchTap={at:e.timeStamp,x:e.clientX,y:e.clientY};
+ }else lastTouchTap=null;
+ pointer=null;
+}
 canvas.addEventListener('pointerdown',e=>{
  if(state!=='playing'||pointer)return;
  const relative=e.pointerType==='touch'||e.pointerType==='pen';
- pointer={id:e.pointerId,relative,lastClientX:e.clientX,lastClientY:e.clientY,moveX:0,moveY:0};
+ pointer={id:e.pointerId,relative,started:e.timeStamp,startX:e.clientX,startY:e.clientY,dragged:false,lastClientX:e.clientX,lastClientY:e.clientY,moveX:0,moveY:0};
  canvas.setPointerCapture(e.pointerId);setPointer(e);
 });
 canvas.addEventListener('pointermove',setPointer);
-canvas.addEventListener('pointerup',releasePointer);canvas.addEventListener('pointercancel',releasePointer);canvas.addEventListener('lostpointercapture',releasePointer);
-$('#launch').onclick=start;$('#pause').onclick=pause;$('#novaTouch').onclick=nova;$('#orbTouch').onclick=switchOrb;$('#sound').onclick=()=>{sound=!sound;enableAudio();$('#sound').textContent=sound?'SFX ON':'SFX OFF';$('#sound').setAttribute('aria-label',sound?'Mute sound effects':'Enable sound effects');if(sound){if(state!=='title')tone(660,.12,'sine',.05)}};$('#fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('.stage').requestFullscreen()}catch{announce('FULLSCREEN UNAVAILABLE')}};
+canvas.addEventListener('pointerup',e=>releasePointer(e,true));canvas.addEventListener('pointercancel',releasePointer);canvas.addEventListener('lostpointercapture',releasePointer);
+$('#launch').onclick=start;$('#pause').onclick=pause;$('#novaTouch').onclick=nova;$('#orbTouch').onclick=switchOrb;$('#sound').onclick=()=>{sound=!sound;enableAudio();$('#sound').textContent=sound?'SFX ON':'SFX OFF';$('#sound').setAttribute('aria-label',sound?'Mute sound effects':'Enable sound effects');if(sound){if(state!=='title')tone(660,.12,'sine',.05)}};async function toggleGameFullscreen(){
+ const stage=$('.stage');
+ if(stage.classList.contains('expanded')){stage.classList.remove('expanded');document.body?.classList.remove('game-expanded');}
+ else if(document.fullscreenElement)await document.exitFullscreen();
+ else{try{if(!stage.requestFullscreen)throw new Error('unsupported');await stage.requestFullscreen();}catch{stage.classList.add('expanded');document.body?.classList.add('game-expanded');}}
+ updateFullscreenButtons();
+}
+function updateFullscreenButtons(){const active=!!document.fullscreenElement||$('.stage').classList.contains('expanded');for(const id of ['#fullscreen','#fullscreenStage']){const button=$(id);if(button){button.textContent=active?'EXIT FULLSCREEN':'FULLSCREEN';button.setAttribute('aria-label',active?'Exit fullscreen':'Enter fullscreen');}}}
+$('#fullscreen').onclick=toggleGameFullscreen;if($('#fullscreenStage'))$('#fullscreenStage').onclick=toggleGameFullscreen;document.addEventListener('fullscreenchange',updateFullscreenButtons);
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_game_status',description:'Read the current First Descent flight status.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:(input)=>{if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length)throw new Error('Expected an empty object');return {state,sector:level+1,score,hull:ship.hp,weapon,power,novas,speedLevel,companion,renderer:window.gpuModels?.stats()||{engine:'Canvas compatibility'}}}})).catch(()=>{})}catch{}}
 $('#records').onclick=showLocalScores;$('#campaignCaption').textContent=`${sectors.length} DEPTHS · ${sectors.length} BOSSES · 4 CHECKPOINTS PER SECTOR`;
 updateHUD();requestAnimationFrame(frame);
@@ -261,7 +282,7 @@ if($('#introMusic'))$('#introMusic').onclick=()=>$('#music').onclick();
 function updateChallenge(){const c=sectors[level].challenge;if(!c)return;
  if(time>=c.at&&!challengeState.warned&&time<c.end){challengeState.warned=true;announce(c.title,themeIndex()===0?'ASTEROID NARROWS · FOLLOW THE OPEN CHANNEL':sectors[level].scrollAxis?'CHANGING SHAFT · FOLLOW THE OPEN CHANNEL':'OFFSET GATES AHEAD · FOLLOW THE OPEN CHANNEL');}
  if(!challengeState.gate&&time>=c.at-4&&time<c.end){challengeState.gate=true;const at=c.at-4,o={at,id:50,x:W+100-(time-at)*SCROLL_SPEED,w:420,width:420,shutters:true,parts:[{x:0,y:0,w:420,h:90,ceiling:true},{x:0,y:670,w:420,h:90,ceiling:false}]};obstacles.push(o);if(c.gate)enemies.push({sentry:true,anchorAt:at,x:o.x+110,y:125,base:125,type:2,age:0,phase:0,speed:0,r:28,hp:65,max:65,hit:0,shoot:2});}
- while(challengeState.wave<c.waves.length&&time>=c.waves[challengeState.wave]){const n=challengeState.wave++,type=c.types[n%c.types.length];for(let i=0;i<c.count;i++){const y=c.gate?330+i*45:180+((n*137+i*110)%380),hp=[10,13,27,17][type]+difficulty()*3;const e={x:W+80+i*115,y,base:y,type,age:0,phase:n*.7+i*.25,speed:(210+difficulty()*15)*c.speed,r:type===2?39:31,hp,max:hp,hit:0,shoot:2+i*.5,challenge:true};if(sectors[level].scrollAxis)prepareEnemyEntry(e,n,i);enemies.push(e);}}
+ while(challengeState.wave<c.waves.length&&time>=c.waves[challengeState.wave]){const n=challengeState.wave++,type=c.types[n%c.types.length];for(let i=0;i<c.count;i++){const y=c.gate?330+i*45:180+((n*137+i*110)%380),hp=([10,13,27,17][type]+difficulty()*3)*(sectors[level].enemyHealthScale||1);const e={x:W+80+i*115,y,base:y,type,age:0,phase:n*.7+i*.25,speed:(210+difficulty()*15)*c.speed,r:type===2?39:31,hp,max:hp,hit:0,shoot:2+i*.5,challenge:true};if(sectors[level].scrollAxis)prepareEnemyEntry(e,n,i);enemies.push(e);}}
  if(time>=c.end&&!challengeState.reward){challengeState.reward=true;drops.push({x:W-100,y:380,type:'repair',r:23,age:0});}
 }
 
