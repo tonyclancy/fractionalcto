@@ -324,14 +324,43 @@ window.flightAudio=(()=>{
   noise({duration:1.4,gain:.045,cutoff:1800,end:180,offset:.1});
   [0,.44,.88].forEach(offset=>{note({frequency:110,end:38,duration:.3,gain:.06,offset});noise({duration:.12,gain:.065,cutoff:2800,end:600,offset})});
  }
+ // A voiced throat with two moving vowel resonances; irregular pressure
+ // pulses and pitch breaks make the charge sound like an animal scream.
+ function lungeThroat(pitch,pan){
+  if(!allocateVoice(5,false))return;
+  const now=context.currentTime,duration=1.05,osc=context.createOscillator(),amp=context.createGain(),panner=context.createStereoPanner(),throat=context.createBiquadFilter(),mouth=context.createBiquadFilter(),mouthGain=context.createGain();
+  osc.type='sawtooth';
+  const contour=[[0,.72],[.07,1.15],[.18,2.55],[.31,2.05],[.43,2.8],[.56,1.8],[.68,2.15],[.83,1.2],[1.05,.5]];
+  osc.frequency.setValueAtTime(pitch*.72,now);
+  for(let i=1;i<contour.length;i++){const [at,mul]=contour[i];osc.frequency.exponentialRampToValueAtTime(pitch*mul,now+at);}
+  throat.type=mouth.type='bandpass';throat.Q.value=2.8;mouth.Q.value=3.6;mouthGain.gain.value=.42;
+  for(const [filter,base] of [[throat,570],[mouth,1450]]){
+   filter.frequency.setValueAtTime(base*.65,now);
+   filter.frequency.exponentialRampToValueAtTime(base*1.45,now+.21);
+   filter.frequency.exponentialRampToValueAtTime(base*.95,now+.58);
+   filter.frequency.exponentialRampToValueAtTime(base*.48,now+duration);
+  }
+  amp.gain.setValueAtTime(0,now);
+  for(const [at,level] of [[.045,.10],[.16,.19],[.25,.095],[.34,.21],[.44,.08],[.53,.18],[.65,.07],[.74,.14],[.88,.045],[1.05,0]])amp.gain.linearRampToValueAtTime(level,now+at);
+  panner.pan.value=pan;osc.connect(throat);osc.connect(mouth);throat.connect(amp);mouth.connect(mouthGain);mouthGain.connect(amp);amp.connect(panner);panner.connect(master);
+  const voice=trackVoice(osc,amp,[osc,throat,mouth,mouthGain,amp,panner],false,5,now,duration);osc.start(now);osc.stop(voice.endAt);
+ }
  // Boss attacks reserve priority above routine gunfire and wing beats.
  function bossAttack(action='fire',kind=0,x=1000){
   if(!enabled||!context||context.state!=='running')return;
   const pan=Math.max(-.85,Math.min(.85,(x/1440-.5)*1.5)),lunging=action==='lunge',pitch=({0:128,2:78,3:96,5:61})[kind]||110;
-  duckMusic(lunging?.7:.88,lunging?.65:.22);
-  note({priority:5,frequency:pitch*(lunging?1:1.8),end:pitch*.42,duration:lunging?.65:.22,gain:lunging?.13:.085,type:'sawtooth',pan,cutoff:lunging?850:1500,attack:.012});
-  note({priority:5,frequency:pitch*.6,end:32,duration:lunging?.72:.25,gain:lunging?.15:.095,type:'sine',pan,cutoff:220});
-  noise({priority:5,duration:lunging?.55:.18,gain:lunging?.17:.12,cutoff:lunging?1900:2800,end:lunging?260:700,pan,body:true,wet:true});
+  if(lunging){
+   duckMusic(.64,1.15);
+   lungeThroat(pitch,pan);
+   // Sustained sub-bass anchors the scream, with a gently beating chest tone.
+   note({priority:5,frequency:48+pitch*.12,end:31,duration:1.2,gain:.19,type:'sine',pan,cutoff:180,attack:.045,hold:.55,vibrato:95,vibratoRate:6});
+   noise({priority:5,duration:.98,gain:.13,cutoff:1700,end:230,pan,body:true,wet:true,band:true,resonance:1.8});
+   return;
+  }
+  duckMusic(.88,.22);
+  note({priority:5,frequency:pitch*1.8,end:pitch*.42,duration:.22,gain:.085,type:'sawtooth',pan,cutoff:1500,attack:.012});
+  note({priority:5,frequency:pitch*.6,end:32,duration:.25,gain:.095,type:'sine',pan,cutoff:220});
+  noise({priority:5,duration:.18,gain:.12,cutoff:2800,end:700,pan,body:true,wet:true});
  }
  function shot(kind='pulse',x=720,enemy=false){
   if(x< -100||x>1540)return;
