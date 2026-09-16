@@ -61,6 +61,27 @@ const capitalSiegeMeshes=(()=>{
   [[45,7],[82,3],[95,19],[79,31],[56,28]]
  ];
  panels.forEach((p,i)=>h.plate(p,-35-(i%2)*2,-24,i<2?armor:metal,1.6));
+ // Broad ceramic armor inlays establish a few readable shapes before the fine
+ // engineering details. The luminous seams sit inside dark recessed channels.
+ const ceramic=[157,165,159],navy=[35,58,76];
+ h.plate([[-88,-12],[-64,-25],[-42,-29],[-48,-20],[-76,-8]],-39,-35,ceramic,.7);
+ h.plate([[-85,11],[-62,22],[-36,25],[-43,18],[-72,7]],-41,-37,navy,.75);
+ h.plate([[-19,-31],[13,-35],[29,-29],[15,-23],[-23,-23]],-39.3,-35,navy,.85);
+ h.plate([[-9,22],[19,20],[37,28],[27,33],[-7,28]],-42,-38,ceramic,.6);
+ h.plate([[53,-23],[70,-25],[83,-18],[77,-11],[54,-14]],-39,-35,ceramic,.7);
+ h.plate([[59,13],[80,9],[87,18],[76,25],[63,22]],-41,-36,navy,.65);
+ for(const [a,b] of [
+  [[-80,-7,-39.7],[-47,-17,-39.7]],
+  [[-36,-19,-39.7],[9,-19,-39.7]],
+  [[17,-19,-40],[42,-11,-40]],
+  [[-72,10,-42],[-45,18,-42]],
+  [[-33,17,-42],[5,15,-42]],
+  [[34,17,-42],[59,25,-42]]
+ ]){
+  h.rod(a,b,1.55,recess,6);const start=h.mesh.length;
+  h.rod(a.map((v,i)=>i===2?v-.65:v),b.map((v,i)=>i===2?v-.65:v),.52,cold,6);
+  for(let i=start;i<h.mesh.length;i++)h.mesh[i].em=.65;
+ }
  // The dark service trench is recessed between armor banks, with separate
  // conduits and maintenance covers that give the visible broadside scale.
  h.box(-7,0,-33,118,20,4,recess);h.rod([-58,-10,-38],[56,-10,-38],1.45,edge);h.rod([-59,11,-38],[59,11,-38],1.5,brass);
@@ -71,6 +92,16 @@ const capitalSiegeMeshes=(()=>{
  }
  h.plate([[-44,-29],[-9,-34],[-15,-25],[-40,-21]],-39,-35,edge,.6);
  h.plate([[6,23],[31,25],[37,33],[4,29]],-40,-36,armor,.65);
+ // Two inset heat exchanger beds have deep shadows and separate copper fins.
+ // Their asymmetric covers distinguish the bow service deck from the engines.
+ for(const [cx,cy,width] of [[-25,-42,30],[30,42,35]]){
+  h.box(cx,cy,-20,width+5,9,13,navy,.7);
+  h.box(cx,cy,-28,width,6,2,recess,.35);
+  for(let i=0;i<7;i++){
+   const x=cx-width*.42+i*width*.14;
+   h.plate([[x-1,cy-3],[x+.35,cy-3],[x+2.2,cy+3],[x+.8,cy+3]],-31,-27,i%3===0?brass:edge,.22);
+  }
+ }
  // Deliberate broadside panel seams, fasteners, docking pads and heat exchangers.
  for(const sign of [-1,1]){
   for(let i=0;i<11;i++){const x=-57+i*12,y=sign*(20+Math.sin((i/10)*Math.PI)*10);h.box(x,y,-38,4,1.2,1.2,edge,.15);h.box(x+3,y+sign*3,-38,.95,.95,1,brass,.12);}
@@ -83,6 +114,11 @@ const capitalSiegeMeshes=(()=>{
  h.plate([[29,-38],[32,-46],[52,-46],[60,-39],[53,-35]],-47,-39,armor,.75);
  h.box(44,-41,-48.5,26,4,1.8,recess,.25);
  for(let i=0;i<7;i++)h.light(33+i*3.5,-41,-49.8,2.2,1.3,hot);
+ h.plate([[31,-46],[54,-46],[59,-43],[56,-42],[32,-43]],-49,-45,navy,.4);
+ h.plate([[30,-38],[53,-36],[59,-39],[61,-35],[49,-32],[27,-35]],-45,-40,metal,.6);
+ for(let i=0;i<5;i++)h.light(32+i*5,-35,-45.6,2.3,.85,hot);
+ h.rod([57,-39,-35],[66,-51,-33],.7,edge,6);h.rod([64,-43,-31],[72,-49,-31],.55,brass,6);
+ h.light(66,-51,-34,1.8,1.1,cold);
  h.box(43,-48,-29,20,3,17,metal,.6);h.rod([44,-48,-25],[44,-56,-25],1.1,edge);
  const sensorStart=h.mesh.length;h.box(44,-56,-25,13,2.1,4.3,dark,.3);h.light(44,-57.2,-27,8,.9,cold);h.part('bridge scanner',sensorStart,[44,-56,-25],'y',.45);
  // Four independently built engine bells surround the recessed aft reactor.
@@ -93,6 +129,10 @@ const capitalSiegeMeshes=(()=>{
   // The collar is hollow too: a second genuine bore leaves the outlet open.
   h.tube(x+.4,x-8,y,z,r*.96,edge,true,r*.82,24);
   for(let j=0;j<6;j++){const a=j*Math.PI/3;h.rod([77,y+Math.cos(a)*r*1.06,z+Math.sin(a)*r*1.06],[x-6,y+Math.cos(a)*r*1.02,z+Math.sin(a)*r*1.02],.75,edge,6);}
+  // A black cooling jacket and hot ceramic inserts make each drive a complete
+  // machine when seen side-on, even while the actual outlet faces away.
+  h.plate([[70,y-r*.5],[82,y-r*.68],[x-9,y-r*.43],[x-9,y+r*.45],[80,y+r*.7],[70,y+r*.5]],z-r*1.13,z-r*.75,navy,.55);
+  for(let j=0;j<3;j++)h.light(80+j*5,y,z-r*1.2,2.1,r*.7,j===1?hot:cold);
   const fanStart=h.mesh.length,fanX=x-4.7;
   for(let j=0;j<7;j++){const a=j*Math.PI*2/7,cy=y+Math.cos(a)*r*.37,cz=z+Math.sin(a)*r*.37;h.rod([fanX,y,z],[fanX,cy,cz],.6,cold,6);}
   h.tube(fanX+.5,fanX-1,y,z,r*.18,hot,false,r*.18,12);
@@ -255,7 +295,7 @@ function capitalDischargeFrame(b,kind){
  const local=kind==='purge'?[109,0,-8]:[-97,0,-25],direction=kind==='purge'?1:-1,a=bossMount(b,local),tip=bossMount(b,[local[0]+direction*20,local[1],local[2]]);
  return{x:a.x,y:a.y,heading:Math.atan2(tip.y-a.y,tip.x-a.x)};
 }
-function capitalPurgeContact(frame,x,y,padding=14){const dx=x-frame.x,dy=y-frame.y,along=dx*Math.cos(frame.heading)+dy*Math.sin(frame.heading),across=-dx*Math.sin(frame.heading)+dy*Math.cos(frame.heading);return along>=-padding&&along<=300+padding&&Math.abs(across)<16+Math.max(0,along)*.1+padding;}
+function capitalPurgeContact(frame,x,y,padding=14){const dx=x-frame.x,dy=y-frame.y,along=dx*Math.cos(frame.heading)+dy*Math.sin(frame.heading),across=-dx*Math.sin(frame.heading)+dy*Math.cos(frame.heading);return along>=-padding&&along<=300+padding&&Math.abs(across)<20+Math.max(0,along)*.11+padding;}
 function capitalPulseGap(radius){return Math.min(.6,Math.max(.19,Math.asin(Math.min(.99,46/Math.max(1,radius)))));}
 function capitalPulseContact(pulse,x,y,padding=14){
  const dx=x-pulse.x,dy=y-pulse.y,radius=Math.hypot(dx,dy),angle=Math.atan2(Math.sin(Math.atan2(dy,dx)-pulse.heading),Math.cos(Math.atan2(dy,dx)-pulse.heading)),edge=Math.asin(Math.min(1,padding/Math.max(1,radius)));
@@ -264,23 +304,23 @@ function capitalPulseContact(pulse,x,y,padding=14){
 function updateCapitalDischarges(b,dt){
  const siege=b.siege;
  for(const node of siege.nodes){const a=node.special;if(!a||!capitalNodeActive(b,node))continue;const previous=a.age;a.age+=dt;
-  if(previous<a.warning&&a.age>=a.warning){const frame=capitalDischargeFrame(b,a.kind);window.flightAudio?.laserBeam(a.kind==='purge'?.68:.26);if(a.kind==='pulse')siege.pulses.push({...frame,age:0,r:28,width:14,gap:a.gap,life:1.9});}
+  if(previous<a.warning&&a.age>=a.warning){const frame=capitalDischargeFrame(b,a.kind);window.flightAudio?.laserBeam(a.kind==='purge'?a.duration:.35);if(a.kind==='pulse')siege.pulses.push({...frame,age:0,r:28,width:18,gap:a.gap,life:1.9});}
   if(a.kind==='purge'&&a.age>=a.warning&&a.age<a.warning+a.duration&&capitalPurgeContact(capitalDischargeFrame(b,a.kind),ship.x,ship.y))damage();
   if(a.age>=a.warning+a.duration)node.special=null;
  }
- for(const pulse of siege.pulses){pulse.age+=dt;pulse.r=28+pulse.age*450;if(capitalPulseContact(pulse,ship.x,ship.y))damage();}
+ for(const pulse of siege.pulses){pulse.age+=dt;pulse.r=28+pulse.age*510;if(capitalPulseContact(pulse,ship.x,ship.y))damage();}
  siege.pulses=siege.pulses.filter(p=>p.age<p.life);
 }
 function updateCapitalSiege(b,dt){
  const s=initCapitalSiege(b);s.age+=dt;b.charge=0;b.attack=null;b.special=Infinity;
  updateCapitalDischarges(b,dt);
  for(const n of s.nodes){n.hit=Math.max(0,n.hit-dt);n.muzzle=Math.max(0,n.muzzle-dt);if(!capitalNodeActive(b,n)||b.x>W-240||n.special)continue;
-  if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=n.id==='core'?4:3;n.burstClock=0;}}
-  if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){const mounts=capitalGunMounts(b,n),mount=mounts[(n.burst-1)%mounts.length],speed=n.id==='core'?660:590;
-    hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:8,kind:'rocket',c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.13;n.burst--;n.burstClock=n.id==='core'?.14:.17;window.flightAudio?.shot('missile',mount.x,true);
-   }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=n.id==='core'?2.8:3.1;n.heading=n.id==='reactor'?0:Math.PI;
-    if(n.id==='reactor'&&n.cycle%2===0){n.special={kind:'purge',age:0,warning:1.15,duration:.68};window.flightAudio?.laserCharge();}
-    else if(n.id==='core'&&n.cycle%2===0){n.special={kind:'pulse',age:0,warning:1.2,duration:.3,gap:(n.cycle%4===0?-1:1)*.28};window.flightAudio?.laserCharge();}
+  if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=n.id==='core'?5:3;n.burstClock=0;}}
+  if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?735:n.id==='reactor'?650:630;
+    hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?12:11,kind:'rocket',bossRound:true,scale:n.id==='core'?1.48:1.26,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.14:.17;window.flightAudio?.shot('missile',mount.x,true);
+   }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=n.id==='core'?2.25:2.55;n.heading=n.id==='reactor'?0:Math.PI;
+    if(n.id==='reactor'&&n.cycle%2===0){n.special={kind:'purge',age:0,warning:1.15,duration:.76};window.flightAudio?.laserCharge();}
+    else if(n.id==='core'&&n.cycle%2===0){n.special={kind:'pulse',age:0,warning:1.3,duration:.3,gap:(n.cycle%4===0?-1:1)*.28};window.flightAudio?.laserCharge();}
     else n.warning=.8;
    }}
  }
@@ -291,15 +331,15 @@ function drawCapitalDischarges(b){
  for(const node of b.siege.nodes){const a=node.special;if(!a)continue;const frame=capitalDischargeFrame(b,a.kind),charging=a.age<a.warning;
   ctx.save();ctx.translate(frame.x,frame.y);ctx.rotate(frame.heading);
   if(a.kind==='purge'){
-   if(charging){ctx.fillStyle='rgba(255,171,92,.12)';ctx.strokeStyle='#ffba80';ctx.lineWidth=1.5;ctx.setLineDash([8,11]);ctx.beginPath();ctx.moveTo(0,-16);ctx.lineTo(300,-46);ctx.lineTo(300,46);ctx.lineTo(0,16);ctx.closePath();ctx.fill();ctx.stroke();ctx.setLineDash([]);orb(0,0,14+a.age/a.warning*13,'#ffd29c',.6);}
+   if(charging){ctx.fillStyle='rgba(255,171,92,.15)';ctx.strokeStyle='#ffca90';ctx.lineWidth=2;ctx.setLineDash([8,11]);ctx.beginPath();ctx.moveTo(0,-20);ctx.lineTo(300,-53);ctx.lineTo(300,53);ctx.lineTo(0,20);ctx.closePath();ctx.fill();ctx.stroke();ctx.setLineDash([]);orb(0,0,17+a.age/a.warning*17,'#ffd29c',.7);}
    else{const age=a.age-a.warning,fade=Math.min(1,age/.08,(a.duration-age)/.12);ctx.globalCompositeOperation='lighter';
-    for(let i=0;i<10;i++){const along=((age*590+i*33)%330),width=12+along*.1,offset=Math.sin(age*23+i*2.1)*width*.22;ctx.globalAlpha=Math.max(0,fade)*(1-along/360)*.6;const plume=ctx.createLinearGradient(along-32,0,along+45,0);plume.addColorStop(0,'rgba(255,238,174,0)');plume.addColorStop(.3,'#ffd08a');plume.addColorStop(1,'rgba(219,86,29,0)');ctx.fillStyle=plume;ctx.beginPath();ctx.moveTo(along-32,offset);ctx.bezierCurveTo(along-15,offset-width,along+23,offset-width*.6,along+45,offset);ctx.bezierCurveTo(along+23,offset+width*.7,along-15,offset+width,along-32,offset);ctx.fill();}
-    orb(0,0,24,'#ffe9b1',Math.max(0,fade)*.8);
+    for(let i=0;i<10;i++){const along=((age*660+i*33)%330),width=16+along*.11,offset=Math.sin(age*23+i*2.1)*width*.18;ctx.globalAlpha=Math.max(0,fade)*(1-along/360)*.8;const plume=ctx.createLinearGradient(along-38,0,along+49,0);plume.addColorStop(0,'rgba(255,238,174,0)');plume.addColorStop(.3,'#ffe5b0');plume.addColorStop(.65,'#ffaa62');plume.addColorStop(1,'rgba(219,86,29,0)');ctx.fillStyle=plume;ctx.beginPath();ctx.moveTo(along-38,offset);ctx.bezierCurveTo(along-15,offset-width,along+23,offset-width*.6,along+49,offset);ctx.bezierCurveTo(along+23,offset+width*.7,along-15,offset+width,along-38,offset);ctx.fill();}
+    orb(0,0,32,'#fff0c8',Math.max(0,fade)*.9);
    }
   }else{const gap=capitalPulseGap(360);ctx.strokeStyle='#ffa98f';ctx.globalAlpha=.4;ctx.lineWidth=1.5;ctx.setLineDash([7,11]);for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(side*.82)*330,Math.sin(side*.82)*330);ctx.stroke();}ctx.strokeStyle='#a5ffe0';for(const side of [-1,1]){const angle=a.gap+side*gap;ctx.beginPath();ctx.moveTo(Math.cos(angle)*55,Math.sin(angle)*55);ctx.lineTo(Math.cos(angle)*360,Math.sin(angle)*360);ctx.stroke();}ctx.setLineDash([]);ctx.globalAlpha=1;orb(0,0,12+Math.min(1,a.age/a.warning)*24,'#b9efff',.7);}
   ctx.restore();
  }
- for(const pulse of b.siege.pulses){const gap=capitalPulseGap(pulse.r),alpha=Math.min(1,pulse.age/.035,(pulse.life-pulse.age)/.3);ctx.globalAlpha=Math.max(0,alpha);ctx.lineCap='round';for(const [start,end] of [[-.82,Math.max(-.82,pulse.gap-gap)],[Math.min(.82,pulse.gap+gap),.82]]){if(end<=start)continue;for(const [width,color] of [[30,'rgba(105,187,245,.15)'],[13,'rgba(132,220,255,.65)'],[3,'#e0faff']]){ctx.lineWidth=width;ctx.strokeStyle=color;ctx.beginPath();ctx.arc(pulse.x,pulse.y,pulse.r,pulse.heading+start,pulse.heading+end);ctx.stroke();}}}
+ for(const pulse of b.siege.pulses){const gap=capitalPulseGap(pulse.r),alpha=Math.min(1,pulse.age/.035,(pulse.life-pulse.age)/.3);ctx.globalAlpha=Math.max(0,alpha);ctx.lineCap='round';for(const [start,end] of [[-.82,Math.max(-.82,pulse.gap-gap)],[Math.min(.82,pulse.gap+gap),.82]]){if(end<=start)continue;for(const [width,color] of [[48,'rgba(105,187,245,.22)'],[25,'rgba(132,220,255,.75)'],[7,'#f2fdff']]){ctx.lineWidth=width;ctx.strokeStyle=color;ctx.beginPath();ctx.arc(pulse.x,pulse.y,pulse.r,pulse.heading+start,pulse.heading+end);ctx.stroke();}}}
  ctx.restore();
 }
 function drawCapitalSiege(b){
@@ -318,7 +358,7 @@ function drawCapitalSiege(b){
  for(const n of s.nodes){if(n.hp<=0)continue;const p=capitalNodePosition(b,n),active=capitalNodeActive(b,n);
   if(active){const above=n.id==='dorsal'||n.id==='core',yy=p.y+(above?-1:1)*(n.radius+20);healthBar(p.x,yy,70,n.hp,n.max,'#ffc782');ctx.fillStyle='#ffe3bb';ctx.fillText(n.id==='dorsal'?'UPPER BATTERY':n.id==='ventral'?'LOWER BATTERY':n.id==='reactor'?'AFT REACTOR':'COMMAND CORE',p.x,yy+(above?-7:17));}
   if(n.warning>0){ctx.strokeStyle='#f5a973';ctx.globalAlpha=.25+.35*(1-n.warning/.8);ctx.lineWidth=2;ctx.setLineDash([7,12]);for(const gun of capitalGunMounts(b,n)){ctx.beginPath();ctx.moveTo(gun.x,gun.y);ctx.lineTo(gun.x+Math.cos(gun.heading)*W,gun.y+Math.sin(gun.heading)*W);ctx.stroke();}ctx.setLineDash([]);ctx.globalAlpha=1;}
-  if(n.muzzle>0)for(const gun of capitalGunMounts(b,n))orb(gun.x,gun.y,17,'#ffd399',n.muzzle/.13*.7);
+  if(n.muzzle>0){const gun=capitalGunMounts(b,n)[n.lastGun||0],strength=n.muzzle/.17;ctx.save();ctx.translate(gun.x,gun.y);ctx.rotate(gun.heading);orb(9,0,29,'#ffd399',strength*.85);ctx.globalAlpha=strength;poly([[0,-7],[39,0],[0,7]],'#fff0be');ctx.strokeStyle='#ffe8bb';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(11+(1-strength)*18,0,4,8+(1-strength)*14,0,0,TAU);ctx.stroke();ctx.restore();}
  }
  ctx.restore();
 }

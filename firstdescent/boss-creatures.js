@@ -1,7 +1,7 @@
 /* First Descent fauna. Closed anatomical surfaces and local skeletal motion.
  * Coordinates are model space: the mouth points towards -X, Y is down, and
  * paired appendages lie on either side of Z. No model is an image billboard. */
-var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint;
+var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organicBossWingPhase,organicBossWingRate;
 (function(){
  const TAU=Math.PI*2,cl=(x,a,b)=>Math.max(a,Math.min(b,x)),mix=(a,b,t)=>a+(b-a)*t;
  const add=(a,b)=>a.map((v,k)=>v+b[k]),sub=(a,b)=>a.map((v,k)=>v-b[k]);
@@ -251,15 +251,20 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint;
  // Smooth, asymmetric power/recovery stroke. The fast phase pushes against
  // the air; recovery feathers the outer membrane to reduce drag.
  function flightStroke(t){return Math.sin(t)+.27*Math.sin(2*t)-.07*Math.sin(3*t);}
+ const wingRates={0:10.5,2:4.75,3:3.9,5:4.4};
+ // Radians per accumulated propulsion second. Audio uses this exact phase,
+ // so each power stroke keeps its sound when acceleration changes the beat.
+ organicBossWingRate=window.organicBossWingRate=kind=>wingRates[kind]||0;
+ organicBossWingPhase=window.organicBossWingPhase=(kind,b)=>(Number.isFinite(b.propulsionTime)?b.propulsionTime:(b.age||0))*organicBossWingRate(kind);
  animateAlienBoss=window.animateAlienBoss=function(kind,b){
   const d=alienBossDesigns[kind];if(!d)return null;
   const age=b.age||0,jaw=opening(b),flight=Number.isFinite(b.propulsionTime)?b.propulsionTime:age,thrust=cl(Number.isFinite(b.propulsion)?b.propulsion:.3,0,1),climb=cl(-(b.flightVY||0)/420,-1,1),surge=cl((b.flightVX||0)/600,-1,1),attack=cl(b.attackDrive||0,0,1),load=cl(b.actionLoad||0,0,1),bank=cl(b.flightBank||0,-1,1);
   const pass=b.pass,turning=pass&&['turn','rear','reset'].includes(pass.stage)?Math.sin(cl((pass.age||0)/1.4,0,1)*Math.PI):0;
-  const spine=spineState(kind,b,spineScratch);d.mouthOpening=jaw;
+  const spine=spineState(kind,b,spineScratch),wingPhase=organicBossWingPhase(kind,b);d.mouthOpening=jaw;
   // Every pose starts at its bind coordinates, including the flexible body.
   // All arrays are retained; there are no per-vertex temporary allocations.
   for(const p of d.parts){
-   const phase=flight*(p.frequency||3.6)+(p.index||0)*1.32+(p.side||0)*.32,beat=flight*(p.frequency||1)+(p.pair||0)*1.0;
+   const phase=(kind===5&&p.rig==='leg'?wingPhase:flight*(p.frequency||3.6))+(p.index||0)*1.32+(p.side||0)*.32,beat=wingPhase+(p.pair||0)*1.0;
    let matrix=null,second=null;
    if(p.rig==='jaw')matrix=rotationMatrix(p.axis,p.direction*jaw*p.amount);
    if(p.rig==='wing')matrix=rotationMatrix([1,0,0],p.side*(-.12-climb*.13+flightStroke(beat)*p.amplitude*(.72+thrust*.68)));
@@ -279,7 +284,7 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint;
      // Elastic trailing-edge lag follows the downstroke without changing span.
      v[1]+=Math.sin(beat-.55)*span*span*(4+thrust*7);
     }else if(p.rig==='undulate'){
-     const span=cl((Math.abs(r[2])-Math.abs(p.pivot[2]))/p.span,0,1),wave=flight*p.frequency-r[0]*.047+(p.phase||0),stroke=flightStroke(wave),angle=(stroke*(.4+thrust*.48)+climb*.13+p.side*bank*.14+load*.2-attack*.3)*span,ca=Math.cos(angle),sa=Math.sin(angle),y=r[1]-p.pivot[1],z=r[2]-p.pivot[2];
+     const span=cl((Math.abs(r[2])-Math.abs(p.pivot[2]))/p.span,0,1),wave=wingPhase-r[0]*.047+(p.phase||0),stroke=flightStroke(wave),angle=(stroke*(.4+thrust*.48)+climb*.13+p.side*bank*.14+load*.2-attack*.3)*span,ca=Math.cos(angle),sa=Math.sin(angle),y=r[1]-p.pivot[1],z=r[2]-p.pivot[2];
      // A rotation of each fin ray gives the membrane a real power stroke.
      v[1]=p.pivot[1]+y*ca-p.side*z*sa;v[2]=p.pivot[2]+p.side*y*sa+z*ca;
      v[0]+=Math.sin(wave-.8)*(3+thrust*5)*span*span;
