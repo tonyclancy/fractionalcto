@@ -170,8 +170,9 @@ let dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.
 const len=Math.hypot(dx,dy)||1,maxSpeed=390+speedLevel*75;
 let targetVX=dx/len*maxSpeed,targetVY=dy/len*maxSpeed;
 if(pointer?.relative){targetVX=pointer.dx*maxSpeed;targetVY=pointer.dy*maxSpeed}
-else if(pointer){const px=(pointer.x-ship.x)*12,py=(pointer.y-ship.y)*12,scale=Math.min(1,maxSpeed/(Math.hypot(px,py)||1));targetVX=px*scale;targetVY=py*scale}
-const response=1-Math.exp(-dt*(dx||dy||pointer?20:28));ship.vx+=(targetVX-ship.vx)*response;ship.vy+=(targetVY-ship.vy)*response;
+else if(pointer){const px=(pointer.x-ship.x)/dt,py=(pointer.y-ship.y)/dt,scale=Math.min(1,maxSpeed/(Math.hypot(px,py)||1));targetVX=px*scale;targetVY=py*scale}
+// Steering has no acceleration lag or release drift; only the visual attitude eases.
+ship.vx=targetVX;ship.vy=targetVY;
 const suction=environment&&boss?bossSuctionForce(boss):0;ship.x=clamp(ship.x+(ship.vx+suction)*dt,40,W-65);ship.y=clamp(ship.y+(ship.vy+(environment?sectorCurrent():0))*dt,42,H-42);if(ship.x===40||ship.x===W-65)ship.vx=0;if(ship.y===42||ship.y===H-42)ship.vy=0;
 const targetPitch=clamp(ship.vy/2800,-.18,.18),targetYaw=clamp(ship.vx/3400,-.15,.15),easing=1-Math.exp(-dt*11);
 flightPose.pitch+=(targetPitch-flightPose.pitch)*easing;const rollRate=-ship.vy/maxSpeed*7;flightPose.rollRate=((flightPose.rollRate||0)+(rollRate-(flightPose.rollRate||0))*(1-Math.exp(-dt*12)));flightPose.roll+=flightPose.rollRate*dt;if(Math.abs(ship.vy)<10)flightPose.roll+=(Math.round(flightPose.roll/TAU)*TAU-flightPose.roll)*(1-Math.exp(-dt*5));flightPose.yaw+=(targetYaw-flightPose.yaw)*easing;
@@ -222,9 +223,9 @@ function setPointer(e){
  if(!pointer||e.pointerId!==pointer.id)return;
  const r=canvas.getBoundingClientRect();
  if(pointer.relative){
-  const x=e.clientX-pointer.anchorClientX,y=e.clientY-pointer.anchorClientY,distance=Math.hypot(x,y),amount=clamp((distance-5)/43,0,1);
+  const x=e.clientX-pointer.anchorClientX,y=e.clientY-pointer.anchorClientY,distance=Math.hypot(x,y),amount=clamp((distance-5)/27,0,1);
   pointer.dx=distance?x/distance*amount:0;pointer.dy=distance?y/distance*amount:0;
-  pointer.visualX=distance?x/distance*Math.min(48,distance):0;pointer.visualY=distance?y/distance*Math.min(48,distance):0;
+  pointer.visualX=distance?x/distance*Math.min(32,distance):0;pointer.visualY=distance?y/distance*Math.min(32,distance):0;
  }else{pointer.x=(e.clientX-r.left)/r.width*W;pointer.y=(e.clientY-r.top)/r.height*H;}
 }
 function releasePointer(e){if(!pointer||e.pointerId!==pointer.id)return;pointer=null;}
@@ -240,7 +241,7 @@ function drawTouchSteering(){
  if(state!=='playing'||!pointer?.relative)return;
  const r=canvas.getBoundingClientRect(),sx=W/r.width,sy=H/r.height;
  ctx.save();ctx.translate((pointer.anchorClientX-r.left)*sx,(pointer.anchorClientY-r.top)*sy);ctx.scale(sx,sy);
- ctx.strokeStyle='#b3ffe5';ctx.fillStyle='#b3ffe5';ctx.lineWidth=1;ctx.globalAlpha=.2;ctx.beginPath();ctx.arc(0,0,48,0,TAU);ctx.stroke();
+ ctx.strokeStyle='#b3ffe5';ctx.fillStyle='#b3ffe5';ctx.lineWidth=1;ctx.globalAlpha=.2;ctx.beginPath();ctx.arc(0,0,32,0,TAU);ctx.stroke();
  ctx.globalAlpha=.32;ctx.beginPath();ctx.arc(pointer.visualX,pointer.visualY,10,0,TAU);ctx.fill();ctx.restore();
 }
 $('#launch').onclick=start;$('#pause').onclick=pause;$('#novaTouch').onclick=nova;$('#orbTouch').onclick=switchOrb;$('#sound').onclick=()=>{sound=!sound;enableAudio();$('#sound').textContent=sound?'SFX ON':'SFX OFF';$('#sound').setAttribute('aria-label',sound?'Mute sound effects':'Enable sound effects');if(sound){if(state!=='title')tone(660,.12,'sine',.05)}};$('#fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('.stage').requestFullscreen()}catch{announce('FULLSCREEN UNAVAILABLE')}};
