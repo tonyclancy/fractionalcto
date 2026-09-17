@@ -5,10 +5,12 @@ const titleMarkup=$('#overlay').innerHTML;
 function showTitleScreen(){state='title';$('#overlay').className='overlay title-screen';$('#overlay').innerHTML=titleMarkup;$('#launch').onclick=beginDescent;const music=$('#introMusic');if(music)music.onclick=()=>$('#music').onclick();window.flightAudio?.setTitle(!document.hidden);musicControls();}
 const sectors=campaign;
 const themeIndex=()=>LEVEL_THEMES[sectors[level].theme],bossIndex=()=>BOSS_KINDS[sectors[level].bossKind],difficulty=()=>sectors[level].difficulty;
+const levelPacing=()=>sectors[level].pacing||{pickupGap:2.4,maxPickups:1,maxActiveEnemies:10,pickupX:650,preBossRelief:true};
 const currentSection=()=>sectors[level].checkpoints.reduce((section,at,i)=>time>=at?i:section,0);
 let state='title',level=0,time=0,world=0,last=0,spawnClock=0,score=0,weapon='pulse',power=1,novas=3,fireClock=0,shake=0,flash=0,boss=null,bossDefeated=false,transition=0,kills=0,annTimer=0,sound=true;
 let enemies=[],shots=[],hostile=[],particles=[],drops=[],rings=[],explosions=[],hazards=[],acidClouds=[];
 let speedLevel=0,companion=0,companionClock=0,waveIndex=0,gateIndex=0,supplyIndex=0;
+let queuedSupplies=[],queuedSupplyLevel=-1,lastSupplySpawn=-Infinity,preBossRelief=false;
 let obstacles=[];
 
 
@@ -16,6 +18,13 @@ let checkpoint=null,hudClock=0,sectorBlend=null,sectorIntroLead=0;
 let challengeState={wave:0,gate:false,warned:false,reward:false};
 let weaponOrb={owned:false,angle:0,target:0};
 function orbPosition(){return{x:ship.x+Math.cos(weaponOrb.angle)*65,y:ship.y-Math.sin(weaponOrb.angle)*68};}
+function refreshHullMeter(){
+ const block=$('.hullblock');if(!block)return;
+ let meter=$('#hullMeter');
+ if(!meter){const label=block.querySelector('.eyebrow'),readout=document.createElement('b'),wrap=document.createElement('div');readout.id='hullReadout';label.append(' ',readout);wrap.className='hull-meter';wrap.setAttribute('role','meter');wrap.setAttribute('aria-label','Hull integrity');wrap.setAttribute('aria-valuemin','0');wrap.setAttribute('aria-valuemax','5');wrap.innerHTML='<i id="hullMeter"></i>';block.insertBefore(wrap,$('#hearts'));meter=$('#hullMeter');}
+ const hp=clamp(ship?.hp||0,0,5);meter.style.width=(hp*20)+'%';meter.parentElement.setAttribute('aria-valuenow',String(hp));$('#hullReadout').textContent=hp+' / 5';block.classList.toggle('low-hull',hp<=2);
+}
+if(typeof setInterval==='function')setInterval(refreshHullMeter,80);
 function switchOrb(){if(state!=='playing'||sectorBlend||!weaponOrb.owned)return;weaponOrb.target=weaponOrb.target===0?Math.PI:0;updateHUD();}
 function updateWeaponOrb(dt){const delta=weaponOrb.target-weaponOrb.angle;weaponOrb.angle+=clamp(delta,-Math.PI*dt/.55,Math.PI*dt/.55);}
 
@@ -41,6 +50,7 @@ function placeCheckpointRecovery(){
  });
 }
 function retrySection(){
+ queuedSupplies=[];queuedSupplyLevel=level;lastSupplySpawn=-Infinity;preBossRelief=false;
  if(flightRun)flightRun.retries++;
  const saved={...checkpoint};weaponOrb={owned:saved.orbOwned,angle:saved.orbSide,target:saved.orbSide};resetSector();checkpoint=saved;sectorIntroLead=saved.sceneLead||0;time=sectors[level].checkpoints[saved.section];world=time*SCROLL_SPEED;
  ({score,kills,weapon,power,speedLevel,companion,novas}=saved);novas=Math.max(1,novas);
@@ -76,7 +86,7 @@ function drawBoss(){if(boss)drawMenace(boss)}
 function burst(x,y,color,count=22){for(let i=0;i<count;i++){const a=rand(0,TAU),v=rand(45,320);particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rand(.2,.8),max:.8,c:color,r:rand(1,4)})}rings.push({x,y,r:8,life:.5,c:color})}
 function announce(title,sub=''){const el=$('#announcement');el.textContent=title;if(sub){let small=document.createElement('small');small.textContent=sub;el.append(small)}el.className=/^SECTOR|^FIRST CONTACT/.test(title)?'':'compact';el.style.opacity=1;annTimer=/^SECTOR/.test(title)?2.4:1.8}
 function updateHUD(){$('#score').textContent=String(score).padStart(6,'0');$('#sectorNum').textContent=`${String(level+1).padStart(2,'0')} / ${String(sectors.length).padStart(2,'0')}`;$('#sectorName').textContent=sectors[level].stratum+' · '+sectors[level].short;$('#hearts').textContent='▰ '.repeat(Math.max(0,ship.hp))+'▱ '.repeat(5-Math.max(0,ship.hp));$('#weapon').textContent=`${weaponNames[weapon]} / MK ${['I','II','III'][power-1]}${ship.shield>0?' + SHIELD':''}`;$('#loadout').textContent=`BOOST ${speedLevel}/3 · DRONES ${companion}/2${ship.frontShield?' · GUARD '+ship.frontShield:''}${weaponOrb.owned?' · ORB '+(weaponOrb.target===0?'FRONT':'REAR'):''}`;$('#novas').textContent='● '.repeat(novas)+'○ '.repeat(3-novas);$('#progressLabel').textContent=`${sectors[level].scrollAxis==='down'?'DESCENT · ':sectors[level].scrollAxis==='up'?'ASCENT · ':''}SECTION ${currentSection()+1} / 4`;$('#progress').style.width=Math.min(100,time/sectors[level].duration*100)+'%';$('#status').textContent=state==='playing'?(boss?'BOSS ENGAGED':`SECTION ${currentSection()+1} / 4`):state==='title'?'AWAITING PILOT':state.toUpperCase();if(boss){$('#bosshealth').style.width=Math.max(0,boss.hp/boss.max*100)+'%';const hint=$('#bosstactic');if(hint)hint.textContent=typeof isCapitalSiege==='function'&&isCapitalSiege(boss)?capitalSiegeHint(boss):typeof bossEncounterHint==='function'?bossEncounterHint(boss):boss.exposed>0?'EXPOSED · ATTACK NOW':encounterRules[sectors[level].bossKind].hint;}}
-function fullscreenPanel(){return $('.console')||$('.stage');}
+function fullscreenPanel(){const panel=$('.console')||$('.stage');if(panel?.classList){panel.classList.contains??=()=>false;panel.classList.toggle??=()=>{};}return panel;}
 function nativeFullscreenElement(){return document.fullscreenElement||document.webkitFullscreenElement;}
 function ensureGameFullscreen(){if(!nativeFullscreenElement()&&!fullscreenPanel().classList.contains('expanded'))return toggleGameFullscreen();return requestLandscape();}
 // Resume audio before fullscreen consumes the browser user activation.
@@ -103,6 +113,7 @@ function fire(origin=ship,direction=1,fromOrb=false){
 function damage(){if(ship.inv>0||state!=='playing')return;if(ship.shield>0){ship.shield--;ship.inv=1.2;window.flightAudio?.shipHit(ship.x,true);burst(ship.x,ship.y,'#8ddfff',15)}else{ship.hp--;ship.inv=2;shake=10;flash=.12;burst(ship.x,ship.y,'#ffa782',30);window.flightAudio?.shipHit(ship.x);if(ship.hp<=0)end(false)}updateHUD()}
 function nova(){if(state!=='playing'||sectorBlend||novas<=0)return;novas--;flash=.55;shake=14;for(const e of enemies){explode(e.x,e.y,isOrganicEnemy(e)?'#87ffd1':'#ffb36b',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));score+=100}enemies=[];hostile=[];if(boss){if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))capitalNovaDamage(boss,95);else{boss.hp-=95;boss.hit=.2}}rings.push({x:ship.x,y:ship.y,r:10,life:1.2,c:'#c0fff0'});window.flightAudio?.explosion(ship.x,3,false);updateHUD()}
 function spawn(){
+ if(enemies.filter(e=>!e.satellite&&!e.sentry).length>=levelPacing().maxActiveEnemies)return;
  if(sectors[level].broodWaves.includes(waveIndex)){
   const profile=sectors[level].escortEncounter||null,hp=(130+difficulty()*35)*(profile?1.15:1),type=profile&&!profile.organic?2:3;
   const mother={brood:true,escortProfile:profile,type,x:W+210,y:380,base:380,age:0,phase:waveIndex*.4,speed:115,hp,max:hp,hit:0,r:54,shoot:2};enemies.push(mother);
@@ -140,7 +151,22 @@ function updateBossWeapon(b,dt){
 }
 function updateBossWingAudio(b){if(!bossOrganic()||typeof organicBossWingPhase!=='function')return;const stroke=Math.floor(organicBossWingPhase(bossIndex(),b)/TAU);if(b.wingAudioStroke!==undefined&&stroke>b.wingAudioStroke)window.flightAudio?.wingbeat?.(b.x,b.propulsion||0,bossIndex());b.wingAudioStroke=stroke;}
 function steerHostile(b,dt){b.age=(b.age||0)+dt;if(b.kind==='seed'&&b.age>.85&&!b.split){b.split=true;for(let i=0;i<5;i++){const a=Math.PI+(i-2)*.28;hostile.push({x:b.x,y:b.y,vx:Math.cos(a)*620,vy:Math.sin(a)*620,r:7,scale:1,kind:'spore',c:b.c});}burst(b.x,b.y,b.c,10);b.x=-200;return;}if(b.kind!=='seeker'||b.age>1.8)return;const heading=Math.atan2(b.vy,b.vx),target=Math.atan2(ship.y-b.y,ship.x-b.x),delta=Math.atan2(Math.sin(target-heading),Math.cos(target-heading)),angle=heading+clamp(delta,-.7*dt,.7*dt),speed=Math.hypot(b.vx,b.vy);b.vx=Math.cos(angle)*speed;b.vy=Math.sin(angle)*speed}
-function spawnSupplies(){const plan=supplyPlans[level];while(supplyIndex<plan.length&&time>=plan[supplyIndex].at){const item=plan[supplyIndex++];drops.push({x:W+28,y:item.y,type:item.type,r:23,age:0})}}
+function supplyLaneClear(item){
+ const p=levelPacing(),x=Math.max(ship.x+250,p.pickupX||650),y=item.y;
+ if(drops.length>=p.maxPickups)return false;
+ if(obstacles.some(o=>obstacleSolids(o).some(r=>x+30>r.x&&x-30<r.x+r.w&&y+30>r.y&&y-30<r.y+r.h)))return false;
+ if(hostile.some(b=>b.x>x-180&&b.x<x+180&&Math.abs(b.y-y)<95))return false;
+ return !enemies.some(e=>e.x>x-100&&e.x<x+160&&Math.abs(e.y-y)<78&&!e.satellite);
+}
+function spawnSupplies(){
+ const plan=supplyPlans[level],p=levelPacing();
+ if(queuedSupplyLevel!==level){queuedSupplies=[];queuedSupplyLevel=level;lastSupplySpawn=-Infinity;preBossRelief=false;}
+ while(supplyIndex<plan.length&&time>=plan[supplyIndex].at)queuedSupplies.push(plan[supplyIndex++]);
+ if(p.preBossRelief&&!preBossRelief&&time>=sectors[level].duration-4.5&&ship.hp<=2){queuedSupplies.unshift({type:'repair',y:clamp(ship.y,120,H-120),relief:true});preBossRelief=true;}
+ const item=queuedSupplies[0];
+ if(!item||time-lastSupplySpawn<p.pickupGap||!supplyLaneClear(item))return;
+ queuedSupplies.shift();lastSupplySpawn=time;drops.push({x:Math.max(ship.x+250,p.pickupX||650),y:item.y,type:item.type,r:23,age:0,relief:!!item.relief});
+}
 function enemyExplosionSize(e){return e.satellite?.65:e.brood?1.8:e.type===2?1.5:1}
 function kill(e){score+=e.elite?750:e.type===2?300:150;kills++;explode(e.x,e.y,isOrganicEnemy(e)?'#98ffc5':'#ffb26a',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));updateHUD()}
 function collect(d){

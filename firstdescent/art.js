@@ -265,12 +265,12 @@ function updateBossAttitude(b,dt,vx,vy){
 function bossCombatPhase(b){const ratio=b.max>0?b.hp/b.max:1;return ratio<.28?2:ratio<.62?1:0;}
 function bossPatternBusy(b){return !!(b.pass||b.breath||b.charge>0||b.rush>0||b.vacuum>0||b.barrage>0||b.rackShots>0||b.sporePods?.length||b.salvoWindup||hazards.length||acidClouds.some(h=>h.bossTrap));}
 function holdBossSalvo(b){b.shoot=Math.max(b.shoot||0,1.1);b.attack=null;b.fireHeading=null;}
-function bossEncounterHint(b){const k=bossIndex(),phase=bossCombatPhase(b);if(b.exposed>0)return 'EXPOSED · ATTACK NOW';if(b.pass)return 'DODGE THE CHARGE · SWITCH YOUR ORB';if(k===0)return 'FIRE BREATH · WATCH ITS MOUTH';if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return 'SWEEPING CANNON · FOLLOW THE SAFE SIDE';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → CLAW DIVE → ELEMENTAL STRIKE'+(phase===2?' · ENRAGED':'');return '';}
+function bossEncounterHint(b){const k=bossIndex(),phase=bossCombatPhase(b);if(b.exposed>0)return 'EXPOSED · ATTACK NOW';if(b.pass)return 'DODGE THE CHARGE · SWITCH YOUR ORB';if(k===0)return b.breath?.kind==='wind'?'WINGSTORM · CUT ACROSS THE PRESSURE':'FIRE BREATH · WATCH ITS MOUTH';if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return 'SWEEPING CANNON · FOLLOW THE SAFE SIDE';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → CLAW DIVE → ELEMENTAL STRIKE'+(phase===2?' · ENRAGED':'');return '';}
 function updateBossSpecial(b,dt){
  if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){updateCapitalSiege(b,dt);return;}
  const kind=bossIndex(),phase=bossCombatPhase(b),hadBreath=!!b.breath;
  b.recovery=Math.max(0,(b.recovery||0)-dt);updateBreath(b,dt);updateTechLaser(b,dt);updateBossSporePods(b,dt);updateEyeAttack(b,dt);
- if(hadBreath&&!b.breath){b.recovery=kind===0?2:1.6;b.exposed=Math.max(b.exposed||0,kind===2?3:1.5);}
+ if(hadBreath&&!b.breath){b.recovery=kind===0?2:1.6;b.exposed=Math.max(b.exposed||0,kind===2?3:1.5);if(kind===0&&b.wardenCombo){b.wardenCombo=false;b.passClock=0;}}
  if(b.comboPassPending&&b.pass)b.comboPassStarted=true;
  if(b.comboPassPending&&b.comboPassStarted&&!b.pass){b.comboPassPending=false;b.comboPassStarted=false;b.recovery=1.6;}
  if(b.pass){b.charge=0;b.salvoWindup=null;holdBossSalvo(b);return;}
@@ -279,7 +279,7 @@ function updateBossSpecial(b,dt){
  if(bossPatternBusy(b)||b.recovery>0){holdBossSalvo(b);}else b.special-=dt;
  if(b.special<=0&&!bossPatternBusy(b)&&!b.recovery){
   b.lockY=clamp(ship.y,110,H-110);b.lockX=ship.x;b.specialCount=(b.specialCount||0)+1;b.special=kind===0?8.8-phase*.8:8-phase*.7;
-  if(kind===0){startBreath(b,'fire',1.45,{duration:1.65+phase*.25});announce('WARDEN INHALING','KEEP CLEAR OF ITS MOUTH');}
+  if(kind===0){const wingstorm=phase>0&&b.specialCount%2===0;if(wingstorm){startBreath(b,'wind',1.15,{duration:1.25+phase*.18,sweep:.24+phase*.07});announce('WARDEN WINGS LOCKING','CROSS THE PRESSURE BEFORE IT BUILDS');}else{startBreath(b,'fire',1.45,{duration:1.65+phase*.25});b.wardenCombo=phase===2&&b.specialCount%3===0;announce('WARDEN INHALING',b.wardenCombo?'FIRE WILL FLOW INTO A DIVING STRIKE':'KEEP CLEAR OF ITS MOUTH');}}
   else if(kind===2){const pressure=phase>0&&b.specialCount%2===0;startBreath(b,pressure?'wind':'water',1.65,{duration:pressure?1.8:2.3+phase*.2,sweep:(pressure?.38:.20)+phase*.025});b.pressureFollowup=pressure;announce(pressure?'PRESSURE FRONT BUILDING':'SOVEREIGN TIDAL SWEEP',pressure?'DODGE THE PUSH · A WATER JET FOLLOWS':'MOVE AHEAD OF THE BLUE SWEEP');}
   else{b.charge=1.5;b.specialFired=false;announce('MISSILE RACKS OPEN','MOVE AWAY FROM THE TARGET MARKER');}
  }

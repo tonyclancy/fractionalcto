@@ -33,6 +33,7 @@ function validateLevels(definitions){
   if(l.scrollAxis&&!['up','down'].includes(l.scrollAxis))fail(l,'invalid scroll axis');
   if(l.entrySides&&(!Array.isArray(l.entrySides)||!l.entrySides.length||l.entrySides.some(side=>!['right','left','top','bottom'].includes(side))))fail(l,'invalid entry side');
   if(l.challenge){const c=l.challenge;if(typeof c.title!=='string'||!finite(c.at)||!finite(c.end)||c.at<0||c.end<=c.at||c.end>=l.duration||!Array.isArray(c.waves)||!ordered(c.waves)||c.waves.some(t=>t<c.at||t>c.end)||!Array.isArray(c.types)||!c.types.length||c.types.some(t=>!Number.isInteger(t)||t<0||t>3)||!Number.isInteger(c.count)||c.count<1||c.count>6||!finite(c.speed)||c.speed<.5||c.speed>2)fail(l,'invalid mid-sector challenge');}
+  if(l.pacing){const p=l.pacing;if(!finite(p.pickupGap)||p.pickupGap<1.5||p.pickupGap>5||!Number.isInteger(p.maxPickups)||p.maxPickups<1||p.maxPickups>2||!Number.isInteger(p.maxActiveEnemies)||p.maxActiveEnemies<5||p.maxActiveEnemies>18||!finite(p.pickupX)||p.pickupX<420||p.pickupX>900||typeof p.preBossRelief!=='boolean')fail(l,'invalid readability pacing');}
   if(!Array.isArray(l.obstacles)||!ordered(l.obstacles.map(o=>o.at)))fail(l,'invalid obstacle timing');
   if(l.enemyHealthScale!==undefined&&(!finite(l.enemyHealthScale)||l.enemyHealthScale<1||l.enemyHealthScale>2))fail(l,'invalid enemy health scale');
   if(l.bossArmor!==undefined&&(!finite(l.bossArmor)||l.bossArmor<1||l.bossArmor>2))fail(l,'boss armor must be between 1 and 2');
@@ -1736,6 +1737,23 @@ levelDefinitions.forEach((l,i)=>{l.medium=[2,3].includes(i)?'water':'air';l.revi
 levelDefinitions[3].stratum='SUBMERGED REEF';
 levelDefinitions[3].expeditionNote='Flooded fungal reefs · symbiotic machines';
 levelDefinitions[4].models[1]='stormMoth';levelDefinitions[4].models[3]='stormPolyp';
+// Readability is authored alongside each biome. Future levels inherit these
+// constraints: one meaningful pickup on screen, bounded active formations and
+// a low-hull recovery beat before the boss rather than a surprise attrition wall.
+const readabilityPacing=[
+ {pickupGap:2.7,maxPickups:1,maxActiveEnemies:8,pickupX:610,preBossRelief:true},
+ {pickupGap:2.5,maxPickups:1,maxActiveEnemies:10,pickupX:650,preBossRelief:true},
+ {pickupGap:2.35,maxPickups:1,maxActiveEnemies:11,pickupX:670,preBossRelief:true},
+ {pickupGap:2.25,maxPickups:1,maxActiveEnemies:12,pickupX:680,preBossRelief:true},
+ {pickupGap:2.15,maxPickups:1,maxActiveEnemies:13,pickupX:690,preBossRelief:true},
+ {pickupGap:2.05,maxPickups:1,maxActiveEnemies:14,pickupX:700,preBossRelief:true}
+];
+levelDefinitions.forEach((l,i)=>{l.pacing=readabilityPacing[i];l.revision++;});
+// The opening teaches route choice first, then the ambush. It no longer stacks
+// three dense bonus waves on top of the player's first weapon decisions.
+levelDefinitions[0].challenge.waves=[25,29,33];
+levelDefinitions[0].challenge.count=2;
+levelDefinitions[0].revision++;
 const campaign=freezeContent(validateLevels(levelDefinitions));
 const CAMPAIGN_VERSION=campaign.map(l=>l.id+'@'+l.revision).join('|');
 
