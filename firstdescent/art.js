@@ -188,6 +188,8 @@ function drawBossDrives(b,d){
  if(!d.drives)return;const thrust=b.propulsion||0,scale=d.scale*bossFlightPose(b).depth;
  ctx.save();ctx.globalCompositeOperation='lighter';
  for(const drive of d.drives){
+  const ignition=b.siege?.nodes.find(n=>n.id==='reactor')?.special;
+  if(ignition?.kind==='purge'&&d.drives[ignition.driveIndex||0]===drive)continue;
   const length=26+thrust*53+(Math.sin(b.age*34)+Math.sin(b.age*51))*(2+thrust*3),a=bossMount(b,drive.center),end=drive.center.map((v,i)=>v+drive.axis[i]*length),z=bossMount(b,end),dx=z.x-a.x,dy=z.y-a.y,n=Math.hypot(dx,dy)||1,r=drive.radius*scale,nx=-dy/n*r,ny=dx/n*r;
   const glow=ctx.createLinearGradient(a.x,a.y,z.x,z.y);glow.addColorStop(0,'rgba(209,245,255,.86)');glow.addColorStop(.22,'rgba(104,203,255,.65)');glow.addColorStop(.65,'rgba(92,143,255,.22)');glow.addColorStop(1,'rgba(69,114,255,0)');
   ctx.fillStyle=glow;ctx.beginPath();ctx.moveTo(a.x+nx,a.y+ny);ctx.quadraticCurveTo(a.x+dx*.5+nx*.55,a.y+dy*.5+ny*.55,z.x,z.y);ctx.quadraticCurveTo(a.x+dx*.5-nx*.55,a.y+dy*.5-ny*.55,a.x-nx,a.y-ny);ctx.closePath();ctx.fill();orb(a.x,a.y,r*.85,'#b6eaff',.45+thrust*.25);
