@@ -70,7 +70,7 @@ window.flightAudio=(()=>{
   roomBuffers.set(environment,buffer);return buffer;
  }
  function applyEnvironment(){if(!context)return;const p=acoustics[environment];worldFilter.frequency.setTargetAtTime(p.cutoff,context.currentTime,.18);if(room){room.buffer=impulse(p);roomSend.gain.setTargetAtTime(p.wet,context.currentTime,.18);}}
- function setEnvironment(medium='air',theme='verdant'){const next=medium==='water'?'water':theme==='forge'?'hangar':['core','storm'].includes(theme)?'cavern':'air';if(next===environment)return;environment=next;applyEnvironment();}
+ function setEnvironment(medium='air',theme='verdant',habitat=''){const next=medium==='water'?'water':['high-atmosphere','low-atmosphere','surface','stellar-corona'].includes(habitat)?'air':theme==='forge'?'hangar':['core','storm'].includes(theme)?'cavern':'air';if(next===environment)return;environment=next;applyEnvironment();}
  function duckWorld(duration){if(!worldDucker)return;const t=context.currentTime;worldDuckUntil=Math.max(worldDuckUntil,t+duration);const p=worldDucker.gain;if(p.cancelAndHoldAtTime)p.cancelAndHoldAtTime(t);else p.cancelScheduledValues(t);p.setTargetAtTime(.28,t,.035);p.setTargetAtTime(1,worldDuckUntil,.3);}
  function stopVoice(v){try{v.osc.stop()}catch{}v.dispose()}
  function sweepVoices(){if(!context)return;for(const v of [...voices,...releasing])if(v.endAt<=context.currentTime)stopVoice(v)}

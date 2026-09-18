@@ -22,10 +22,10 @@ const BOSS_ENCOUNTERS=freezeContent({
  regent:{anatomy:'Gyroscopic armoured storm machine',inspiration:'gyroscope / storm cell',habitat:'air',power:'ion-sweep',signature:'ION SHEAR',cooldown:3.9,phaseStep:.35,warning:1.9},
  mother:{anatomy:'Compound eyes, six legs, two wings and halteres',inspiration:'horsefly / parasitoid wasp',habitat:'air',power:'brood-tempest',signature:'BROOD TEMPEST',cooldown:5.1,phaseStep:.4,warning:1.85}
 });
-function bossEncounterProfile(l){return BOSS_ENCOUNTERS[l.encounter||l.bossKind];}
+function bossEncounterProfile(l){return l.encounterProfile||BOSS_ENCOUNTERS[l.encounter||l.bossKind];}
 // Shared tuning keeps future encounters within the same learnable combat rhythm.
 const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.25,specialRest:1.15,hitGrace:2.4,shieldGrace:1.5,breathTracking:.55});
-const GAME_RULESET='2026-09-alien-flight-v27';
+const GAME_RULESET='2026-09-alien-flight-v28';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova','rescue']);
@@ -55,7 +55,10 @@ function validateLevels(definitions){
   if(l.recovery.some(d=>!finite(d.x)||d.x<270||d.x>900))fail(l,'recovery pickup out of reach');
   if(l.scrollAxis&&!['up','down'].includes(l.scrollAxis))fail(l,'invalid scroll axis');
   if(l.environment&&!ENVIRONMENTS[l.environment])fail(l,'unknown environment');
+  if(l.flightRoute){const r=l.flightRoute;if(!finite(r.period)||r.period<10||!finite(r.drive)||r.drive<=0||!finite(r.speed)||r.speed<100||r.speed>500||!Array.isArray(r.points)||r.points.length<4||r.points.some(p=>!Array.isArray(p)||p.length!==2||p.some(v=>!finite(v))))fail(l,'invalid boss flight route');}
+  if(l.bossPalette&&(!Array.isArray(l.bossPalette)||l.bossPalette.length!==3||l.bossPalette.some(v=>!finite(v)||v<.3||v>1.5)))fail(l,'invalid boss palette');
   const encounter=bossEncounterProfile(l);if(!encounter||encounter.habitat!==(l.medium||encounter.habitat))fail(l,'encounter habitat mismatch');
+  if(!Object.values(BOSS_ENCOUNTERS).some(e=>e.power===encounter.power)||!finite(encounter.cooldown)||encounter.cooldown<3||!finite(encounter.warning)||encounter.warning<1||!finite(encounter.phaseStep))fail(l,'invalid encounter profile');
   if(l.atmosphere&&['heat','clouds'].some(k=>!finite(l.atmosphere[k])||l.atmosphere[k]<0||l.atmosphere[k]>1))fail(l,'atmosphere heat/clouds must be between 0 and 1');
   if(l.entrySides&&(!Array.isArray(l.entrySides)||!l.entrySides.length||l.entrySides.some(side=>!['right','left','top','bottom'].includes(side))))fail(l,'invalid entry side');
   if(l.challenge){const c=l.challenge;if(typeof c.title!=='string'||!finite(c.at)||!finite(c.end)||c.at<0||c.end<=c.at||c.end>=l.duration||!Array.isArray(c.waves)||!ordered(c.waves)||c.waves.some(t=>t<c.at||t>c.end)||!Array.isArray(c.types)||!c.types.length||c.types.some(t=>!Number.isInteger(t)||t<0||t>3)||!Number.isInteger(c.count)||c.count<1||c.count>6||!finite(c.speed)||c.speed<.5||c.speed>2)fail(l,'invalid mid-sector challenge');}
@@ -1796,7 +1799,7 @@ levelDefinitions.forEach(l=>{
 // descent (planet) or a flight through the corona (star). Only authored stages
 // are published; a catalog entry never silently fabricates playable content.
 const GALAXY=freezeContent({id:'the-pale-spiral',name:'THE PALE SPIRAL'});
-const PLANET_SURFACE_ATLASES=freezeContent({original:'planet-surfaces-v1.webp',frontier:'planet-frontier-v1.webp'});
+const PLANET_SURFACE_ATLASES=freezeContent({original:'planet-surfaces-v1.webp',frontier:'planet-frontier-v1.webp',orison:'planet-orison-v1.webp'});
 const ORBITAL_ZONES=freezeContent({inner:{label:'HOT INNER WORLDS',climates:['hot']},temperate:{label:'TEMPERATE WORLDS',climates:['temperate']},outer:{label:'ICE & GAS WORLDS',climates:['ice','gas']},stellar:{label:'STELLAR CORONA',climates:['plasma']}});
 function buildExpedition(releases,definitions){
  const ids=new Set(),stages=new Map(definitions.map(l=>[l.id,l])),used=new Set(),route=[],locations={};
@@ -1817,19 +1820,35 @@ function buildExpedition(releases,definitions){
  if(!route.length)throw Error('Expedition needs playable stages');
  return {stages:route,locations};
 }
-const contentReleases=freezeContent([{id:'first-contact',version:3,month:'2026-09',systems:[{
- id:'vesper-system',name:'VESPER',star:{name:'VESPER A',type:'AMBER STAR'},destinations:[
+// Orison retains the deeper encounters, reauthors their worlds, then adds a
+// subglacial finale. The first system deliberately teaches only three planets.
+Object.assign(levelDefinitions[3],{name:'THE CHOIR TRENCH',short:'CHOIR TRENCH',boss:'THE CHOIRKEEPER',background:'orisonOcean',chapter:2,expeditionNote:'Thalassa · a living ocean beneath Orison A'});
+Object.assign(levelDefinitions[4],{name:'THE AMBER GYRE',short:'AMBER GYRE',boss:'THE TEMPEST ENGINE',background:'orisonGas',ringsInPainting:true,chapter:2,environment:'high-atmosphere',stratum:'GAS-GIANT CLOUD DECK',atmosphere:{clouds:.85,heat:0,water:0},expeditionNote:'Veyra · storm collectors above a ringed gas giant'});
+Object.assign(levelDefinitions[5],{name:'THE ASHEN NEST',short:'ASHEN NEST',boss:'THE CINDER QUEEN',background:'orisonCinder',chapter:2,expeditionNote:'Cinder · ember hives below a scorched crust'});
+const nivara=JSON.parse(JSON.stringify(levelDefinitions[2]));
+Object.assign(nivara,{id:'nivara-glacial-heart',revision:1,name:'THE GLACIAL HEART',short:'GLACIAL HEART',boss:'THE RIME LEVIATHAN',background:'orisonIce',chapter:2,environment:'deep-undersea',stratum:'SUBGLACIAL OCEAN',medium:'water',atmosphere:{water:1,heat:0,clouds:0},expeditionNote:'Nivara · a pressure hunter beneath the frozen ocean',duration:64,checkpoints:[0,16,32,48],difficulty:4.5,hp:3600,bossArmor:1.16,color:'#abdff4',fog:'#18304a',sky:'#061524',planet:'#487e98',music:2,entrySides:['right','right','left','right'],routes:[380,170,560,300,460],roster:[1,3,0,1,2,3],broodWaves:[4,12],bossPalette:[.64,.94,1.23],flightRoute:{period:21,drive:3.4,speed:345,points:[[1120,230],[890,530],[700,420],[850,190],[1200,440],[1110,550]]},encounterProfile:{...BOSS_ENCOUNTERS.sovereign,signature:'GLACIAL PRESSURE',cooldown:6.5,warning:1.9}});
+nivara.waves=Array.from({length:20},(_,i)=>Number((1.5+i*2.95).toFixed(2)));
+nivara.obstacles.forEach(o=>{o.at=Number((o.at*64/56).toFixed(2));});
+nivara.supplies.forEach(d=>{d.at=d.type==='rescue'?16.5:Number((d.at*64/56).toFixed(2));});nivara.supplies.sort((a,b)=>a.at-b.at);
+nivara.challenge={title:'THE ICE NEEDLE PASS',at:27,end:39,waves:[28,32,36],types:[1,3],count:2,speed:1.05,gate:false};
+nivara.pacing={pickupGap:2.4,maxPickups:1,maxActiveEnemies:12,pickupX:660,preBossRelief:true};
+nivara.escortEncounter={...nivara.escortEncounter,name:'FROST SHEPHERD',pace:1.04,count:3};
+levelDefinitions.push(nivara);
+for(const l of levelDefinitions.slice(3,6))l.revision++;
+const contentReleases=freezeContent([
+ {id:'first-contact',version:4,month:'2026-09',systems:[{id:'vesper-system',name:'VESPER',star:{name:'VESPER A',type:'AMBER STAR'},destinations:[
   {id:'caelus',name:'CAELUS',kind:'planet',orbitalZone:'temperate',orbit:1.4,climate:'temperate',rings:true,orbitPhase:-.55,stages:[levelDefinitions[0].id]},
   {id:'ferrum',name:'FERRUM',kind:'planet',orbitalZone:'inner',orbit:.85,climate:'hot',rings:false,orbitPhase:2.3,surfaceAtlas:'frontier',surfaceBand:0,stages:[levelDefinitions[1].id]},
-  {id:'nacre',name:'NACRE',kind:'planet',orbitalZone:'outer',orbit:4.8,climate:'ice',rings:false,orbitPhase:3.9,stages:[levelDefinitions[2].id]},
-  {id:'pelagos',name:'PELAGOS',kind:'planet',orbitalZone:'temperate',orbit:2.6,climate:'temperate',rings:false,orbitPhase:1.0,surfaceAtlas:'frontier',surfaceBand:1,stages:[levelDefinitions[3].id]},
-  {id:'voltis',name:'VOLTIS',kind:'planet',orbitalZone:'inner',orbit:.45,climate:'hot',rings:false,orbitPhase:3.55,surfaceAtlas:'frontier',surfaceBand:2,stages:[levelDefinitions[4].id]},
-  {id:'pyra',name:'PYRA',kind:'planet',orbitalZone:'inner',orbit:.2,climate:'hot',rings:false,orbitPhase:-.6,stages:[levelDefinitions[5].id]}
- ]
-}]}]);
+  {id:'nacre',name:'NACRE',kind:'planet',orbitalZone:'outer',orbit:4.8,climate:'ice',rings:false,orbitPhase:3.9,stages:[levelDefinitions[2].id]}
+ ]}]},
+ {id:'orison-frontier',version:1,month:'2026-10',systems:[{id:'orison-system',name:'ORISON',star:{name:'ORISON A',type:'PALE GOLD STAR'},destinations:[
+  {id:'thalassa',name:'THALASSA',kind:'planet',orbitalZone:'temperate',orbit:1.6,climate:'temperate',rings:false,orbitPhase:2.1,surfaceAtlas:'orison',surfaceBand:0,stages:[levelDefinitions[3].id]},
+  {id:'veyra',name:'VEYRA',kind:'planet',orbitalZone:'outer',orbit:4.5,climate:'gas',rings:true,ringTilt:.28,orbitPhase:-.55,surfaceAtlas:'orison',surfaceBand:1,stages:[levelDefinitions[4].id]},
+  {id:'cinder',name:'CINDER',kind:'planet',orbitalZone:'inner',orbit:.25,climate:'hot',rings:false,orbitPhase:3.65,surfaceAtlas:'orison',surfaceBand:2,stages:[levelDefinitions[5].id]},
+  {id:'nivara',name:'NIVARA',kind:'planet',orbitalZone:'outer',orbit:8.2,climate:'ice',rings:false,orbitPhase:1.0,surfaceLongitude:.34,stages:[nivara.id]}
+ ]}]}
+]);
 levelDefinitions[1].expeditionNote='Ferrum · abandoned planetary foundry';
-levelDefinitions[3].expeditionNote='Pelagos · deep ocean reefs and pressure-adapted life';
-levelDefinitions[4].stratum='SUPERHEATED CAVERNS';levelDefinitions[4].expeditionNote='Voltis · electrical storms beneath the scorched surface';levelDefinitions[4].atmosphere.heat=.65;
 function expeditionSystem(location){return contentReleases.flatMap(r=>r.systems).find(s=>s.id===location.systemId);}
 const expedition=buildExpedition(contentReleases,levelDefinitions);
 freezeContent(expedition.locations);

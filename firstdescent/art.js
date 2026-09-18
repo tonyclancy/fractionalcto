@@ -1,5 +1,5 @@
 /* Painted scenery and sprite artwork, with procedural animation and combat effects. */
-const art={},artFiles={"reefObstacle":"obstacle-reef.webp","stormObstacle":"obstacle-storm.webp","coreObstacle":"obstacle-core.webp","colonyObstacle":"obstacle-colony.webp","carrierObstacle":"obstacle-carrier.webp","derelictObstacle":"obstacle-derelict.webp","space":"space-panorama.webp","carrier":"carrier-panorama.webp","abyss":"abyss-panorama.webp","reef":"reef-descent.webp","storm":"storm-ascent.webp","core":"core-panorama.webp"};
+const art={},artFiles={"orisonOcean":"orison-ocean-v1.webp","orisonGas":"orison-gas-v1.webp","orisonCinder":"orison-cinder-v1.webp","orisonIce":"orison-ice-v1.webp","reefObstacle":"obstacle-reef.webp","stormObstacle":"obstacle-storm.webp","coreObstacle":"obstacle-core.webp","colonyObstacle":"obstacle-colony.webp","carrierObstacle":"obstacle-carrier.webp","derelictObstacle":"obstacle-derelict.webp","space":"space-panorama.webp","carrier":"carrier-panorama.webp","abyss":"abyss-panorama.webp","reef":"reef-descent.webp","storm":"storm-ascent.webp","core":"core-panorama.webp"};
 const artCrops={"reefObstacle":{"x":62,"y":24,"w":920,"h":1485},"stormObstacle":{"x":141,"y":14,"w":748,"h":1502},"coreObstacle":{"x":51,"y":6,"w":964,"h":1519},"colonyObstacle":{"x":260,"y":5,"w":509,"h":1525},"carrierObstacle":{"x":230,"y":2,"w":559,"h":1526},"derelictObstacle":{"x":255,"y":4,"w":530,"h":1527}};
 function loadArt(key){
  if(art[key]||!artFiles[key])return art[key];
@@ -317,7 +317,14 @@ function drawBossChamber(b){
 }
 function serpentSegments(b){const pose=bossFlightPose(b);return Array.from({length:11},(_,i)=>{const q=i+1,v=projectHull([q*21+Math.sin(b.age*.9-q*.3)*q*3,Math.sin(b.age*1.8-q*.48)*q*12,Math.cos(b.age-q*.3)*q*5],pose.yaw,pose.roll,pose.pitch);return{x:b.x-30+v.x*pose.depth,y:b.y+v.y*pose.depth,scale:(2.1-q*.12)*pose.depth}})}
 // Body-space sockets, animation and collision volumes share one transform.
-function bossDesign(kind=bossIndex()){if(kind===1&&typeof isCapitalSiege==='function'&&isCapitalSiege(typeof boss==='undefined'?null:boss))return capitalShipDesign(boss);return (typeof alienBossDesigns!=='undefined'&&alienBossDesigns[kind])||(typeof machineBossDesigns!=='undefined'&&machineBossDesigns[kind])||null;}
+const bossVariants=new Map();
+function bossDesign(kind=bossIndex()){
+ if(kind===1&&typeof isCapitalSiege==='function'&&isCapitalSiege(typeof boss==='undefined'?null:boss))return capitalShipDesign(boss);
+ const base=(typeof alienBossDesigns!=='undefined'&&alienBossDesigns[kind])||(typeof machineBossDesigns!=='undefined'&&machineBossDesigns[kind])||null,definition=sectors[level],palette=definition.bossPalette;
+ if(!base||!palette||kind!==bossIndex())return base;
+ if(!bossVariants.has(definition.id)){const mesh=base.mesh.map(f=>({...f,c:f.c.map((v,i)=>Math.min(255,Math.round(v*palette[i])))}));for(const k of ['skin','dynamic','alienMaterial'])mesh[k]=base.mesh[k];bossVariants.set(definition.id,{...base,mesh});}
+ return bossVariants.get(definition.id);
+}
 function bossLocalPoint(b,local){return bossOrganic()&&typeof alienBossPoint==='function'?alienBossPoint(bossIndex(),b,local):local;}
 function bossMount(b,local){const d=bossDesign(),p=bossFlightPose(b),v=rotateVertex(bossLocalPoint(b,local),p.yaw,p.roll,p.pitch,0,0),scale=d.scale*p.depth;return{x:b.x+v[0]*scale,y:b.y+v[1]*scale};}
 // Exhaust follows the animated engine outlet through the same body transform.
@@ -358,7 +365,7 @@ const bossFlightRoutes=[
  {period:14,drive:4.6,speed:430,points:[[1170,190],[850,235],[720,430],[980,560],[1200,410],[1060,285]]},
  {period:12.8,drive:3.8,speed:455,points:[[1170,320],[1160,325],[860,185],[850,190],[1075,540],[1080,530],[715,395],[730,390],[1190,245],[1180,250]]}
 ];
-function bossRoutePoint(kind,t){const r=bossFlightRoutes[kind],n=r.points.length,q=((t/r.period*n)%n+n)%n,i=Math.floor(q),u=q-i,u2=u*u,u3=u2*u;const a=r.points[(i+n-1)%n],b=r.points[i],c=r.points[(i+1)%n],d=r.points[(i+2)%n];return{x:.5*((2*b[0])+(-a[0]+c[0])*u+(2*a[0]-5*b[0]+4*c[0]-d[0])*u2+(-a[0]+3*b[0]-3*c[0]+d[0])*u3),y:.5*((2*b[1])+(-a[1]+c[1])*u+(2*a[1]-5*b[1]+4*c[1]-d[1])*u2+(-a[1]+3*b[1]-3*c[1]+d[1])*u3)};}
+function bossRoutePoint(kind,t,r=bossFlightRoutes[kind]){const n=r.points.length,q=((t/r.period*n)%n+n)%n,i=Math.floor(q),u=q-i,u2=u*u,u3=u2*u;const a=r.points[(i+n-1)%n],b=r.points[i],c=r.points[(i+1)%n],d=r.points[(i+2)%n];return{x:.5*((2*b[0])+(-a[0]+c[0])*u+(2*a[0]-5*b[0]+4*c[0]-d[0])*u2+(-a[0]+3*b[0]-3*c[0]+d[0])*u3),y:.5*((2*b[1])+(-a[1]+c[1])*u+(2*a[1]-5*b[1]+4*c[1]-d[1])*u2+(-a[1]+3*b[1]-3*c[1]+d[1])*u3)};}
 function driveBoss(b,target,dt,drive,speed){
  const vx=b.navVX||0,vy=b.navVY||0;let nx=vx+((target.x-b.x)*drive*drive-2*drive*vx)*dt,ny=vy+((target.y-b.y)*drive*drive-2*drive*vy)*dt;
  const magnitude=Math.hypot(nx,ny),limit=speed/Math.max(speed,magnitude);b.navVX=nx*limit;b.navVY=ny*limit;b.x+=b.navVX*dt;b.y+=b.navVY*dt;
@@ -368,8 +375,8 @@ function moveBoss(b,dt){if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)
  if(!crossing&&Math.abs(ship.x-b.x)>120&&!b.breath){const targetYaw=ship.x>b.x?Math.PI:0;b.turnYaw=(b.turnYaw||0)+clamp(targetYaw-(b.turnYaw||0),-dt*2.4,dt*2.4);}
  if(crossing){b.navVX=(b.x-oldX)/dt;b.navVY=(b.y-oldY)/dt;}
  else{
-  const route=bossFlightRoutes[kind];b.patrolTime=(b.patrolTime||0)+dt*(1.25+bossCombatPhase(b)*.12);
-  let target=bossRoutePoint(kind,b.patrolTime),drive=route.drive*1.15,speed=route.speed*1.25;
+  const route=sectors[level].flightRoute||bossFlightRoutes[kind];b.patrolTime=(b.patrolTime||0)+dt*(1.25+bossCombatPhase(b)*.12);
+  let target=bossRoutePoint(kind,b.patrolTime,route),drive=route.drive*1.15,speed=route.speed*1.25;
   const braced=kind===4&&(b.charge>0||hazards.some(h=>h.kind==='tech'));
   if(braced){b.weaponAnchor??={x:b.x,y:b.y};target=b.weaponAnchor;drive=5;speed=220;}
   else b.weaponAnchor=null;
@@ -421,7 +428,7 @@ function updateBossSpecial(b,dt){
  if(b.special<=0&&!bossPatternBusy(b)&&!b.recovery){
   b.lockY=clamp(ship.y,110,H-110);b.lockX=ship.x;b.specialCount=(b.specialCount||0)+1;b.special=(profile.cooldown-phase*profile.phaseStep)*COMBAT_BALANCE.specialRest;
   if(profile.power==='furnace-gale'){const wingstorm=phase>0&&b.specialCount%2===0;if(wingstorm){startBreath(b,'wind',1.15,{duration:1.25+phase*.18,sweep:.24+phase*.07});announce('WARDEN WINGS LOCKING','CROSS THE PRESSURE BEFORE IT BUILDS');}else{startBreath(b,'fire',profile.warning,{duration:1.65+phase*.25});b.wardenCombo=phase===2&&b.specialCount%3===0;announce('WARDEN INHALING',b.wardenCombo?'FIRE WILL FLOW INTO A DIVING STRIKE':'KEEP CLEAR OF ITS MOUTH');}}
-  else if(profile.power==='tidal-pressure'){const pressure=phase>0&&b.specialCount%2===0;startBreath(b,pressure?'wind':'water',profile.warning,{duration:pressure?1.8:2.3+phase*.2,sweep:(pressure?.38:.20)+phase*.025});b.pressureFollowup=pressure;announce(pressure?'PRESSURE FRONT BUILDING':'SOVEREIGN TIDAL SWEEP',pressure?'DODGE THE PUSH · A WATER JET FOLLOWS':'MOVE AHEAD OF THE BLUE SWEEP');}
+  else if(profile.power==='tidal-pressure'){const pressure=phase>0&&b.specialCount%2===0;startBreath(b,pressure?'wind':'water',profile.warning,{duration:pressure?1.8:2.3+phase*.2,sweep:(pressure?.38:.20)+phase*.025});b.pressureFollowup=pressure;announce(pressure?'PRESSURE FRONT BUILDING':profile.signature,pressure?'DODGE THE PUSH · A WATER JET FOLLOWS':'MOVE AHEAD OF THE BLUE SWEEP');}
   else{b.charge=1.5;b.specialFired=false;announce('MISSILE RACKS OPEN','MOVE AWAY FROM THE TARGET MARKER');}
  }
  if(kind===2&&b.pressureFollowup&&!b.breath&&b.recovery===0){b.pressureFollowup=false;b.lockY=clamp(ship.y,110,H-110);b.lockX=ship.x;startBreath(b,'water',1.3,{duration:1.7,sweep:-.24});announce('PRESSURE RELEASE','WATER JET · KEEP MOVING');}
@@ -1074,41 +1081,44 @@ function drawNavigationSun(c,x,y,r){
  const g=c.createRadialGradient(x,y,0,x,y,r*3.8);g.addColorStop(0,'#fffbd8');g.addColorStop(.20,'#fff2a7');g.addColorStop(.27,'#ffd173');g.addColorStop(.38,'#ffb34b80');g.addColorStop(.65,'#e8873424');g.addColorStop(1,'#cc612600');c.fillStyle=g;c.fillRect(x-r*3.8,y-r*3.8,r*7.6,r*7.6);
  c.fillStyle='#fff0ba';c.beginPath();c.arc(x,y,r,0,TAU);c.fill();
 }
-function systemOrbitLayout(system){
- return system.destinations.filter(d=>d.kind==='planet').sort((a,b)=>a.orbit-b.orbit).map((d,i,a)=>{const radius=115+i*200/Math.max(1,a.length-1),phase=d.orbitPhase??(-.7+i*2.35);return {destination:d,radius,x:400+Math.cos(phase)*radius,y:272+Math.sin(phase)*radius*.59};});
+function systemOrbitLayout(system,seconds=0){
+ return system.destinations.filter(d=>d.kind==='planet').sort((a,b)=>a.orbit-b.orbit).map((d,i,a)=>{const radius=115+i*200/Math.max(1,a.length-1),phase=(d.orbitPhase??(-.7+i*2.35))+seconds*.14/Math.pow(Math.max(.4,d.orbit),.42);return {destination:d,radius,x:400+Math.cos(phase)*radius,y:272+Math.sin(phase)*radius*.59};});
 }
 function systemArtwork(system,selectedId){
  const key=system.id+':'+selectedId;if(systemSurfaces.has(key))return systemSurfaces.get(key);
- const surface=document.createElement('canvas');surface.width=800;surface.height=550;const c=surface.getContext('2d');
+ const surface=document.createElement('canvas');surface.width=800;surface.height=550;paintSystemChart(surface.getContext('2d'),system,selectedId,0);systemSurfaces.set(key,surface);return surface;
+}
+function paintSystemChart(c,system,selectedId,seconds){
  const haze=c.createRadialGradient(400,270,0,400,270,360);haze.addColorStop(0,'#5b402336');haze.addColorStop(1,'#05132500');c.fillStyle=haze;c.fillRect(0,0,800,550);
  for(let i=0;i<150;i++){c.globalAlpha=.15+(i%5)*.08;c.fillStyle='#b5d5df';c.fillRect((i*193)%800,(i*131)%550,i%8?1:2,1);}c.globalAlpha=1;
- const layout=systemOrbitLayout(system);
+ const layout=systemOrbitLayout(system,seconds);
  for(const item of layout){c.strokeStyle=item.destination.id===selectedId?'#b8e4ceac':'#a9c3cf70';c.lineWidth=item.destination.id===selectedId?1.5:1;c.beginPath();c.ellipse(400,272,item.radius,item.radius*.59,0,0,TAU);c.stroke();}
  drawNavigationSun(c,400,272,34);c.textAlign='center';c.fillStyle='#ffe4a7';c.font='bold 15px monospace';c.fillText(system.star.name,400,328);c.font='10px monospace';c.fillStyle='#b89b75';c.fillText(system.star.type||'SYSTEM STAR',400,346);
- for(const item of layout){const d=item.destination,location=expedition.locations[d.stages[0]]||{...d,destinationId:d.id};drawNavigationPlanet(c,item.x,item.y,d.id===selectedId?40:29,location);c.font='bold 16px monospace';c.fillStyle=d.id===selectedId?'#deffef':d.climate==='hot'?'#edb085':d.climate==='ice'||d.climate==='gas'?'#bad9ee':'#b8dcbb';c.fillText(d.name,item.x,item.y+55);c.font='12px monospace';c.fillStyle='#c0d1dc';c.fillText(d.orbit+' AU · '+d.climate.toUpperCase(),item.x,item.y+72);}
+ for(const item of layout){const d=item.destination,location=expedition.locations[d.stages[0]]||{...d,destinationId:d.id};drawNavigationPlanet(c,item.x,item.y,d.id===selectedId?40:29,location);c.font='bold 16px monospace';c.fillStyle=d.id===selectedId?'#deffef':d.climate==='hot'?'#edb085':d.climate==='ice'||d.climate==='gas'?'#bad9ee':'#b8dcbb';const labelY=item.y>420?item.y-62:item.y+55;c.fillText(d.name,item.x,labelY);c.font='12px monospace';c.fillStyle='#c0d1dc';c.fillText(d.orbit+' AU · '+d.climate.toUpperCase(),item.x,labelY+17);}
  c.fillStyle='#ddf5ee';c.font='bold 23px monospace';c.fillText(system.name+' SYSTEM',400,48);c.font='11px monospace';c.fillStyle='#8caebc';c.fillText(GALAXY.name+' / '+layout.length+' WORLDS TO CONQUER',400,73);c.fillStyle='#acb9be';c.fillText('HOT INNER WORLDS  →  TEMPERATE  →  COLD OUTER WORLDS',400,505);c.fillStyle='#7d929f';c.font='10px monospace';c.fillText('ORBITAL DISTANCES NOT TO SCALE',400,526);
- systemSurfaces.set(key,surface);return surface;
 }
+function navigationOrbitTime(){return sectorBlend?.age||0;}
+function drawMovingSystemChart(system,selectedId){ctx.save();ctx.translate(W/2-440,H*.52-272*1.1);ctx.scale(1.1,1.1);paintSystemChart(ctx,system,selectedId,navigationOrbitTime());ctx.restore();}
 function navigationArtwork(){return systemArtwork(contentReleases[0].systems[0],contentReleases[0].systems[0].destinations[0].id);}
 function drawNavigationChart(){const map=document.querySelector('#expeditionMap');if(map&&!map.navigationPainted){map.navigationPainted=true;const c=map.getContext('2d');c.clearRect(0,0,map.width,map.height);c.drawImage(navigationArtwork(),0,0,map.width,map.height);}}
 function drawPlanetApproach(location,u){
  const system=expeditionSystem(location),entry=!!sectorBlend?.systemEntry,smooth=v=>{v=clamp(v,0,1);return v*v*(3-2*v);},opacity=smooth(u/.065)*(1-smooth((u-.9)/.1));
- const approach=smooth((u-.3)/.6),layout=systemOrbitLayout(system),target=layout.find(item=>item.destination.id===location.destinationId),tx=target?.x||400,ty=target?.y||272;
+ const approach=smooth((u-.3)/.6),layout=systemOrbitLayout(system,navigationOrbitTime()),target=layout.find(item=>item.destination.id===location.destinationId),tx=target?.x||400,ty=target?.y||272;
  // Zoom about the actual chart destination, then push into its lit limb. The
  // orbital map, star, ring plane and globe all share the same camera transform.
- const zoom=Math.exp(approach*3.22),base=1.1,cx=400+(tx-400)*smooth(approach*2.5),cy=272+(ty-272)*smooth(approach*2.5),sx=W*.5+(tx-cx)*base*zoom,sy=H*.52+(ty-cy)*base*zoom+Math.pow(approach,4)*340,r=40*base*zoom;
+ const zoom=Math.exp(approach*2.85),base=1.1,cx=400+(tx-400)*smooth(approach*2.5),cy=272+(ty-272)*smooth(approach*2.5),sx=W*.5+(tx-cx)*base*zoom,sy=H*.52+(ty-cy)*base*zoom+Math.pow(approach,4)*340,r=40*base*zoom;
  ctx.save();ctx.globalAlpha=opacity;ctx.fillStyle='#020914';ctx.fillRect(0,0,W,H);
  for(let i=0;i<100;i++){ctx.fillStyle=i%3?'#7797ab':'#c8d5cd';ctx.fillRect(((i*197-u*W*.35)%(W+80)+W+80)%(W+80)-40,(i*113)%H,1+approach*9,1);}
- if(approach<.07){ctx.save();ctx.globalAlpha*=1-smooth(approach/.07);ctx.drawImage(systemArtwork(system,location.destinationId),W/2-440,H*.52-272*1.1,880,605);ctx.restore();}
+ if(approach<.07){ctx.save();ctx.globalAlpha*=1-smooth(approach/.07);drawMovingSystemChart(system,location.destinationId);ctx.restore();}
  if(approach>0){ctx.save();ctx.globalAlpha*=smooth(approach/.07);
  drawNavigationSun(ctx,W/2+(400-cx)*base*zoom,H*.52+(272-cy)*base*zoom,34*base*zoom);
  for(const item of layout){ctx.strokeStyle=`rgba(165,191,208,${.29*(1-smooth(approach/.32))})`;ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(W/2+(400-cx)*base*zoom,H*.52+(272-cy)*base*zoom,item.radius*base*zoom,item.radius*.59*base*zoom,0,0,TAU);ctx.stroke();if(item===target)continue;const other=expedition.locations[item.destination.stages[0]];drawNavigationPlanet(ctx,W/2+(item.x-cx)*base*zoom,H*.52+(item.y-cy)*base*zoom,29*base*zoom,other);}
  drawNavigationPlanet(ctx,sx,sy,r,location,true);ctx.restore();}
- const entryHaze=smooth((u-.78)/.16);if(entryHaze>0){const tint=location.climate==='hot'?'#ca7858':'#a5dce4';ctx.save();ctx.globalAlpha*=entryHaze*.56;const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,tint+'00');g.addColorStop(.6,tint+'22');g.addColorStop(1,tint+'bb');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);cloudSurfaces??=[cloudTexture(1),cloudTexture(4),cloudTexture(7)];for(let i=0;i<3;i++)ctx.drawImage(cloudSurfaces[i],i*650-500-entryHaze*250,H*.52-i*75,1800,380);ctx.restore();}
+ const entryHaze=smooth((u-.78)/.16);if(entryHaze>0){const tint=location.climate==='hot'?'#ca7858':'#a5dce4';ctx.save();ctx.globalAlpha*=entryHaze*.18;const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,tint+'00');g.addColorStop(.6,tint+'22');g.addColorStop(1,tint+'bb');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.restore();}
  ctx.save();ctx.globalAlpha*=(sectorBlend?.origin&&u<.32?0:1)*(1-smooth((u-.87)/.08));ctx.fillStyle='#dcfff1';ctx.font='bold 27px monospace';ctx.fillText(approach<.03?(entry?'ENTERING ':'TRAVERSING ')+system.name+' SYSTEM':u>.78?'ENTERING '+location.destinationName+' ATMOSPHERE':'APPROACHING '+location.destinationName,64,74);ctx.font='13px monospace';ctx.fillStyle='#9abcc6';ctx.fillText(approach<.03?system.star.name+' · '+layout.length+' PLANETS · TARGET '+location.destinationName:location.destinationKind==='star'?'STELLAR CORONA ENTRY':'ORBITAL INSERTION / BEGIN DESCENT',65,102);ctx.restore();ctx.restore();
 }
 function drawTransitRoute(location,origin,u){
- const system=expeditionSystem(location),layout=systemOrbitLayout(system),from=layout.find(p=>p.destination.id===origin.destinationId),to=layout.find(p=>p.destination.id===location.destinationId);if(!to)return;
+ const system=expeditionSystem(location),layout=systemOrbitLayout(system,navigationOrbitTime()),from=layout.find(p=>p.destination.id===origin.destinationId),to=layout.find(p=>p.destination.id===location.destinationId);if(!to)return;
  const a=from||{x:90,y:440},b=to,mx=(a.x+b.x)/2,my=(a.y+b.y)/2,len=Math.hypot(mx-400,my-272)||1,cx=mx+(mx-400)/len*150,cy=my+(my-272)/len*150,progress=clamp((u-.24)/.30,0,1),smooth=progress*progress*(3-2*progress);
  const point=t=>({x:(1-t)**2*a.x+2*(1-t)*t*cx+t*t*b.x,y:(1-t)**2*a.y+2*(1-t)*t*cy+t*t*b.y});
  ctx.save();ctx.translate(W/2-440,H*.52-272*1.1);ctx.scale(1.1,1.1);ctx.setLineDash([4,8]);ctx.lineWidth=2;ctx.strokeStyle='#93b6b777';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo(cx,cy,b.x,b.y);ctx.stroke();ctx.setLineDash([]);
@@ -1118,17 +1128,17 @@ function drawPlanetTransit(location,u){
  const origin=sectorBlend?.origin;if(!origin){drawPlanetApproach(location,u);return;}
  const smooth=v=>{v=clamp(v,0,1);return v*v*(3-2*v);},system=expeditionSystem(location),exit=smooth(u/.28),chart=smooth((u-.19)/.08),approach=clamp((u-.4)/.6,0,1);
  ctx.save();ctx.globalAlpha=smooth(u/.04)*(1-smooth((u-.94)/.06));ctx.fillStyle='#020914';ctx.fillRect(0,0,W,H);ctx.restore();
- if(u<.28){ctx.save();ctx.globalAlpha=smooth(u/.04)*(1-chart);drawNavigationSun(ctx,W*.86,H*.17,19);drawNavigationPlanet(ctx,W*.47,H*.58+(1-exit)*420,95+(1-exit)**2*1050,origin,true);ctx.fillStyle='#e1fff0';ctx.font='bold 31px monospace';ctx.fillText(origin.destinationName+' CONQUERED',64,74);ctx.fillStyle='#afcbd1';ctx.font='14px monospace';ctx.fillText('LEAVING ORBIT / NEXT DESTINATION: '+location.destinationName,65,106);ctx.restore();}
- if(u>=.19&&u<.4){ctx.save();ctx.globalAlpha=chart;ctx.drawImage(systemArtwork(system,location.destinationId),W/2-440,H*.52-272*1.1,880,605);ctx.restore();}
+ if(u<.28){ctx.save();ctx.globalAlpha=smooth(u/.04)*(1-chart);drawNavigationSun(ctx,W*.86,H*.17,19);drawNavigationPlanet(ctx,W*.47,H*.58+(1-exit)*420,95+(1-exit)**2*655,origin,true);ctx.fillStyle='#e1fff0';ctx.font='bold 31px monospace';ctx.fillText(sectorBlend.systemEntry?origin.systemName+' SYSTEM SECURED':origin.destinationName+' CONQUERED',64,74);ctx.fillStyle='#afcbd1';ctx.font='14px monospace';ctx.fillText(sectorBlend.systemEntry?'INTERSTELLAR DEPARTURE / NEXT SYSTEM: '+system.name:'LEAVING ORBIT / NEXT DESTINATION: '+location.destinationName,65,106);ctx.restore();}
+ if(u>=.19&&u<.4){ctx.save();ctx.globalAlpha=chart;drawMovingSystemChart(system,location.destinationId);ctx.restore();}
  if(u>=.4)drawPlanetApproach(location,approach);
- if(u>.22&&u<.59){ctx.save();ctx.globalAlpha=smooth((u-.22)/.05)*(1-smooth((u-.54)/.05));drawTransitRoute(location,origin,u);ctx.fillStyle='#dffff1';ctx.font='bold 27px monospace';ctx.fillText(origin.destinationName+'  →  '+location.destinationName,64,74);ctx.font='13px monospace';ctx.fillStyle='#b0cbd3';ctx.fillText('INTERPLANETARY FLIGHT / '+system.star.name+' SYSTEM',65,103);ctx.restore();}
+ if(u>.22&&u<.59){ctx.save();ctx.globalAlpha=smooth((u-.22)/.05)*(1-smooth((u-.54)/.05));drawTransitRoute(location,origin,u);ctx.fillStyle='#dffff1';ctx.font='bold 27px monospace';ctx.fillText(sectorBlend.systemEntry?origin.systemName+'  →  '+system.name:origin.destinationName+'  →  '+location.destinationName,64,74);ctx.font='13px monospace';ctx.fillStyle='#b0cbd3';ctx.fillText((sectorBlend.systemEntry?'INTERSTELLAR ARRIVAL / ':'INTERPLANETARY FLIGHT / ')+system.star.name+' · '+system.destinations.length+' WORLDS',65,103);ctx.restore();}
  // Named phases make the change of world legible even on a small display.
  if(u>.06&&u<.94){ctx.save();ctx.globalAlpha=smooth((u-.06)/.05)*(1-smooth((u-.88)/.06));const labels=['01  DEPARTURE','02  SYSTEM TRANSIT','03  PLANET DESCENT'],phase=u<.24?0:u<.59?1:2;ctx.font='bold 13px monospace';labels.forEach((label,i)=>{const x=W*.23+i*W*.24;ctx.fillStyle=i===phase?'#b4ffe0':'#81939b';ctx.fillText(label,x,H-35);ctx.fillStyle=i<=phase?'#a3e8cf':'#223940';ctx.fillRect(x,H-24,W*.19,2);});ctx.restore();}
 }
 function drawDescentLabel(u){
  const s=sectors[level],location=expedition.locations[s.id];ctx.save();ctx.globalAlpha=Math.sin(Math.PI*u);ctx.fillStyle='#d9fff0';ctx.font='bold 27px monospace';ctx.fillText(location.destinationName+' / CONTINUING DESCENT',64,75);ctx.font='14px monospace';ctx.fillStyle='#b3c8d1';ctx.fillText('ENTERING '+(s.stratum||ENVIRONMENTS[s.environment]?.label||s.short),65,105);ctx.restore();
 }
-function planetarySkyVisible(definition,location){return !!location?.rings&&['high-atmosphere','low-atmosphere','surface'].includes(definition.environment);}
+function planetarySkyVisible(definition,location){return !definition.ringsInPainting&&!!location?.rings&&['high-atmosphere','low-atmosphere','surface'].includes(definition.environment);}
 function drawPlanetarySky(){
  const location=expedition.locations[sectors[level].id];if(state==='title'||!planetarySkyVisible(sectors[level],location))return;
  ctx.save();ctx.globalAlpha=.5;ctx.translate(W*.48,-430+viewY*.18);ctx.rotate((location.ringTilt??-.23)*.45);const drift=Math.sin(sectorSceneTime()*.015)*8;ctx.drawImage(planetaryRingTexture(),-2400+drift,-580,4800,1160);ctx.restore();
