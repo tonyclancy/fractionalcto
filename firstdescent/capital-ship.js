@@ -274,7 +274,7 @@ function capitalAdvanceStage(b){
   s.stage='reactor';
   // A recovered weapon orb is guaranteed here, even after a checkpoint loss.
   // The player keeps their weapon and chooses when to move the orb to the rear.
-  if(!weaponOrb.owned){weaponOrb.owned=true;weaponOrb.angle=0;weaponOrb.target=0;s.orbGranted=true;window.flightAudio?.pickup(ship.x);updateHUD();}
+  if(!weaponOrb.owned){weaponOrb.owned=true;weaponOrb.flash=.25;s.orbGranted=true;window.flightAudio?.pickup(ship.x);updateHUD();}
   announce('STABILIZER PODS DESTROYED','FLY AROUND THE HULL · SPACE: REAR FIRE · BREAK THE AFT REACTOR');
  }else if(s.stage==='reactor'&&s.nodes[2].hp<=0){s.stage='core';announce('REACTOR BREACHED · COMMAND CORE OPEN','RETURN TO THE BOW · SPACE SWITCHES THE WEAPON ORB');}
 }

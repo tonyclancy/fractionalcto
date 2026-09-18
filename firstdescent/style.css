@@ -132,7 +132,7 @@ html.safari-locked .console.expanded canvas{max-width:100%;width:min(100%,calc((
 @media(pointer:coarse){
  #touchControls.active{display:grid;grid-template-columns:62px minmax(0,1fr);grid-template-rows:62px 62px;gap:10px 16px;align-items:center}
  #novaTouch{grid-column:1;grid-row:1}
- #orbTouch{grid-column:1;grid-row:2}
+ #flipTouch{grid-column:1;grid-row:2}
  #touchControls span{grid-column:2;grid-row:2;justify-self:end;text-align:right}
 }
 

@@ -150,7 +150,7 @@ function updateWaterWakes(dt){
   const ux=Math.cos(angle),uy=Math.sin(angle),seed=time*19+actor.y*.07;
   waterWakes.push({x:actor.x-ux*size*.85,y:actor.y-uy*size*.85,vx:-ux*(pilot?18+effort*44:30+effort*60),vy:-uy*(pilot?18+effort*44:30+effort*60),angle,size,effort,seed,pilot,age:0,life:(pilot?.85:.65)+effort*.5});
  }
- trace(ship,28,1);
+ trace(ship,28,shipDirection());
  for(const d of drops)trace(d,9,-1);
  for(const e of enemies)if(e.hp>0)trace(e,e.satellite?9:e.brood?48:23,e.direction||-1);
  if(boss&&boss.hp>0)trace(boss,Math.min(100,(boss.r||120)*.65),Math.cos(bossFlightPose(boss).yaw)>0?-1:1);
@@ -170,7 +170,7 @@ function drawWaterWakes(){
 // Software-projected solid geometry: yaw reveals the nose and side faces.
 function projectHull(v,yaw,roll,pitch){let [x,y,z]=v;let xx=x*Math.cos(yaw)+z*Math.sin(yaw),zz=-x*Math.sin(yaw)+z*Math.cos(yaw);let yy=y*Math.cos(roll)-zz*Math.sin(roll);zz=y*Math.sin(roll)+zz*Math.cos(roll);const f=340/(340+zz);return{x:(xx*Math.cos(pitch)-yy*Math.sin(pitch))*f,y:(xx*Math.sin(pitch)+yy*Math.cos(pitch))*f,z:zz}}
 function drawShip(x,y,scale=1,preview=false){
- const yaw=preview?Math.sin(world*.004)*.5:flightPose.yaw,roll=preview?-.25+Math.sin(world*.003)*.25:flightPose.roll,pitch=preview?-.06:flightPose.pitch,thrust=preview?.45:flightPose.thrust;
+ const yaw=preview?Math.sin(world*.004)*.5:flightPose.yaw+pilotTurn.angle,roll=preview?-.25+Math.sin(world*.003)*.25:flightPose.roll,pitch=preview?-.06:flightPose.pitch,thrust=preview?.45:flightPose.thrust;
  const project=v=>projectHull(v,yaw,roll,pitch);const tier=preview?2:power;
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
  // Exhaust follows the rotated engine axis; acceleration lengthens the plume.
@@ -184,8 +184,8 @@ function drawShip(x,y,scale=1,preview=false){
  if(muzzleFlash>0){const p=project([tier>1?42:48,0,0]);orb(p.x,p.y,18,'#bffff3',.75)}
  ctx.restore();
 }
-function dronePosition(i){const a=world*.012+i*Math.PI;return{x:ship.x-50+Math.cos(a)*16,y:ship.y+(i===0?-1:1)*66+Math.sin(a)*12}}
-function drawDrone(i){const p=dronePosition(i),age=world*.012+i*Math.PI,yaw=Math.sin(age)*.22,pitch=flightPose.pitch*.65,roll=flightPose.roll*.45+Math.sin(age)*.28;orb(p.x-16,p.y,19,'#9892ff',.22);drawModel(meshes.wingmate,p.x,p.y,1,yaw,roll,pitch,age);}
+function dronePosition(i){const a=world*.012+i*Math.PI;return{x:ship.x+Math.cos(pilotTurn.angle)*(-50+Math.cos(a)*16),y:ship.y+(i===0?-1:1)*66+Math.sin(a)*12}}
+function drawDrone(i){const p=dronePosition(i),age=world*.012+i*Math.PI,yaw=pilotTurn.angle+Math.sin(age)*.22,pitch=flightPose.pitch*.65,roll=flightPose.roll*.45+Math.sin(age)*.28;orb(p.x-16*Math.cos(pilotTurn.angle),p.y,19,'#9892ff',.22);drawModel(meshes.wingmate,p.x,p.y,1,yaw,roll,pitch,age);}
 function healthBar(x,y,w,hp,max,color){ctx.save();ctx.fillStyle='#07101ddd';ctx.fillRect(x-w/2-2,y-2,w+4,8);ctx.fillStyle='#4a394b';ctx.fillRect(x-w/2,y,w,4);ctx.fillStyle=color;ctx.fillRect(x-w/2,y,w*clamp(hp/max,0,1),4);ctx.restore()}
 // Route against authored scenery even before either actor enters the viewport.
 let routeCache=null;
@@ -208,9 +208,9 @@ function prepareEnemyEntry(e,wave,n){
  if(e.entry==='right'||e.entry==='left'){const atX=e.x;e.x=e.entry==='right'?W+100:-100;e.base=enemyRouteY(e,e.base);e.x=atX;e.y=e.base;e.routeY=e.base;e.routeVY=0;}
 }
 function drawEntryWarnings(){for(const side of ['left','top','bottom']){const incoming=enemies.find(e=>e.entry===side&&e.age<1.2);if(!incoming)continue;const x=side==='left'?26:clamp(incoming.entryX??incoming.x,90,W-90),y=side==='top'?26:side==='bottom'?H-26:incoming.base;ctx.save();ctx.translate(x,y);ctx.globalAlpha=.5+.25*Math.sin(incoming.age*7);ctx.fillStyle='#ffca83';ctx.font='bold 12px monospace';ctx.textAlign='center';ctx.fillText(side==='left'?'»':side==='top'?'▼':'▲',0,0);ctx.restore();}}
-function frontShieldPosition(){return{x:ship.x+65,y:ship.y}}
-function blockWithFrontShield(b,oldX){if(!(ship.frontShield>0)||b.vx>=0)return false;const p=frontShieldPosition();if(Math.max(oldX,b.x)+b.r>=p.x-8&&Math.min(oldX,b.x)-b.r<=p.x+8&&Math.abs(b.y-p.y)<40+b.r){ship.frontShield--;ship.frontFlash=.18;burst(p.x,b.y,'#a3ffef',9);window.flightAudio?.shipHit(p.x,true);updateHUD();return true}return false}
-function drawFrontShield(){if(!(ship.frontShield>0))return;const p=frontShieldPosition(),hit=ship.frontFlash>0;ctx.save();ctx.translate(p.x,p.y);const fill=ctx.createRadialGradient(0,0,3,0,0,48);fill.addColorStop(0,'#88ffe908');fill.addColorStop(.7,'#71ffe91a');fill.addColorStop(1,'#b9fff066');ctx.fillStyle=fill;ctx.beginPath();ctx.ellipse(0,0,20,43,0,-Math.PI/2,Math.PI/2);ctx.closePath();ctx.fill();glow('#72ffea',hit?28:15);for(let i=0;i<3;i++){ctx.globalAlpha=(hit?1:.75)/(i+1);ctx.lineWidth=i===0?2:4+i*3;ctx.strokeStyle=hit?'#ffffff':'#8cfff0';ctx.beginPath();ctx.ellipse(0,0,20+i,43+i,0,-Math.PI/2,Math.PI/2);ctx.stroke();}ctx.globalAlpha=.18;ctx.lineWidth=1;for(let y=-30;y<=30;y+=12){ctx.beginPath();ctx.moveTo(1,y);ctx.lineTo(15*Math.sqrt(1-y*y/1800),y);ctx.stroke();}noGlow();ctx.restore();}
+function frontShieldPosition(){return pilotMount(65)}
+function blockWithFrontShield(b,oldX){if(!(ship.frontShield>0)||shipTurning()||b.vx*shipDirection()>=0)return false;const p=frontShieldPosition();if(Math.max(oldX,b.x)+b.r>=p.x-8&&Math.min(oldX,b.x)-b.r<=p.x+8&&Math.abs(b.y-p.y)<40+b.r){ship.frontShield--;ship.frontFlash=.18;burst(p.x,b.y,'#a3ffef',9);window.flightAudio?.shipHit(p.x,true);updateHUD();return true}return false}
+function drawFrontShield(){if(!(ship.frontShield>0))return;const p=frontShieldPosition(),hit=ship.frontFlash>0;ctx.save();ctx.translate(p.x,p.y);ctx.scale(Math.cos(pilotTurn.angle),1);const fill=ctx.createRadialGradient(0,0,3,0,0,48);fill.addColorStop(0,'#88ffe908');fill.addColorStop(.7,'#71ffe91a');fill.addColorStop(1,'#b9fff066');ctx.fillStyle=fill;ctx.beginPath();ctx.ellipse(0,0,20,43,0,-Math.PI/2,Math.PI/2);ctx.closePath();ctx.fill();glow('#72ffea',hit?28:15);for(let i=0;i<3;i++){ctx.globalAlpha=(hit?1:.75)/(i+1);ctx.lineWidth=i===0?2:4+i*3;ctx.strokeStyle=hit?'#ffffff':'#8cfff0';ctx.beginPath();ctx.ellipse(0,0,20+i,43+i,0,-Math.PI/2,Math.PI/2);ctx.stroke();}ctx.globalAlpha=.18;ctx.lineWidth=1;for(let y=-30;y<=30;y+=12){ctx.beginPath();ctx.moveTo(1,y);ctx.lineTo(15*Math.sqrt(1-y*y/1800),y);ctx.stroke();}noGlow();ctx.restore();}
 
 function enemyKinematics(e,dt){
  if(sectors[level].medium==='water'&&!e.sentry)dt*=WATER_HANDLING.enemyMotion;
@@ -704,7 +704,7 @@ function updateArmSurface(mesh,points){const root=points[0],frames=[];
   for(let i=0;i<10;i++){const angle=i/10*TAU;for(const [ring,scale,raise] of [[cup.ring,.36,1],[cup.inner,.2,.3]])for(let k=0;k<3;k++)ring[i][k]=center[k]+(axis[k]*Math.cos(angle)+cross[k]*Math.sin(angle))*p.r*scale+rad[k]*raise;}}
 }
 
-function drawWeaponOrb(){if(!weaponOrb.owned)return;const p=orbPosition(),moving=Math.abs(weaponOrb.target-weaponOrb.angle)>.02,dir=Math.cos(weaponOrb.angle),dock={x:ship.x+dir*42,y:ship.y-Math.sin(weaponOrb.angle)*12};ctx.save();ctx.lineCap='round';ctx.strokeStyle='#203847';ctx.lineWidth=moving?3:9;ctx.beginPath();ctx.moveTo(dock.x,dock.y);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.strokeStyle='#95e5e7';ctx.lineWidth=moving?1.2:3;ctx.stroke();ctx.restore();orb(p.x,p.y,25,'#83e8ff',.18);drawModel(meshes.weaponOrb,p.x,p.y,1,.15,world*.025,weaponOrb.angle,world*.01);}
+function drawWeaponOrb(){if(!weaponOrb.owned)return;const p=orbPosition(),dock=pilotMount(42),hit=weaponOrb.flash>0;ctx.save();ctx.lineCap='round';ctx.strokeStyle='#203847';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(dock.x,dock.y);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.strokeStyle='#95e5e7';ctx.lineWidth=3;ctx.stroke();ctx.restore();orb(p.x,p.y,hit?39:27,'#83e8ff',hit?.5:.22);drawModel(meshes.weaponOrb,p.x,p.y,1,pilotTurn.angle+.15,world*.025,flightPose.pitch,world*.01);if(hit){ctx.save();glow('#a4ffff',18);ctx.strokeStyle='#d5ffff';ctx.lineWidth=3;ctx.beginPath();const facing=shipDirection()===1?0:Math.PI;ctx.arc(p.x,p.y,29,facing-1.15,facing+1.15);ctx.stroke();noGlow();ctx.restore();}}
 
 function passEase(t){t=clamp(t,0,1);return t*t*t*(t*(t*6-15)+10);}
 function chargeLaneHalfHeight(){const d=bossDesign(),s=Math.sin(.52);return d?Math.max(105,...d.bodyVolumes.map(v=>(Math.abs(v.center[0])*s+Math.hypot(v.center[1],v.center[2])+Math.hypot(v.radii[0]*s,Math.max(v.radii[1],v.radii[2]))+18)*d.scale+24)):105;}
@@ -721,7 +721,7 @@ function updateBossPass(b,dt){const profile=bossPassProfiles[bossIndex()];if(!pr
  const next=stage=>{if(stage==='dash'||stage==='return')window.flightAudio?.bossAttack?.('lunge',bossIndex(),b.x);p.stage=stage;p.age=0;p.fromX=b.x;p.fromY=b.y;};
  if(p.stage==='warn'){const u=clamp(p.age/1.55,0,1),brake=u-6*u*u*u+8*u*u*u*u-3*u*u*u*u*u;b.x=p.fromX+(p.vx0||0)*1.55*brake;b.y=p.fromY+(p.y-p.fromY)*passEase(u)+(p.vy0||0)*1.55*brake;if(p.age>=1.55)next('dash');}
  else if(p.stage==='dash'){const t=clamp(p.age/profile.dash,0,1),ease=passEase(t);b.x=p.fromX+(profile.left-p.fromX)*ease;b.y=p.y+profile.curve*Math.pow(Math.sin(Math.PI*t),2);if(t===1)next('turn');}
- else if(p.stage==='turn'){b.turnYaw=Math.PI*passEase(p.age/profile.turn);if(p.age>=profile.turn){b.facing=1;b.shoot=0;b.special=1.1;b.recovery=0;next('rear');announce('HOSTILE BEHIND','SWITCH ORB · ATTACK FROM THE REAR');}}
+ else if(p.stage==='turn'){b.turnYaw=Math.PI*passEase(p.age/profile.turn);if(p.age>=profile.turn){b.facing=1;b.shoot=0;b.special=1.1;b.recovery=0;next('rear');announce('HOSTILE BEHIND','FLIP · ATTACK THE HOSTILE BEHIND');}}
  else if(p.stage==='rear'){const t=clamp(p.age/profile.rear,0,1);b.x=p.fromX+70*Math.pow(Math.sin(Math.PI*t),2);b.y=p.fromY+Math.sin(t*Math.PI*2)*32*Math.pow(Math.sin(t*Math.PI),2);if(p.age>=profile.rear&&!bossPatternBusy(b)){p.y=clamp(ship.y,p.halfHeight+40,H-p.halfHeight-40);next('returnWarn');}}
  else if(p.stage==='returnWarn'){b.y=p.fromY+(p.y-p.fromY)*passEase(p.age/1.55);if(p.age>=1.55)next('return');}
  else if(p.stage==='return'){const t=clamp(p.age/profile.dash,0,1);b.x=p.fromX+(1090-p.fromX)*passEase(t);b.y=p.y-profile.curve*Math.pow(Math.sin(Math.PI*t),2);if(t===1)next('resetTurn');}
