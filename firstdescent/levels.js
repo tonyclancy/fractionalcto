@@ -26,7 +26,7 @@ function bossEncounterProfile(l){return l.encounterProfile||BOSS_ENCOUNTERS[l.en
 // Shared tuning keeps future encounters within the same learnable combat rhythm.
 const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.25,specialRest:1.15,hitGrace:2.4,shieldGrace:1.5,breathTracking:.55});
 const WATER_HANDLING=freezeContent({pilotSpeed:.9,acceleration:.065,braking:.09,reversal:.05,touchBuffer:.04,enemyMotion:.78,bossMotion:.84});
-const GAME_RULESET='2026-09-alien-flight-v29';
+const GAME_RULESET='2026-09-system-arcs-v30';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova','rescue']);
@@ -1801,6 +1801,7 @@ levelDefinitions.forEach(l=>{
 // descent (planet) or a flight through the corona (star). Only authored stages
 // are published; a catalog entry never silently fabricates playable content.
 const GALAXIES=freezeContent({
+ 'the-eventide-core':{id:'the-eventide-core',name:'THE EVENTIDE CORE',arms:3,twist:3.8,tint:[205,141,100],seed:617,centralBlackHole:true},
  'the-pale-spiral':{id:'the-pale-spiral',name:'THE PALE SPIRAL',arms:4,twist:2.8,tint:[129,193,226],seed:17},
  'the-ember-veil':{id:'the-ember-veil',name:'THE EMBER VEIL',arms:2,twist:4.2,tint:[230,155,177],seed:53},
  'the-azure-drift':{id:'the-azure-drift',name:'THE AZURE DRIFT',arms:3,twist:3.4,tint:[115,166,229],seed:79},
@@ -1830,21 +1831,23 @@ function buildExpedition(releases,definitions,galaxies=GALAXIES){
  const ids=new Set(),stages=new Map(definitions.map(l=>[l.id,l])),used=new Set(),route=[],locations={};
  function identity(id){if(typeof id!=='string'||!/^[a-z0-9-]+$/.test(id)||ids.has(id))throw Error('Duplicate or invalid expedition identity: '+id);ids.add(id);}
  for(const release of releases){identity(release.id);if(!Number.isInteger(release.version)||release.version<1||!/^\d{4}-\d{2}$/.test(release.month))throw Error('Invalid content release');
-  for(const system of release.systems){const galaxy=galaxies[system.galaxyId||GALAXY.id];if(!galaxy||!galaxy.id||!galaxy.name)throw Error('Unknown expedition galaxy');identity(system.id);if(!system.name||!system.star?.name||!system.destinations.length)throw Error('System needs a named star and destinations');
+  for(const system of release.systems){const galaxy=galaxies[system.galaxyId||GALAXY.id];if(!galaxy||!galaxy.id||!galaxy.name)throw Error('Unknown expedition galaxy');identity(system.id);if(!system.name||!(system.centralBody||system.star)?.name||!system.destinations.length)throw Error('System needs a named star and destinations');
    if(system.galacticPosition&&(!Array.isArray(system.galacticPosition)||system.galacticPosition.length!==2||system.galacticPosition.some(n=>!Number.isFinite(n)||n<.15||n>.85)))throw Error('Invalid galactic system position');
-   if(system.star.color&&(!Array.isArray(system.star.color)||system.star.color.length!==3||system.star.color.some(c=>!Number.isFinite(c)||c<0||c>255)))throw Error('Invalid star color');
-   if(system.star.radius!==undefined&&(!Number.isFinite(system.star.radius)||system.star.radius<.5||system.star.radius>2))throw Error('Invalid star radius');
+   if(system.star?.color&&(!Array.isArray(system.star.color)||system.star.color.length!==3||system.star.color.some(c=>!Number.isFinite(c)||c<0||c>255)))throw Error('Invalid star color');
+   if(system.star?.radius!==undefined&&(!Number.isFinite(system.star.radius)||system.star.radius<.5||system.star.radius>2))throw Error('Invalid star radius');
    const planets=system.destinations.filter(d=>d.kind==='planet').sort((a,b)=>a.orbit-b.orbit),thermalRank={inner:0,temperate:1,outer:2};
-   if(planets.length<1||planets.length>6)throw Error('System requires one to six planets');
+   if(planets.length>6||(!planets.length&&system.centralBody?.kind!=='black-hole'))throw Error('System requires one to six planets or a black-hole stellar cluster');
+   if(system.centralBody?.kind==='black-hole'&&(system.star||!system.destinations.every(d=>d.kind==='star'&&d.stellarBody?.name)))throw Error('Black-hole clusters require named stellar destinations');
    for(let i=0;i<planets.length;i++){const d=planets[i],previous=planets[i-1];if(d.orbit<=0||!(d.orbitalZone in thermalRank)||previous&&(d.orbit===previous.orbit||thermalRank[d.orbitalZone]<thermalRank[previous.orbitalZone]))throw Error('Planet orbits must cool from inner to outer without duplicate distances');}
 
    for(const destination of system.destinations){identity(destination.id);if(!destination.name||!['planet','star'].includes(destination.kind)||!destination.stages.length)throw Error('Invalid destination');
     if(destination.anomaly&&destination.anomaly!=='black-hole')throw Error('Unknown destination anomaly');
+    if(destination.stellarBody){const sun=destination.stellarBody;if(destination.kind!=='star'||!sun.name||!Array.isArray(sun.color)||sun.color.length!==3||sun.color.some(v=>!Number.isFinite(v)||v<0||v>255)||!Number.isFinite(sun.radius)||sun.radius<.5||sun.radius>2||destination.orbit<=0)throw Error('Invalid stellar destination');}
     if(destination.surfaceTint&&(!Array.isArray(destination.surfaceTint)||destination.surfaceTint.length!==3||destination.surfaceTint.some(n=>!Number.isFinite(n)||n<.5||n>1.5)))throw Error('Invalid surface tint');
     if(destination.surfaceDisk&&!PLANET_SURFACE_DISKS[destination.surfaceDisk])throw Error('Invalid planetary surface disk');
     if(destination.surfaceAtlas&&(!PLANET_SURFACE_ATLASES[destination.surfaceAtlas]||!Number.isInteger(destination.surfaceBand)||destination.surfaceBand<0||destination.surfaceBand>2))throw Error('Invalid planetary surface atlas');
     const zone=ORBITAL_ZONES[destination.orbitalZone];if(!zone||!zone.climates.includes(destination.climate)||typeof destination.rings!=='boolean'||!Number.isFinite(destination.orbit)||destination.orbit<0)throw Error('Invalid orbital climate or rings');
-    for(const id of destination.stages){const stage=stages.get(id);if(!stage||used.has(id))throw Error('Missing or repeated expedition stage: '+id);if(destination.kind==='star'&&stage.environment!=='stellar-corona')throw Error('Star stages require a corona habitat');if(!!stage.gravityWell!==(destination.anomaly==='black-hole'))throw Error('Navigation and stage anomaly disagree: '+id);used.add(id);route.push(stage);locations[id]={releaseId:release.id,releaseVersion:release.version,systemId:system.id,systemName:system.name,destinationId:destination.id,destinationName:destination.name,destinationKind:destination.kind,starName:system.star?.name||system.name,orbit:destination.orbit,climate:destination.climate,rings:destination.rings,orbitalZone:destination.orbitalZone,galaxyId:galaxy.id,galaxyName:galaxy.name,anomaly:destination.anomaly||null,surfaceDisk:destination.surfaceDisk||null,surfaceTint:destination.surfaceTint||[1,1,1],ringTilt:destination.ringTilt??-.23,surfaceLongitude:destination.surfaceLongitude??0,orbitPhase:destination.orbitPhase??null,surfaceAtlas:destination.surfaceAtlas||'original',surfaceBand:destination.surfaceBand??null};}
+    for(const id of destination.stages){const stage=stages.get(id);if(!stage||used.has(id))throw Error('Missing or repeated expedition stage: '+id);if(destination.kind==='star'&&stage.environment!=='stellar-corona')throw Error('Star stages require a corona habitat');if(!!stage.gravityWell!==(destination.anomaly==='black-hole'))throw Error('Navigation and stage anomaly disagree: '+id);used.add(id);route.push(stage);locations[id]={releaseId:release.id,releaseVersion:release.version,systemId:system.id,systemName:system.name,destinationId:destination.id,destinationName:destination.name,destinationKind:destination.kind,stellarBody:destination.stellarBody||null,centralBlackHole:system.centralBody?.kind==='black-hole',starName:destination.stellarBody?.name||system.star?.name||system.name,orbit:destination.orbit,climate:destination.climate,rings:destination.rings,orbitalZone:destination.orbitalZone,galaxyId:galaxy.id,galaxyName:galaxy.name,anomaly:destination.anomaly||null,surfaceDisk:destination.surfaceDisk||null,surfaceTint:destination.surfaceTint||[1,1,1],ringTilt:destination.ringTilt??-.23,surfaceLongitude:destination.surfaceLongitude??0,orbitPhase:destination.orbitPhase??null,surfaceAtlas:destination.surfaceAtlas||'original',surfaceBand:destination.surfaceBand??null};}
    }
   }
  }
@@ -1890,13 +1893,86 @@ const SYSTEM_PACKS=freezeContent([
  {id:'meridian',name:'MERIDIAN',galaxy:'the-distant-bloom',star:['MERIDIAN A','BLUE-WHITE SUPERGIANT',[213,227,255],1.94],worlds:[['Dawnfire',5,0.44,544],['Aegis',1,0.92,551],['Lucent',0,1.7,558],['Aquilon',3,2.8,565],['Ophir',4,7.9,572],['Evernight',6,14.2,579]]}
 ]);
 const STAGE_ARCHETYPES=Object.fromEntries(levelDefinitions.map((l,i)=>[i,JSON.parse(JSON.stringify(l))]));
+// A system is an authored ecology and a self-contained challenge arc. Planet
+// names/orbits are persistent save identities; these templates own their content.
+const WORLD_ENVIRONMENT_TEMPLATES=freezeContent({
+ orbital:{environment:'high-atmosphere',base:0,climates:['temperate','ice'],landform:'fragmented orbital escarpments',adaptation:'sealed breathing sacs and radiation plates'},
+ sky:{environment:'low-atmosphere',base:0,climates:['temperate'],landform:'weather-carved cloud mesas',adaptation:'light membranes and swept lift surfaces'},
+ garden:{environment:'surface',base:0,climates:['temperate'],landform:'root buttresses and mineral canyons',adaptation:'grasping limbs and short powerful wings'},
+ foundry:{environment:'underground',base:1,climates:['hot'],landform:'anchored refineries and heat-exchanger trenches',adaptation:'ceramic armour and recessed cooling vanes'},
+ desert:{environment:'surface',base:5,climates:['hot'],landform:'glass dunes and fractured salt plateaux',adaptation:'reflective scutes and protected joints'},
+ magma:{environment:'deep-underground',base:5,climates:['hot'],landform:'lava cataracts and basalt vaults',adaptation:'overlapping refractory shells and thermal vents'},
+ caves:{environment:'underground',base:5,climates:['temperate'],landform:'hanging mineral fans and root caverns',adaptation:'sensory feelers and echo chambers'},
+ ocean:{environment:'undersea',base:2,climates:['temperate'],landform:'reef shelves and eroded seafloor arches',adaptation:'streamlined fins and pressure-balanced organs'},
+ trench:{environment:'deep-undersea',base:3,climates:['temperate'],landform:'hydrothermal chimneys and trench walls',adaptation:'pressure mantles and bioluminescent lures'},
+ iceOcean:{environment:'deep-undersea',base:6,climates:['ice'],landform:'split ice ceilings above dark brine canyons',adaptation:'insulating blubber and articulated pressure fins'},
+ glacier:{environment:'surface',base:0,climates:['ice'],landform:'blue crevasses and wind-cut ice shelves',adaptation:'insulated chitin and anti-icing membranes'},
+ iceCaves:{environment:'underground',base:5,climates:['ice'],landform:'crystal vaults and frozen mineral curtains',adaptation:'layered insulation and heated breathing ports'},
+ storm:{environment:'high-atmosphere',base:4,climates:['gas'],landform:'banded cloud canyons and suspended storm collectors',adaptation:'buoyant chambers and insulated ion vanes'},
+ corona:{environment:'stellar-corona',base:5,climates:['plasma'],landform:'plasma cells and magnetic prominences',adaptation:'refractory carapaces and magnetic shielding'}
+});
+// Every existing galaxy is explicitly assigned a template. No modulo/cycling
+// fallback is allowed when a monthly release adds an unknown system.
+const SOLAR_SYSTEM_TEMPLATES=freezeContent(Object.fromEntries([
+ ['vesper','the-pale-spiral','Broken jade frontier','jade seams / weathered titanium',['orbital','foundry','iceOcean'],['lancet','shield','mantle'],['delta','catamaran','arc']],
+ ['orison','the-ember-veil','Resonant living reefs','porcelain ridges / amber lattice',['trench','storm','magma','iceOcean'],['chalice','crown','centipede','hammer'],['radial','arc','fork','casket']],
+ ['lyra','the-azure-drift','Glass and folded stone','opal glass / folded limestone',['sky','magma','iceOcean'],['fork','vault','ribbon'],['blade','spindle','radial']],
+ ['solenne','the-copper-sea','Copper terraces','oxidised copper / stepped sandstone',['foundry','garden','storm','glacier','iceCaves'],['shield','centipede','crown','lancet','vault'],['catamaran','fork','arc','blade','casket']],
+ ['nereid','the-silent-arc','Tidal mineral forests','black coral / silver mineral fans',['desert','sky','ocean','iceOcean'],['hammer','fork','mantle','chalice'],['spindle','delta','radial','arc']],
+ ['umbra','the-violet-wake','Eclipsed basalt gardens','violet basalt / pale fungal lace',['foundry','magma','caves','trench','storm','glacier'],['vault','centipede','shield','ribbon','crown','fork'],['casket','blade','fork','spindle','radial','delta']],
+ ['auric','the-golden-rift','Amber faultlands','honey quartz / ribbed brass',['desert','storm','iceOcean'],['shield','chalice','hammer'],['blade','radial','catamaran']],
+ ['halcyon','the-glass-spiral','Prismatic watersheds','prism shale / translucent mineral fins',['magma','ocean','garden','storm','glacier'],['centipede','ribbon','fork','vault','lancet'],['fork','arc','delta','spindle','casket']],
+ ['pyrrha','the-scarlet-reach','Ironwood impact basins','red ironwood / fractured obsidian',['foundry','sky','trench','iceCaves'],['hammer','crown','chalice','shield'],['catamaran','blade','radial','fork']],
+ ['elysian','the-last-lantern','Ivory wind labyrinths','ivory limestone / gold-thread ceramic',['magma','desert','sky','ocean','storm','iceOcean'],['centipede','vault','lancet','mantle','fork','hammer'],['casket','catamaran','delta','arc','spindle','radial']],
+ ['selen','the-indigo-tide','Lunar lace continent','silver chalk / translucent slate',['garden','foundry','trench','glacier'],['fork','shield','ribbon','vault'],['arc','blade','radial','casket']],
+ ['rubra','the-rose-expanse','Crimson pressure worlds','garnet cliffs / porous black pumice',['magma','storm','iceOcean'],['centipede','chalice','mantle'],['fork','spindle','arc']],
+ ['talos','the-iron-nebula','Ancient machine ecologies','riveted iron / faceted magnetite',['foundry','desert','garden','ocean','storm','iceCaves'],['shield','hammer','centipede','ribbon','vault','fork'],['catamaran','casket','blade','arc','radial','spindle']],
+ ['aether','the-pearl-river','Pearlescent shelves','pearl nacre / feathered mineral shelves',['magma','sky','trench','storm','glacier'],['crown','lancet','chalice','vault','hammer'],['blade','delta','arc','radial','fork']],
+ ['cervus','the-auburn-veil','Branching copper wilds','copperwood roots / serrated ochre rock',['desert','garden','ocean','iceOcean'],['centipede','fork','mantle','ribbon'],['casket','delta','catamaran','arc']],
+ ['argent','the-silver-reach','Silver mirror rifts','mirror salt / blue-steel filigree',['magma','foundry','orbital','trench','storm','glacier'],['vault','shield','lancet','chalice','crown','hammer'],['fork','catamaran','blade','arc','radial','spindle']],
+ ['saffron','the-ochre-spiral','Golden honeycomb worlds','ochre honeycomb / smoky crystal',['desert','storm','iceCaves'],['shield','crown','centipede'],['casket','radial','fork']],
+ ['virent','the-celadon-drift','Verdigris tidal gardens','verdigris stone / braided living reefs',['magma','caves','ocean','storm','iceOcean'],['hammer','centipede','mantle','chalice','ribbon'],['blade','fork','arc','spindle','radial']],
+ ['noctis','the-obsidian-crown','Black glass tidal frontier','black glass / pale bismuth seams',['magma','foundry','trench','orbital'],['vault','shield','chalice','lancet'],['casket','catamaran','arc','delta']],
+ ['meridian','the-distant-bloom','Radiant mineral blooms','sunstone petals / sapphire terraces',['desert','foundry','sky','ocean','storm','iceOcean'],['hammer','shield','fork','mantle','crown','ribbon'],['blade','casket','delta','arc','radial','spindle']],
+ ['eventide','the-eventide-core','Magnetic stellar archipelago','refractory carbon / plasma filaments',['corona','corona','corona'],['centipede','crown','lancet'],['casket','radial','blade']]
+].map(([id,galaxyId,title,materials,route,organics,machines])=>[id,{id,version:1,galaxyId,title,materials,route,organics,machines,difficultyCurve:'system-arc-v1'}])));
+function systemTemplate(system){
+ const id=system.id.replace(/-system$/,''),template=SOLAR_SYSTEM_TEMPLATES[id];
+ if(!template||template.galaxyId!==(system.galaxyId||system.galaxy))throw Error('Supply a matching solar-system template for '+system.id);
+ return template;
+}
+function worldTemplate(system,index){
+ const systemDesign=systemTemplate(system),environmentId=systemDesign.route[index],environment=WORLD_ENVIRONMENT_TEMPLATES[environmentId];
+ if(!environment)throw Error('Missing world template at '+system.id+'/'+index);
+ return {systemDesign,environmentId,environment};
+}
+function systemChallengeBudget(index,count){
+ if(!Number.isInteger(index)||!Number.isInteger(count)||count<1||index<0||index>=count)throw Error('Invalid system challenge position');
+ const progress=count===1?0:index/(count-1);
+ return {version:1,index,count,progress,difficulty:Number((progress*3).toFixed(3)),hp:Math.round(1500+1100*progress),enemyHealthScale:1+progress*.16,bossArmor:1+progress*.12,maxActiveEnemies:8+Math.round(progress*5),waves:17+Math.round(progress*7),salvoRestScale:1.3-progress*.3,specialCooldown:7-progress*1.8,warning:1.85-progress*.25};
+}
+function applySystemChallenge(stage,index,count){
+ const b=systemChallengeBudget(index,count);stage.systemChallenge=b;
+ Object.assign(stage,{difficulty:b.difficulty,hp:b.hp,enemyHealthScale:b.enemyHealthScale,bossArmor:b.bossArmor,salvoRestScale:b.salvoRestScale});
+ stage.pacing={...stage.pacing,maxActiveEnemies:b.maxActiveEnemies,pickupGap:2.7-b.progress*.4,maxPickups:1,preBossRelief:true};
+ stage.waves=Array.from({length:b.waves},(_,i)=>Number((1.5+i*(stage.duration-7)/(b.waves-1)).toFixed(3)));
+ stage.broodWaves=[5,Math.min(b.waves-3,13)];
+ stage.encounterProfile={...bossEncounterProfile(stage),cooldown:b.specialCooldown,warning:b.warning};
+ if(stage.challenge){stage.challenge.count=b.progress<.65?2:3;stage.challenge.speed=1+b.progress*.1;}
+ if(stage.escortEncounter)stage.escortEncounter={...stage.escortEncounter,count:3+Math.round(b.progress),pace:1+b.progress*.1};
+ stage.revision++;
+}
 function materializeSystemPack(pack,packIndex){
  const slug=n=>n.toLowerCase().replace(/[^a-z0-9]+/g,'-'),worlds=[];
- for(const [name,archetype,orbit,seed,features={}] of pack.worlds){
+ for(const [worldIndex,[name,legacyArchetype,orbit,seed,features={}]] of pack.worlds.entries()){
+  const {environment:worldEnvironment,environmentId}=worldTemplate({...pack,galaxyId:pack.galaxy},worldIndex),archetype=worldEnvironment.base;
   const base=STAGE_ARCHETYPES[archetype];if(!base)throw Error('Unknown encounter archetype '+archetype);
   const l=JSON.parse(JSON.stringify(base)),id=pack.id+'-'+slug(name),duration=60+(seed%3)*4,ratio=duration/base.duration;
-  const water=base.medium==='water',climate=orbit<1?'hot':orbit<3?'temperate':archetype===4?'gas':'ice',tint=[[1.07,.94,.86],[.86,1.04,1.09],[1.03,.88,1.07],[.91,1.07,.91]][seed%4];
-  Object.assign(l,{id:id+'-descent',revision:1,name:name.toUpperCase()+' / '+base.short,short:base.short,boss:pack.name+' '+({warden:'SKY REAVER',cathedral:'SIEGE ENGINE',sovereign:'PRESSURE HUNTER',monarch:'MAW KEEPER',regent:'STORM SENTINEL',mother:'BROOD QUEEN'}[base.bossKind]),chapter:packIndex+3,duration,checkpoints:[0,duration/4,duration/2,duration*3/4],difficulty:Math.min(5,2+packIndex*.22+(seed%4)*.22),hp:Math.round(Math.min(3900,Math.max(base.hp,1600)*(1+packIndex*.035))),enemyHealthScale:Math.min(1.4,1.08+packIndex*.035),bossArmor:Math.min(1.2,base.bossArmor||1),bossPalette:tint,sceneTint:tint,contentSeed:seed,expeditionNote:pack.name+' · '+name+' · '+base.stratum});
+  const water=base.medium==='water',climate=orbit<1?'hot':orbit<3?'temperate':environmentId==='storm'?'gas':'ice',tint=[[1.07,.94,.86],[.86,1.04,1.09],[1.03,.88,1.07],[.91,1.07,.91]][seed%4];
+  Object.assign(l,{id:id+'-descent',revision:1,name:name.toUpperCase()+' / '+base.short,short:base.short,boss:pack.name+' '+({warden:'SKY REAVER',cathedral:'SIEGE ENGINE',sovereign:'PRESSURE HUNTER',monarch:'MAW KEEPER',regent:'STORM SENTINEL',mother:'BROOD QUEEN'}[base.bossKind]),chapter:packIndex+3,duration,checkpoints:[0,duration/4,duration/2,duration*3/4],difficulty:0,hp:1500,enemyHealthScale:1,bossArmor:Math.min(1.2,base.bossArmor||1),bossPalette:tint,sceneTint:tint,contentSeed:seed,expeditionNote:pack.name+' · '+name+' · '+base.stratum});
+  const physical=ENVIRONMENTS[worldEnvironment.environment];
+  if(!worldEnvironment.climates.includes(climate))throw Error('Template climate mismatch: '+id);
+  Object.assign(l,{environment:worldEnvironment.environment,medium:physical.medium,atmosphere:{heat:climate==='ice'?0:physical.heat,clouds:physical.clouds,water:physical.water},stratum:physical.label});
   l.routes=base.routes.map((y,i)=>Math.max(130,Math.min(630,y+Math.sin(seed+i*2.1)*75)));
   l.roster=base.roster.slice(seed%base.roster.length).concat(base.roster.slice(0,seed%base.roster.length));
   const waveCount=19+seed%5;l.waves=Array.from({length:waveCount},(_,i)=>Number((1.5+i*(duration-6)/waveCount+.14*Math.sin(seed+i)).toFixed(3)));
@@ -1905,8 +1981,8 @@ function materializeSystemPack(pack,packIndex){
   l.supplies.forEach(d=>{d.at=Number((d.at*ratio).toFixed(3));if(d.type==='rescue')d.at=duration/4+.5;});l.supplies.sort((a,b)=>a.at-b.at);
   l.obstacles.forEach(o=>{o.at=Number((o.at*ratio).toFixed(3));});
   l.challenge={...base.challenge,title:name.toUpperCase()+' '+(water?'PRESSURE PASSAGE':archetype===1?'REACTOR LOCK':'CROSSING'),at:duration*.43,end:duration*.63,waves:[.45,.50,.55,.60].map(t=>Number((duration*t).toFixed(3))),count:2+seed%2,speed:1.08+(seed%3)*.04};
-  l.pacing={...base.pacing,maxActiveEnemies:Math.min(14,10+Math.floor(packIndex/2)),pickupGap:2.4,maxPickups:1,preBossRelief:true};
-  l.encounterProfile={...bossEncounterProfile(base),cooldown:Math.max(3.6,bossEncounterProfile(base).cooldown-packIndex*.09),warning:Math.max(1.45,bossEncounterProfile(base).warning)};
+  l.pacing={...base.pacing,maxActiveEnemies:10,pickupGap:2.4,maxPickups:1,preBossRelief:true};
+  l.encounterProfile={...bossEncounterProfile(base),cooldown:bossEncounterProfile(base).cooldown,warning:Math.max(1.45,bossEncounterProfile(base).warning)};
   l.flightRoute={period:20+seed%6,drive:3.2,speed:310+seed%5*12,points:[[1140,200+seed%3*70],[900,530],[540+seed%4*60,420],[800,170],[1190,470],[1040,320]]};
   if(l.escortEncounter)l.escortEncounter={...l.escortEncounter,name:name.toUpperCase()+' '+(l.escortEncounter.organic?'SHEPHERD':'ESCORT'),pace:1+(seed%3)*.06};
   if(features.anomaly==='black-hole'){
@@ -1919,6 +1995,21 @@ function materializeSystemPack(pack,packIndex){
  return {id:pack.id+'-expedition',version:1,month:'2026-09',systems:[{id:pack.id+'-system',galaxyId:pack.galaxy,name:pack.name,galacticPosition:[[.70,.39],[.32,.59],[.68,.65],[.27,.38],[.74,.55],[.39,.28]][packIndex%6],star:{name:pack.star[0],type:pack.star[1],color:pack.star[2],radius:pack.star[3]},destinations:worlds}]};
 }
 const expansionReleases=SYSTEM_PACKS.map(materializeSystemPack);
+// A stellar cluster is a different topology, not a planetary system with renamed worlds.
+const eventideRelease=(()=>{
+ const stars=[
+  {id:'eventide-carmine',name:'CARMINE',type:'RED GIANT',color:[255,103,47],radius:1.45,orbit:1.1,seed:617,weather:'prominences',archetype:5,boss:'THE CORONAL HYDRA'},
+  {id:'eventide-fulgur',name:'FULGUR',type:'BLUE-WHITE STAR',color:[140,193,255],radius:.95,orbit:2.1,seed:631,weather:'magnetic',archetype:4,boss:'THE FLUX ENGINE'},
+  {id:'eventide-aureus',name:'AUREUS',type:'AMBER STAR',color:[255,185,58],radius:1.12,orbit:3.4,seed:643,weather:'wind',archetype:0,boss:'THE SOLAR REAVER'}
+ ];
+ const destinations=stars.map((star,i)=>{
+  const base=STAGE_ARCHETYPES[star.archetype],l=JSON.parse(JSON.stringify(base)),duration=64,ratio=duration/base.duration;
+  Object.assign(l,{id:star.id+'-corona',revision:1,name:star.name+' / '+({prominences:'PROMINENCE SEA',magnetic:'MAGNETIC FRONT',wind:'SOLAR WIND'}[star.weather]),short:'STELLAR CORONA',boss:star.boss,environment:'stellar-corona',stratum:'OUTER CORONA',medium:'air',atmosphere:{heat:1,clouds:0,water:0},stellar:star,chapter:21,duration,checkpoints:[0,16,32,48],difficulty:4.5,hp:3000+i*180,bossArmor:1.12,color:['#ffac6c','#a0ceff','#ffdb86'][i],sky:'#0b0812',fog:'#69280b',planet:'#a65824',expeditionNote:star.name+' · outer stellar corona · Eventide galactic core',obstacles:[],scrollAxis:null,contentSeed:star.seed});
+  l.waves=Array.from({length:21},(_,n)=>1.5+n*2.8);l.supplies.forEach(d=>{d.at=Number((d.at*ratio).toFixed(3))});l.supplies.sort((a,b)=>a.at-b.at);l.broodWaves=[5,13];l.challenge={...base.challenge,title:star.name+' SURGE',at:27,end:40,waves:[28,32,36],gate:false,count:2,speed:1.06};l.pacing={...base.pacing,maxActiveEnemies:12};
+  levelDefinitions.push(l);return{id:star.id,name:star.name,kind:'star',stellarBody:star,orbit:star.orbit,orbitalZone:'stellar',climate:'plasma',rings:false,orbitPhase:.8+i*2.15,stages:[l.id]};
+ });
+ return{id:'eventide-stellar-frontier',version:1,month:'2026-11',systems:[{id:'eventide-system',name:'EVENTIDE',galaxyId:'the-eventide-core',galacticPosition:[.5,.5],centralBody:{kind:'black-hole',name:'UMBILICUS',type:'SUPERMASSIVE BLACK HOLE'},destinations}]};
+})();
 const contentReleases=freezeContent([
  {id:'first-contact',version:5,month:'2026-09',systems:[{id:'vesper-system',galaxyId:'the-pale-spiral',name:'VESPER',galacticPosition:[.72,.42],star:{name:'VESPER A',type:'AMBER DWARF',color:[255,179,79],radius:.88},destinations:[
   {id:'caelus',surfaceDisk:'caelus',name:'CAELUS',kind:'planet',orbitalZone:'temperate',orbit:1.4,climate:'temperate',rings:true,orbitPhase:-.55,stages:[levelDefinitions[0].id]},
@@ -1931,14 +2022,15 @@ const contentReleases=freezeContent([
   {id:'cinder',surfaceDisk:'cinder',name:'CINDER',kind:'planet',orbitalZone:'inner',orbit:.25,climate:'hot',rings:false,orbitPhase:3.65,surfaceAtlas:'orison',surfaceBand:2,stages:[levelDefinitions[5].id]},
   {id:'nivara',surfaceDisk:'nivara',name:'NIVARA',kind:'planet',orbitalZone:'outer',orbit:8.2,climate:'ice',rings:false,orbitPhase:1.0,surfaceLongitude:.34,stages:[nivara.id]}
  ]}]},
- ...expansionReleases
+ ...expansionReleases,eventideRelease
 ]);
 levelDefinitions[1].expeditionNote='Ferrum · abandoned planetary foundry';
 function expeditionGalaxy(location){return GALAXIES[location.galaxyId||GALAXY.id];}
 // The current schema describes one central star. A corona destination is an
 // encounter at that same star, never another sun or an extra planet.
-function systemCensus(system){return {suns:system.star?1:0,planets:system.destinations.filter(d=>d.kind==='planet').length,encounters:system.destinations.reduce((n,d)=>n+d.stages.length,0)};}
-function systemCensusLabel(system){const c=systemCensus(system);return `${c.suns} SUN${c.suns===1?'':'S'} · ${c.planets} PLANET${c.planets===1?'':'S'}`;}
+function systemFocus(system){return system.centralBody||system.star;}
+function systemCensus(system){return {suns:(system.star?1:0)+system.destinations.filter(d=>d.kind==='star'&&d.stellarBody).length,planets:system.destinations.filter(d=>d.kind==='planet').length,encounters:system.destinations.reduce((n,d)=>n+d.stages.length,0)};}
+function systemCensusLabel(system){const c=systemCensus(system);return `${system.centralBody?.kind==='black-hole'?'1 BLACK HOLE · ':''}${c.suns} SUN${c.suns===1?'':'S'} · ${c.planets} PLANET${c.planets===1?'':'S'}`;}
 function systemStageProgress(location){const stages=expeditionSystem(location).destinations.flatMap(d=>d.stages);return {number:stages.findIndex(id=>expedition.locations[id]===location)+1,total:stages.length};}
 const expeditionSystems=new Map(contentReleases.flatMap(r=>r.systems).map(s=>[s.id,s]));
 function expeditionSystem(location){return expeditionSystems.get(location.systemId);}
@@ -1954,20 +2046,83 @@ const BIOSPHERE_FAMILIES=freezeContent({
  'reef-smiths':{habitat:'water',forms:['crab','scarab'],names:['Reef smith','Serrated crawler'],finPairs:1,eyePairs:2,crest:4,sails:true,gait:'dart'},
  'abyss-combs':{habitat:'water',forms:['herald','tendril'],names:['Comb predator','Thread maw'],arms:4,span:.8,chord:.6,finPairs:2,eyePairs:3,forked:true,gait:'weave'}
 });
+// Authored evolution pools. Each system has a recognizable anatomy vocabulary;
+// a stable world seed selects castes within it, independent of release order.
+const EVOLUTION_POOLS=freezeContent({
+ eventide:{air:['skyworm','urchin','wasp','trilobite','jelly'],water:['eel','urchin','crab','squid','jelly'],machines:['gyroscope','prism','trident'],armor:'fins'},
+ vesper:{air:['wyvern','moth','wasp','skyworm','trilobite'],water:['manta','nautilus','crab','eel','squid'],machines:['dart','outrigger','citadel'],armor:'ribs'},
+ orison:{air:['jelly','urchin','squid','crab','skyworm'],water:['jelly','squid','eel','nautilus','urchin'],machines:['halo','gyroscope','prism'],armor:'cage'},
+ lyra:{air:['wasp','trilobite','moth','wyvern','skyworm'],water:['trilobite','crab','nautilus','manta','eel'],machines:['trident','prism','dart'],armor:'fins'},
+ solenne:{air:['moth','skyworm','jelly','wasp','urchin'],water:['nautilus','jelly','manta','squid','eel'],machines:['crescent','halo','citadel'],armor:'cage'},
+ nereid:{air:['skyworm','squid','urchin','jelly','wyvern'],water:['eel','squid','urchin','manta','jelly'],machines:['outrigger','prism','trident'],armor:'fins'},
+ umbra:{air:['urchin','crab','trilobite','wasp','jelly'],water:['urchin','nautilus','crab','jelly','trilobite'],machines:['citadel','gyroscope','halo'],armor:'ribs'},
+ auric:{air:['trilobite','wasp','crab','moth','skyworm'],water:['crab','trilobite','nautilus','eel','manta'],machines:['prism','citadel','trident'],armor:'fins'},
+ halcyon:{air:['jelly','moth','skyworm','wyvern','squid'],water:['manta','jelly','squid','eel','nautilus'],machines:['crescent','gyroscope','outrigger'],armor:'cage'},
+ pyrrha:{air:['crab','urchin','wasp','trilobite','skyworm'],water:['crab','urchin','trilobite','eel','squid'],machines:['trident','citadel','prism'],armor:'ribs'},
+ elysian:{air:['wyvern','skyworm','moth','wasp','jelly'],water:['eel','manta','squid','nautilus','jelly'],machines:['dart','crescent','halo'],armor:'fins'},
+ selen:{air:['moth','jelly','trilobite','skyworm','wasp'],water:['jelly','nautilus','manta','trilobite','eel'],machines:['halo','prism','outrigger'],armor:'cage'},
+ rubra:{air:['skyworm','urchin','crab','squid','wasp'],water:['squid','eel','urchin','nautilus','crab'],machines:['gyroscope','citadel','trident'],armor:'ribs'},
+ talos:{air:['trilobite','crab','wasp','wyvern','moth'],water:['trilobite','crab','eel','urchin','manta'],machines:['citadel','outrigger','prism'],armor:'ribs'},
+ aether:{air:['jelly','moth','wyvern','skyworm','urchin'],water:['jelly','manta','nautilus','eel','squid'],machines:['halo','crescent','dart'],armor:'cage'},
+ cervus:{air:['wasp','wyvern','trilobite','crab','moth'],water:['crab','eel','manta','trilobite','squid'],machines:['outrigger','dart','gyroscope'],armor:'fins'},
+ argent:{air:['moth','trilobite','skyworm','wasp','wyvern'],water:['nautilus','manta','eel','crab','jelly'],machines:['prism','trident','crescent'],armor:'fins'},
+ saffron:{air:['urchin','jelly','wasp','crab','skyworm'],water:['urchin','crab','nautilus','squid','eel'],machines:['gyroscope','halo','citadel'],armor:'cage'},
+ virent:{air:['squid','skyworm','moth','jelly','wyvern'],water:['squid','eel','jelly','manta','nautilus'],machines:['crescent','outrigger','halo'],armor:'cage'},
+ noctis:{air:['urchin','skyworm','squid','crab','jelly'],water:['urchin','eel','nautilus','squid','jelly'],machines:['gyroscope','prism','citadel'],armor:'ribs'},
+ meridian:{air:['wyvern','wasp','moth','skyworm','trilobite'],water:['manta','trilobite','crab','eel','nautilus'],machines:['trident','crescent','dart'],armor:'fins'}
+});
+function planetEvolution(world,system,medium){
+ const key=system.id.replace(/-system$/,''),pool=world.biosphere?.evolution||system.evolution||EVOLUTION_POOLS[key];
+ if(!pool)throw Error('Supply an evolution pool for '+system.id);
+ const seed=speciesHash(system.id+'/'+world.id),list=pool[medium];
+ if(!list||list.length<5||new Set(list).size!==list.length)throw Error('Evolution needs five distinct castes: '+world.id);
+ const offset=seed%list.length,anatomy=Array.from({length:5},(_,i)=>list[(offset+i)%list.length]);
+ for(const id of anatomy)if(!SPECIES_BLUEPRINTS[id]?.habitats.includes(medium))throw Error('Invalid habitat for '+id);
+ return{pool,anatomy,seed};
+}
+// Every destination owns a geography/ecology brief. Legacy paintings remain
+// explicit placeholders until that brief has reviewed, planet-owned artwork.
+const WORLD_BIOMES={
+ hot:['basalt-needles','caldera-fields','molten-cataracts','obsidian-arches','furnace-vaults','sulfur-mesas'],
+ ice:['glacial-rifts','frozen-canopies','ice-cathedral','snow-dunes','crystal-trenches','broken-shelves'],
+ water:['chimney-forest','coral-labyrinth','abyssal-spires','kelp-vaults','reef-terraces','vent-canyons'],
+ temperate:['floating-mesas','needle-canopy','eroded-arches','terraced-cliffs','fungal-basin','ancient-machinery'],
+ gas:['storm-towers','cloud-ribbons','crystal-fronts','floating-vaults','vapor-columns','ion-reefs']
+};
+function developWorldIdentity(world,system,stage){
+ const seed=speciesHash('geography-v1/'+system.id+'/'+world.id),unit=n=>((seed>>>n)&255)/255;
+ const habitat=stage.medium==='water'?'water':world.climate==='hot'?'hot':world.climate==='ice'?'ice':world.climate==='gas'?'gas':'temperate',choices=WORLD_BIOMES[habitat];
+ const biome=world.kind==='star'?'stellar-corona':choices[seed%choices.length],accent=habitat==='hot'?[224,123+Math.round(unit(5)*58),65]:habitat==='ice'?[112+Math.round(unit(7)*50),179,211]:habitat==='water'?[79,142+Math.round(unit(8)*70),147+Math.round(unit(2)*60)]:habitat==='gas'?[139+Math.round(unit(2)*65),126,182]:[92+Math.round(unit(2)*80),146+Math.round(unit(9)*45),120];
+ return{version:1,id:world.id,seed,habitat,biome,accent,profile:seed%5,relief:.55+unit(12)*.6,density:8+seed%9,ceiling:stage.environment.includes('under')||biome.includes('vault')||biome.includes('cathedral'),lightSide:seed%2?1:-1,landmark:seed%7,landmarkX:.27+unit(3)*.46,tectonics:3+seed%8,featureScale:.72+unit(15)*.65};
+}
+
 function installPlanetBiosphere(stage,world,system){
- const seed=speciesHash(system.id+'/'+world.id),water=stage.medium==='water',options=Object.keys(BIOSPHERE_FAMILIES).filter(k=>BIOSPHERE_FAMILIES[k].habitat===stage.medium),familyId=world.biosphere?.family||options[seed%options.length],family=BIOSPHERE_FAMILIES[familyId];
- if(!family||family.habitat!==stage.medium)throw Error('Invalid biosphere for '+world.id);
+ const worldIndex=system.destinations.indexOf(world),{systemDesign,environmentId,environment}=worldTemplate(system,worldIndex);
+ if(systemDesign.route.length!==system.destinations.length)throw Error('World count disagrees with system template: '+system.id);
+ if(!environment.climates.includes(world.climate))throw Error('World climate disagrees with system template: '+world.id);
+ const physical=ENVIRONMENTS[environment.environment];
+ Object.assign(stage,{environment:environment.environment,medium:physical.medium,atmosphere:{heat:world.climate==='ice'?0:physical.heat,clouds:stage.gravityWell?0:physical.clouds,water:physical.water},stratum:physical.label});
+ stage.worldIdentity=developWorldIdentity(world,system,stage);
+ stage.worldIdentity.environmentId=environmentId;
+ stage.worldIdentity.biome=environmentId;
+ stage.worldIdentity.templateVersion=systemDesign.version;
+ stage.worldIdentity.design={id:world.id+'-design-v1',systemTemplate:systemDesign.id,geology:systemDesign.materials,landform:environment.landform,adaptation:environment.adaptation,organicArchitecture:systemDesign.organics[worldIndex],machineArchitecture:systemDesign.machines[worldIndex],landscapeAsset:'worlds/'+world.id+'/landscape.webp',orbitalAsset:'worlds/'+world.id+'/orbit.webp',artStatus:(!stage.contentSeed||stage.gravityWell)?'existing-authored':'needs-unique-art',encounterStatus:'shared-controller'};
+ applySystemChallenge(stage,worldIndex,system.destinations.length);
+ const {pool,anatomy,seed}=planetEvolution(world,system,stage.medium),water=stage.medium==='water';
  const palettes=water?[[[38,125,151],[211,155,83]],[[153,64,96],[106,185,170]],[[75,111,178],[219,167,111]],[[51,141,110],[186,150,203]]]:[[[62,149,102],[221,172,76]],[[159,66,75],[114,178,180]],[[98,92,169],[217,159,87]],[[171,113,51],[99,184,147]]];
- const palette=world.biosphere?.palette||palettes[(seed>>>5)%palettes.length],ids=[];
- const systemIndex=contentReleases.flatMap(r=>r.systems).indexOf(system),worldIndex=system.destinations.indexOf(world),lineage=speciesHash(system.id),bodyPlans=['lance','shield','ribbon','hammer','petal','keel'],machinePlans=['outrigger','crescent','trident','halo','dart','citadel'];
- const bodyPlan=world.biosphere?.bodyPlan||bodyPlans[(systemIndex+worldIndex)%bodyPlans.length],machinePlan=world.biosphere?.machinePlan||machinePlans[(systemIndex*3+worldIndex)%machinePlans.length];
+ const palette=world.biosphere?.palette||palettes[(seed>>>5)%palettes.length],ids=[],mechanicalSwarm=(seed>>>8)%3===0,machines=pool.machines,mi=(seed>>>12)%machines.length;
  for(let role=0;role<6;role++){
-  const organic=role===1||role===3||role>=4,hash=speciesHash(world.id+':'+role),unit=n=>((hash>>>n)&255)/255,id=world.id+'-species-'+role,form=role===4?(family.forms.includes('scarab')?'herald':'scarab'):family.forms[(role===3||role===5?1:0)],name=world.name+' '+(organic?(role===4?'Crown '+family.names[0]:role===5?'Scout '+family.names[1]:family.names[role===3?1:0]):role===0?'Needle interceptor':'Bastion drone');
-  const spec={...family,...world.biosphere?.traits,id,name,planet:world.id,system:system.id,lineage,bodyPlan,machinePlan:role===2?machinePlans[(machinePlans.indexOf(machinePlan)+3)%machinePlans.length]:machinePlan,wingSweep:((lineage>>>8)%3-1)*24,wingNotches:2+(seed%4),tailLength:.65+(seed%7)*.17,legPairs:2+(seed%3),family:familyId,organic,form,baseModel:!organic?stage.models[role]:null,habitat:stage.medium,color:palette[0].map((v,i)=>Math.min(235,Math.round(v*(.90+unit(i*4)*.2)))),accent:palette[1],length:.80+unit(3)*.31,girth:.83+unit(9)*.30,span:(family.span||1)*(.85+unit(15)*.17),finPairs:family.finPairs,arms:family.arms||6,crest:family.crest||0,heavy:role===2,small:role===5?.60:role===4?1.03:1,frequency:3.3+unit(6)*2.2,amplitude:family.gait==='glide'?24:family.gait==='weave'?54:36,cadence:.93+unit(13)*.18,shot:water?'water':stage.atmosphere?.heat>.4?'fire':'wind'};
+  const organic=role===1||role===3||role>=4&&!mechanicalSwarm,cast=role===1?0:role===3?1:role===4?2:3,body=anatomy[cast],blueprint=SPECIES_BLUEPRINTS[body],hash=speciesHash(world.id+':'+role),unit=n=>((hash>>>n)&255)/255,id=world.id+'-species-'+role,machinePlan=machines[(mi+(role===2?1:role>=4?2:0))%machines.length];
+  const spec={...blueprint,id,name:world.name+' '+(organic?(role===4?'Crown ':'')+blueprint.name:machinePlan+' '+(role===4?'overseer':role===5?'satellite':role===2?'gunship':'interceptor')),planet:world.id,system:system.id,lineage:system.id,organic,anatomy:organic?body:null,bodyPlan:body,machinePlan,armor:pool.armor,sensory:['antlers','barbels','compound'][(seed>>>9)%3],integument:['quills','pores','ridges'][(seed>>>13)%3],variant:hash%4,form:body,habitat:stage.medium,color:palette[0].map((v,i)=>Math.min(235,Math.round(v*(.9+unit(i*4)*.2)))),accent:palette[1],length:.88+unit(3)*.18,girth:.87+unit(9)*.23,span:1,small:role===5?.85:1,heavy:role===2,frequency:3.3+unit(6)*2.2,amplitude:blueprint.gait==='glide'?24:36,cadence:.93+unit(13)*.18,shot:water?'water':stage.atmosphere?.heat>.4?'fire':'wind'};
+  spec.genome=developSpeciesGenome(world.id,system.id,stage.medium,role,false,world.climate,stage.worldIdentity.design);
+  spec.gait=spec.genome.locomotion==='fins'?'glide':spec.genome.locomotion==='siphon'?'jet':spec.genome.locomotion==='jets'?'hover':spec.genome.finPairs>1?'flutter':'swoop';
+  spec.name=world.name+' '+(organic?spec.genome.clade+' '+(role===4?'matriarch':role===5?'juvenile':role===3?'hunter':'forager'):spec.genome.machineFrame+' '+(role===4?'overseer':role===5?'satellite':role===2?'gunship':'interceptor'));
   registerPlanetSpecies(freezeContent(spec));ids.push(id);
  }
- stage.models=ids.slice(0,4);stage.biosphere={id:world.id+'-biosphere',family:familyId,bodyPlan,machinePlan,names:ids.filter((_,i)=>i===1||i===3).map(id=>planetSpecies.get(id).name),species:ids};
- const prior=stage.escortEncounter||{};stage.escortEncounter={...prior,name:planetSpecies.get(ids[4]).name.toUpperCase(),model:ids[4],escort:ids[5],organic:true,rig:'appendages',count:prior.count||4,orbit:prior.orbit||2.6,formation:['screen','figure8','petals'][seed%3],pace:prior.pace||1};stage.revision++;
+ const bossSeed=speciesHash(world.id+':boss'),bossAnatomy=anatomy[4];
+ stage.models=ids.slice(0,4);stage.biosphere={id:world.id+'-biosphere',family:system.id,bodyPlan:anatomy[0],machinePlan:machines[mi],names:ids.filter((_,i)=>i===1||i===3).map(id=>planetSpecies.get(id).name),species:ids,boss:{id:world.id+'-sovereign',anatomy:bossAnatomy,caste:'boss',sensory:['antlers','barbels','compound'][(bossSeed>>>9)%3],integument:['quills','pores','ridges'][(bossSeed>>>13)%3],organic:![1,4].includes(BOSS_KINDS[stage.bossKind]),habitat:stage.medium,color:palette[0],accent:palette[1],variant:bossSeed%4,length:1.05,girth:1.1,small:1,span:1,machinePlan:machines[(mi+2)%machines.length],armor:pool.armor,heavy:true}};
+ stage.biosphere.boss.genome=developSpeciesGenome(world.id,system.id,stage.medium,6,true,world.climate,stage.worldIdentity.design);
+ const prior=stage.escortEncounter||{};stage.escortEncounter={...prior,name:planetSpecies.get(ids[4]).name.toUpperCase(),model:ids[4],escort:ids[5],organic:!mechanicalSwarm,rig:'appendages',count:prior.count||4,orbit:prior.orbit||2.6,formation:['screen','figure8','petals'][seed%3],pace:prior.pace||1};stage.revision+=2;
 }
 for(const release of contentReleases)for(const system of release.systems)for(const world of system.destinations)for(const stageId of world.stages){const stage=levelDefinitions.find(l=>l.id===stageId);installPlanetBiosphere(stage,world,system);}
 const expedition=buildExpedition(contentReleases,levelDefinitions);

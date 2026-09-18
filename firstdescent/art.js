@@ -27,6 +27,7 @@ function sprite(img,col,row,cols,rows,x,y,w,h,hit=0){
  if(img===art.bosses){const crops=[[0,0,435,1024],[435,35,650,890],[1078,0,458,1024]];const [sx,sy,sw,sh]=crops[col];ctx.drawImage(img,sx,sy,sw,sh,x-w/2,y-h/2,w,h)}else ctx.drawImage(img,col*img.naturalWidth/cols,row*img.naturalHeight/rows,img.naturalWidth/cols,img.naturalHeight/rows,x-w/2,y-h/2,w,h);ctx.restore();return true;
 }
 function drawBackdrop(dt=1/60){
+ if(sectors[level].stellar){drawStellarBackdrop(sectors[level]);return;}
  if(sectors[level].gravityWell){drawGravityBackdrop(sectors[level]);return;}
  const s=sectors[level],vertical=s.scrollAxis,painting=scenePainting(),lean=vertical?(ship.x-W/2)*.018:(ship.y-H/2)*.025;
  viewY+=((state==='title'?0:clamp(lean,-12,12))-viewY)*(1-Math.exp(-dt*3));ctx.fillStyle=s.sky;ctx.fillRect(0,0,W,H);
@@ -246,21 +247,37 @@ function enemyKinematics(e,dt){
   if(routeAge>=14.2)e.x=-180-(routeAge-14.2)*240;
   return;
  }
- const thrust=species?.organic?(species.gait==='glide'?.94+stroke*.28:species.gait==='dart'?.62+stroke*1.4:species.gait==='weave'?.88+stroke*.45:.66+stroke*1.12):themeIndex()===1?(e.type===0?1+.5*Math.pow(Math.max(0,Math.sin(e.age*2+e.phase)),4):.8):themeIndex()===2?(e.type===1?1.05+.12*Math.cos((e.age+e.phase)*3.2):1.1+.22*Math.pow(Math.max(0,Math.sin((e.age+e.phase)*9)),2)):organic?.52+stroke*1.48:1;
+ const thrust=species?.organic?(['glide','undulate','row'].includes(species.gait)?.94+stroke*.28:species.gait==='dart'?.62+stroke*1.4:species.gait==='flutter'?.9+.16*Math.sin(cycle*2):species.gait==='hover'?.82+stroke*.48:species.gait==='swoop'?.86+stroke*.65:.66+stroke*1.12):themeIndex()===1?(e.type===0?1+.5*Math.pow(Math.max(0,Math.sin(e.age*2+e.phase)),4):.8):themeIndex()===2?(e.type===1?1.05+.12*Math.cos((e.age+e.phase)*3.2):1.1+.22*Math.pow(Math.max(0,Math.sin((e.age+e.phase)*9)),2)):organic?.52+stroke*1.48:1;
  const desired=e.speed*thrust*(organic?1.12+stroke*.38:1+.16*Math.pow(Math.max(0,Math.sin((e.age+e.phase)*2)),4));e.swimSpeed=(e.swimSpeed??e.speed)+(desired-(e.swimSpeed??e.speed))*(1-Math.exp(-dt*7));e.x+=(e.direction||-1)*e.swimSpeed*dt;
  const oldY=e.y,turnRate=e.brood?1.05:organic?.45:e.type===2?.35:.7,amplitude=e.brood?112:organic?34:e.type===2?10:30;
- const naturalY=species?e.base+(Math.sin(e.age*(species.gait==='weave'?1.7:species.gait==='glide'?.65:1.1)+e.phase)-Math.sin(e.phase))*species.amplitude:themeIndex()===1?e.base+(e.type===0?Math.sin(e.age*1.7+e.phase)*52:Math.sin(e.age*.6+e.phase)*18):themeIndex()===2?e.base+(Math.sin(e.age*(e.type===1?1.3:1.8)+e.phase)-Math.sin(e.phase))*(e.type===1?65:48):e.base+(Math.sin(e.age*turnRate+e.phase)-Math.sin(e.phase))*amplitude;
+ const naturalY=species?e.base+(Math.sin(e.age*(species.gait==='flutter'?2.4:species.gait==='swoop'?.85:species.gait==='glide'?.65:species.gait==='hover'?.5:1.1)+e.phase)-Math.sin(e.phase))*species.amplitude:themeIndex()===1?e.base+(e.type===0?Math.sin(e.age*1.7+e.phase)*52:Math.sin(e.age*.6+e.phase)*18):themeIndex()===2?e.base+(Math.sin(e.age*(e.type===1?1.3:1.8)+e.phase)-Math.sin(e.phase))*(e.type===1?65:48):e.base+(Math.sin(e.age*turnRate+e.phase)-Math.sin(e.phase))*amplitude;
  let routeTarget=enemyRouteY(e,naturalY);
  if((e.entry==='top'||e.entry==='bottom')&&e.age<2.5+(e.entryDelay||0)){
  const t=clamp((e.age-(e.entryDelay||0))/2.5,0,1);e.x=e.entryX-180*passEase(t);routeTarget=e.entryY+(routeTarget-e.entryY)*passEase(t);e.y=routeTarget;e.routeY=e.y;e.routeVY=0;
  }else e.y=steerEnemyY(e,routeTarget,dt);
  const desiredPitch=clamp(-Math.atan2((e.y-oldY)/dt,e.swimSpeed)*.65,-.45,.45);e.travelPitch=(e.travelPitch||0)+(desiredPitch-(e.travelPitch||0))*(1-Math.exp(-dt*7));e.travelYaw=(e.direction===1?Math.PI:0)+(organic?organicSpin(e.age+e.phase).yaw:Math.cos(e.age*turnRate+e.phase)*.12);e.depth=1;
 }
-function firingRig(e,isBoss=false){if(isBoss&&bossDesign()){const d=bossDesign(),p=bossFlightPose(e),local=d.guns?d.guns[(e.attack?.index||0)%d.guns.length]:d.mouth,m=bossMount(e,local),v=rotateVertex([-1,0,0],p.yaw,p.roll,p.pitch,0,0);return{x:m.x,y:m.y,muzzleX:m.x,muzzleY:m.y,scale:d.scale*p.depth,yaw:p.yaw,pitch:p.pitch,organic:bossOrganic(),heading:e.fireHeading??Math.atan2(v[1],v[0])};}if(isBoss&&bossIndex()===0){const r=bossLaserOrigin(e),rig=bossLaserRig(e);return{x:rig.x,y:rig.y,scale:rig.scale,yaw:rig.yaw,pitch:rig.pitch,organic:true,heading:Math.atan2(r.y-rig.y,r.x-rig.x),muzzleX:r.x,muzzleY:r.y};}const organic=isBoss?bossOrganic():isOrganicEnemy(e),scale=isBoss?2*(e.depth||1):1,x=e.x-(isBoss?88*(e.depth||1)*(e.facing===1?-1:1):(27+(organic&&(e.brood||themeIndex()===0||e.type===3&&themeIndex()!==2)?9*Math.pow((1+Math.cos((e.age+(e.phase||0))*(e.type===1?4.8:3.8)-.3))*.5,5):0))*(e.direction===1?-1:1)),y=e.y;
+// Pose and sockets share one transform, including swarm scale and barrel rolls.
+function speciesFlightPose(e){
+ const organic=isOrganicEnemy(e),age=e.age+(e.phase||0),activity=organic?organicSpin(age):null;
+ const pitch=(e.travelPitch||0)+(activity?.pitch||0);
+ return{age:age*(enemySpecies(e)?.genome?.appendageRate||1),yaw:e.travelYaw||0,pitch,roll:e.satellite?e.age*TAU/.75+(e.orbit||0):e.brood?(e.broodRoll||0):organic?activity.roll+clamp(-pitch*.45,-.18,.18):mechanicalFlightRoll(e)-pitch*.65,scale:e.brood?1.4:e.satellite?.5:1};
+}
+function nativeSpeciesMesh(e){const s=enemySpecies(e);return !e.sentry&&s?meshes[s.id]:null;}
+function speciesSocket(e,local,pose=speciesFlightPose(e)){const q=rotateVertex(local,pose.yaw,pose.roll,pose.pitch,0,0),f=window.gpuModels?1:460/(460+q[2]);return{x:e.x+q[0]*f*pose.scale,y:e.y+q[1]*f*pose.scale};}
+function drawNativePropulsion(e,mesh,p){
+ const organic=isOrganicEnemy(e),water=sectors[level].medium==='water',power=.35+.65*(e.stroke||0),color=water?'#9edbe7':organic?'#92dec5':'#77caff';
+ for(const port of mesh.ports||[]){const a=speciesSocket(e,port,p),b=speciesSocket(e,[port[0]+(water?18:28)+power*24,port[1],port[2]],p),dx=b.x-a.x,dy=b.y-a.y,n=Math.hypot(dx,dy)||1,r=(organic?2:3)*p.scale,nx=-dy/n*r,ny=dx/n*r;
+  ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=water?.35:.65;const g=ctx.createLinearGradient(a.x,a.y,b.x,b.y);g.addColorStop(0,color);g.addColorStop(1,color+'00');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(a.x+nx,a.y+ny);ctx.quadraticCurveTo(b.x+nx,b.y+ny,b.x,b.y);ctx.quadraticCurveTo(b.x-nx,b.y-ny,a.x-nx,a.y-ny);ctx.fill();ctx.restore();
+ }
+}
+function firingRig(e,isBoss=false){
+ if(!isBoss){const mesh=nativeSpeciesMesh(e);if(mesh?.nativeAnatomy){const p=speciesFlightPose(e),m=speciesSocket(e,mesh.muzzle,p),heading=e.elite?Math.atan2(ship.y-m.y,ship.x-m.x):(e.direction===1?0:Math.PI);return{x:m.x,y:m.y,muzzleX:m.x,muzzleY:m.y,organic:isOrganicEnemy(e),native:true,scale:p.scale,yaw:p.yaw,pitch:p.pitch,heading};}}
+if(isBoss&&bossDesign()){const d=bossDesign(),p=bossFlightPose(e),local=d.guns?d.guns[(e.attack?.index||0)%d.guns.length]:d.mouth,m=bossMount(e,local),v=rotateVertex([-1,0,0],p.yaw,p.roll,p.pitch,0,0);return{x:m.x,y:m.y,muzzleX:m.x,muzzleY:m.y,scale:d.scale*p.depth,yaw:p.yaw,pitch:p.pitch,organic:bossOrganic(),heading:e.fireHeading??Math.atan2(v[1],v[0])};}if(isBoss&&bossIndex()===0){const r=bossLaserOrigin(e),rig=bossLaserRig(e);return{x:rig.x,y:rig.y,scale:rig.scale,yaw:rig.yaw,pitch:rig.pitch,organic:true,heading:Math.atan2(r.y-rig.y,r.x-rig.x),muzzleX:r.x,muzzleY:r.y};}const organic=isBoss?bossOrganic():isOrganicEnemy(e),scale=isBoss?2*(e.depth||1):1,x=e.x-(isBoss?88*(e.depth||1)*(e.facing===1?-1:1):(27+(organic&&(e.brood||themeIndex()===0||e.type===3&&themeIndex()!==2)?9*Math.pow((1+Math.cos((e.age+(e.phase||0))*(e.type===1?4.8:3.8)-.3))*.5,5):0))*(e.direction===1?-1:1)),y=e.y;
  // The barrel is a separate articulated mount. Its local muzzle points along -X.
  const heading=isBoss&&e.fireHeading!=null?e.fireHeading:!isBoss&&!e.elite?(e.direction===1?0:Math.PI):Math.atan2(ship.y-y,ship.x-x),pitch=Math.atan2(Math.sin(heading-Math.PI),Math.cos(heading-Math.PI)),yaw=0;
  const v=rotateVertex([-29,0,0],yaw,0,pitch,0,0),f=460/(460+v[2]);return{organic,scale,yaw,pitch,x,y,heading,muzzleX:x+v[0]*f*scale,muzzleY:y+v[1]*f*scale}}
-function drawEmitter(e,isBoss=false){const r=firingRig(e,isBoss),pulse=Math.max(0,e.muzzle||0)/.16;ctx.save();ctx.translate(r.x,r.y);ctx.scale(1,1+(r.organic?pulse*.22:0));drawModel(meshes[r.organic?'siphon':'cannon'],0,0,r.scale,r.yaw,0,r.pitch,e.age);ctx.restore();if(isBoss&&e.attack&&e.attack.age<.7){const charge=e.attack.age/.7;orb(r.muzzleX,r.muzzleY,12+charge*22,r.organic?'#b8ef89':'#ffd8a1',.2+charge*.5);}if(pulse>0)orb(r.muzzleX,r.muzzleY,12*r.scale,r.organic?'#b8ef89':'#ffd8a1',pulse*.55)}
+function drawEmitter(e,isBoss=false){const r=firingRig(e,isBoss),pulse=Math.max(0,e.muzzle||0)/.16;if(!r.native){ctx.save();ctx.translate(r.x,r.y);ctx.scale(1,1+(r.organic?pulse*.22:0));drawModel(meshes[r.organic?'siphon':'cannon'],0,0,r.scale,r.yaw,0,r.pitch,e.age);ctx.restore();}if(isBoss&&e.attack&&e.attack.age<.7){const charge=e.attack.age/.7;orb(r.muzzleX,r.muzzleY,12+charge*22,r.organic?'#b8ef89':'#ffd8a1',.2+charge*.5);}if(pulse>0)orb(r.muzzleX,r.muzzleY,12*r.scale,r.organic?'#b8ef89':'#ffd8a1',pulse*.55)}
 // A complete roll around the hull's longitudinal axis; no scale changes.
 function mechanicalFlightRoll(e){
  const age=e.age+(e.phase||0)*.3;
@@ -311,6 +328,7 @@ function drawHabitatEquipment(e,yaw,roll,pitch){
 function drawEnemy(e){
  if(e.x< -180||e.x>W+180||e.y< -180||e.y>H+180)return;
  if(e.sentry){ctx.save();ctx.strokeStyle='#83939d';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(e.x,e.y-35);ctx.lineTo(e.x,e.y);ctx.stroke();ctx.restore();drawModel(meshes.sentry,e.x,e.y,1,0,0,0,e.age,e.hit);drawEmitter(e);healthBar(e.x,e.y+40,65,e.hp,e.max,'#ffbd78');return;}
+ const native=nativeSpeciesMesh(e);if(native?.nativeAnatomy){const p=speciesFlightPose(e);drawNativePropulsion(e,native,p);drawModel(native,e.x,e.y,p.scale,p.yaw,p.roll,p.pitch,p.age,e.hit);drawEmitter(e);if(e.brood||e.elite||e.hp<e.max)healthBar(e.x,e.y-(e.brood?85:e.r+24),e.brood?100:64,e.hp,e.max,isOrganicEnemy(e)?'#9cffc3':'#ffb797');return;}
  if(e.brood){drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,1.4,e.travelYaw||0,organicSpin(e.age+e.phase).roll,(e.travelPitch||0)+organicSpin(e.age+e.phase).pitch,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
  if(e.satellite){const a=e.age*TAU/.75+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes[e.escortProfile?.escort||'swarmlet'],e.x,e.y,e.escortProfile?.5:.82,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'squid');if(e.escortProfile)drawEmitter(e);if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
 
@@ -364,10 +382,10 @@ function bossDesign(kind=bossIndex()){
  if(kind===1&&typeof isCapitalSiege==='function'&&isCapitalSiege(typeof boss==='undefined'?null:boss))return capitalShipDesign(boss);
  const base=(typeof alienBossDesigns!=='undefined'&&alienBossDesigns[kind])||(typeof machineBossDesigns!=='undefined'&&machineBossDesigns[kind])||null,definition=sectors[level],palette=definition.bossPalette||(definition.biosphere?[1,1,1]:null);
  if(!base||!palette||kind!==bossIndex())return base;
- if(!bossVariants.has(definition.id)){while(bossVariants.size>=4)bossVariants.delete(bossVariants.keys().next().value);if(base.parts&&base.mesh.skin&&definition.biosphere){bossVariants.set(definition.id,planetBossAnatomy(base,definition,palette));}else{const mesh=base.mesh.map(f=>({...f,c:f.c.map((v,i)=>Math.min(255,Math.round(v*palette[i])))}));for(const k of ['skin','dynamic','alienMaterial'])mesh[k]=base.mesh[k];bossVariants.set(definition.id,{...base,mesh});}}
+ if(!bossVariants.has(definition.id)){while(bossVariants.size>=4)bossVariants.delete(bossVariants.keys().next().value);if(definition.biosphere?.boss){bossVariants.set(definition.id,buildSpeciesBoss(definition.biosphere.boss,base));}else{const mesh=base.mesh.map(f=>({...f,c:f.c.map((v,i)=>Math.min(255,Math.round(v*palette[i])))}));for(const k of ['skin','dynamic','alienMaterial'])mesh[k]=base.mesh[k];bossVariants.set(definition.id,{...base,mesh});}}
  return bossVariants.get(definition.id);
 }
-function bossLocalPoint(b,local){return bossOrganic()&&typeof alienBossPoint==='function'?alienBossPoint(bossIndex(),b,local):local;}
+function bossLocalPoint(b,local){return bossOrganic()&&!bossDesign()?.procedural&&typeof alienBossPoint==='function'?alienBossPoint(bossIndex(),b,local):local;}
 function bossMount(b,local){const d=bossDesign(),p=bossFlightPose(b),v=rotateVertex(bossLocalPoint(b,local),p.yaw,p.roll,p.pitch,0,0),scale=d.scale*p.depth;return{x:b.x+v[0]*scale,y:b.y+v[1]*scale};}
 // Exhaust follows the animated engine outlet through the same body transform.
 function drawBossDrives(b,d){
@@ -382,7 +400,7 @@ function drawBossDrives(b,d){
  }
  ctx.restore();
 }
-function drawDesignedBoss(b,d){const k=bossIndex(),p=bossFlightPose(b);if(bossOrganic())window.animateAlienBoss(k,b,d);else animateMachineBoss(k,b);drawBossDrives(b,d);drawModel(d.mesh,b.x,b.y,d.scale*p.depth,p.yaw,p.roll,p.pitch,b.age,b.hit);const m=bossMount(b,d.mouth),pulse=clamp((b.muzzle||0)/.16,0,1);if(pulse)orb(m.x,m.y,8+6*pulse,bossOrganic()?'#e9a976':'#b7e7ff',pulse*.55);if(k===4&&hazards.length){const h=hazards[0],charge=clamp(h.age/h.warning,0,1);orb(m.x,m.y,8+charge*23,'#b6efff',.3+charge*.45);}}
+function drawDesignedBoss(b,d){const k=bossIndex(),p=bossFlightPose(b);if(!d.procedural){if(bossOrganic())window.animateAlienBoss(k,b,d);else animateMachineBoss(k,b);}drawBossDrives(b,d);drawModel(d.mesh,b.x,b.y,d.scale*p.depth,p.yaw,p.roll,p.pitch,b.age*(d.mesh.development?.appendageRate||1),b.hit);const m=bossMount(b,d.mouth),pulse=clamp((b.muzzle||0)/.16,0,1);if(pulse)orb(m.x,m.y,8+6*pulse,bossOrganic()?'#e9a976':'#b7e7ff',pulse*.55);if(k===4&&hazards.length){const h=hazards[0],charge=clamp(h.age/h.warning,0,1);orb(m.x,m.y,8+charge*23,'#b6efff',.3+charge*.45);}}
 function drawMenace(b){
  const design=bossDesign();if(design){drawDesignedBoss(b,design);return;}
  if(bossIndex()===0){drawWardenCreature(b);return;}
@@ -786,13 +804,13 @@ function updateExpansionBoss(b,dt){
  // lock at launch: no ordinary round can home in after the player dodges.
  if(kind===4){
   const canFire=!(b.recovery>0)&&(!b.pass||b.pass.stage==='rear')&&!b.charge&&!hazards.some(h=>h.kind==='tech');
-  if(canFire){b.shoot-=dt;if(b.shoot<=0&&b.x>0&&b.x<W){const m=techLaserOrigin(b),speed=700+phase*30,offsets=phase===2?[-.11,0,.11]:[-.075,.075];for(const offset of offsets){const angle=m.angle+offset;hostile.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:phase===2?8:7,kind:'rocket',bossRound:true,regentShot:true,scale:.85+phase*.05,c:'#ccbaff',launchAngle:angle});}b.shoot=(.7-phase*.07)*COMBAT_BALANCE.salvoRest;b.muzzle=.2;window.flightAudio?.shot('missile',m.x,true);}}
+  if(canFire){b.shoot-=dt;if(b.shoot<=0&&b.x>0&&b.x<W){const m=techLaserOrigin(b),speed=700+phase*30,offsets=phase===2?[-.11,0,.11]:[-.075,.075];for(const offset of offsets){const angle=m.angle+offset;hostile.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:phase===2?8:7,kind:'rocket',bossRound:true,regentShot:true,scale:.85+phase*.05,c:'#ccbaff',launchAngle:angle});}b.shoot=(.7-phase*.07)*COMBAT_BALANCE.salvoRest*(sectors[level].salvoRestScale||1);b.muzzle=.2;window.flightAudio?.shot('missile',m.x,true);}}
   return;
  }
  const canFire=!(b.recovery>0)&&(!b.pass||b.pass.stage==='rear')&&!b.charge&&!b.breath&&!b.vacuum&&!b.sporePods?.length&&!b.salvoWindup&&!b.broodWatch&&!b.venom;
  if(canFire){b.shoot-=dt;if(b.shoot<=0&&b.x>0&&b.x<W){const m=kind===4?techLaserOrigin(b):expansionMouth(b),a=Math.atan2(ship.y-m.y,ship.x-m.x),offsets=kind===3?[-.32,-.1,.1,.32]:kind===4?[-.10,.10]:[-.28,-.09,.09,.28];
-  if(kind===5){b.salvoWindup={age:0,warning:.5,heading:a,target:{x:ship.x,y:ship.y},offsets:phase===0?[-.34,0,.34]:phase===1?[-.4,-.2,.2,.4]:[-.5,-.3,-.1,.1,.3,.5]};b.shoot=(.65-phase*.06)*COMBAT_BALANCE.salvoRest;return;}
-  for(const offset of offsets)hostile.push({x:m.x,y:m.y,vx:Math.cos(a+offset)*(kind===3?540:650),vy:Math.sin(a+offset)*(kind===3?540:650),r:kind===3?8:7,scale:kind===3?.9:.85,bossShot:kind!==4,kind:kind===4?'rocket':organicShotKind(),c:sectors[level].color,launchAngle:a+offset});b.shoot=(.72-phase*.07)*COMBAT_BALANCE.salvoRest;b.muzzle=.16;kind===4?window.flightAudio?.shot('missile',b.x,true):window.flightAudio?.bossAttack?.('fire',kind,b.x);}}
+  if(kind===5){b.salvoWindup={age:0,warning:.5,heading:a,target:{x:ship.x,y:ship.y},offsets:phase===0?[-.34,0,.34]:phase===1?[-.4,-.2,.2,.4]:[-.5,-.3,-.1,.1,.3,.5]};b.shoot=(.65-phase*.06)*COMBAT_BALANCE.salvoRest*(sectors[level].salvoRestScale||1);return;}
+  for(const offset of offsets)hostile.push({x:m.x,y:m.y,vx:Math.cos(a+offset)*(kind===3?540:650),vy:Math.sin(a+offset)*(kind===3?540:650),r:kind===3?8:7,scale:kind===3?.9:.85,bossShot:kind!==4,kind:kind===4?'rocket':organicShotKind(),c:sectors[level].color,launchAngle:a+offset});b.shoot=(.72-phase*.07)*COMBAT_BALANCE.salvoRest*(sectors[level].salvoRestScale||1);b.muzzle=.16;kind===4?window.flightAudio?.shot('missile',b.x,true):window.flightAudio?.bossAttack?.('fire',kind,b.x);}}
 }
 
 function drawExpansionBoss(b){const k=bossIndex(),p=bossFlightPose(b),scale=k===3?2.1:k===4?2:2.15;if(k===5||k===3){animateDragonWings(b.age,k===3);animateAnatomicalSkin(meshes[k===3?'reefMonarch':'progenitor'],b.age);}drawModel(meshes[k===3?'reefMonarch':k===4?'stormRegent':'progenitor'],b.x,b.y,scale*p.depth,p.yaw,p.roll,p.pitch,b.age,b.hit);if(k===5||k===3)drawModel(meshes[k===3?'pteroWings':'dragonWings'],b.x,b.y,scale*p.depth,p.yaw,p.roll,p.pitch,b.age,b.hit);
@@ -1025,7 +1043,7 @@ function drawBossPatternTelegraphs(b){
  ctx.restore();
 }
 function drawEncounterDefenses(b){if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){drawCapitalSiege(b);return;}const k=bossIndex();drawBossPatternTelegraphs(b);if(k===1){for(const n of b.generators||[]){const p=encounterSocket(b,[-18,n.side*57,-40]);if(n.hp>0){const pose=bossFlightPose(b);drawModel(meshes.weaponOrb,p.x,p.y,.75,pose.yaw,pose.roll,pose.pitch,b.age);healthBar(p.x,p.y-24,35,n.hp,30,'#98e5ff');}}}if((k===1&&!b.shieldBroken)||(k===5&&enemies.some(e=>e.guardian&&e.hp>0))){ctx.save();ctx.strokeStyle=k===1?'#77bfe8':'#b883c9';ctx.globalAlpha=.3;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(b.x,b.y,b.r*1.15,b.r*.9,0,0,TAU);ctx.stroke();ctx.restore();}}
-function sectorCurrent(){return themeIndex()===2&&!boss?Math.sin(time*Math.PI/6)*65:0;}
+function sectorCurrent(){if(sectors[level].stellar?.weather==='wind'&&!boss)return Math.sin(time*Math.PI/7)*24;return themeIndex()===2&&!boss?Math.sin(time*Math.PI/6)*65:0;}
 function stormLane(){const cycle=Math.floor(time/14),phase=time%14;return themeIndex()===4&&time>10&&!boss&&phase<3.2?{x:W*(.28+(cycle%3)*.23),warning:phase<2,phase}:null;}
 function drawSectorRule(){const wind=sectorCurrent();if(Math.abs(wind)>12){ctx.save();ctx.strokeStyle='#b4d5e5';ctx.globalAlpha=.14;ctx.lineWidth=1;for(let i=0;i<12;i++){const x=120+i*105,y=(i*137+world*.45)%H;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+Math.sign(wind)*30);ctx.stroke();}ctx.restore();}const lane=stormLane();if(lane){ctx.save();ctx.strokeStyle=lane.warning?'#c5a7e7':'#e8dfff';ctx.globalAlpha=lane.warning?.45:.85;ctx.lineWidth=lane.warning?2:7;ctx.setLineDash(lane.warning?[9,12]:[]);for(const side of lane.warning?[-1,1]:[0]){ctx.beginPath();for(let i=0;i<=20;i++){const x=lane.x+side*28+(lane.warning?0:Math.sin(i*7+time*35)*12),y=i*H/20;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();}ctx.font='bold 11px sans-serif';ctx.fillStyle='#eee2ff';ctx.textAlign='center';ctx.fillText(lane.warning?'LIGHTNING BUILDING':'DISCHARGE',lane.x,60);ctx.restore();}}
 
@@ -1080,7 +1098,7 @@ function loadPlanetAtlas(id,file){
   let i=0;const warm=()=>{if(i<locations.length){const location=locations[i++];planetSurface(location);if(sectors.slice(level,level+2).some(s=>expedition.locations[s.id].destinationId===location.destinationId))preparePlanetCloseup(location);setTimeout(warm,30);}};setTimeout(warm,0);
  };image.src='assets/'+file;
 }
-function requestPlanetSurface(location){if(location.surfaceDisk)loadPlanetDisk(location);else loadPlanetAtlas(location.surfaceAtlas||'original',PLANET_SURFACE_ATLASES[location.surfaceAtlas||'original']);}
+function requestPlanetSurface(location){if(location.destinationKind==='star')return;if(location.surfaceDisk)loadPlanetDisk(location);else loadPlanetAtlas(location.surfaceAtlas||'original',PLANET_SURFACE_ATLASES[location.surfaceAtlas||'original']);}
 // Bilinear atlas sampling prevents enlarged source texels becoming square tiles.
 // Both globe sizes share the same projection/lighting so the detail swap is seamless.
 function paintPlanetRows(location,pixels,size,from,to,diskSource=planetDiskPixels.get(location.surfaceDisk)){
@@ -1135,6 +1153,7 @@ function planetaryRingTexture(){
  orbitRingTexture=surface;return surface;
 }
 function drawNavigationPlanet(c,x,y,r,location,closeup=false){
+ if(location.destinationKind==='star'){paintStellarDisc(c,x,y,r,location.stellarBody||systemFocus(expeditionSystem(location)));return;}
  c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.translate(x,y);c.rotate(location.ringTilt??-.23);
  const ring=front=>{if(!location.rings)return;const image=planetaryRingTexture(),scale=r/256;c.drawImage(image,0,front?180:0,1024,180,-512*scale,front?0:-180*scale,1024*scale,180*scale);};
  ring(false);const texture=(closeup?preparePlanetCloseup(location):null)||planetSurface(location);if(texture)c.drawImage(texture,-r,-r,r*2,r*2);else{c.fillStyle='#426b78';c.beginPath();c.arc(0,0,r,0,TAU);c.fill();}ring(true);
@@ -1159,12 +1178,49 @@ function paintNavigationBlackHole(c,x,y,r,label=''){
  if(label){c.textAlign='center';c.font='11px monospace';c.lineWidth=3;c.strokeStyle='#03050a';c.strokeText(label+' · GRAVITATIONAL ANOMALY',x,y+r*1.65);c.fillStyle='#e9bb8c';c.fillText(label+' · GRAVITATIONAL ANOMALY',x,y+r*1.65);}c.restore();
 }
 function drawNavigationSun(c,x,y,r,star={}){
+ if(star.id){paintStellarDisc(c,x,y,r*(star.radius||1),star);return;}
  const color=star.color||[255,190,95],size=r*(star.radius||1),rgb=(light,alpha)=>`rgba(${color.map(v=>Math.round(v+(255-v)*light)).join(',')},${alpha})`;
  const g=c.createRadialGradient(x,y,0,x,y,size*3.8);g.addColorStop(0,rgb(.94,1));g.addColorStop(.20,rgb(.7,1));g.addColorStop(.27,rgb(.2,1));g.addColorStop(.38,rgb(0,.5));g.addColorStop(.65,rgb(0,.14));g.addColorStop(1,rgb(0,0));c.fillStyle=g;c.fillRect(x-size*3.8,y-size*3.8,size*7.6,size*7.6);
  c.fillStyle=rgb(.65,1);c.beginPath();c.arc(x,y,size,0,TAU);c.fill();
 }
+const stellarSurfaces=new Map();
+let stellarPhotosphere=null;
+function requestStellarPhotosphere(){if(stellarPhotosphere)return stellarPhotosphere;const image=new Image();image.decoding='async';image.onload=()=>stellarSurfaces.clear();image.src='assets/stellar-photosphere-v1.webp';stellarPhotosphere=image;return image;}
+
+function stellarSurface(star){
+ const key=star.id||star.name;if(stellarSurfaces.has(key))return stellarSurfaces.get(key);
+ const image=requestStellarPhotosphere();if(imageReady(image)){const c=document.createElement('canvas');c.width=c.height=1024;const g=c.getContext('2d');g.imageSmoothingQuality='high';g.translate(512,512);g.rotate(star.weather==='magnetic'?.65:star.weather==='wind'?1.7:0);g.filter=star.weather==='magnetic'?'hue-rotate(168deg) saturate(.5) brightness(1.35)':star.weather==='prominences'?'hue-rotate(-12deg) saturate(.85)':'none';g.drawImage(image,-512,-512,1024,1024);while(stellarSurfaces.size>=3)stellarSurfaces.delete(stellarSurfaces.keys().next().value);stellarSurfaces.set(key,c);return c;}
+ const c=document.createElement('canvas');c.width=c.height=640;const g=c.getContext('2d'),color=star.color||[255,155,55],random=n=>{const v=Math.sin(n*127.1+(star.seed||1)*31.7)*43758.5453;return v-Math.floor(v);};
+ g.save();g.beginPath();g.arc(320,320,310,0,TAU);g.clip();const base=g.createRadialGradient(218,198,20,320,320,325);base.addColorStop(0,`rgb(${color.map(v=>Math.min(255,v*1.1+25)).join(',')})`);base.addColorStop(.74,`rgb(${color.join(',')})`);base.addColorStop(1,`rgb(${color.map(v=>Math.round(v*.23)).join(',')})`);g.fillStyle=base;g.fillRect(0,0,640,640);
+ for(let i=0;i<9000;i++){const x=random(i)*640,y=random(i+10000)*640,r=1+random(i+20000)*3;g.globalAlpha=.035+random(i+30000)*.10;g.fillStyle=i%3?'#fff3bb':'#4d1204';g.beginPath();g.ellipse(x,y,r*1.6,r,.2,0,TAU);g.fill();}
+ for(let i=0;i<13;i++){const x=120+random(i+40000)*400,y=120+random(i+50000)*400;g.globalAlpha=.14;g.strokeStyle='#441209';g.lineWidth=3;g.beginPath();g.moveTo(x-20,y);g.bezierCurveTo(x-7,y-22,x+19,y+15,x+31,y-9);g.stroke();}g.restore();
+ while(stellarSurfaces.size>=3)stellarSurfaces.delete(stellarSurfaces.keys().next().value);stellarSurfaces.set(key,c);return c;
+}
+function paintStellarDisc(c,x,y,r,star){
+ const color=star.color||[255,155,55];c.save();const glow=c.createRadialGradient(x,y,r*.9,x,y,r*1.35);glow.addColorStop(0,`rgba(${color.join(',')},.38)`);glow.addColorStop(1,`rgba(${color.join(',')},0)`);c.fillStyle=glow;c.fillRect(x-r*1.35,y-r*1.35,r*2.7,r*2.7);c.drawImage(stellarSurface(star),x-r,y-r,r*2,r*2);
+ for(let i=0;i<5;i++){const a=i*1.28+(star.seed||1),rr=r*.93;for(let strand=0;strand<3;strand++){c.strokeStyle=`rgba(${color.join(',')},${strand===0?.09:.24})`;c.lineWidth=Math.max(.6,r*(strand===0?.007:.0009));c.beginPath();c.moveTo(x+Math.cos(a-.055)*rr,y+Math.sin(a-.055)*rr);c.quadraticCurveTo(x+Math.cos(a+strand*.003)*r*(1.08+strand*.009),y+Math.sin(a+strand*.003)*r*(1.08+strand*.009),x+Math.cos(a+.055)*rr,y+Math.sin(a+.055)*rr);c.stroke();}}c.restore();
+}
+function stellarFlare(){
+ const star=sectors[level].stellar;if(!star||star.weather!=='prominences'||boss||sectorBlend||time<8)return null;
+ const cycle=Math.floor(time/12),phase=time%12;if(phase>3.1)return null;return{warning:phase<1.5,phase,top:cycle%2===1,height:phase<1.5?24:112*Math.sin(Math.PI*(phase-1.5)/1.6)};
+}
+function drawStellarBackdrop(definition){
+ const star=definition.stellar,t=sectorSceneTime(),color=star.color.join(',');ctx.fillStyle='#0a070f';ctx.fillRect(0,0,W,H);
+ // The distant black hole remains behind the same star throughout the encounter.
+ paintNavigationBlackHole(ctx,W*.78,H*.19,36);
+ paintStellarDisc(ctx,W*.45,H*2.2,W*.85,star);
+ const haze=ctx.createLinearGradient(0,H*.2,0,H);haze.addColorStop(0,`rgba(${color},0)`);haze.addColorStop(1,`rgba(${color},.20)`);ctx.fillStyle=haze;ctx.fillRect(0,0,W,H);
+ ctx.save();ctx.strokeStyle=`rgba(${color},.18)`;ctx.lineWidth=1.2;
+ for(let i=0;i<30;i++){const x=((i*119-t*(star.weather==='wind'?155:45))%(W+200)+W+200)%(W+200)-100,y=60+(i*97)%H;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+35,y+Math.sin(t+i)*9,x+65,y-6);ctx.stroke();}ctx.restore();drawHeatHaze();
+ const flare=stellarFlare();if(flare){
+  ctx.save();const y=flare.top?0:H,sign=flare.top?1:-1,high=flare.warning?30:flare.height;
+  const curtain=ctx.createLinearGradient(0,y,0,y+sign*(high+25));curtain.addColorStop(0,`rgba(${color},${flare.warning?.25:.85})`);curtain.addColorStop(.55,`rgba(${color},${flare.warning?.10:.35})`);curtain.addColorStop(1,`rgba(${color},0)`);ctx.fillStyle=curtain;ctx.fillRect(0,flare.top?0:H-high-25,W,high+25);
+  if(!flare.warning){ctx.globalCompositeOperation='screen';for(let i=0;i<56;i++){const x=i*27+Math.sin(i*2.3+t)*9,tip=high*(.7+.3*Math.sin(i*1.7+t*7)),bend=20*Math.sin(i+t*3);ctx.strokeStyle=`rgba(${color},${.12+.2*(.5+.5*Math.sin(i*3))})`;ctx.lineWidth=2+i%3;ctx.beginPath();ctx.moveTo(x,y);ctx.bezierCurveTo(x-bend,y+sign*tip*.35,x+bend,y+sign*tip*.75,x+12,y+sign*tip);ctx.stroke();}}
+  ctx.globalCompositeOperation='source-over';ctx.fillStyle='#fbdcc0';ctx.font='12px monospace';ctx.textAlign='center';ctx.fillText(flare.warning?'CORONA BRIGHTENING · MOVE AWAY FROM THE '+(flare.top?'TOP':'BOTTOM')+' EDGE':'PROMINENCE SURGE',W/2,flare.top?35:H-25);ctx.restore();
+ }
+}
 function systemOrbitLayout(system,seconds=0){
- return system.destinations.filter(d=>d.kind==='planet').sort((a,b)=>a.orbit-b.orbit).map((d,i,a)=>{const radius=155+i*170/Math.max(1,a.length-1),phase=(d.orbitPhase??(-.7+i*2.35))+seconds*.14/Math.pow(Math.max(.4,d.orbit),.42);return {destination:d,radius,x:400+Math.cos(phase)*radius,y:272+Math.sin(phase)*radius*.59};});
+ return system.destinations.filter(d=>d.kind==='planet'||d.stellarBody).sort((a,b)=>a.orbit-b.orbit).map((d,i,a)=>{const radius=155+i*170/Math.max(1,a.length-1),phase=(d.orbitPhase??(-.7+i*2.35))+seconds*.14/Math.pow(Math.max(.4,d.orbit),.42);return {destination:d,radius,x:400+Math.cos(phase)*radius,y:272+Math.sin(phase)*radius*.59};});
 }
 function systemArtwork(system,selectedId){
  const key=system.id+':'+selectedId;if(systemSurfaces.has(key))return systemSurfaces.get(key);
@@ -1175,11 +1231,11 @@ function paintSystemChart(c,system,selectedId,seconds,selection=null,showAnomaly
  const haze=c.createRadialGradient(400,270,0,400,270,360);haze.addColorStop(0,'#5b402336');haze.addColorStop(1,'#05132500');c.fillStyle=haze;c.fillRect(0,0,800,550);
 
  const layout=systemOrbitLayout(system,seconds);
- const anomaly=system.destinations.find(d=>d.anomaly==='black-hole');if(anomaly&&showAnomaly)paintNavigationBlackHole(c,690,155,22,anomaly.name);
+ const anomaly=system.destinations.find(d=>d.anomaly==='black-hole');if(anomaly&&showAnomaly&&!system.centralBody)paintNavigationBlackHole(c,690,155,22,anomaly.name);
  for(const item of layout){const weight=emphasis(item.destination.id);c.strokeStyle=`rgba(180,211,218,${.43+weight*.25})`;c.lineWidth=1+weight*.5;c.beginPath();c.ellipse(400,272,item.radius,item.radius*.59,0,0,TAU);c.stroke();}
- drawNavigationSun(c,400,272,23,system.star);c.textAlign='center';c.fillStyle='#ffe4a7';c.font='bold 15px monospace';c.lineWidth=4;c.strokeStyle='#020914';c.strokeText(system.star.name,400,328);c.fillText(system.star.name,400,328);c.font='10px monospace';c.fillStyle='#b89b75';c.fillText(system.star.type||'SYSTEM STAR',400,346);
- for(const item of layout){const d=item.destination,location=expedition.locations[d.stages[0]]||{...d,destinationId:d.id};drawNavigationPlanet(c,item.x,item.y,29+11*emphasis(d.id),location);c.font='bold 16px monospace';c.fillStyle=emphasis(d.id)>.5?'#deffef':d.climate==='hot'?'#edb085':d.climate==='ice'||d.climate==='gas'?'#bad9ee':'#b8dcbb';const labelY=item.y<272?item.y-57:item.y+52;c.lineWidth=4;c.strokeStyle='#020914d9';c.strokeText(d.name,item.x,labelY);c.fillText(d.name,item.x,labelY);c.font='12px monospace';c.fillStyle='#c0d1dc';c.strokeText(d.orbit+' AU · '+d.climate.toUpperCase(),item.x,labelY+17);c.fillText(d.orbit+' AU · '+d.climate.toUpperCase(),item.x,labelY+17);}
- c.fillStyle='#ddf5ee';c.font='bold 23px monospace';c.fillText(system.name+' SYSTEM',400,48);c.font='11px monospace';c.fillStyle='#8caebc';c.fillText((GALAXIES[system.galaxyId||GALAXY.id].name)+' / '+systemCensusLabel(system),400,73);c.fillStyle='#acb9be';c.fillText('HOT INNER WORLDS  →  TEMPERATE  →  COLD OUTER WORLDS',400,layout.length>4?94:505);c.fillStyle='#7d929f';c.font='10px monospace';c.fillText('ORBITAL DISTANCES NOT TO SCALE',400,layout.length>4?112:526);
+ if(system.centralBody)paintNavigationBlackHole(c,400,272,32);else drawNavigationSun(c,400,272,23,systemFocus(system));c.textAlign='center';c.fillStyle='#ffe4a7';c.font='bold 15px monospace';c.lineWidth=4;c.strokeStyle='#020914';c.strokeText(systemFocus(system).name,400,328);c.fillText(systemFocus(system).name,400,328);c.font='10px monospace';c.fillStyle='#b89b75';c.fillText(systemFocus(system).type||'SYSTEM STAR',400,346);
+ for(const item of layout){const d=item.destination,location=expedition.locations[d.stages[0]]||{...d,destinationId:d.id};if(d.stellarBody)drawNavigationSun(c,item.x,item.y,22+8*emphasis(d.id),d.stellarBody);else drawNavigationPlanet(c,item.x,item.y,29+11*emphasis(d.id),location);c.font='bold 16px monospace';c.fillStyle=emphasis(d.id)>.5?'#deffef':d.climate==='hot'?'#edb085':d.climate==='ice'||d.climate==='gas'?'#bad9ee':'#b8dcbb';const labelY=item.y<155?item.y+62:item.y<272?item.y-57:item.y+52;c.lineWidth=4;c.strokeStyle='#020914d9';c.strokeText(d.name,item.x,labelY);c.fillText(d.name,item.x,labelY);c.font='12px monospace';c.fillStyle='#c0d1dc';c.strokeText(d.stellarBody?d.stellarBody.type:d.orbit+' AU · '+d.climate.toUpperCase(),item.x,labelY+17);c.fillText(d.stellarBody?d.stellarBody.type:d.orbit+' AU · '+d.climate.toUpperCase(),item.x,labelY+17);}
+ c.fillStyle='#ddf5ee';c.font='bold 23px monospace';c.fillText(system.name+' SYSTEM',400,48);c.font='11px monospace';c.fillStyle='#8caebc';c.fillText((GALAXIES[system.galaxyId||GALAXY.id].name)+' / '+systemCensusLabel(system),400,73);c.fillStyle='#acb9be';c.fillText(system.centralBody?'UMBILICUS · THREE STELLAR CORONAS · NO PLANETS':'HOT INNER WORLDS  →  TEMPERATE  →  COLD OUTER WORLDS',400,layout.length>4?94:505);c.fillStyle='#7d929f';c.font='10px monospace';c.fillText('ORBITAL DISTANCES NOT TO SCALE',400,layout.length>4?112:526);
 }
 function navigationOrbitTime(){return sectorBlend?.age||0;}
 function drawMovingSystemChart(system,selectedId,showAnomaly=true){
@@ -1195,7 +1251,7 @@ function galaxySystemOffset(system,width,seconds=navigationSeconds()){
  return {x:x*Math.cos(angle)-y*Math.sin(angle),y:(x*Math.sin(angle)+y*Math.cos(angle))*.625};
 }
 function paintRotatingGalaxy(c,galaxy,x,y,width,alpha=1,seconds=navigationSeconds()){
- c.save();c.globalAlpha*=alpha;c.globalCompositeOperation='screen';c.translate(x,y);c.scale(1,.625);c.rotate(galaxyRotation(galaxy,seconds));c.drawImage(galaxyArtwork(galaxy),-width/2,-width/2,width,width);c.restore();
+ c.save();c.globalAlpha*=alpha;c.globalCompositeOperation='screen';c.translate(x,y);c.scale(1,.625);c.rotate(galaxyRotation(galaxy,seconds));c.drawImage(galaxyArtwork(galaxy),-width/2,-width/2,width,width);c.restore();if(galaxy.centralBlackHole){c.save();c.globalAlpha*=alpha;paintNavigationBlackHole(c,x,y,width*.025);c.restore();}
 }
 function drawNavigationChart(){
  const map=document.querySelector('#expeditionMap');if(!map)return;
@@ -1203,7 +1259,7 @@ function drawNavigationChart(){
  const c=map.getContext('2d'),system=contentReleases[0].systems[0],galaxy=GALAXIES[system.galaxyId],width=800*.94,cx=400,cy=550*.49;
  c.setTransform(map.width/800,0,0,map.height/550,0,0);c.clearRect(0,0,800,550);paintRotatingGalaxy(c,galaxy,cx,cy,width,1,now);
  const point=galaxySystemOffset(system,width,now),x=cx+point.x,y=cy+point.y;c.strokeStyle='#a5f9dcb0';c.lineWidth=1;c.beginPath();c.arc(x,y,8+Math.sin(now*1.4)*1.5,0,TAU);c.stroke();c.fillStyle='#caffeb';c.beginPath();c.arc(x,y,2.5,0,TAU);c.fill();c.beginPath();c.moveTo(x+12,y);c.lineTo(x+35,y-22);c.lineTo(x+130,y-22);c.stroke();
- c.font='bold 14px monospace';c.fillText(system.name+' SYSTEM',x+38,y-29);c.textAlign='center';c.fillStyle='#e1f3ed';c.font='bold 22px monospace';c.fillText(galaxy.name,cx,46);c.font='12px monospace';c.fillStyle='#99babb';c.fillText('YOUR JOURNEY BEGINS IN THE OUTER ARM',cx,550-45);c.fillText(system.star.name+' · '+systemCensusLabel(system),cx,550-23);
+ c.font='bold 14px monospace';c.fillText(system.name+' SYSTEM',x+38,y-29);c.textAlign='center';c.fillStyle='#e1f3ed';c.font='bold 22px monospace';c.fillText(galaxy.name,cx,46);c.font='12px monospace';c.fillStyle='#99babb';c.fillText('YOUR JOURNEY BEGINS IN THE OUTER ARM',cx,550-45);c.fillText(systemFocus(system).name+' · '+systemCensusLabel(system),cx,550-23);
 }
 
 let navigationStars=null;
@@ -1269,15 +1325,25 @@ function planetCameraPose(location,progress){
  const r=44*Math.exp(ease*Math.log(W*1.45/44)),center=ease*ease;
  return {r,x:W*.5+(target.x-400)*1.1*(1-ease),y:H*.52+(target.y-272)*1.1*(1-ease)+r*.64*center,surface:clamp((t-.79)/.21,0,1)};
 }
+// Derive scene reveal from the same travel phase as the planet camera.
+// Never expose a bright destination behind the galaxy before its arrival fade.
+function navigationSurfaceReveal(blend){
+ const u=clamp(blend.age/blend.duration,0,1);let approach;
+ if(!blend.origin)approach=(u-.48)/.52;
+ else if(blend.origin.galaxyId!==blend.destination.galaxyId)approach=(u-.75)/.25;
+ else approach=.2+(u-.53)/.47*.8;
+ return clamp(((approach-.2)/.8-.79)/.21,0,1);
+}
 function drawPlanetCamera(location,progress,scene=null){
  const p=planetCameraPose(location,progress),surface=p.surface*p.surface*(3-2*p.surface);
  ctx.save();ctx.globalAlpha*=1-surface;ctx.fillStyle='#020914';ctx.fillRect(0,0,W,H);
  drawNavigationStars();
+ if(location.centralBlackHole){const t=navigationEase(progress);paintNavigationBlackHole(ctx,W*.5+(W*.78-W*.5)*t,H*.52+(H*.19-H*.52)*t,32+4*t);}
  const anomaly=navigationAnomaly(location);if(anomaly){const t=navigationEase(progress),near=location.anomaly==='black-hole';paintNavigationBlackHole(ctx,W*.5+319*(1-t)+(W*.712-W*.5)*t,H*.52-129*(1-t)+(H*.33-H*.52)*t,24+(near?W*.082-24:4)*t);}
  // Only the selected world is magnified. Its complete disc stays visible long
  // enough to recognize before the camera crosses the atmospheric limb.
  drawNavigationPlanet(ctx,p.x,p.y,p.r,location,true);
- if(progress>.5){const haze=ctx.createLinearGradient(0,0,0,H),color=location.climate==='hot'?'220,137,87':'151,211,232';haze.addColorStop(0,`rgba(${color},0)`);haze.addColorStop(.55,`rgba(${color},${.09*Math.sin(progress*Math.PI)})`);haze.addColorStop(1,`rgba(${color},0)`);ctx.fillStyle=haze;ctx.fillRect(0,0,W,H);}
+ if(progress>.5&&location.destinationKind!=='star'){const haze=ctx.createLinearGradient(0,0,0,H),color=location.climate==='hot'?'220,137,87':'151,211,232';haze.addColorStop(0,`rgba(${color},0)`);haze.addColorStop(.55,`rgba(${color},${.09*Math.sin(progress*Math.PI)})`);haze.addColorStop(1,`rgba(${color},0)`);ctx.fillStyle=haze;ctx.fillRect(0,0,W,H);}
  ctx.restore();
  if(scene&&surface>0){ctx.save();ctx.globalAlpha*=surface;const zoom=1+(1-surface)*.12;ctx.drawImage(scene,-W*(zoom-1)/2,-H*(zoom-1)/2,W*zoom,H*zoom);ctx.restore();}
 }
@@ -1285,7 +1351,7 @@ function drawPlanetApproach(location,u){
  const smooth=v=>{v=clamp(v,0,1);return v*v*(3-2*v);},system=expeditionSystem(location),dive=clamp((u-.2)/.8,0,1);
  if(u<.2){ctx.save();ctx.fillStyle='#020914';ctx.fillRect(0,0,W,H);drawNavigationStars();drawMovingSystemChart(system,location.destinationId);ctx.restore();}
  else{drawPlanetCamera(location,dive);if(dive<.09){ctx.save();ctx.globalAlpha=1-smooth(dive/.09);drawMovingSystemChart(system,location.destinationId);ctx.restore();}}
- ctx.save();ctx.globalAlpha*=1-smooth((u-.87)/.10);ctx.fillStyle='#dcfff1';ctx.font='bold 27px monospace';ctx.fillText(u<.2?'ENTERING '+system.name+' SYSTEM':dive>.79?'ENTERING '+location.destinationName+' ATMOSPHERE':'DESCENDING TO '+location.destinationName,64,74);ctx.font='13px monospace';ctx.fillStyle='#9abcc6';ctx.fillText(u<.2?system.star.name+' · '+systemCensusLabel(system):'ORBIT → ATMOSPHERE → '+(sectors[level].stratum||'SURFACE'),65,102);ctx.restore();
+ ctx.save();ctx.globalAlpha*=1-smooth((u-.87)/.10);ctx.fillStyle='#dcfff1';ctx.font='bold 27px monospace';ctx.fillText(u<.2?'ENTERING '+system.name+' SYSTEM':dive>.79?'ENTERING '+location.destinationName+(location.destinationKind==='star'?' CORONA':' ATMOSPHERE'):'DESCENDING TO '+location.destinationName,64,74);ctx.font='13px monospace';ctx.fillStyle='#9abcc6';ctx.fillText(u<.2?systemFocus(system).name+' · '+systemCensusLabel(system):(location.destinationKind==='star'?'STELLAR ORBIT → OUTER CORONA':'ORBIT → ATMOSPHERE → '+(sectors[level].stratum||'SURFACE')),65,102);ctx.restore();
 }
 function drawPlanetDeparture(location,u){
  const smooth=v=>{v=clamp(v,0,1);return v*v*(3-2*v);};
@@ -1293,7 +1359,7 @@ function drawPlanetDeparture(location,u){
  // exact location on the orbit map, instead of dissolving a cropped limb.
  const close=1-Math.min(1,u/.84);drawPlanetCamera(location,close,sectorBlend?.outgoing);
  if(u>.84){ctx.save();ctx.globalAlpha=smooth((u-.84)/.16);drawMovingSystemChart(expeditionSystem(location),location.destinationId);ctx.restore();}
- ctx.save();ctx.globalAlpha=smooth(u/.09);ctx.fillStyle='#e1fff0';ctx.font='bold 29px monospace';ctx.fillText((sectorBlend?.testing?'LEAVING ':'DEPARTING ')+location.destinationName,64,74);ctx.fillStyle='#afcbd1';ctx.font='14px monospace';ctx.fillText('SURFACE → ATMOSPHERE → ORBIT',65,106);ctx.restore();
+ ctx.save();ctx.globalAlpha=smooth(u/.09);ctx.fillStyle='#e1fff0';ctx.font='bold 29px monospace';ctx.fillText((sectorBlend?.testing?'LEAVING ':'DEPARTING ')+location.destinationName,64,74);ctx.fillStyle='#afcbd1';ctx.font='14px monospace';ctx.fillText(location.destinationKind==='star'?'CORONA → STELLAR ORBIT':'SURFACE → ATMOSPHERE → ORBIT',65,106);ctx.restore();
 }
 function drawTransitRoute(location,origin,u){
  const system=expeditionSystem(location),layout=systemOrbitLayout(system,navigationOrbitTime()),from=layout.find(p=>p.destination.id===origin.destinationId),to=layout.find(p=>p.destination.id===location.destinationId);if(!to)return;
@@ -1340,13 +1406,13 @@ function drawGalaxySystemApproach(location,progress){
  paintRotatingGalaxy(ctx,galaxy,p.gx,p.gy,p.width,1-navigationEase((p.t-.48)/.38));
  drawUniversalLandmarks(location,p);
  const reveal=navigationEase((p.t-.67)/.33);ctx.save();ctx.globalAlpha=reveal;ctx.translate(p.sx,p.sy);ctx.scale(p.scale,p.scale);ctx.translate(-W*.5,-H*.52);drawMovingSystemChart(system,location.destinationId,false);ctx.restore();
- const anomaly=navigationAnomaly(location);if(anomaly){const q=galacticLandmarkPose(location,p,[.022,-.013],.006),mix=reveal,x=q.x*(1-mix)+(p.sx+319*p.scale)*mix,y=q.y*(1-mix)+(p.sy-128.7*p.scale)*mix,r=Math.max(1.4,q.width)*(1-mix)+24.2*p.scale*mix;paintNavigationBlackHole(ctx,x,y,r,p.t>.5?anomaly.name:'');}
- if(p.t<.88){ctx.save();ctx.globalAlpha=1-navigationEase((p.t-.7)/.18);drawNavigationSun(ctx,p.sx,p.sy,1.8+p.t*2,system.star);if(p.t<.65){ctx.strokeStyle='#a5f9dc';ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.sx,p.sy,7,0,TAU);ctx.stroke();ctx.fillStyle='#d6f7ec';ctx.font='13px monospace';ctx.fillText(system.name+' SYSTEM',p.sx+16,p.sy-11);}ctx.restore();}
+ const anomaly=navigationAnomaly(location);if(anomaly&&!system.centralBody){const q=galacticLandmarkPose(location,p,[.022,-.013],.006),mix=reveal,x=q.x*(1-mix)+(p.sx+319*p.scale)*mix,y=q.y*(1-mix)+(p.sy-128.7*p.scale)*mix,r=Math.max(1.4,q.width)*(1-mix)+24.2*p.scale*mix;paintNavigationBlackHole(ctx,x,y,r,p.t>.5?anomaly.name:'');}
+ if(p.t<.88){ctx.save();ctx.globalAlpha=1-navigationEase((p.t-.7)/.18);if(system.centralBody)paintNavigationBlackHole(ctx,p.sx,p.sy,5+p.t*8);else drawNavigationSun(ctx,p.sx,p.sy,1.8+p.t*2,systemFocus(system));if(p.t<.65){ctx.strokeStyle='#a5f9dc';ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.sx,p.sy,7,0,TAU);ctx.stroke();ctx.fillStyle='#d6f7ec';ctx.font='13px monospace';ctx.fillText(system.name+' SYSTEM',p.sx+16,p.sy-11);}ctx.restore();}
 }
 function drawInitialGalaxyEntry(location,u){
  if(u>=.48){drawPlanetApproach(location,(u-.48)/.52);return;}
  ctx.save();ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);drawNavigationStars();const settle=navigationEase(u/.14);ctx.save();ctx.translate(W*.215*(1-settle),-H*.12*(1-settle));ctx.translate(W*.5,H*.52);const framing=.77+.23*settle;ctx.scale(framing,framing);ctx.translate(-W*.5,-H*.52);drawGalaxySystemApproach(location,Math.max(0,(u-.14)/.34));ctx.restore();
- ctx.fillStyle='#e1fff2';ctx.font='bold 27px monospace';ctx.fillText('ENTERING '+expeditionGalaxy(location).name,64,74);ctx.fillStyle='#afc2d5';ctx.font='14px monospace';ctx.fillText('OUTER ARM → '+location.systemName+' SYSTEM → '+location.destinationName,65,105);ctx.restore();
+ ctx.fillStyle='#e1fff2';ctx.font='bold 27px monospace';ctx.fillText('ENTERING '+expeditionGalaxy(location).name,64,74);ctx.fillStyle='#afc2d5';ctx.font='14px monospace';ctx.fillText((location.centralBlackHole?'GALACTIC CORE → ':'OUTER ARM → ')+location.systemName+' SYSTEM → '+location.destinationName,65,105);ctx.restore();
 }
 function galaxyFlightHeading(destination){
  const galaxy=expeditionGalaxy(destination),headings=[{x:.65,y:-.76,label:'CLIMB · STARBOARD'},{x:-.72,y:.69,label:'DIVE · PORT'},{x:-.6,y:-.8,label:'CLIMB · PORT'},{x:.7,y:.71,label:'DIVE · STARBOARD'}];let route=0;for(const letter of galaxy.id)route=(Math.imul(route,31)+letter.charCodeAt(0))>>>0;return headings[route%headings.length];
@@ -1392,7 +1458,7 @@ function drawGalaxyTransit(origin,destination,u){
  }else{
   drawGalaxySystemApproach(destination,(u-.58)/.17);
  }
- ctx.fillStyle='#e1fff2';ctx.font='bold 27px monospace';ctx.fillText(phase==='departure'?'LEAVING '+from.name:phase==='crossing'?'INTERGALACTIC FLIGHT':'ENTERING '+to.name,64,74);ctx.fillStyle='#afc2d5';ctx.font='14px monospace';ctx.fillText(phase==='departure'?origin.systemName+' SYSTEM → INTERGALACTIC SPACE':phase==='crossing'?galaxyFlightHeading(destination).label+' · '+from.name+' → '+to.name:system.star.name+' · '+system.star.type+' · '+systemCensusLabel(system),65,105);
+ ctx.fillStyle='#e1fff2';ctx.font='bold 27px monospace';ctx.fillText(phase==='departure'?'LEAVING '+from.name:phase==='crossing'?'INTERGALACTIC FLIGHT':'ENTERING '+to.name,64,74);ctx.fillStyle='#afc2d5';ctx.font='14px monospace';ctx.fillText(phase==='departure'?origin.systemName+' SYSTEM → INTERGALACTIC SPACE':phase==='crossing'?galaxyFlightHeading(destination).label+' · '+from.name+' → '+to.name:systemFocus(system).name+' · '+systemFocus(system).type+' · '+systemCensusLabel(system),65,105);
  ctx.restore();
 }
 

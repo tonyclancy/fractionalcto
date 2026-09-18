@@ -195,8 +195,40 @@ function animateCapitalHull(b){
 }
 
 function isCapitalSiege(b=boss){return !!b&&!!sectors[level].siege&&bossIndex()===1;}
+function capitalDevelopmentHull(spec){
+ const generated=buildDevelopedMachine({...spec,small:1}),scale=1.65,mesh=generated.map(f=>({...f,v:f.v.map(p=>[p[0]*scale,p[1]*scale,p[2]*scale+8]),joint:f.joint?[f.joint[0]*scale,f.joint[1]*scale,f.joint[2]*scale+8,f.joint[3]]:undefined}));
+ const m=meshBuilder(),g=spec.genome,c=g.protection==='cryo'?[143,166,181]:g.protection==='stellar'?[147,124,83]:spec.color.map((n,i)=>Math.round(n*.35+[96,112,119][i]*.65)),steel=[143,159,163],dark=[21,30,37];
+ for(const f of mesh)if(!f.em)f.c=f.c.map((n,i)=>Math.round(n*.45+c[i]*.55));
+ // Layered service panels, alternating armor courses and recessed conduits
+ // make the generated large chassis read as a constructed vessel at boss scale.
+ for(const side of [-1,1])for(let i=0;i<11;i++){
+  const x=-68+i*13,z=8+side*16,y=(i%2?1:-1)*4;
+  m.wedge([x-5,y-8,z],[x+8,y-7,z],[x+7,y+7,z],2,c);m.wedge([x-5,y-8,z],[x+7,y+7,z],[x-6,y+8,z],2,c);
+  m.tube([[x-4,y-5,z+side*2],[x+4,y-5,z+side*2],[x+5,y+4,z+side*2]],.55,steel,0,0,5,1);
+  for(let slot=0;slot<3;slot++)m.tube([[x-3+slot*2.6,y-2,z+side*2.3],[x-3+slot*2.6,y+4,z+side*2.3]],.6,dark,0,0,5,1);
+  m.ellipsoid(x-4,y+5,z+side*2.2,.8,.8,.4,steel,0,7,4);
+  if(i%3===0)m.ellipsoid(x+4,y-3,z+side*2.5,1,.65,.4,[131,215,218],.4,8,4);
+ }
+ for(const side of [-1,1])m.tube([[-61,side*9,25],[-14,side*11,27],[35,side*10,24],[66,side*8,22]],1.2,dark,0,0,7,2);
+ // Attachment points retain the destroyable-section contract. The structural
+ // chassis between them is generated, and the exposed pods stay recognizable.
+ for(const side of [-1,1]){const bend=g.machineFrame==='arc'?30:g.machineFrame==='delta'?-28:0;m.tube([[12,0,5],[bend,side*35,0],[-12,side*57,-20]],5,c,0,0,10,3);}
+ m.tube([[-25,0,7],[-61,0,-8],[-90,0,-22]],9,c,0,0,10,3);m.tube([[20,0,4],[70,0,-6],[100,0,-8]],11,c,0,0,10,3);
+ for(const drive of capitalSiegeMeshes.drives){const p=drive.center;m.tube([[p[0]-18,p[1],p[2]],p],drive.radius+2,c,0,0,12,2);}
+ mesh.push(...m.faces);Object.assign(mesh,{industrial:true,capitalHull:true,capitalSurface:true,parts:[],development:g});return mesh;
+}
+function capitalLineageHull(spec){
+ const m=meshBuilder(),c=spec.color,light=spec.accent,style=spec.armor;
+ for(const side of [-1,1]){
+  if(style==='cage')for(let i=0;i<3;i++){const x=-30+i*26;m.tube([[x,side*20,-16],[x-9,side*42,-25],[x+12,side*46,-4],[x+23,side*21,6]],3,c,0,0,10,3);}
+  else if(style==='fins')for(let i=0;i<4;i++){const x=-42+i*22;m.wedge([x,side*15,-16],[x+28,side*49,-6],[x+21,side*16,12],5,c);m.tube([[x+2,side*18,-17],[x+26,side*45,-7]],.9,light,0,.2,6,1);}
+  else for(let i=0;i<4;i++){const x=-40+i*23;m.tube([[x,side*16,-23],[x+6,side*34,-28],[x+18,side*39,-12]],5,c,0,0,8,2);}
+ }
+ m.faces.industrial=true;return m.faces;
+}
 function capitalShipDesign(b){
  if(!b.capitalDesign){const base=machineBossDesigns[1];b.capitalDesign={...base,mesh:capitalSiegeMeshes.hull,drives:capitalSiegeMeshes.drives,guns:capitalSiegeMeshes.guns,mouth:[-116,0,-17],scale:3.4,bodyVolumes:[{center:[0,0,0],radii:[70,35,33]},{center:[74,0,0],radii:[33,28,22]},{center:[-78,0,-20],radii:[28,26,20]},{center:[-7,-61,-23],radii:[34,16,18]},{center:[-7,61,-23],radii:[34,16,18]}]};}
+ if(!b.capitalDesign.lineageApplied){const spec=typeof sectors!=='undefined'?sectors[level]?.biosphere?.boss:null;if(spec){const hull=spec.genome?capitalDevelopmentHull(spec):capitalSiegeMeshes.hull.map(f=>({...f,c:f.c.map((v,i)=>Math.round(v*.65+spec.color[i]*.35))}));if(!spec.genome){Object.assign(hull,{capitalHull:true,capitalSurface:true,dynamic:true,parts:capitalSiegeMeshes.hull.parts});hull.push(...capitalLineageHull(spec));}b.capitalDesign.mesh=hull;}b.capitalDesign.lineageApplied=true;}
  return b.capitalDesign;
 }
 function initCapitalSiege(b){
@@ -331,7 +363,7 @@ function updateCapitalSiege(b,dt){
   if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=n.id==='core'?6:4;n.burstClock=0;}}
   if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?920:n.id==='reactor'?820:850,seeking=n.id!=='reactor'&&n.cycle%3===0&&n.burst===1;
     hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?8:7,kind:seeking?'seeker':'rocket',bossRound:true,scale:n.id==='core'?.95:.85,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.12:.14;window.flightAudio?.shot('missile',mount.x,true);
-   }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=(n.id==='core'?.64:.76)*COMBAT_BALANCE.salvoRest;n.heading=n.id==='reactor'?0:Math.PI;
+   }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=(n.id==='core'?.64:.76)*COMBAT_BALANCE.salvoRest*(sectors[level].salvoRestScale||1);n.heading=n.id==='reactor'?0:Math.PI;
     if(n.id==='reactor'&&n.cycle%2===0){n.special={kind:'purge',age:0,warning:1.15,duration:.76,driveIndex:Math.floor(n.cycle/2)%capitalShipDesign(b).drives.length};}
     else if(n.id==='core'&&n.cycle%2===0){n.special={kind:'pulse',age:0,warning:1.3,duration:.3,gap:(n.cycle%4===0?-1:1)*.28};window.flightAudio?.laserCharge();}
     else{n.target={x:ship.x,y:ship.y};n.warning=.8;}

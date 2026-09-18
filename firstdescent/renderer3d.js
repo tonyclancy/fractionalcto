@@ -46,15 +46,26 @@ if(renderer){
  const modelUniforms=m.userData.modelUniforms={motionTime:{value:0},rigKind:{value:0},hitFlash:{value:0},organicSurface:{value:organic?1:0},alienSurface:{value:0}};
  m.onBeforeCompile=shader=>{Object.assign(shader.uniforms,modelUniforms);m.userData.shader=shader;
  shader.vertexShader='attribute vec4 faunaJoint; attribute vec3 blinkData; float blinkPulse(float x){return x<0.0||x>.26?0.0:x<.065?sin(x/.065*1.57079633):cos((x-.065)/.195*1.57079633);} attribute float textureWeight; varying float vTextureWeight; attribute float glow; attribute float flex; attribute float wet; varying float vWet; varying vec3 vSkinPosition; varying float vGlow; uniform float motionTime; uniform float rigKind;\n'+shader.vertexShader;
+ shader.vertexShader=`
+ vec3 speciesJoint(vec3 p,vec4 j,float t){
+  if(j.w<.5)return p;vec3 v=p-j.xyz;float side=j.z<0.0?-1.0:1.0;float w=min(1.0,length(v)/35.0),a=0.0;int axis=0;
+  if(j.w<1.5||(j.w>2.5&&j.w<3.5)||j.w>7.5){axis=1;a=j.w>7.5?t*18.0:side*sin(t*(j.w<1.5?14.0:5.0)+j.x*.03)*(j.w<1.5?.62:.38);}
+  else if(j.w>3.5&&j.w<4.5){axis=2;a=sin(t*6.0-max(0.0,v.x)*.045)*min(1.0,max(0.0,v.x)/85.0)*.27;}
+  else if(j.w>4.5&&j.w<5.5){float pulse=pow((1.0+cos(t*4.8))*.5,4.0),f=min(1.0,abs(v.x)/45.0);return j.xyz+vec3(v.x+3.0*pulse*f,v.yz*(1.0-.14*pulse*f));}
+  else if(j.w>5.5&&j.w<6.5)a=.08+pow((1.0+sin(t*3.0))*.5,3.0)*.32;
+  else if(j.w>6.5){axis=2;a=sin(t*9.0-w*3.0+j.x*.09+j.z*.07)*w*.34;}
+  else a=sin(t*9.0+j.x*.09+j.z*.07)*w*.28;
+  mat2 turn=mat2(cos(a),sin(a),-sin(a),cos(a));
+  if(axis==1)v.yz=turn*v.yz;else if(axis==2)v.xz=turn*v.xz;else v.xy=turn*v.xy;return j.xyz+v;
+ }
+ `+shader.vertexShader;
  shader.vertexShader=shader.vertexShader.replace('#include <beginnormal_vertex>',`#include <beginnormal_vertex>
- if(faunaJoint.w>.5){vec3 local=position-faunaJoint.xyz;float side=faunaJoint.z<0.0?-1.0:1.0;if(faunaJoint.w<1.5){float a=side*sin(motionTime*14.0+faunaJoint.x*.03)*.62;objectNormal.yz=mat2(cos(a),sin(a),-sin(a),cos(a))*objectNormal.yz;}else{float weight=min(1.0,length(local)/35.0);float a=sin(motionTime*(faunaJoint.w<2.5?9.0:6.0)+faunaJoint.x*.09+faunaJoint.z*.07)*weight*(faunaJoint.w<2.5?.28:.2);objectNormal.xy=mat2(cos(a),sin(a),-sin(a),cos(a))*objectNormal.xy;}}
+ if(faunaJoint.w>.5)objectNormal=normalize(speciesJoint(position+objectNormal*.01,faunaJoint,motionTime)-speciesJoint(position,faunaJoint,motionTime));
  `);
  shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
  if(blinkData.z>.5){float t=mod(motionTime*1.55+blinkData.y*1.73,17.3);float b=max(max(blinkPulse(t-2.1),blinkPulse(t-6.7)),max(max(blinkPulse(t-10.2),blinkPulse(t-10.57)),blinkPulse(t-15.4)));transformed.y=blinkData.x+(transformed.y-blinkData.x)*(1.0-.97*b);}
  vTextureWeight=textureWeight;vGlow=glow;vWet=wet;vSkinPosition=position;
- if(faunaJoint.w>.5){vec3 local=transformed-faunaJoint.xyz;float side=faunaJoint.z<0.0?-1.0:1.0;
- if(faunaJoint.w<1.5){float a=side*sin(motionTime*14.0+faunaJoint.x*.03)*.62;transformed.yz=faunaJoint.yz+mat2(cos(a),sin(a),-sin(a),cos(a))*local.yz;}
- else{float weight=min(1.0,length(local)/35.0);float a=sin(motionTime*(faunaJoint.w<2.5?9.0:6.0)+faunaJoint.x*.09+faunaJoint.z*.07)*weight*(faunaJoint.w<2.5?.28:.2);transformed.xy=faunaJoint.xy+mat2(cos(a),sin(a),-sin(a),cos(a))*local.xy;transformed.z+=sin(motionTime*7.0+faunaJoint.x*.12)*weight*(faunaJoint.w<2.5?3.0:6.0);}}
+ if(faunaJoint.w>.5)transformed=speciesJoint(transformed,faunaJoint,motionTime);
  else if(rigKind>2.5){float span=max(0.0,abs(position.y)-12.0);float drive=1.0+.65*pow((1.0+cos(motionTime*3.2))*.5,5.0);transformed.z+=sin(motionTime*3.2-position.x*.055)*span*.44*drive;}
  else if(rigKind>0.5){float phase=motionTime*(rigKind<1.5?4.8:3.8);
  if(position.x<23.0){float weight=smoothstep(-22.0,-4.0,position.x)*(1.0-smoothstep(10.0,23.0,position.x));float contraction=pow((1.0+cos(phase+(position.x+20.0)*.045))*.5,4.0);float extension=pow((1.0+cos(phase-.3))*.5,5.0)*(1.0-smoothstep(4.0,23.0,position.x));transformed.x+=weight*contraction*4.0-extension*9.0;transformed.yz*=(1.0-.22*weight*contraction)*(1.0-extension*.045);}
