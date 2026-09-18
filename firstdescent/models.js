@@ -625,13 +625,14 @@ function faunaJointVertex(p,age,joint){
    for(let j=0;j<rings.length-1;j++)for(let i=0;i<sides;i++)m.faces.push({v:[rings[j][i],rings[j][(i+1)%sides],rings[j+1][(i+1)%sides],rings[j+1][i]],c:tint(color,.92+.08*Math.sin(j*.72+i*.48)),em:0,flex:0});m.faces.push({v:rings[0].slice().reverse(),c:color,em:0,flex:0},{v:rings.at(-1),c:color,em:0,flex:0});
   }
   const thick=(crab?23:ray?10:tentacles?17:spec.form==='scarab'?20:12)*(spec.girth||1);
-  loft([[-41,0,0,2,3],[-32,-1,0,8,10],[-19,-2,0,thick*.8,thick],[0,0,0,thick,thick],[22,2,0,thick*.7,thick*.8],[39,3,0,5,7],[49,3,0,.3,.5]],tint(skin,.72));
+  const bodyShape=spec.bodyPlan,profile=bodyShape==='lance'?[[-52,0,0,1,2],[-31,-2,0,7,8],[-8,-2,0,12,12],[17,1,0,9,10],[49,3,0,2,3],[61,3,0,.3,.5]]:bodyShape==='shield'?[[-40,0,0,2,3],[-27,-2,0,12,15],[-13,-3,0,25,26],[8,1,0,24,24],[28,3,0,10,11],[43,4,0,.4,.5]]:bodyShape==='hammer'?[[-43,0,0,3,8],[-32,-1,0,10,30],[-24,-2,0,13,29],[-12,0,0,10,13],[19,2,0,12,14],[43,3,0,1,2]]:null;
+  if(profile)loft(profile,skin,24);else loft([[-41,0,0,2,3],[-32,-1,0,8,10],[-19,-2,0,thick*.8,thick],[0,0,0,thick,thick],[22,2,0,thick*.7,thick*.8],[39,3,0,5,7],[49,3,0,.3,.5]],tint(skin,.72));
   // One continuous cephalothorax shield; segmentation belongs to the tapering abdomen.
-  if(!ray&&!tentacles){
+  if(!ray&&!tentacles&&!profile){
    loft([[-31,-2,0,5,8],[-22,-3,0,thick*.8,thick*.95],[-8,-3,0,thick*1.07,thick*1.15],[9,-1,0,thick,thick*1.1],[18,1,0,thick*.65,thick*.8]],skin,24);
    for(let i=0;i<4;i++){const x=12+i*7,r=thick*(.74-i*.14);loft([[x,2,0,r*.87,r],[x+2,1,0,r,r*1.08],[x+7,2,0,r*.84,r*.9],[x+8,2,0,r*.7,r*.74]],tint(skin,.9-i*.055),16);}
   }
-  if(tentacles)loft([[-39,0,0,2,3],[-29,-1,0,7,9],[-12,-3,0,thick*.98,thick],[6,-2,0,thick,thick*.93],[23,0,0,10,12],[32,0,0,3,4]],skin,24);
+  if(tentacles&&!profile)loft([[-39,0,0,2,3],[-29,-1,0,7,9],[-12,-3,0,thick*.98,thick],[6,-2,0,thick,thick*.93],[23,0,0,10,12],[32,0,0,3,4]],skin,24);
   if(crab||spec.form==='scarab'||spec.id==='broodMother'||spec.id==='coreHarvester')for(let plate=0;plate<4;plate++){
    const x=-23+plate*10,r=thick*(.9-Math.abs(plate-1.5)*.05),rings=[];
    for(let j=0;j<4;j++)rings.push(Array.from({length:15},(_,k)=>{const a=.35+k/14*5.58;return[x+j*3,-2+Math.cos(a)*(r+Math.sin(j/3*Math.PI)*1.2),Math.sin(a)*(r*1.12+Math.sin(j/3*Math.PI)*1.2)];}));
@@ -642,7 +643,7 @@ function faunaJointVertex(p,age,joint){
    tube(rings[3],.45,tint(accent,.75));
   }
   // Deep, small eyes under a brow; synchronized eyelid motion on both renderers.
-  for(const side of [-1,1])for(let eye=0;eye<(spec.eyePairs||1);eye++){const x=-30+eye*6,y=-5-eye*3,z=side*(9+eye*2);
+  for(const side of [-1,1])for(let eye=0;eye<(spec.eyePairs||1);eye++){const x=-30+eye*6,y=-5-eye*3,z=side*((bodyShape==='hammer'?29:bodyShape==='shield'?14:9)+eye*2);
    m.ellipsoid(x,y,z,5,3.8,2.2,tint(skin,.3),0,14,8);
    let start=m.faces.length;m.ellipsoid(x-.8,y,z+side*1.7,2.1,1.5,1.15,[64,47,25],.03,14,8);m.ellipsoid(x-1.2,y,z+side*2.7,.65,1.1,.3,[4,10,11],0,12,8);
    for(let i=start;i<m.faces.length;i++){m.faces[i].blink=[y,Math.abs(z)*.19];m.faces[i].textureWeight=0;m.faces[i].wet=.9;}
@@ -650,7 +651,7 @@ function faunaJointVertex(p,age,joint){
    // Gill seams and restrained luminous organs, never giant glowing eyeballs.
    for(let j=0;j<5;j++){const x=-15+j*7,z=side*(thick*(1-j*.06)+.9);tube([[x,-4,z],[x+2,2,z+side*.5],[x+1,7,z-side*1.8]],.65,tint(accent,.6));}
   }
-  function fin(side,pair,flight){const start=m.faces.length,root=[-11+pair*20,-3,side*9],point=(u,v,back)=>{const span=(flight?64:58)*(spec.span||1)*Math.pow(.70,pair),chord=Math.sin(u*Math.PI*.92)*(flight?31:48)*(spec.chord||1)+3;return[root[0]+u*24+(v-.48)*chord,root[1]+Math.sin(u*Math.PI)*4+Math.sin(v*Math.PI)*u*3+(back?.3:-.3),side*(9+u*span*(1+.035*Math.sin(v*16)))];};
+  function fin(side,pair,flight){const start=m.faces.length,root=[-11+pair*20,-3,side*9],point=(u,v,back)=>{const span=(flight?64:58)*(spec.span||1)*Math.pow(.70,pair),chord=Math.sin(u*Math.PI*.92)*(flight?31:48)*(spec.chord||1)+3;return[root[0]+u*(24+(spec.wingSweep||0))+(v-.48)*chord,root[1]+Math.sin(u*Math.PI)*4+Math.sin(v*Math.PI)*u*3+(back?.3:-.3),side*(9+u*span*(1+(spec.planet?.16:.035)*Math.sin(v*(spec.wingNotches||3)*Math.PI)))];};
    for(let back=0;back<2;back++)for(let i=0;i<12;i++)for(let j=0;j<6;j++){const v=[point(i/12,j/6,back),point((i+1)/12,j/6,back),point((i+1)/12,(j+1)/6,back),point(i/12,(j+1)/6,back)];m.faces.push({v:back?v:v.reverse(),c:tint(accent,.52+j*.038),em:0,flex:0});}
    for(let i=0;i<12;i++)for(const edge of [0,1])m.faces.push({v:[point(i/12,edge,0),point((i+1)/12,edge,0),point((i+1)/12,edge,1),point(i/12,edge,1)],c:skin,em:0,flex:0});
    for(let j=0;j<5;j++)tube(Array.from({length:5},(_,i)=>point(i/4,j/4,0)),.58,tint(skin,1.15));
@@ -658,7 +659,7 @@ function faunaJointVertex(p,age,joint){
   }
   if(winged||ray||spec.form==='herald')for(const side of [-1,1])for(let pair=0;pair<(spec.finPairs||(winged?2:1));pair++)fin(side,pair,air);
   if(tentacles||spec.form==='herald')for(let i=0;i<(spec.arms||6);i++){const a=i/(spec.arms||6)*Math.PI*2,y=Math.cos(a),z=Math.sin(a);tube([[21,y*10,z*10],[39,y*17,z*16],[62,y*22,z*20],[82,y*16,z*24],[95,y*24,z*15]],2.6,tint(skin,1+i*.04));for(let j=0;j<4;j++)m.ellipsoid(35+j*12,y*(15+j*2),z*(15+j*2)-.7,1.3,1,.8,tint(accent,.65),0,8,5);}
-  if(crab||winged||spec.form==='scarab')for(const side of [-1,1])for(let i=0;i<3;i++){const root=[-12+i*13,7,side*10],elbow=[-22+i*16,15,side*25],tip=[-30+i*20,27,side*32],joint=[...root,2];tube([root,elbow,tip,[tip[0]-5,tip[1]+4,tip[2]-side*5]],crab?2.5:1.5,tint(skin,.83),joint);const start=m.faces.length;m.ellipsoid(...elbow,2.1,2.1,2.1,accent,0,10,6);mark(start,joint);}
+  if(crab||winged||spec.form==='scarab')for(const side of [-1,1])for(let i=0;i<(spec.legPairs||3);i++){const root=[-12+i*13,7,side*10],elbow=[-22+i*16,15,side*25],tip=[-30+i*20,27,side*32],joint=[...root,2];tube([root,elbow,tip,[tip[0]-5,tip[1]+4,tip[2]-side*5]],crab?2.5:1.5,tint(skin,.83),joint);const start=m.faces.length;m.ellipsoid(...elbow,2.1,2.1,2.1,accent,0,10,6);mark(start,joint);}
   if(!ray)for(const side of [-1,1])tube([[-31,-8,side*6],[-44,-17,side*12],[-53,-15,side*21],[-58,-8,side*24]],.75,accent,[-31,-8,side*6,3]);
   if(ray){for(const side of [-1,1])tube([[30,0,side*5],[51,1,side*8],[73,3,side*15],[89,8,side*20]],1.7,skin,[30,0,side*5,3]);}
   if(crab||spec.form==='scarab'||spec.form==='herald')for(let i=0;i<5;i++){
@@ -688,6 +689,15 @@ function faunaJointVertex(p,age,joint){
    m.wedge(root,[25,-25,side*39],[45,4,side*14],1,accent);mark(start,[...root,3]);
   }
   if(spec.forked)for(const side of [-1,1])tube([[32,2,side*3],[51,-3,side*13],[70,-8,side*20]],2.2,accent,[32,2,side*3,3]);
+  if(bodyShape==='ribbon')for(const side of [-1,1]){
+   const root=[24,2,side*7],joint=[...root,3];tube([root,[48,side*7,side*14],[74,-side*16,side*21],[104,-side*23,side*14],[125,side*8,side*11]],2.8,skin,joint);
+   for(let i=0;i<5;i++){const start=m.faces.length,x=37+i*15;m.wedge([x,0,side*12],[x+10,-side*(21+i*3),side*18],[x+16,1,side*13],1.5,accent);mark(start,joint);}
+  }
+  if(bodyShape==='petal')for(let i=0;i<6;i++){
+   const a=i*Math.PI/3,root=[7,Math.cos(a)*9,Math.sin(a)*9],tip=[28,Math.cos(a)*36,Math.sin(a)*36],start=m.faces.length;
+   m.wedge(root,tip,[51,Math.cos(a)*14,Math.sin(a)*14],2,skin);tube([root,tip,[51,Math.cos(a)*14,Math.sin(a)*14]],.8,accent);mark(start,[...root,3]);
+  }
+  if(bodyShape==='keel')for(const side of [-1,1]){const root=[-5,side*7,0],start=m.faces.length;m.wedge([-30,side*8,0],[7,side*40,-1],[42,side*9,0],2,accent);mark(start,[...root,3]);}
   // Fine embedded speckles follow the body rather than floating sphere ornaments.
   for(let i=0;i<18;i++){const x=-18+i*2.9,a=i*2.399,r=thick*(1-Math.max(0,x)*.012),y=Math.cos(a)*r,z=Math.sin(a)*r; m.ellipsoid(x,y,z,1.6,.65,.65,tint(accent,.65),0,8,4);}
   for(const f of m.faces){if(spec.length){f.v=f.v.map(p=>[p[0]*spec.length,p[1],p[2]]);if(f.joint)f.joint=[f.joint[0]*spec.length,...f.joint.slice(1)];}if(small!==1){f.v=f.v.map(p=>p.map(v=>v*small));if(f.joint)f.joint=f.joint.map((v,i)=>i<3?v*small:v);if(f.blink)f.blink=[f.blink[0]*small,f.blink[1]];}f.textureWeight=f.textureWeight??.72;}
@@ -719,17 +729,29 @@ function registerPlanetSpecies(spec){
  }});
 }
 function buildPlanetMachine(spec){
- const m=meshBuilder(),c=spec.color,a=spec.accent,h=spec.girth*12,length=spec.length*40;
- m.wedge([-length,0,-h],[length,-h,-h],[length,h,-h],h*2,c);
- for(const side of [-1,1]){
-  m.wedge([-25,side*8,-3],[10,side*(25+spec.finPairs*5),-9],[32,side*10,2],5,a);
-  const y=side*(spec.heavy?22:16);m.ellipsoid(30,y,-3,15,7,7,c,0,14,8);
-  m.tube([[23,y,-3],[40,y,-3],[52,y,-3]],5,[48,59,70],0,0,10,1);
-  for(let i=0;i<3;i++)m.tube([[23+i*6,y-5,-7],[23+i*6,y,-10],[23+i*6,y+5,-7]],.8,a,0,0,5,1);
-  m.ellipsoid(51,y,-3,1.5,3.4,3.4,a,.7,10,6);
-  if(spec.forked)m.wedge([6,side*12,-h],[23,side*20,-h-19],[33,side*12,-h],2,c);
+ const m=meshBuilder(),c=spec.color,a=spec.accent,dark=[28,39,48],steel=[143,165,174],plan=spec.machinePlan||'dart',heavy=spec.heavy?1.18:1;
+ const plate=(x,y,z,l,w)=>{const rings=[[-1,.08,.8],[-.45,.64,3],[.2,1,5],[.85,.84,4],[1,.5,2]].map(([u,width,height])=>Array.from({length:8},(_,i)=>{const a=i*Math.PI/4;return[x+l*u,y+Math.cos(a)*w*width,z+Math.sin(a)*height];}));for(let j=0;j<rings.length-1;j++)for(let i=0;i<8;i++)m.faces.push({v:[rings[j][i],rings[j][(i+1)%8],rings[j+1][(i+1)%8],rings[j+1][i]],c:c.map(v=>Math.round(v*(.75+.055*(i%4)))),em:0,flex:0});m.faces.push({v:rings[0].slice().reverse(),c:dark,em:0,flex:0},{v:rings.at(-1),c:dark,em:0,flex:0});for(const side of [-1,1])m.tube([[x-l*.4,y+side*w*.5,z-2],[x+l*.2,y+side*w*.85,z-4],[x+l*.75,y+side*w*.68,z-3]],.65,steel,0,0,5,1);};
+ const engine=(x,y,z,r=5)=>{m.tube([[x-18,y,z],[x,y,z],[x+12,y,z]],r,dark,0,0,12,2);for(let k=0;k<3;k++)m.tube([[x-9+k*5,y-r,z-r*.7],[x-9+k*5,y,z-r-1],[x-9+k*5,y+r,z-r*.7]],.7,steel,0,0,6,1);m.ellipsoid(x+12,y,z,1.2,r*.75,r*.75,a,.9,12,6);};
+ if(plan==='outrigger'){
+  plate(-10,0,-8,39,11);for(const side of [-1,1]){m.tube([[-18,0,0],[2,side*31,-2],[30,side*31,-2]],3,steel);plate(0,side*32,-7,22,9);engine(28,side*32,0,7);}
+ }else if(plan==='crescent'){
+  for(const side of [-1,1]){m.tube([[22,0,0],[13,side*18,-4],[-7,side*34,-4],[-35,side*42,0]],7,c,0,0,12,3);plate(-13,side*30,-7,22,9);engine(24,side*9,0,6);}m.ellipsoid(0,0,0,15,13,9,c,0,16,10);
+ }else if(plan==='trident'){
+  for(const side of [-1,0,1]){plate(-10-side*side*10,side*23,-5,33,6);m.tube([[15,0,0],[20,side*23,0]],3,steel);engine(25,side*23,0,5);}
+ }else if(plan==='halo'){
+  const points=Array.from({length:25},(_,i)=>[6+Math.cos(i/24*Math.PI*2)*31,Math.sin(i/24*Math.PI*2)*31,0]);m.tube(points,5,c,0,0,10,1);for(const side of [-1,1]){m.tube([[-15,0,0],[7,side*29,0]],2,steel);engine(18,side*23,0,5);}plate(-16,0,-6,27,8);
+ }else if(plan==='citadel'){
+  for(const side of [-1,1]){plate(0,side*14,-10,25,16);plate(7,side*25,2,20,9);engine(29,side*18,0,8);}m.tube([[-35,0,0],[32,0,0]],9,dark);for(let i=0;i<4;i++)m.tube([[-18+i*11,-25,-10],[-18+i*11,0,-14],[-18+i*11,25,-10]],1.5,steel);
+ }else{
+  plate(-13,0,-5,47,9);for(const side of [-1,1]){m.wedge([12,side*7,-3],[36,side*39,-2],[42,side*6,1],4,c);engine(34,side*11,0,5);}
  }
- for(let i=0;i<spec.crest;i++)m.wedge([-17+i*9,-h,-h],[-12+i*9,-h-5,-h-8],[-7+i*9,h,-h],2,a);
- m.ellipsoid(-12,-2,-h-1,13,5,3,a,.3,14,8);const base=meshes[spec.baseModel]||[];return base.map(f=>({...f,c:f.c.map((v,i)=>Math.round(v*.65+c[i]*.35))})).concat(m.faces);
+ // Embedded cockpit, armored seams, radiator slots and paired muzzle bores.
+ m.ellipsoid(-20,-1,-10,9,4,3,a,.25,14,8);
+ for(const side of [-1,1]){m.tube([[-17,side*7,-7],[-40,side*7,-7]],2.1,steel,0,0,8,1);m.ellipsoid(-40,side*7,-7,.5,1.4,1.4,dark,0,8,5);for(let k=0;k<5;k++)m.tube([[-5+k*5,side*5,-11],[-5+k*5,side*10,-9]],.65,a,0,0,5,1);}
+ for(const f of m.faces)f.v=f.v.map(p=>[p[0]*spec.length*heavy,p[1]*spec.girth*heavy,p[2]*heavy]);m.faces.industrial=true;return m.faces;
 }
 function enemySpecies(e,definition=sectors[level]){return planetSpecies.get(e.satellite?e.escortProfile?.escort:e.escortProfile?.model||definition.models[e.type]);}
+
+// Rigid opaque repeats share an instanced GPU draw. Animated, translucent or
+// hit-flashing models always keep the normal per-object path.
+for(const name of ['missile','shrapnel','bone','rib','spineChip','chitinChip','skull'])meshes[name].instanceSafe=true;

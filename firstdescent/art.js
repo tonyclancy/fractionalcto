@@ -1140,6 +1140,24 @@ function drawNavigationPlanet(c,x,y,r,location,closeup=false){
  ring(false);const texture=(closeup?preparePlanetCloseup(location):null)||planetSurface(location);if(texture)c.drawImage(texture,-r,-r,r*2,r*2);else{c.fillStyle='#426b78';c.beginPath();c.arc(0,0,r,0,TAU);c.fill();}ring(true);
  c.strokeStyle='#b2eee658';c.lineWidth=Math.max(1,r*.009);c.beginPath();c.arc(0,0,r,Math.PI*.8,Math.PI*1.65);c.stroke();c.restore();
 }
+// Navigation and local scenery share the same named anomaly from content data.
+function navigationAnomaly(location){const system=expeditionSystem(location);return system.destinations.find(d=>d.anomaly==='black-hole')||null;}
+let blackHoleNavigationSurface=null;
+function blackHoleNavigationArtwork(){
+ if(blackHoleNavigationSurface)return blackHoleNavigationSurface;
+ const surface=document.createElement('canvas');surface.width=768;surface.height=432;const c=surface.getContext('2d'),x=384,y=216;
+ const halo=c.createRadialGradient(x,y,32,x,y,200);halo.addColorStop(0,'#ffe8ae00');halo.addColorStop(.28,'#efb27b44');halo.addColorStop(.55,'#ae645722');halo.addColorStop(1,'#65366c00');c.fillStyle=halo;c.fillRect(0,0,768,432);
+ // Far side of the accretion disc bends over the event horizon. Near-side
+ // material crosses in front, so this reads as a lensed disc, not a glowing dot.
+ const disk=front=>{for(let i=0;i<45;i++){const r=62+i*2.35;c.strokeStyle=`rgba(${front?'255,204,141':'229,155,103'},${(.12+.17*(1-i/45))*(.65+.35*Math.sin(i*2.3)**2)})`;c.lineWidth=1.4;c.beginPath();c.ellipse(x,y,r,r*(front?.20:.53),-.13,front?0:Math.PI,front?Math.PI:Math.PI*2);c.stroke();}};
+ disk(false);c.fillStyle='#010208';c.beginPath();c.arc(x,y,47,0,TAU);c.fill();c.strokeStyle='#ffe6b9c0';c.lineWidth=2;c.beginPath();c.arc(x,y,49,Math.PI*.16,Math.PI*1.85);c.stroke();disk(true);
+ for(let i=0;i<20;i++){c.strokeStyle=`rgba(255,222,172,${.04*(1-i/20)})`;c.lineWidth=2;c.beginPath();c.ellipse(x,y+10,66+i*4,9+i*.45,-.13,0,TAU);c.stroke();}
+ blackHoleNavigationSurface=surface;return surface;
+}
+function paintNavigationBlackHole(c,x,y,r,label=''){
+ c.save();c.drawImage(blackHoleNavigationArtwork(),x-r*3.6,y-r*2.025,r*7.2,r*4.05);
+ if(label){c.textAlign='center';c.font='11px monospace';c.lineWidth=3;c.strokeStyle='#03050a';c.strokeText(label+' · GRAVITATIONAL ANOMALY',x,y+r*1.65);c.fillStyle='#e9bb8c';c.fillText(label+' · GRAVITATIONAL ANOMALY',x,y+r*1.65);}c.restore();
+}
 function drawNavigationSun(c,x,y,r,star={}){
  const color=star.color||[255,190,95],size=r*(star.radius||1),rgb=(light,alpha)=>`rgba(${color.map(v=>Math.round(v+(255-v)*light)).join(',')},${alpha})`;
  const g=c.createRadialGradient(x,y,0,x,y,size*3.8);g.addColorStop(0,rgb(.94,1));g.addColorStop(.20,rgb(.7,1));g.addColorStop(.27,rgb(.2,1));g.addColorStop(.38,rgb(0,.5));g.addColorStop(.65,rgb(0,.14));g.addColorStop(1,rgb(0,0));c.fillStyle=g;c.fillRect(x-size*3.8,y-size*3.8,size*7.6,size*7.6);
@@ -1152,20 +1170,21 @@ function systemArtwork(system,selectedId){
  const key=system.id+':'+selectedId;if(systemSurfaces.has(key))return systemSurfaces.get(key);
  const surface=document.createElement('canvas');surface.width=800;surface.height=550;paintSystemChart(surface.getContext('2d'),system,selectedId,0);while(systemSurfaces.size>=4)systemSurfaces.delete(systemSurfaces.keys().next().value);systemSurfaces.set(key,surface);return surface;
 }
-function paintSystemChart(c,system,selectedId,seconds,selection=null){
+function paintSystemChart(c,system,selectedId,seconds,selection=null,showAnomaly=true){
  const emphasis=id=>selection?(id===selectedId?selection.mix:id===selection.from?1-selection.mix:0):id===selectedId?1:0;
  const haze=c.createRadialGradient(400,270,0,400,270,360);haze.addColorStop(0,'#5b402336');haze.addColorStop(1,'#05132500');c.fillStyle=haze;c.fillRect(0,0,800,550);
 
  const layout=systemOrbitLayout(system,seconds);
+ const anomaly=system.destinations.find(d=>d.anomaly==='black-hole');if(anomaly&&showAnomaly)paintNavigationBlackHole(c,690,155,22,anomaly.name);
  for(const item of layout){const weight=emphasis(item.destination.id);c.strokeStyle=`rgba(180,211,218,${.43+weight*.25})`;c.lineWidth=1+weight*.5;c.beginPath();c.ellipse(400,272,item.radius,item.radius*.59,0,0,TAU);c.stroke();}
  drawNavigationSun(c,400,272,23,system.star);c.textAlign='center';c.fillStyle='#ffe4a7';c.font='bold 15px monospace';c.lineWidth=4;c.strokeStyle='#020914';c.strokeText(system.star.name,400,328);c.fillText(system.star.name,400,328);c.font='10px monospace';c.fillStyle='#b89b75';c.fillText(system.star.type||'SYSTEM STAR',400,346);
  for(const item of layout){const d=item.destination,location=expedition.locations[d.stages[0]]||{...d,destinationId:d.id};drawNavigationPlanet(c,item.x,item.y,29+11*emphasis(d.id),location);c.font='bold 16px monospace';c.fillStyle=emphasis(d.id)>.5?'#deffef':d.climate==='hot'?'#edb085':d.climate==='ice'||d.climate==='gas'?'#bad9ee':'#b8dcbb';const labelY=item.y<272?item.y-57:item.y+52;c.lineWidth=4;c.strokeStyle='#020914d9';c.strokeText(d.name,item.x,labelY);c.fillText(d.name,item.x,labelY);c.font='12px monospace';c.fillStyle='#c0d1dc';c.strokeText(d.orbit+' AU · '+d.climate.toUpperCase(),item.x,labelY+17);c.fillText(d.orbit+' AU · '+d.climate.toUpperCase(),item.x,labelY+17);}
  c.fillStyle='#ddf5ee';c.font='bold 23px monospace';c.fillText(system.name+' SYSTEM',400,48);c.font='11px monospace';c.fillStyle='#8caebc';c.fillText((GALAXIES[system.galaxyId||GALAXY.id].name)+' / '+systemCensusLabel(system),400,73);c.fillStyle='#acb9be';c.fillText('HOT INNER WORLDS  →  TEMPERATE  →  COLD OUTER WORLDS',400,layout.length>4?94:505);c.fillStyle='#7d929f';c.font='10px monospace';c.fillText('ORBITAL DISTANCES NOT TO SCALE',400,layout.length>4?112:526);
 }
 function navigationOrbitTime(){return sectorBlend?.age||0;}
-function drawMovingSystemChart(system,selectedId){
+function drawMovingSystemChart(system,selectedId,showAnomaly=true){
  let selection=null;if(sectorBlend?.origin&&selectedId===sectorBlend.destination?.destinationId){const u=sectorBlend.age/sectorBlend.duration,same=sectorBlend.origin.systemId===system.id;selection={from:same?sectorBlend.origin.destinationId:null,mix:navigationEase(same?(u-.34)/.16:(u-.62)/.10)};}
- ctx.save();ctx.translate(W/2-440,H*.52-272*1.1);ctx.scale(1.1,1.1);paintSystemChart(ctx,system,selectedId,navigationOrbitTime(),selection);ctx.restore();
+ ctx.save();ctx.translate(W/2-440,H*.52-272*1.1);ctx.scale(1.1,1.1);paintSystemChart(ctx,system,selectedId,navigationOrbitTime(),selection,showAnomaly);ctx.restore();
 }
 function navigationArtwork(){return systemArtwork(contentReleases[0].systems[0],contentReleases[0].systems[0].destinations[0].id);}
 let navigationClock=0;
@@ -1254,6 +1273,7 @@ function drawPlanetCamera(location,progress,scene=null){
  const p=planetCameraPose(location,progress),surface=p.surface*p.surface*(3-2*p.surface);
  ctx.save();ctx.globalAlpha*=1-surface;ctx.fillStyle='#020914';ctx.fillRect(0,0,W,H);
  drawNavigationStars();
+ const anomaly=navigationAnomaly(location);if(anomaly){const t=navigationEase(progress),near=location.anomaly==='black-hole';paintNavigationBlackHole(ctx,W*.5+319*(1-t)+(W*.712-W*.5)*t,H*.52-129*(1-t)+(H*.33-H*.52)*t,24+(near?W*.082-24:4)*t);}
  // Only the selected world is magnified. Its complete disc stays visible long
  // enough to recognize before the camera crosses the atmospheric limb.
  drawNavigationPlanet(ctx,p.x,p.y,p.r,location,true);
@@ -1319,7 +1339,8 @@ function drawGalaxySystemApproach(location,progress){
  const system=expeditionSystem(location),galaxy=expeditionGalaxy(location),p=galaxyApproachPose(system,progress);
  paintRotatingGalaxy(ctx,galaxy,p.gx,p.gy,p.width,1-navigationEase((p.t-.48)/.38));
  drawUniversalLandmarks(location,p);
- const reveal=navigationEase((p.t-.67)/.33);ctx.save();ctx.globalAlpha=reveal;ctx.translate(p.sx,p.sy);ctx.scale(p.scale,p.scale);ctx.translate(-W*.5,-H*.52);drawMovingSystemChart(system,location.destinationId);ctx.restore();
+ const reveal=navigationEase((p.t-.67)/.33);ctx.save();ctx.globalAlpha=reveal;ctx.translate(p.sx,p.sy);ctx.scale(p.scale,p.scale);ctx.translate(-W*.5,-H*.52);drawMovingSystemChart(system,location.destinationId,false);ctx.restore();
+ const anomaly=navigationAnomaly(location);if(anomaly){const q=galacticLandmarkPose(location,p,[.022,-.013],.006),mix=reveal,x=q.x*(1-mix)+(p.sx+319*p.scale)*mix,y=q.y*(1-mix)+(p.sy-128.7*p.scale)*mix,r=Math.max(1.4,q.width)*(1-mix)+24.2*p.scale*mix;paintNavigationBlackHole(ctx,x,y,r,p.t>.5?anomaly.name:'');}
  if(p.t<.88){ctx.save();ctx.globalAlpha=1-navigationEase((p.t-.7)/.18);drawNavigationSun(ctx,p.sx,p.sy,1.8+p.t*2,system.star);if(p.t<.65){ctx.strokeStyle='#a5f9dc';ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.sx,p.sy,7,0,TAU);ctx.stroke();ctx.fillStyle='#d6f7ec';ctx.font='13px monospace';ctx.fillText(system.name+' SYSTEM',p.sx+16,p.sy-11);}ctx.restore();}
 }
 function drawInitialGalaxyEntry(location,u){
