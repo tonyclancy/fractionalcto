@@ -25,7 +25,8 @@ const BOSS_ENCOUNTERS=freezeContent({
 function bossEncounterProfile(l){return l.encounterProfile||BOSS_ENCOUNTERS[l.encounter||l.bossKind];}
 // Shared tuning keeps future encounters within the same learnable combat rhythm.
 const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.25,specialRest:1.15,hitGrace:2.4,shieldGrace:1.5,breathTracking:.55});
-const GAME_RULESET='2026-09-alien-flight-v28';
+const WATER_HANDLING=freezeContent({pilotSpeed:.9,acceleration:.065,braking:.09,reversal:.05,touchBuffer:.04,enemyMotion:.78,bossMotion:.84});
+const GAME_RULESET='2026-09-alien-flight-v29';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova','rescue']);
@@ -1798,22 +1799,30 @@ levelDefinitions.forEach(l=>{
 // A release adds a solar system. Each destination contributes an ordered
 // descent (planet) or a flight through the corona (star). Only authored stages
 // are published; a catalog entry never silently fabricates playable content.
-const GALAXY=freezeContent({id:'the-pale-spiral',name:'THE PALE SPIRAL'});
+const GALAXIES=freezeContent({
+ 'the-pale-spiral':{id:'the-pale-spiral',name:'THE PALE SPIRAL',arms:4,twist:2.8,tint:[129,193,226],seed:17},
+ 'the-ember-veil':{id:'the-ember-veil',name:'THE EMBER VEIL',arms:2,twist:4.2,tint:[230,155,177],seed:53}
+});
+const GALAXY=GALAXIES['the-pale-spiral'];
+const PLANET_SURFACE_DISKS=freezeContent(Object.fromEntries(['caelus','ferrum','nacre','thalassa','veyra','cinder','nivara'].map(id=>[id,'planet-'+id+'-v2.webp'])));
 const PLANET_SURFACE_ATLASES=freezeContent({original:'planet-surfaces-v1.webp',frontier:'planet-frontier-v1.webp',orison:'planet-orison-v1.webp'});
 const ORBITAL_ZONES=freezeContent({inner:{label:'HOT INNER WORLDS',climates:['hot']},temperate:{label:'TEMPERATE WORLDS',climates:['temperate']},outer:{label:'ICE & GAS WORLDS',climates:['ice','gas']},stellar:{label:'STELLAR CORONA',climates:['plasma']}});
-function buildExpedition(releases,definitions){
+function buildExpedition(releases,definitions,galaxies=GALAXIES){
  const ids=new Set(),stages=new Map(definitions.map(l=>[l.id,l])),used=new Set(),route=[],locations={};
  function identity(id){if(typeof id!=='string'||!/^[a-z0-9-]+$/.test(id)||ids.has(id))throw Error('Duplicate or invalid expedition identity: '+id);ids.add(id);}
  for(const release of releases){identity(release.id);if(!Number.isInteger(release.version)||release.version<1||!/^\d{4}-\d{2}$/.test(release.month))throw Error('Invalid content release');
-  for(const system of release.systems){identity(system.id);if(!system.name||!system.star?.name||!system.destinations.length)throw Error('System needs a named star and destinations');
+  for(const system of release.systems){const galaxy=galaxies[system.galaxyId||GALAXY.id];if(!galaxy||!galaxy.id||!galaxy.name)throw Error('Unknown expedition galaxy');identity(system.id);if(!system.name||!system.star?.name||!system.destinations.length)throw Error('System needs a named star and destinations');
+   if(system.star.color&&(!Array.isArray(system.star.color)||system.star.color.length!==3||system.star.color.some(c=>!Number.isFinite(c)||c<0||c>255)))throw Error('Invalid star color');
+   if(system.star.radius!==undefined&&(!Number.isFinite(system.star.radius)||system.star.radius<.5||system.star.radius>2))throw Error('Invalid star radius');
    const planets=system.destinations.filter(d=>d.kind==='planet').sort((a,b)=>a.orbit-b.orbit),thermalRank={inner:0,temperate:1,outer:2};
    if(planets.length<1||planets.length>6)throw Error('System requires one to six planets');
    for(let i=0;i<planets.length;i++){const d=planets[i],previous=planets[i-1];if(d.orbit<=0||!(d.orbitalZone in thermalRank)||previous&&(d.orbit===previous.orbit||thermalRank[d.orbitalZone]<thermalRank[previous.orbitalZone]))throw Error('Planet orbits must cool from inner to outer without duplicate distances');}
 
    for(const destination of system.destinations){identity(destination.id);if(!destination.name||!['planet','star'].includes(destination.kind)||!destination.stages.length)throw Error('Invalid destination');
+    if(destination.surfaceDisk&&!PLANET_SURFACE_DISKS[destination.surfaceDisk])throw Error('Invalid planetary surface disk');
     if(destination.surfaceAtlas&&(!PLANET_SURFACE_ATLASES[destination.surfaceAtlas]||!Number.isInteger(destination.surfaceBand)||destination.surfaceBand<0||destination.surfaceBand>2))throw Error('Invalid planetary surface atlas');
     const zone=ORBITAL_ZONES[destination.orbitalZone];if(!zone||!zone.climates.includes(destination.climate)||typeof destination.rings!=='boolean'||!Number.isFinite(destination.orbit)||destination.orbit<0)throw Error('Invalid orbital climate or rings');
-    for(const id of destination.stages){const stage=stages.get(id);if(!stage||used.has(id))throw Error('Missing or repeated expedition stage: '+id);if(destination.kind==='star'&&stage.environment!=='stellar-corona')throw Error('Star stages require a corona habitat');used.add(id);route.push(stage);locations[id]={releaseId:release.id,releaseVersion:release.version,systemId:system.id,systemName:system.name,destinationId:destination.id,destinationName:destination.name,destinationKind:destination.kind,starName:system.star?.name||system.name,orbit:destination.orbit,climate:destination.climate,rings:destination.rings,orbitalZone:destination.orbitalZone,galaxyId:GALAXY.id,ringTilt:destination.ringTilt??-.23,surfaceLongitude:destination.surfaceLongitude??0,orbitPhase:destination.orbitPhase??null,surfaceAtlas:destination.surfaceAtlas||'original',surfaceBand:destination.surfaceBand??null};}
+    for(const id of destination.stages){const stage=stages.get(id);if(!stage||used.has(id))throw Error('Missing or repeated expedition stage: '+id);if(destination.kind==='star'&&stage.environment!=='stellar-corona')throw Error('Star stages require a corona habitat');used.add(id);route.push(stage);locations[id]={releaseId:release.id,releaseVersion:release.version,systemId:system.id,systemName:system.name,destinationId:destination.id,destinationName:destination.name,destinationKind:destination.kind,starName:system.star?.name||system.name,orbit:destination.orbit,climate:destination.climate,rings:destination.rings,orbitalZone:destination.orbitalZone,galaxyId:galaxy.id,galaxyName:galaxy.name,surfaceDisk:destination.surfaceDisk||null,ringTilt:destination.ringTilt??-.23,surfaceLongitude:destination.surfaceLongitude??0,orbitPhase:destination.orbitPhase??null,surfaceAtlas:destination.surfaceAtlas||'original',surfaceBand:destination.surfaceBand??null};}
    }
   }
  }
@@ -1836,19 +1845,21 @@ nivara.escortEncounter={...nivara.escortEncounter,name:'FROST SHEPHERD',pace:1.0
 levelDefinitions.push(nivara);
 for(const l of levelDefinitions.slice(3,6))l.revision++;
 const contentReleases=freezeContent([
- {id:'first-contact',version:4,month:'2026-09',systems:[{id:'vesper-system',name:'VESPER',star:{name:'VESPER A',type:'AMBER STAR'},destinations:[
-  {id:'caelus',name:'CAELUS',kind:'planet',orbitalZone:'temperate',orbit:1.4,climate:'temperate',rings:true,orbitPhase:-.55,stages:[levelDefinitions[0].id]},
-  {id:'ferrum',name:'FERRUM',kind:'planet',orbitalZone:'inner',orbit:.85,climate:'hot',rings:false,orbitPhase:2.3,surfaceAtlas:'frontier',surfaceBand:0,stages:[levelDefinitions[1].id]},
-  {id:'nacre',name:'NACRE',kind:'planet',orbitalZone:'outer',orbit:4.8,climate:'ice',rings:false,orbitPhase:3.9,stages:[levelDefinitions[2].id]}
+ {id:'first-contact',version:5,month:'2026-09',systems:[{id:'vesper-system',galaxyId:'the-pale-spiral',name:'VESPER',star:{name:'VESPER A',type:'AMBER DWARF',color:[255,179,79],radius:.88},destinations:[
+  {id:'caelus',surfaceDisk:'caelus',name:'CAELUS',kind:'planet',orbitalZone:'temperate',orbit:1.4,climate:'temperate',rings:true,orbitPhase:-.55,stages:[levelDefinitions[0].id]},
+  {id:'ferrum',surfaceDisk:'ferrum',name:'FERRUM',kind:'planet',orbitalZone:'inner',orbit:.85,climate:'hot',rings:false,orbitPhase:2.3,surfaceAtlas:'frontier',surfaceBand:0,stages:[levelDefinitions[1].id]},
+  {id:'nacre',surfaceDisk:'nacre',name:'NACRE',kind:'planet',orbitalZone:'outer',orbit:4.8,climate:'ice',rings:false,orbitPhase:3.9,stages:[levelDefinitions[2].id]}
  ]}]},
- {id:'orison-frontier',version:1,month:'2026-10',systems:[{id:'orison-system',name:'ORISON',star:{name:'ORISON A',type:'PALE GOLD STAR'},destinations:[
-  {id:'thalassa',name:'THALASSA',kind:'planet',orbitalZone:'temperate',orbit:1.6,climate:'temperate',rings:false,orbitPhase:2.1,surfaceAtlas:'orison',surfaceBand:0,stages:[levelDefinitions[3].id]},
-  {id:'veyra',name:'VEYRA',kind:'planet',orbitalZone:'outer',orbit:4.5,climate:'gas',rings:true,ringTilt:.28,orbitPhase:-.55,surfaceAtlas:'orison',surfaceBand:1,stages:[levelDefinitions[4].id]},
-  {id:'cinder',name:'CINDER',kind:'planet',orbitalZone:'inner',orbit:.25,climate:'hot',rings:false,orbitPhase:3.65,surfaceAtlas:'orison',surfaceBand:2,stages:[levelDefinitions[5].id]},
-  {id:'nivara',name:'NIVARA',kind:'planet',orbitalZone:'outer',orbit:8.2,climate:'ice',rings:false,orbitPhase:1.0,surfaceLongitude:.34,stages:[nivara.id]}
+ {id:'orison-frontier',version:2,month:'2026-10',systems:[{id:'orison-system',galaxyId:'the-ember-veil',name:'ORISON',star:{name:'ORISON A',type:'BLUE-WHITE GIANT',color:[142,193,255],radius:1.42},destinations:[
+  {id:'thalassa',surfaceDisk:'thalassa',name:'THALASSA',kind:'planet',orbitalZone:'temperate',orbit:1.6,climate:'temperate',rings:false,orbitPhase:2.1,surfaceAtlas:'orison',surfaceBand:0,stages:[levelDefinitions[3].id]},
+  {id:'veyra',surfaceDisk:'veyra',name:'VEYRA',kind:'planet',orbitalZone:'outer',orbit:4.5,climate:'gas',rings:true,ringTilt:.28,orbitPhase:-.55,surfaceAtlas:'orison',surfaceBand:1,stages:[levelDefinitions[4].id]},
+  {id:'cinder',surfaceDisk:'cinder',name:'CINDER',kind:'planet',orbitalZone:'inner',orbit:.25,climate:'hot',rings:false,orbitPhase:3.65,surfaceAtlas:'orison',surfaceBand:2,stages:[levelDefinitions[5].id]},
+  {id:'nivara',surfaceDisk:'nivara',name:'NIVARA',kind:'planet',orbitalZone:'outer',orbit:8.2,climate:'ice',rings:false,orbitPhase:1.0,surfaceLongitude:.34,stages:[nivara.id]}
  ]}]}
 ]);
 levelDefinitions[1].expeditionNote='Ferrum · abandoned planetary foundry';
+function expeditionGalaxy(location){return GALAXIES[location.galaxyId||GALAXY.id];}
+function systemStageProgress(location){const stages=expeditionSystem(location).destinations.flatMap(d=>d.stages);return {number:stages.findIndex(id=>expedition.locations[id]===location)+1,total:stages.length};}
 function expeditionSystem(location){return contentReleases.flatMap(r=>r.systems).find(s=>s.id===location.systemId);}
 const expedition=buildExpedition(contentReleases,levelDefinitions);
 freezeContent(expedition.locations);

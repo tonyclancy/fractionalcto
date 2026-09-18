@@ -10,7 +10,7 @@ function trimSectorArt(current,next){
  for(const key of Object.keys(art))if(!keep.has(key)){panoramaSurfaces.delete(art[key]);delete art[key];}
 }
 function prepareSectorArt(definition){
- const location=expedition.locations[definition.id];if(location)preparePlanetCloseup(location);
+ const location=expedition.locations[definition.id];if(location){preparePlanetCloseup(location);galaxyArtwork(expeditionGalaxy(location));}
  const theme={verdant:'space',forge:'carrier',abyss:'abyss',reef:'reef',storm:'storm',core:'core'};
  loadArt(definition.background||theme[definition.theme]||'space');
  loadArt(definition.obstacleArt||({verdant:'colonyObstacle',forge:'carrierObstacle',abyss:'derelictObstacle'}[definition.theme]||definition.theme+'Obstacle'));
@@ -186,6 +186,7 @@ function blockWithFrontShield(b,oldX){if(!(ship.frontShield>0)||b.vx>=0)return f
 function drawFrontShield(){if(!(ship.frontShield>0))return;const p=frontShieldPosition(),hit=ship.frontFlash>0;ctx.save();ctx.translate(p.x,p.y);const fill=ctx.createRadialGradient(0,0,3,0,0,48);fill.addColorStop(0,'#88ffe908');fill.addColorStop(.7,'#71ffe91a');fill.addColorStop(1,'#b9fff066');ctx.fillStyle=fill;ctx.beginPath();ctx.ellipse(0,0,20,43,0,-Math.PI/2,Math.PI/2);ctx.closePath();ctx.fill();glow('#72ffea',hit?28:15);for(let i=0;i<3;i++){ctx.globalAlpha=(hit?1:.75)/(i+1);ctx.lineWidth=i===0?2:4+i*3;ctx.strokeStyle=hit?'#ffffff':'#8cfff0';ctx.beginPath();ctx.ellipse(0,0,20+i,43+i,0,-Math.PI/2,Math.PI/2);ctx.stroke();}ctx.globalAlpha=.18;ctx.lineWidth=1;for(let y=-30;y<=30;y+=12){ctx.beginPath();ctx.moveTo(1,y);ctx.lineTo(15*Math.sqrt(1-y*y/1800),y);ctx.stroke();}noGlow();ctx.restore();}
 
 function enemyKinematics(e,dt){
+ if(sectors[level].medium==='water'&&!e.sentry)dt*=WATER_HANDLING.enemyMotion;
  if(e.guardian&&boss){e.age+=dt;const a=e.age*.9+e.orbit;const u=passEase(Math.min(1,e.age/1.2)),x=boss.x+Math.cos(a)*155,y=boss.y+Math.sin(a)*130;e.x=(e.emergeX??x)+(x-(e.emergeX??x))*u;e.y=(e.emergeY??y)+(y-(e.emergeY??y))*u;e.direction=ship.x>=e.x?1:-1;e.travelYaw=Math.sin(a)*.35;e.travelPitch=Math.cos(a)*.18;return;}
  if(e.verticalTravel){e.age+=dt;const organic=isOrganicEnemy(e),frequency=e.type===1?(themeIndex()===0?4.8:3.2):(themeIndex()===2?9:3.8),stroke=Math.pow((1+Math.cos((e.age+e.phase)*frequency))*.5,5);if(organic&&stroke>.65&&(e.stroke??0)<=.65)window.flightAudio?.swim(e);const speed=e.speed*(organic?.70+stroke*.90:.78*(1+.1*Math.sin(e.age*2.2+e.phase)));e.y+=e.verticalDirection*speed*dt;const desired=enemyRouteX(e,e.baseX+Math.sin(e.age*.8+e.phase)*42);e.routeX+=clamp((desired-e.routeX)*(1-Math.exp(-dt*6)),-260*dt,260*dt);e.x=e.routeX;e.travelPitch=-e.verticalDirection*.25+Math.sin(e.age*.7)*.06;e.travelYaw=(e.direction===1?Math.PI:0)+Math.sin(e.age*.8)*.12;e.depth=1;e.stroke=stroke;return;}
  if(e.sentry){e.age+=dt;e.x=W+210-(time-e.anchorAt)*SCROLL_SPEED;const gate=obstacles.find(o=>o.shutters&&o.at===e.anchorAt);if(gate){const r=obstacleSolids(gate)[0];if(sectors[level].scrollAxis){e.x=r.side==='left'?r.x+r.w+30:r.x-30;e.y=r.y+r.h/2;}else e.y=r.h+32;}e.travelPitch=e.travelYaw=0;return;}
@@ -370,7 +371,7 @@ function driveBoss(b,target,dt,drive,speed){
  const vx=b.navVX||0,vy=b.navVY||0;let nx=vx+((target.x-b.x)*drive*drive-2*drive*vx)*dt,ny=vy+((target.y-b.y)*drive*drive-2*drive*vy)*dt;
  const magnitude=Math.hypot(nx,ny),limit=speed/Math.max(speed,magnitude);b.navVX=nx*limit;b.navVY=ny*limit;b.x+=b.navVX*dt;b.y+=b.navVY*dt;
 }
-function moveBoss(b,dt){if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){moveCapitalShip(b,dt);return;}const kind=bossIndex(),oldX=b.x,oldY=b.y;
+function moveBoss(b,dt){if(sectors[level].medium==='water')dt*=WATER_HANDLING.bossMotion;if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){moveCapitalShip(b,dt);return;}const kind=bossIndex(),oldX=b.x,oldY=b.y;
  const crossing=![1,4].includes(kind)&&updateBossPass(b,dt);
  if(!crossing&&Math.abs(ship.x-b.x)>120&&!b.breath){const targetYaw=ship.x>b.x?Math.PI:0;b.turnYaw=(b.turnYaw||0)+clamp(targetYaw-(b.turnYaw||0),-dt*2.4,dt*2.4);}
  if(crossing){b.navVX=(b.x-oldX)/dt;b.navVY=(b.y-oldY)/dt;}
@@ -1013,8 +1014,23 @@ function drawAnatomicalJaw(b){const k=bossIndex(),mesh=meshes[k===2?'sovereignJa
 
 // Retained navigation artwork. Atlas sampling and spherical lighting are baked
 // once per destination; travel frames only transform cached canvases.
+const planetDiskPixels=new Map(),planetDiskRequests=new Set();
 let navigationSurface=null;const planetAtlasPixels=new Map(),planetSurfaces=new Map(),systemSurfaces=new Map(),planetCloseups=new Map();
+function loadPlanetDisk(location){
+ const id=location.surfaceDisk,file=PLANET_SURFACE_DISKS[id];if(!file||planetDiskPixels.has(id)||planetDiskRequests.has(id))return;
+ planetDiskRequests.add(id);const image=new Image();image.decoding='async';image.onload=()=>{
+  const surface=document.createElement('canvas');surface.width=image.naturalWidth;surface.height=image.naturalHeight;const c=surface.getContext('2d',{willReadFrequently:true});c.drawImage(image,0,0);
+  while(planetDiskPixels.size>=3)planetDiskPixels.delete(planetDiskPixels.keys().next().value);
+  planetDiskPixels.set(id,{data:c.getImageData(0,0,surface.width,surface.height).data,w:surface.width,h:surface.height});planetDiskRequests.delete(id);
+  planetSurfaces.delete(location.destinationId);const old=planetCloseups.get(location.destinationId);if(old)old.cancelled=true;planetCloseups.delete(location.destinationId);systemSurfaces.clear();
+  planetSurface(location);const map=document.querySelector('#expeditionMap');if(map)map.navigationPainted=false;
+  if(sectors.slice(level,level+2).some(s=>expedition.locations[s.id].destinationId===location.destinationId))preparePlanetCloseup(location);
+  if(typeof surfaceDirty!=='undefined')surfaceDirty=true;
+ };image.onerror=()=>{console.warn('Planet artwork unavailable:',id);};image.src='assets/'+file;
+}
+const planetAtlasRequests=new Set();
 function loadPlanetAtlas(id,file){
+ if(planetAtlasPixels.has(id)||planetAtlasRequests.has(id))return;planetAtlasRequests.add(id);
  const image=new Image();image.decoding='async';image.onload=()=>{
   const surface=document.createElement('canvas');surface.width=image.naturalWidth;surface.height=image.naturalHeight;const c=surface.getContext('2d',{willReadFrequently:true});c.drawImage(image,0,0);
   planetAtlasPixels.set(id,{data:c.getImageData(0,0,surface.width,surface.height).data,w:surface.width,h:surface.height/3});
@@ -1023,14 +1039,20 @@ function loadPlanetAtlas(id,file){
   let i=0;const warm=()=>{if(i<locations.length){const location=locations[i++];planetSurface(location);if(sectors.slice(level,level+2).some(s=>expedition.locations[s.id].destinationId===location.destinationId))preparePlanetCloseup(location);setTimeout(warm,30);}};setTimeout(warm,0);
  };image.src='assets/'+file;
 }
-for(const [id,file] of Object.entries(PLANET_SURFACE_ATLASES))loadPlanetAtlas(id,file);
+function requestPlanetSurface(location){if(location.surfaceDisk)loadPlanetDisk(location);else loadPlanetAtlas(location.surfaceAtlas||'original',PLANET_SURFACE_ATLASES[location.surfaceAtlas||'original']);}
 // Bilinear atlas sampling prevents enlarged source texels becoming square tiles.
 // Both globe sizes share the same projection/lighting so the detail swap is seamless.
-function paintPlanetRows(location,pixels,size,from,to){
+function paintPlanetRows(location,pixels,size,from,to,diskSource=planetDiskPixels.get(location.surfaceDisk)){
  const climate=location.climate,atlas=planetAtlasPixels.get(location.surfaceAtlas||'original'),band=location.surfaceBand??{temperate:0,ice:1,hot:2}[climate],radius=size/2-2;
  for(let y=from;y<to;y++)for(let x=0;x<size;x++){
   const nx=(x-(size-1)/2)/radius,ny=(y-(size-1)/2)/radius,rr=nx*nx+ny*ny;if(rr>1)continue;const nz=Math.sqrt(1-rr),light=Math.max(.065,-nx*.49-ny*.42+nz*.69),rim=Math.pow(1-nz,4);let red,green,blue;
-  if(atlas&&band!==undefined){
+  if(diskSource){
+   // Dedicated hemisphere artwork uses the entire image, rather than magnifying
+   // a small longitude slice of a shared atlas. Lighting remains sphere-based.
+   const fx=clamp((nx*.5+.5)*(diskSource.w-1),0,diskSource.w-1),fy=clamp((ny*.5+.5)*(diskSource.h-1),0,diskSource.h-1),ix=Math.floor(fx),iy=Math.floor(fy),tx=fx-ix,ty=fy-iy,x1=Math.min(ix+1,diskSource.w-1),y1=Math.min(iy+1,diskSource.h-1),data=diskSource.data,k=(y*size+x)*4;
+   const a=(iy*diskSource.w+ix)*4,b=(iy*diskSource.w+x1)*4,c=(y1*diskSource.w+ix)*4,d=(y1*diskSource.w+x1)*4;
+   for(let channel=0;channel<3;channel++){const value=((data[a+channel]*(1-tx)+data[b+channel]*tx)*(1-ty)+(data[c+channel]*(1-tx)+data[d+channel]*tx)*ty)*light+rim*(channel===0?17:channel===1?39:58);pixels.data[k+channel]=Math.min(255,value);}
+  }else if(atlas&&band!==undefined){
    const u=((Math.atan2(nx,nz)/TAU+.5+(location.surfaceLongitude||0))%1+1)%1,v=.5+Math.asin(ny)/Math.PI,fx=u*atlas.w-.5,fy=clamp(v*atlas.h-.5,0,atlas.h-1),ix=Math.floor(fx),iy=Math.floor(fy),tx=fx-ix,ty=fy-iy,x0=(ix+atlas.w)%atlas.w,x1=(x0+1)%atlas.w,y0=iy+band*atlas.h,y1=Math.min(iy+1,atlas.h-1)+band*atlas.h;
    const a=(y0*atlas.w+x0)*4,b=(y0*atlas.w+x1)*4,c=(y1*atlas.w+x0)*4,d=(y1*atlas.w+x1)*4,data=atlas.data,k=(y*size+x)*4;
    for(let channel=0;channel<3;channel++){const top=data[a+channel]*(1-tx)+data[b+channel]*tx,bottom=data[c+channel]*(1-tx)+data[d+channel]*tx,value=(top*(1-ty)+bottom*ty)*light+rim*(channel===0?17:channel===1?39:58);pixels.data[k+channel]=Math.min(255,value);}
@@ -1041,20 +1063,20 @@ function paintPlanetRows(location,pixels,size,from,to){
  }
 }
 function planetSurface(location){
- const key=location.destinationId||location.climate;if(planetSurfaces.has(key))return planetSurfaces.get(key);
+ const key=location.destinationId||location.climate;if(planetSurfaces.has(key))return planetSurfaces.get(key);requestPlanetSurface(location);
  const surface=document.createElement('canvas'),size=512;surface.width=surface.height=size;const c=surface.getContext('2d'),pixels=c.createImageData(size,size);if(!pixels?.data){planetSurfaces.set(key,null);return null;}
- paintPlanetRows(location,pixels,size,0,size);c.putImageData(pixels,0,0);planetSurfaces.set(key,surface);return surface;
+ paintPlanetRows(location,pixels,size,0,size);c.putImageData(pixels,0,0);while(planetSurfaces.size>=8)planetSurfaces.delete(planetSurfaces.keys().next().value);planetSurfaces.set(key,surface);return surface;
 }
 function preparePlanetCloseup(location){
- const key=location.destinationId||location.climate,existing=planetCloseups.get(key);if(existing)return existing.surface;
- if(!planetAtlasPixels.has(location.surfaceAtlas||'original')||typeof setTimeout!=='function')return null;
+ requestPlanetSurface(location);const key=location.destinationId||location.climate,existing=planetCloseups.get(key);if(existing)return existing.surface;
+ if((!planetDiskPixels.has(location.surfaceDisk)&&!planetAtlasPixels.has(location.surfaceAtlas||'original'))||typeof setTimeout!=='function')return null;
  // Keep only the current/next large globes. Bake in short idle slices, never in
  // the animation loop, and display the small cached globe until fully complete.
  while(planetCloseups.size>=2){const oldest=planetCloseups.keys().next().value;planetCloseups.get(oldest).cancelled=true;planetCloseups.delete(oldest);}
- const job={surface:null,cancelled:false};planetCloseups.set(key,job);
+ const diskSource=planetDiskPixels.get(location.surfaceDisk),job={surface:null,cancelled:false};planetCloseups.set(key,job);
  setTimeout(()=>{
-  if(job.cancelled)return;const size=1536,surface=document.createElement('canvas');surface.width=surface.height=size;const c=surface.getContext('2d');let pixels=c.createImageData(size,size),row=0;if(!pixels?.data)return;
-  const step=()=>{if(job.cancelled)return;const end=Math.min(size,row+16);paintPlanetRows(location,pixels,size,row,end);row=end;if(row<size){setTimeout(step,4);return;}c.putImageData(pixels,0,0);pixels=null;job.surface=surface;};step();
+  if(job.cancelled)return;const size=Math.min(1536,diskSource?.w||1536),surface=document.createElement('canvas');surface.width=surface.height=size;const c=surface.getContext('2d');let pixels=c.createImageData(size,size),row=0;if(!pixels?.data)return;
+  const step=()=>{if(job.cancelled)return;const end=Math.min(size,row+16);paintPlanetRows(location,pixels,size,row,end,diskSource);row=end;if(row<size){setTimeout(step,4);return;}c.putImageData(pixels,0,0);pixels=null;job.surface=surface;};step();
  },0);return null;
 }
 let orbitRingTexture=null;
@@ -1077,41 +1099,42 @@ function drawNavigationPlanet(c,x,y,r,location,closeup=false){
  ring(false);const texture=(closeup?preparePlanetCloseup(location):null)||planetSurface(location);if(texture)c.drawImage(texture,-r,-r,r*2,r*2);else{c.fillStyle='#426b78';c.beginPath();c.arc(0,0,r,0,TAU);c.fill();}ring(true);
  c.strokeStyle='#b2eee658';c.lineWidth=Math.max(1,r*.009);c.beginPath();c.arc(0,0,r,Math.PI*.8,Math.PI*1.65);c.stroke();c.restore();
 }
-function drawNavigationSun(c,x,y,r){
- const g=c.createRadialGradient(x,y,0,x,y,r*3.8);g.addColorStop(0,'#fffbd8');g.addColorStop(.20,'#fff2a7');g.addColorStop(.27,'#ffd173');g.addColorStop(.38,'#ffb34b80');g.addColorStop(.65,'#e8873424');g.addColorStop(1,'#cc612600');c.fillStyle=g;c.fillRect(x-r*3.8,y-r*3.8,r*7.6,r*7.6);
- c.fillStyle='#fff0ba';c.beginPath();c.arc(x,y,r,0,TAU);c.fill();
+function drawNavigationSun(c,x,y,r,star={}){
+ const color=star.color||[255,190,95],size=r*(star.radius||1),rgb=(light,alpha)=>`rgba(${color.map(v=>Math.round(v+(255-v)*light)).join(',')},${alpha})`;
+ const g=c.createRadialGradient(x,y,0,x,y,size*3.8);g.addColorStop(0,rgb(.94,1));g.addColorStop(.20,rgb(.7,1));g.addColorStop(.27,rgb(.2,1));g.addColorStop(.38,rgb(0,.5));g.addColorStop(.65,rgb(0,.14));g.addColorStop(1,rgb(0,0));c.fillStyle=g;c.fillRect(x-size*3.8,y-size*3.8,size*7.6,size*7.6);
+ c.fillStyle=rgb(.65,1);c.beginPath();c.arc(x,y,size,0,TAU);c.fill();
 }
 function systemOrbitLayout(system,seconds=0){
  return system.destinations.filter(d=>d.kind==='planet').sort((a,b)=>a.orbit-b.orbit).map((d,i,a)=>{const radius=115+i*200/Math.max(1,a.length-1),phase=(d.orbitPhase??(-.7+i*2.35))+seconds*.14/Math.pow(Math.max(.4,d.orbit),.42);return {destination:d,radius,x:400+Math.cos(phase)*radius,y:272+Math.sin(phase)*radius*.59};});
 }
 function systemArtwork(system,selectedId){
  const key=system.id+':'+selectedId;if(systemSurfaces.has(key))return systemSurfaces.get(key);
- const surface=document.createElement('canvas');surface.width=800;surface.height=550;paintSystemChart(surface.getContext('2d'),system,selectedId,0);systemSurfaces.set(key,surface);return surface;
+ const surface=document.createElement('canvas');surface.width=800;surface.height=550;paintSystemChart(surface.getContext('2d'),system,selectedId,0);while(systemSurfaces.size>=4)systemSurfaces.delete(systemSurfaces.keys().next().value);systemSurfaces.set(key,surface);return surface;
 }
 function paintSystemChart(c,system,selectedId,seconds){
  const haze=c.createRadialGradient(400,270,0,400,270,360);haze.addColorStop(0,'#5b402336');haze.addColorStop(1,'#05132500');c.fillStyle=haze;c.fillRect(0,0,800,550);
  for(let i=0;i<150;i++){c.globalAlpha=.15+(i%5)*.08;c.fillStyle='#b5d5df';c.fillRect((i*193)%800,(i*131)%550,i%8?1:2,1);}c.globalAlpha=1;
  const layout=systemOrbitLayout(system,seconds);
  for(const item of layout){c.strokeStyle=item.destination.id===selectedId?'#b8e4ceac':'#a9c3cf70';c.lineWidth=item.destination.id===selectedId?1.5:1;c.beginPath();c.ellipse(400,272,item.radius,item.radius*.59,0,0,TAU);c.stroke();}
- drawNavigationSun(c,400,272,34);c.textAlign='center';c.fillStyle='#ffe4a7';c.font='bold 15px monospace';c.fillText(system.star.name,400,328);c.font='10px monospace';c.fillStyle='#b89b75';c.fillText(system.star.type||'SYSTEM STAR',400,346);
+ drawNavigationSun(c,400,272,34,system.star);c.textAlign='center';c.fillStyle='#ffe4a7';c.font='bold 15px monospace';c.fillText(system.star.name,400,328);c.font='10px monospace';c.fillStyle='#b89b75';c.fillText(system.star.type||'SYSTEM STAR',400,346);
  for(const item of layout){const d=item.destination,location=expedition.locations[d.stages[0]]||{...d,destinationId:d.id};drawNavigationPlanet(c,item.x,item.y,d.id===selectedId?40:29,location);c.font='bold 16px monospace';c.fillStyle=d.id===selectedId?'#deffef':d.climate==='hot'?'#edb085':d.climate==='ice'||d.climate==='gas'?'#bad9ee':'#b8dcbb';const labelY=item.y>420?item.y-62:item.y+55;c.fillText(d.name,item.x,labelY);c.font='12px monospace';c.fillStyle='#c0d1dc';c.fillText(d.orbit+' AU · '+d.climate.toUpperCase(),item.x,labelY+17);}
- c.fillStyle='#ddf5ee';c.font='bold 23px monospace';c.fillText(system.name+' SYSTEM',400,48);c.font='11px monospace';c.fillStyle='#8caebc';c.fillText(GALAXY.name+' / '+layout.length+' WORLDS TO CONQUER',400,73);c.fillStyle='#acb9be';c.fillText('HOT INNER WORLDS  →  TEMPERATE  →  COLD OUTER WORLDS',400,505);c.fillStyle='#7d929f';c.font='10px monospace';c.fillText('ORBITAL DISTANCES NOT TO SCALE',400,526);
+ c.fillStyle='#ddf5ee';c.font='bold 23px monospace';c.fillText(system.name+' SYSTEM',400,48);c.font='11px monospace';c.fillStyle='#8caebc';c.fillText((GALAXIES[system.galaxyId||GALAXY.id].name)+' / '+layout.length+' WORLDS TO CONQUER',400,73);c.fillStyle='#acb9be';c.fillText('HOT INNER WORLDS  →  TEMPERATE  →  COLD OUTER WORLDS',400,505);c.fillStyle='#7d929f';c.font='10px monospace';c.fillText('ORBITAL DISTANCES NOT TO SCALE',400,526);
 }
 function navigationOrbitTime(){return sectorBlend?.age||0;}
 function drawMovingSystemChart(system,selectedId){ctx.save();ctx.translate(W/2-440,H*.52-272*1.1);ctx.scale(1.1,1.1);paintSystemChart(ctx,system,selectedId,navigationOrbitTime());ctx.restore();}
 function navigationArtwork(){return systemArtwork(contentReleases[0].systems[0],contentReleases[0].systems[0].destinations[0].id);}
 function drawNavigationChart(){const map=document.querySelector('#expeditionMap');if(map&&!map.navigationPainted){map.navigationPainted=true;const c=map.getContext('2d');c.clearRect(0,0,map.width,map.height);c.drawImage(navigationArtwork(),0,0,map.width,map.height);}}
 function drawPlanetApproach(location,u){
- const system=expeditionSystem(location),entry=!!sectorBlend?.systemEntry,smooth=v=>{v=clamp(v,0,1);return v*v*(3-2*v);},opacity=smooth(u/.065)*(1-smooth((u-.9)/.1));
+ const system=expeditionSystem(location),entry=!!sectorBlend?.systemEntry,smooth=v=>{v=clamp(v,0,1);return v*v*(3-2*v);},opacity=smooth(u/.065)*(1-smooth((u-.8)/.2));
  const approach=smooth((u-.3)/.6),layout=systemOrbitLayout(system,navigationOrbitTime()),target=layout.find(item=>item.destination.id===location.destinationId),tx=target?.x||400,ty=target?.y||272;
  // Zoom about the actual chart destination, then push into its lit limb. The
  // orbital map, star, ring plane and globe all share the same camera transform.
- const zoom=Math.exp(approach*2.85),base=1.1,cx=400+(tx-400)*smooth(approach*2.5),cy=272+(ty-272)*smooth(approach*2.5),sx=W*.5+(tx-cx)*base*zoom,sy=H*.52+(ty-cy)*base*zoom+Math.pow(approach,4)*340,r=40*base*zoom;
+ const zoom=Math.exp(approach*2.48),base=1.1,cx=400+(tx-400)*smooth(approach*2.5),cy=272+(ty-272)*smooth(approach*2.5),sx=W*.5+(tx-cx)*base*zoom,sy=H*.52+(ty-cy)*base*zoom+Math.pow(approach,4)*340,r=40*base*zoom;
  ctx.save();ctx.globalAlpha=opacity;ctx.fillStyle='#020914';ctx.fillRect(0,0,W,H);
  for(let i=0;i<100;i++){ctx.fillStyle=i%3?'#7797ab':'#c8d5cd';ctx.fillRect(((i*197-u*W*.35)%(W+80)+W+80)%(W+80)-40,(i*113)%H,1+approach*9,1);}
  if(approach<.07){ctx.save();ctx.globalAlpha*=1-smooth(approach/.07);drawMovingSystemChart(system,location.destinationId);ctx.restore();}
  if(approach>0){ctx.save();ctx.globalAlpha*=smooth(approach/.07);
- drawNavigationSun(ctx,W/2+(400-cx)*base*zoom,H*.52+(272-cy)*base*zoom,34*base*zoom);
+ drawNavigationSun(ctx,W/2+(400-cx)*base*zoom,H*.52+(272-cy)*base*zoom,34*base*zoom,system.star);
  for(const item of layout){ctx.strokeStyle=`rgba(165,191,208,${.29*(1-smooth(approach/.32))})`;ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(W/2+(400-cx)*base*zoom,H*.52+(272-cy)*base*zoom,item.radius*base*zoom,item.radius*.59*base*zoom,0,0,TAU);ctx.stroke();if(item===target)continue;const other=expedition.locations[item.destination.stages[0]];drawNavigationPlanet(ctx,W/2+(item.x-cx)*base*zoom,H*.52+(item.y-cy)*base*zoom,29*base*zoom,other);}
  drawNavigationPlanet(ctx,sx,sy,r,location,true);ctx.restore();}
  const entryHaze=smooth((u-.78)/.16);if(entryHaze>0){const tint=location.climate==='hot'?'#ca7858':'#a5dce4';ctx.save();ctx.globalAlpha*=entryHaze*.18;const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,tint+'00');g.addColorStop(.6,tint+'22');g.addColorStop(1,tint+'bb');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.restore();}
@@ -1124,11 +1147,49 @@ function drawTransitRoute(location,origin,u){
  ctx.save();ctx.translate(W/2-440,H*.52-272*1.1);ctx.scale(1.1,1.1);ctx.setLineDash([4,8]);ctx.lineWidth=2;ctx.strokeStyle='#93b6b777';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo(cx,cy,b.x,b.y);ctx.stroke();ctx.setLineDash([]);
  ctx.strokeStyle='#acffe0';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(a.x,a.y);for(let i=1;i<=40;i++){const p=point(smooth*i/40);ctx.lineTo(p.x,p.y);}ctx.stroke();const p=point(smooth),heading=Math.atan2((1-smooth)*(cy-a.y)+smooth*(b.y-cy),(1-smooth)*(cx-a.x)+smooth*(b.x-cx));ctx.translate(p.x,p.y);ctx.rotate(heading);ctx.fillStyle='#78dfff88';ctx.beginPath();ctx.moveTo(-19,-3);ctx.lineTo(-46-5*Math.sin(u*120),0);ctx.lineTo(-19,3);ctx.closePath();ctx.fill();drawModel(meshes.player,0,0,.62,0,Math.sin(u*12)*.24,0,u*8.4);window.gpuModels?.flush(ctx);ctx.restore();
 }
+// Galaxies are release data, separate from stars and their planetary systems.
+// Only three retained paintings are kept even as the campaign catalog grows.
+const galaxySurfaces=new Map();
+function galaxyArtwork(galaxy){
+ if(galaxySurfaces.has(galaxy.id))return galaxySurfaces.get(galaxy.id);
+ const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=640;const c=canvas.getContext('2d'),tint=galaxy.tint||[150,190,230],seed=galaxy.seed||1;
+ const mist=document.createElement('canvas');mist.width=mist.height=64;const m=mist.getContext('2d'),g=m.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,`rgba(${tint.join(',')},.38)`);g.addColorStop(.35,`rgba(${tint.join(',')},.14)`);g.addColorStop(1,`rgba(${tint.join(',')},0)`);m.fillStyle=g;m.fillRect(0,0,64,64);
+ const random=n=>{const v=Math.sin(n*127.1+seed*31.7)*43758.5453;return v-Math.floor(v);};
+ c.save();c.translate(512,320);c.rotate(-.2);c.scale(1,.58);
+ const halo=c.createRadialGradient(0,0,0,0,0,460);halo.addColorStop(0,'#f8dfb45e');halo.addColorStop(.17,`rgba(${tint.join(',')},.18)`);halo.addColorStop(1,'#090d2000');c.fillStyle=halo;c.fillRect(-500,-500,1000,1000);
+ for(let i=0;i<2400;i++){const r=Math.sqrt(random(i+2))*440,a=(i%(galaxy.arms||3))*TAU/(galaxy.arms||3)+r/440*(galaxy.twist||3)*.42*Math.PI+(random(i+7)-.5)*(.65+r/350)+Math.sin(r*.034+seed)*.09,x=Math.cos(a)*r,y=Math.sin(a)*r,w=10+random(i+14)*40;c.globalAlpha=(1-r/490)*.7;c.drawImage(mist,x-w/2,y-w/2,w,w);}
+ for(let i=0;i<3200;i++){const r=Math.pow(random(i+40),.72)*450,a=(i%(galaxy.arms||3))*TAU/(galaxy.arms||3)+r/440*(galaxy.twist||3)*.42*Math.PI+(random(i+11)-.5)*1.05;c.globalAlpha=.2+random(i+19)*.65;c.fillStyle=i%5?'#d2dfee':'#fff2cc';const size=i%17?1:2.2;c.fillRect(Math.cos(a)*r,Math.sin(a)*r,size,size);}
+ c.globalAlpha=1;const core=c.createRadialGradient(0,0,0,0,0,90);core.addColorStop(0,'#fff6dfe6');core.addColorStop(.18,'#ffeac588');core.addColorStop(1,'#eaca9c00');c.fillStyle=core;c.fillRect(-90,-90,180,180);c.restore();
+ while(galaxySurfaces.size>=3)galaxySurfaces.delete(galaxySurfaces.keys().next().value);galaxySurfaces.set(galaxy.id,canvas);return canvas;
+}
+function galaxyTransitPhase(u){return u<.22?'departure':u<.56?'crossing':u<.68?'arrival':'descent';}
+function drawGalaxyTransit(origin,destination,u){
+ const smooth=v=>{v=clamp(v,0,1);return v*v*(3-2*v);},from=expeditionGalaxy(origin),to=expeditionGalaxy(destination),system=expeditionSystem(destination),phase=galaxyTransitPhase(u);
+ // The approach already fades into gameplay; do not leave an opaque galaxy
+ // background underneath its final dissolve.
+ if(phase==='descent'){const entry=(u-.68)/.32;if(entry<.08){ctx.save();ctx.globalAlpha=1-smooth(entry/.08);ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);drawMovingSystemChart(system,destination.destinationId);ctx.restore();}drawPlanetApproach(destination,entry);return;}
+ ctx.save();ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);
+ const travel=smooth((u-.22)/.34);for(let i=0;i<110;i++){const x=((i*197-u*W*(phase==='crossing'?4:.4))%W+W)%W,y=(i*113)%H;ctx.fillStyle=i%4?'#667994':'#d1e8ef';ctx.fillRect(x,y,phase==='crossing'?10+Math.sin(travel*Math.PI)*65:1,1);}
+ if(phase==='departure'){
+  const out=smooth(u/.22),width=700+out*420;ctx.globalAlpha=out;ctx.drawImage(galaxyArtwork(from),W*.5-width/2,H*.52-width*.3125,width,width*.625);
+  ctx.save();ctx.globalAlpha=1-smooth((u-.12)/.10);const scale=1-out*.94;ctx.translate(W*.5,H*.52);ctx.scale(scale,scale);ctx.translate(-W*.5,-H*.52);drawMovingSystemChart(expeditionSystem(origin),origin.destinationId);ctx.restore();ctx.globalAlpha=1;
+ }else if(phase==='crossing'){
+  ctx.drawImage(galaxyArtwork(from),W*.05-160*travel,H*.28,580*(1-travel*.35),360*(1-travel*.35));ctx.drawImage(galaxyArtwork(to),W*.60-75*travel,H*.32,480+140*travel,300+90*travel);
+  ctx.textAlign='center';ctx.font='bold 19px monospace';ctx.fillStyle='#b9dfe6';ctx.fillText(from.name,W*.22,H*.78);ctx.fillStyle='#e8cedd';ctx.fillText(to.name,W*.79,H*.78);ctx.textAlign='left';
+
+ }else if(phase==='arrival'){
+  const entry=smooth((u-.56)/.12),width=850+entry*900;ctx.globalAlpha=1-entry;ctx.drawImage(galaxyArtwork(to),W*.5-width*.5,H*.52-width*.3125,width,width*.625);ctx.globalAlpha=entry;drawMovingSystemChart(system,destination.destinationId);ctx.globalAlpha=1;
+ }
+ ctx.fillStyle='#e1fff2';ctx.font='bold 29px monospace';ctx.fillText(phase==='departure'?origin.systemName+' CONQUERED · ALL WORLDS SECURED':phase==='crossing'?'INTERGALACTIC FLIGHT':'ENTERING '+to.name,64,74);
+ ctx.fillStyle='#afc2d5';ctx.font='14px monospace';ctx.fillText(phase==='departure'?'LEAVING '+from.name:phase==='crossing'?from.name+'  →  '+to.name:system.star.name+' · '+system.star.type+' · '+system.destinations.filter(d=>d.kind==='planet').length+' NEW WORLDS',65,105);
+ ctx.font='bold 12px monospace';const steps=['01  CONQUEST COMPLETE','02  GALAXY CROSSING','03  NEW SUN & WORLDS'],active=phase==='departure'?0:phase==='crossing'?1:2;steps.forEach((label,i)=>{const x=70+i*(W-140)/3;ctx.fillStyle=i===active?'#b6ffe6':'#8192a5';ctx.fillText(label,x,H-40);ctx.fillRect(x,H-26,(W-190)/3,2);});ctx.restore();
+}
+
 function drawPlanetTransit(location,u){
- const origin=sectorBlend?.origin;if(!origin){drawPlanetApproach(location,u);return;}
+ const origin=sectorBlend?.origin;if(!origin){drawPlanetApproach(location,u);return;}if(origin.galaxyId!==location.galaxyId){drawGalaxyTransit(origin,location,u);return;}
  const smooth=v=>{v=clamp(v,0,1);return v*v*(3-2*v);},system=expeditionSystem(location),exit=smooth(u/.28),chart=smooth((u-.19)/.08),approach=clamp((u-.4)/.6,0,1);
  ctx.save();ctx.globalAlpha=smooth(u/.04)*(1-smooth((u-.94)/.06));ctx.fillStyle='#020914';ctx.fillRect(0,0,W,H);ctx.restore();
- if(u<.28){ctx.save();ctx.globalAlpha=smooth(u/.04)*(1-chart);drawNavigationSun(ctx,W*.86,H*.17,19);drawNavigationPlanet(ctx,W*.47,H*.58+(1-exit)*420,95+(1-exit)**2*655,origin,true);ctx.fillStyle='#e1fff0';ctx.font='bold 31px monospace';ctx.fillText(sectorBlend.systemEntry?origin.systemName+' SYSTEM SECURED':origin.destinationName+' CONQUERED',64,74);ctx.fillStyle='#afcbd1';ctx.font='14px monospace';ctx.fillText(sectorBlend.systemEntry?'INTERSTELLAR DEPARTURE / NEXT SYSTEM: '+system.name:'LEAVING ORBIT / NEXT DESTINATION: '+location.destinationName,65,106);ctx.restore();}
+ if(u<.28){ctx.save();ctx.globalAlpha=smooth(u/.04)*(1-chart);drawNavigationSun(ctx,W*.86,H*.17,19,expeditionSystem(origin).star);drawNavigationPlanet(ctx,W*.47,H*.58+(1-exit)*420,95+(1-exit)**2*425,origin,true);ctx.fillStyle='#e1fff0';ctx.font='bold 31px monospace';ctx.fillText(sectorBlend.systemEntry?origin.systemName+' SYSTEM SECURED':origin.destinationName+' CONQUERED',64,74);ctx.fillStyle='#afcbd1';ctx.font='14px monospace';ctx.fillText(sectorBlend.systemEntry?'INTERSTELLAR DEPARTURE / NEXT SYSTEM: '+system.name:'LEAVING ORBIT / NEXT DESTINATION: '+location.destinationName,65,106);ctx.restore();}
  if(u>=.19&&u<.4){ctx.save();ctx.globalAlpha=chart;drawMovingSystemChart(system,location.destinationId);ctx.restore();}
  if(u>=.4)drawPlanetApproach(location,approach);
  if(u>.22&&u<.59){ctx.save();ctx.globalAlpha=smooth((u-.22)/.05)*(1-smooth((u-.54)/.05));drawTransitRoute(location,origin,u);ctx.fillStyle='#dffff1';ctx.font='bold 27px monospace';ctx.fillText(sectorBlend.systemEntry?origin.systemName+'  →  '+system.name:origin.destinationName+'  →  '+location.destinationName,64,74);ctx.font='13px monospace';ctx.fillStyle='#b0cbd3';ctx.fillText((sectorBlend.systemEntry?'INTERSTELLAR ARRIVAL / ':'INTERPLANETARY FLIGHT / ')+system.star.name+' · '+system.destinations.length+' WORLDS',65,103);ctx.restore();}
