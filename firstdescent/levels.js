@@ -45,10 +45,10 @@ function validateLevels(definitions){
   if(!Array.isArray(l.waves)||!ordered(l.waves)||l.waves.some(at=>at>=l.duration))fail(l,'invalid wave times');
   if(!Array.isArray(l.routes)||!l.routes.length||l.routes.some(y=>!finite(y)||y<70||y>690))fail(l,'invalid flight routes');
   if(!Array.isArray(l.roster)||!l.roster.length||l.roster.some(t=>!Number.isInteger(t)||t<0||t>3))fail(l,'invalid enemy roster');
-  if(!Array.isArray(l.models)||l.models.length!==4||l.models.some(name=>!meshes[name]))fail(l,'unknown enemy model');
+  if(!Array.isArray(l.models)||l.models.length!==4||l.models.some(name=>!(name in meshes)))fail(l,'unknown enemy model');
   if(typeof alienBossDesigns!=='undefined'&&l.medium){const b=alienBossDesigns[BOSS_KINDS[l.bossKind]];if(b&&b.habitat!==l.medium)fail(l,'boss habitat mismatch');}
   if(typeof faunaCatalog!=='undefined'&&l.medium){for(const name of [...l.models,...(l.escortEncounter?[l.escortEncounter.model,l.escortEncounter.escort]:[])]){const f=faunaCatalog[name];if(f&&f.habitat!==l.medium)fail(l,'fauna habitat mismatch: '+name);}}
-  if(l.escortEncounter&&(!meshes[l.escortEncounter.model]||!meshes[l.escortEncounter.escort]||l.escortEncounter.count<1||l.escortEncounter.count>6))fail(l,'invalid escort encounter');
+  if(l.escortEncounter&&(!(l.escortEncounter.model in meshes)||!(l.escortEncounter.escort in meshes)||l.escortEncounter.count<1||l.escortEncounter.count>6))fail(l,'invalid escort encounter');
   if(!Array.isArray(l.broodWaves)||l.broodWaves.some(i=>!Number.isInteger(i)||i<0||i>=l.waves.length))fail(l,'invalid brood wave index');
   if(!Array.isArray(l.supplies)||!Array.isArray(l.recovery)||l.recovery.length!==2)fail(l,'supply and recovery definitions required');
   for(const d of [...l.supplies,...l.recovery])if(!loot.has(d.type)||!finite(d.y)||d.y<42||d.y>718)fail(l,'invalid pickup');
@@ -56,6 +56,7 @@ function validateLevels(definitions){
   if(l.recovery.some(d=>!finite(d.x)||d.x<270||d.x>900))fail(l,'recovery pickup out of reach');
   if(l.scrollAxis&&!['up','down'].includes(l.scrollAxis))fail(l,'invalid scroll axis');
   if(l.environment&&!ENVIRONMENTS[l.environment])fail(l,'unknown environment');
+  if(l.gravityWell&&(!Array.isArray(l.gravityWell.center)||l.gravityWell.center.length!==2||l.gravityWell.center.some(n=>!Number.isFinite(n)||n<=0||n>=1)||!(l.gravityWell.radius>0&&l.gravityWell.radius<.2)||!(l.gravityWell.lensing>=0&&l.gravityWell.lensing<=2)||!(l.gravityWell.tidalPeriod>=8)))fail(l,'invalid gravitational view');
   if(l.flightRoute){const r=l.flightRoute;if(!finite(r.period)||r.period<10||!finite(r.drive)||r.drive<=0||!finite(r.speed)||r.speed<100||r.speed>500||!Array.isArray(r.points)||r.points.length<4||r.points.some(p=>!Array.isArray(p)||p.length!==2||p.some(v=>!finite(v))))fail(l,'invalid boss flight route');}
   if(l.bossPalette&&(!Array.isArray(l.bossPalette)||l.bossPalette.length!==3||l.bossPalette.some(v=>!finite(v)||v<.3||v>1.5)))fail(l,'invalid boss palette');
   const encounter=bossEncounterProfile(l);if(!encounter||encounter.habitat!==(l.medium||encounter.habitat))fail(l,'encounter habitat mismatch');
@@ -1801,7 +1802,25 @@ levelDefinitions.forEach(l=>{
 // are published; a catalog entry never silently fabricates playable content.
 const GALAXIES=freezeContent({
  'the-pale-spiral':{id:'the-pale-spiral',name:'THE PALE SPIRAL',arms:4,twist:2.8,tint:[129,193,226],seed:17},
- 'the-ember-veil':{id:'the-ember-veil',name:'THE EMBER VEIL',arms:2,twist:4.2,tint:[230,155,177],seed:53}
+ 'the-ember-veil':{id:'the-ember-veil',name:'THE EMBER VEIL',arms:2,twist:4.2,tint:[230,155,177],seed:53},
+ 'the-azure-drift':{id:'the-azure-drift',name:'THE AZURE DRIFT',arms:3,twist:3.4,tint:[115,166,229],seed:79},
+ 'the-copper-sea':{id:'the-copper-sea',name:'THE COPPER SEA',arms:4,twist:2.5,tint:[220,159,114],seed:107},
+ 'the-silent-arc':{id:'the-silent-arc',name:'THE SILENT ARC',arms:2,twist:4.8,tint:[144,207,197],seed:139},
+ 'the-violet-wake':{id:'the-violet-wake',name:'THE VIOLET WAKE',arms:5,twist:2.3,tint:[191,145,223],seed:173},
+ 'the-golden-rift':{id:'the-golden-rift',name:'THE GOLDEN RIFT',arms:3,twist:3.8,tint:[240,197,118],seed:211},
+ 'the-glass-spiral':{id:'the-glass-spiral',name:'THE GLASS SPIRAL',arms:4,twist:3.1,tint:[165,215,233],seed:251},
+ 'the-scarlet-reach':{id:'the-scarlet-reach',name:'THE SCARLET REACH',arms:2,twist:4.1,tint:[224,131,142],seed:293},
+ 'the-last-lantern':{id:'the-last-lantern',name:'THE LAST LANTERN',arms:5,twist:2.9,tint:[193,191,225],seed:337},
+ 'the-indigo-tide':{id:'the-indigo-tide',name:'THE INDIGO TIDE',arms:3,twist:3.4,tint:[145,176,226],seed:181},
+ 'the-rose-expanse':{id:'the-rose-expanse',name:'THE ROSE EXPANSE',arms:2,twist:3.4,tint:[223,162,175],seed:223},
+ 'the-iron-nebula':{id:'the-iron-nebula',name:'THE IRON NEBULA',arms:4,twist:3.4,tint:[193,178,149],seed:269},
+ 'the-pearl-river':{id:'the-pearl-river',name:'THE PEARL RIVER',arms:3,twist:3.4,tint:[181,210,229],seed:307},
+ 'the-auburn-veil':{id:'the-auburn-veil',name:'THE AUBURN VEIL',arms:5,twist:3.4,tint:[217,156,119],seed:349},
+ 'the-silver-reach':{id:'the-silver-reach',name:'THE SILVER REACH',arms:2,twist:3.4,tint:[145,176,226],seed:389},
+ 'the-ochre-spiral':{id:'the-ochre-spiral',name:'THE OCHRE SPIRAL',arms:4,twist:3.4,tint:[223,162,175],seed:431},
+ 'the-celadon-drift':{id:'the-celadon-drift',name:'THE CELADON DRIFT',arms:3,twist:3.4,tint:[193,178,149],seed:479},
+ 'the-obsidian-crown':{id:'the-obsidian-crown',name:'THE OBSIDIAN CROWN',arms:2,twist:3.4,tint:[181,210,229],seed:523},
+ 'the-distant-bloom':{id:'the-distant-bloom',name:'THE DISTANT BLOOM',arms:5,twist:3.4,tint:[217,156,119],seed:569}
 });
 const GALAXY=GALAXIES['the-pale-spiral'];
 const PLANET_SURFACE_DISKS=freezeContent(Object.fromEntries(['caelus','ferrum','nacre','thalassa','veyra','cinder','nivara'].map(id=>[id,'planet-'+id+'-v2.webp'])));
@@ -1812,6 +1831,7 @@ function buildExpedition(releases,definitions,galaxies=GALAXIES){
  function identity(id){if(typeof id!=='string'||!/^[a-z0-9-]+$/.test(id)||ids.has(id))throw Error('Duplicate or invalid expedition identity: '+id);ids.add(id);}
  for(const release of releases){identity(release.id);if(!Number.isInteger(release.version)||release.version<1||!/^\d{4}-\d{2}$/.test(release.month))throw Error('Invalid content release');
   for(const system of release.systems){const galaxy=galaxies[system.galaxyId||GALAXY.id];if(!galaxy||!galaxy.id||!galaxy.name)throw Error('Unknown expedition galaxy');identity(system.id);if(!system.name||!system.star?.name||!system.destinations.length)throw Error('System needs a named star and destinations');
+   if(system.galacticPosition&&(!Array.isArray(system.galacticPosition)||system.galacticPosition.length!==2||system.galacticPosition.some(n=>!Number.isFinite(n)||n<.15||n>.85)))throw Error('Invalid galactic system position');
    if(system.star.color&&(!Array.isArray(system.star.color)||system.star.color.length!==3||system.star.color.some(c=>!Number.isFinite(c)||c<0||c>255)))throw Error('Invalid star color');
    if(system.star.radius!==undefined&&(!Number.isFinite(system.star.radius)||system.star.radius<.5||system.star.radius>2))throw Error('Invalid star radius');
    const planets=system.destinations.filter(d=>d.kind==='planet').sort((a,b)=>a.orbit-b.orbit),thermalRank={inner:0,temperate:1,outer:2};
@@ -1819,10 +1839,11 @@ function buildExpedition(releases,definitions,galaxies=GALAXIES){
    for(let i=0;i<planets.length;i++){const d=planets[i],previous=planets[i-1];if(d.orbit<=0||!(d.orbitalZone in thermalRank)||previous&&(d.orbit===previous.orbit||thermalRank[d.orbitalZone]<thermalRank[previous.orbitalZone]))throw Error('Planet orbits must cool from inner to outer without duplicate distances');}
 
    for(const destination of system.destinations){identity(destination.id);if(!destination.name||!['planet','star'].includes(destination.kind)||!destination.stages.length)throw Error('Invalid destination');
+    if(destination.surfaceTint&&(!Array.isArray(destination.surfaceTint)||destination.surfaceTint.length!==3||destination.surfaceTint.some(n=>!Number.isFinite(n)||n<.5||n>1.5)))throw Error('Invalid surface tint');
     if(destination.surfaceDisk&&!PLANET_SURFACE_DISKS[destination.surfaceDisk])throw Error('Invalid planetary surface disk');
     if(destination.surfaceAtlas&&(!PLANET_SURFACE_ATLASES[destination.surfaceAtlas]||!Number.isInteger(destination.surfaceBand)||destination.surfaceBand<0||destination.surfaceBand>2))throw Error('Invalid planetary surface atlas');
     const zone=ORBITAL_ZONES[destination.orbitalZone];if(!zone||!zone.climates.includes(destination.climate)||typeof destination.rings!=='boolean'||!Number.isFinite(destination.orbit)||destination.orbit<0)throw Error('Invalid orbital climate or rings');
-    for(const id of destination.stages){const stage=stages.get(id);if(!stage||used.has(id))throw Error('Missing or repeated expedition stage: '+id);if(destination.kind==='star'&&stage.environment!=='stellar-corona')throw Error('Star stages require a corona habitat');used.add(id);route.push(stage);locations[id]={releaseId:release.id,releaseVersion:release.version,systemId:system.id,systemName:system.name,destinationId:destination.id,destinationName:destination.name,destinationKind:destination.kind,starName:system.star?.name||system.name,orbit:destination.orbit,climate:destination.climate,rings:destination.rings,orbitalZone:destination.orbitalZone,galaxyId:galaxy.id,galaxyName:galaxy.name,surfaceDisk:destination.surfaceDisk||null,ringTilt:destination.ringTilt??-.23,surfaceLongitude:destination.surfaceLongitude??0,orbitPhase:destination.orbitPhase??null,surfaceAtlas:destination.surfaceAtlas||'original',surfaceBand:destination.surfaceBand??null};}
+    for(const id of destination.stages){const stage=stages.get(id);if(!stage||used.has(id))throw Error('Missing or repeated expedition stage: '+id);if(destination.kind==='star'&&stage.environment!=='stellar-corona')throw Error('Star stages require a corona habitat');used.add(id);route.push(stage);locations[id]={releaseId:release.id,releaseVersion:release.version,systemId:system.id,systemName:system.name,destinationId:destination.id,destinationName:destination.name,destinationKind:destination.kind,starName:system.star?.name||system.name,orbit:destination.orbit,climate:destination.climate,rings:destination.rings,orbitalZone:destination.orbitalZone,galaxyId:galaxy.id,galaxyName:galaxy.name,surfaceDisk:destination.surfaceDisk||null,surfaceTint:destination.surfaceTint||[1,1,1],ringTilt:destination.ringTilt??-.23,surfaceLongitude:destination.surfaceLongitude??0,orbitPhase:destination.orbitPhase??null,surfaceAtlas:destination.surfaceAtlas||'original',surfaceBand:destination.surfaceBand??null};}
    }
   }
  }
@@ -1844,23 +1865,108 @@ nivara.pacing={pickupGap:2.4,maxPickups:1,maxActiveEnemies:12,pickupX:660,preBos
 nivara.escortEncounter={...nivara.escortEncounter,name:'FROST SHEPHERD',pace:1.04,count:3};
 levelDefinitions.push(nivara);
 for(const l of levelDefinitions.slice(3,6))l.revision++;
+// Expansion packs share art/rig libraries; routes, supplies, boss patrols and
+// challenge schedules are materialized from stable authored seeds once at load.
+// Adding a system is a catalog change, never a new gameplay index or switch.
+const SYSTEM_PACKS=freezeContent([
+ {id:'lyra',name:'LYRA',galaxy:'the-azure-drift',star:['LYRA A','WHITE DWARF',[211,225,255],.62],worlds:[['Aster',0,1.2,11],['Scoria',5,.34,17],['Pelagos',3,4.7,23]]},
+ {id:'solenne',name:'SOLENNE',galaxy:'the-copper-sea',star:['SOLENNE A','GOLDEN GIANT',[255,206,107],1.65],worlds:[['Brass',1,.5,31],['Zephyr',0,1.5,37],['Oriel',4,4.1,41],['Isolde',2,7.2,43],['Rime',6,10.6,47]]},
+ {id:'nereid',name:'NEREID',galaxy:'the-silent-arc',star:['NEREID A','PALE BLUE STAR',[171,215,255],1.16],worlds:[['Thren',5,.3,53],['Mistral',0,1.3,59],['Sere',3,2.2,61],['Brine',2,6.4,67]]},
+ {id:'umbra',name:'UMBRA',galaxy:'the-violet-wake',star:['UMBRA A','RED DWARF',[255,139,101],.68],worlds:[['Cauter',1,.18,71],['Caldera',5,.46,73],['Viridia',0,1.0,79],['Morrow',3,1.9,83],['Boreas',4,5.8,89],['Hush',6,9.4,97]]},
+ {id:'auric',name:'AURIC',galaxy:'the-golden-rift',star:['AURIC A','AMBER GIANT',[255,172,64],1.88],worlds:[['Gilt',1,.7,101],['Hesper',4,5.5,103],['Floe',6,11.2,107]]},
+ {id:'halcyon',name:'HALCYON',galaxy:'the-glass-spiral',star:['HALCYON A','BLUE GIANT',[122,180,255],1.72],worlds:[['Kiln',5,.42,109],['Lacuna',3,1.8,113],['Cirrus',0,2.7,127],['Nimbus',4,6.6,131],['Silex',2,10.8,137]]},
+ {id:'pyrrha',name:'PYRRHA',galaxy:'the-scarlet-reach',star:['PYRRHA A','ORANGE DWARF',[255,164,109],.94],worlds:[['Sinter',1,.31,139],['Aureole',0,1.1,149],['Nerine',3,2.3,151],['Obscura',6,7.7,157]]},
+ {id:'elysian',name:'ELYSIAN',galaxy:'the-last-lantern',star:['ELYSIAN A','BLUE-WHITE SUPERGIANT',[197,215,255],1.98],worlds:[['Vulcanis',5,.5,163],['Crucible',1,.9,167],['Serein',0,1.9,173],['Opaline',3,2.8,179],['Vespera',4,7.4,181],['Terminus',6,12.8,191]]},
+ {id:'selen',name:'SELEN',galaxy:'the-indigo-tide',star:['SELEN A','WHITE DWARF',[198,219,255],0.77],worlds:[['Eidolon',0,1.3,211],['Flint',1,0.45,218],['Saphir',3,2.4,225],['Hail',6,8.8,232]]},
+ {id:'rubra',name:'RUBRA',galaxy:'the-rose-expanse',star:['RUBRA A','RED GIANT',[255,148,113],1.68],worlds:[['Furnace',5,0.32,248],['Sirocco',4,5.1,255],['Asterion',2,9.6,262]]},
+ {id:'talos',name:'TALOS',galaxy:'the-iron-nebula',star:['TALOS A','YELLOW STAR',[255,205,137],1.13],worlds:[['Alloy',1,0.36,285],['Fervor',5,0.7,292],['Beryl',0,1.4,299],['Tethys',3,2.7,306],['Vortex',4,6.2,313],['Shard',6,12.1,320]]},
+ {id:'aether',name:'AETHER',galaxy:'the-pearl-river',star:['AETHER A','BLUE GIANT',[158,194,255],1.49],worlds:[['Cresset',5,0.5,322],['Aerial',0,1.7,329],['Nympha',3,2.5,336],['Aurelia',4,7.2,343],['Hoarfrost',2,11.5,350]]},
+ {id:'cervus',name:'CERVUS',galaxy:'the-auburn-veil',star:['CERVUS A','ORANGE DWARF',[255,182,130],0.81],worlds:[['Fallow',1,0.55,359],['Verdigris',0,1.6,366],['Marina',3,2.6,373],['Wintermere',6,8.9,380]]},
+ {id:'argent',name:'ARGENT',galaxy:'the-silver-reach',star:['ARGENT A','WHITE STAR',[231,234,255],1.35],worlds:[['Smelt',5,0.28,396],['Tempera',1,0.65,403],['Peregrine',0,1.8,410],['Littoral',3,2.9,417],['Pallor',4,6.8,424],['Glacier',6,13.4,431]]},
+ {id:'saffron',name:'SAFFRON',galaxy:'the-ochre-spiral',star:['SAFFRON A','GOLDEN GIANT',[255,198,82],1.85],worlds:[['Emberfall',1,0.4,433],['NimbusReach',4,4.6,440],['Stillwater',2,9.8,447]]},
+ {id:'virent',name:'VIRENT',galaxy:'the-celadon-drift',star:['VIRENT A','BLUE-WHITE STAR',[199,217,255],1.09],worlds:[['Carmine',5,0.37,470],['Lichen',0,1.5,477],['Cerulean',3,2.3,484],['Halation',4,5.9,491],['Permafrost',6,10.7,498]]},
+ {id:'noctis',name:'NOCTIS',galaxy:'the-obsidian-crown',star:['NOCTIS A','RED DWARF',[255,128,96],0.58],worlds:[['Fumarole',5,0.2,507],['Sable',1,0.48,514],['Fathom',3,1.9,521],['Rook',0,7.4,528,{anomaly:'black-hole'}]]},
+ {id:'meridian',name:'MERIDIAN',galaxy:'the-distant-bloom',star:['MERIDIAN A','BLUE-WHITE SUPERGIANT',[213,227,255],1.94],worlds:[['Dawnfire',5,0.44,544],['Aegis',1,0.92,551],['Lucent',0,1.7,558],['Aquilon',3,2.8,565],['Ophir',4,7.9,572],['Evernight',6,14.2,579]]}
+]);
+const STAGE_ARCHETYPES=Object.fromEntries(levelDefinitions.map((l,i)=>[i,JSON.parse(JSON.stringify(l))]));
+function materializeSystemPack(pack,packIndex){
+ const slug=n=>n.toLowerCase().replace(/[^a-z0-9]+/g,'-'),worlds=[];
+ for(const [name,archetype,orbit,seed,features={}] of pack.worlds){
+  const base=STAGE_ARCHETYPES[archetype];if(!base)throw Error('Unknown encounter archetype '+archetype);
+  const l=JSON.parse(JSON.stringify(base)),id=pack.id+'-'+slug(name),duration=60+(seed%3)*4,ratio=duration/base.duration;
+  const water=base.medium==='water',climate=orbit<1?'hot':orbit<3?'temperate':archetype===4?'gas':'ice',tint=[[1.07,.94,.86],[.86,1.04,1.09],[1.03,.88,1.07],[.91,1.07,.91]][seed%4];
+  Object.assign(l,{id:id+'-descent',revision:1,name:name.toUpperCase()+' / '+base.short,short:base.short,boss:pack.name+' '+({warden:'SKY REAVER',cathedral:'SIEGE ENGINE',sovereign:'PRESSURE HUNTER',monarch:'MAW KEEPER',regent:'STORM SENTINEL',mother:'BROOD QUEEN'}[base.bossKind]),chapter:packIndex+3,duration,checkpoints:[0,duration/4,duration/2,duration*3/4],difficulty:Math.min(5,2+packIndex*.22+(seed%4)*.22),hp:Math.round(Math.min(3900,Math.max(base.hp,1600)*(1+packIndex*.035))),enemyHealthScale:Math.min(1.4,1.08+packIndex*.035),bossArmor:Math.min(1.2,base.bossArmor||1),bossPalette:tint,sceneTint:tint,contentSeed:seed,expeditionNote:pack.name+' · '+name+' · '+base.stratum});
+  l.routes=base.routes.map((y,i)=>Math.max(130,Math.min(630,y+Math.sin(seed+i*2.1)*75)));
+  l.roster=base.roster.slice(seed%base.roster.length).concat(base.roster.slice(0,seed%base.roster.length));
+  const waveCount=19+seed%5;l.waves=Array.from({length:waveCount},(_,i)=>Number((1.5+i*(duration-6)/waveCount+.14*Math.sin(seed+i)).toFixed(3)));
+  l.broodWaves=[4+seed%2,12+seed%3];
+  l.entrySides=water?['right','right','left','right']:seed%2?['right','top','right','left']:['right','right','bottom','left'];
+  l.supplies.forEach(d=>{d.at=Number((d.at*ratio).toFixed(3));if(d.type==='rescue')d.at=duration/4+.5;});l.supplies.sort((a,b)=>a.at-b.at);
+  l.obstacles.forEach(o=>{o.at=Number((o.at*ratio).toFixed(3));});
+  l.challenge={...base.challenge,title:name.toUpperCase()+' '+(water?'PRESSURE PASSAGE':archetype===1?'REACTOR LOCK':'CROSSING'),at:duration*.43,end:duration*.63,waves:[.45,.50,.55,.60].map(t=>Number((duration*t).toFixed(3))),count:2+seed%2,speed:1.08+(seed%3)*.04};
+  l.pacing={...base.pacing,maxActiveEnemies:Math.min(14,10+Math.floor(packIndex/2)),pickupGap:2.4,maxPickups:1,preBossRelief:true};
+  l.encounterProfile={...bossEncounterProfile(base),cooldown:Math.max(3.6,bossEncounterProfile(base).cooldown-packIndex*.09),warning:Math.max(1.45,bossEncounterProfile(base).warning)};
+  l.flightRoute={period:20+seed%6,drive:3.2,speed:310+seed%5*12,points:[[1140,200+seed%3*70],[900,530],[540+seed%4*60,420],[800,170],[1190,470],[1040,320]]};
+  if(l.escortEncounter)l.escortEncounter={...l.escortEncounter,name:name.toUpperCase()+' '+(l.escortEncounter.organic?'SHEPHERD':'ESCORT'),pace:1+(seed%3)*.06};
+  if(features.anomaly==='black-hole'){
+   Object.assign(l,{revision:2,name:name.toUpperCase()+' / TIDAL FRONTIER',short:'TIDAL FRONTIER',boss:'THE LENSKEEPER',background:'blackHole',stratum:'OUTER EXOSPHERE',atmosphere:{water:0,heat:0,clouds:0},sky:'#02050e',fog:'#261c38',color:'#e9bc82',bossPalette:[.76,.84,1.15],gravityWell:{center:[.712,.33],radius:.082,lensing:.65,tidalPeriod:18},expeditionNote:'Rook · a black hole bends starlight above the frozen outer world'});
+   l.challenge={...l.challenge,title:'THE TIDAL DEBRIS PASS',count:2,speed:1.06};
+  }
+  levelDefinitions.push(l);
+  worlds.push({id,biosphere:features.biosphere,name:name.toUpperCase(),kind:'planet',orbit,orbitalZone:orbit<1?'inner':orbit<3?'temperate':'outer',climate,rings:archetype===4||archetype===0&&seed%2===1,ringTilt:(seed%2?1:-1)*(.15+seed%4*.07),orbitPhase:seed*2.399963,surfaceDisk:climate==='hot'?(archetype===1?'ferrum':'cinder'):climate==='gas'?'veyra':climate==='ice'?(seed%2?'nivara':'nacre'):water?'thalassa':'caelus',surfaceTint:tint,stages:[l.id]});
+ }
+ return {id:pack.id+'-expedition',version:1,month:'2026-09',systems:[{id:pack.id+'-system',galaxyId:pack.galaxy,name:pack.name,galacticPosition:[[.70,.39],[.32,.59],[.68,.65],[.27,.38],[.74,.55],[.39,.28]][packIndex%6],star:{name:pack.star[0],type:pack.star[1],color:pack.star[2],radius:pack.star[3]},destinations:worlds}]};
+}
+const expansionReleases=SYSTEM_PACKS.map(materializeSystemPack);
 const contentReleases=freezeContent([
- {id:'first-contact',version:5,month:'2026-09',systems:[{id:'vesper-system',galaxyId:'the-pale-spiral',name:'VESPER',star:{name:'VESPER A',type:'AMBER DWARF',color:[255,179,79],radius:.88},destinations:[
+ {id:'first-contact',version:5,month:'2026-09',systems:[{id:'vesper-system',galaxyId:'the-pale-spiral',name:'VESPER',galacticPosition:[.72,.42],star:{name:'VESPER A',type:'AMBER DWARF',color:[255,179,79],radius:.88},destinations:[
   {id:'caelus',surfaceDisk:'caelus',name:'CAELUS',kind:'planet',orbitalZone:'temperate',orbit:1.4,climate:'temperate',rings:true,orbitPhase:-.55,stages:[levelDefinitions[0].id]},
   {id:'ferrum',surfaceDisk:'ferrum',name:'FERRUM',kind:'planet',orbitalZone:'inner',orbit:.85,climate:'hot',rings:false,orbitPhase:2.3,surfaceAtlas:'frontier',surfaceBand:0,stages:[levelDefinitions[1].id]},
   {id:'nacre',surfaceDisk:'nacre',name:'NACRE',kind:'planet',orbitalZone:'outer',orbit:4.8,climate:'ice',rings:false,orbitPhase:3.9,stages:[levelDefinitions[2].id]}
  ]}]},
- {id:'orison-frontier',version:2,month:'2026-10',systems:[{id:'orison-system',galaxyId:'the-ember-veil',name:'ORISON',star:{name:'ORISON A',type:'BLUE-WHITE GIANT',color:[142,193,255],radius:1.42},destinations:[
+ {id:'orison-frontier',version:2,month:'2026-10',systems:[{id:'orison-system',galaxyId:'the-ember-veil',name:'ORISON',galacticPosition:[.30,.60],star:{name:'ORISON A',type:'BLUE-WHITE GIANT',color:[142,193,255],radius:1.42},destinations:[
   {id:'thalassa',surfaceDisk:'thalassa',name:'THALASSA',kind:'planet',orbitalZone:'temperate',orbit:1.6,climate:'temperate',rings:false,orbitPhase:2.1,surfaceAtlas:'orison',surfaceBand:0,stages:[levelDefinitions[3].id]},
   {id:'veyra',surfaceDisk:'veyra',name:'VEYRA',kind:'planet',orbitalZone:'outer',orbit:4.5,climate:'gas',rings:true,ringTilt:.28,orbitPhase:-.55,surfaceAtlas:'orison',surfaceBand:1,stages:[levelDefinitions[4].id]},
   {id:'cinder',surfaceDisk:'cinder',name:'CINDER',kind:'planet',orbitalZone:'inner',orbit:.25,climate:'hot',rings:false,orbitPhase:3.65,surfaceAtlas:'orison',surfaceBand:2,stages:[levelDefinitions[5].id]},
   {id:'nivara',surfaceDisk:'nivara',name:'NIVARA',kind:'planet',orbitalZone:'outer',orbit:8.2,climate:'ice',rings:false,orbitPhase:1.0,surfaceLongitude:.34,stages:[nivara.id]}
- ]}]}
+ ]}]},
+ ...expansionReleases
 ]);
 levelDefinitions[1].expeditionNote='Ferrum · abandoned planetary foundry';
 function expeditionGalaxy(location){return GALAXIES[location.galaxyId||GALAXY.id];}
+// The current schema describes one central star. A corona destination is an
+// encounter at that same star, never another sun or an extra planet.
+function systemCensus(system){return {suns:system.star?1:0,planets:system.destinations.filter(d=>d.kind==='planet').length,encounters:system.destinations.reduce((n,d)=>n+d.stages.length,0)};}
+function systemCensusLabel(system){const c=systemCensus(system);return `${c.suns} SUN${c.suns===1?'':'S'} · ${c.planets} PLANET${c.planets===1?'':'S'}`;}
 function systemStageProgress(location){const stages=expeditionSystem(location).destinations.flatMap(d=>d.stages);return {number:stages.findIndex(id=>expedition.locations[id]===location)+1,total:stages.length};}
-function expeditionSystem(location){return contentReleases.flatMap(r=>r.systems).find(s=>s.id===location.systemId);}
+const expeditionSystems=new Map(contentReleases.flatMap(r=>r.systems).map(s=>[s.id,s]));
+function expeditionSystem(location){return expeditionSystems.get(location.systemId);}
+// Each world owns a stable biosphere recipe, independent of its scenery archetype.
+// New releases can override families, palettes and traits without engine branches.
+const BIOSPHERE_FAMILIES=freezeContent({
+ 'ribbon-hunters':{habitat:'air',forms:['tendril','moth'],names:['Ribbon hunter','Glasswing'],span:1.08,chord:.55,arms:4,finPairs:2,eyePairs:2,gait:'pulse'},
+ 'sail-mantids':{habitat:'air',forms:['moth','scarab'],names:['Sail mantid','Shield cicada'],span:.76,chord:1.3,arms:4,finPairs:1,eyePairs:1,graspers:true,crest:3,gait:'dart'},
+ 'kestrel-fans':{habitat:'air',forms:['ray','herald'],names:['Fan kestrel','Forktail'],span:1.12,chord:.7,finPairs:1,eyePairs:1,forked:true,gait:'glide'},
+ 'cinder-petals':{habitat:'air',forms:['scarab','moth'],names:['Petal reaver','Ash lacewing'],span:.8,chord:.8,finPairs:3,eyePairs:2,crest:4,gait:'weave'},
+ 'lantern-feeders':{habitat:'water',forms:['tendril','scarab'],names:['Lantern feeder','Pressure beetle'],arms:8,finPairs:1,eyePairs:2,sails:true,gait:'pulse'},
+ 'glass-skates':{habitat:'water',forms:['ray','herald'],names:['Glass skate','Veil hunter'],span:1.1,chord:1.15,arms:4,finPairs:1,eyePairs:1,forked:true,gait:'glide'},
+ 'reef-smiths':{habitat:'water',forms:['crab','scarab'],names:['Reef smith','Serrated crawler'],finPairs:1,eyePairs:2,crest:4,sails:true,gait:'dart'},
+ 'abyss-combs':{habitat:'water',forms:['herald','tendril'],names:['Comb predator','Thread maw'],arms:4,span:.8,chord:.6,finPairs:2,eyePairs:3,forked:true,gait:'weave'}
+});
+function installPlanetBiosphere(stage,world,system){
+ const seed=speciesHash(system.id+'/'+world.id),water=stage.medium==='water',options=Object.keys(BIOSPHERE_FAMILIES).filter(k=>BIOSPHERE_FAMILIES[k].habitat===stage.medium),familyId=world.biosphere?.family||options[seed%options.length],family=BIOSPHERE_FAMILIES[familyId];
+ if(!family||family.habitat!==stage.medium)throw Error('Invalid biosphere for '+world.id);
+ const palettes=water?[[[38,125,151],[211,155,83]],[[153,64,96],[106,185,170]],[[75,111,178],[219,167,111]],[[51,141,110],[186,150,203]]]:[[[62,149,102],[221,172,76]],[[159,66,75],[114,178,180]],[[98,92,169],[217,159,87]],[[171,113,51],[99,184,147]]];
+ const palette=world.biosphere?.palette||palettes[(seed>>>5)%palettes.length],ids=[];
+ for(let role=0;role<6;role++){
+  const organic=role===1||role===3||role>=4,hash=speciesHash(world.id+':'+role),unit=n=>((hash>>>n)&255)/255,id=world.id+'-species-'+role,form=role===4?(family.forms.includes('scarab')?'herald':'scarab'):family.forms[(role===3||role===5?1:0)],name=world.name+' '+(organic?(role===4?'Crown '+family.names[0]:role===5?'Scout '+family.names[1]:family.names[role===3?1:0]):role===0?'Needle interceptor':'Bastion drone');
+  const spec={...family,...world.biosphere?.traits,id,name,planet:world.id,family:familyId,organic,form,baseModel:!organic?stage.models[role]:null,habitat:stage.medium,color:palette[0].map((v,i)=>Math.min(235,Math.round(v*(.90+unit(i*4)*.2)))),accent:palette[1],length:.80+unit(3)*.31,girth:.83+unit(9)*.30,span:(family.span||1)*(.85+unit(15)*.17),finPairs:family.finPairs,arms:family.arms||6,crest:family.crest||0,heavy:role===2,small:role===5?.60:role===4?1.03:1,frequency:3.3+unit(6)*2.2,amplitude:family.gait==='glide'?24:family.gait==='weave'?54:36,cadence:.93+unit(13)*.18,shot:water?'water':stage.atmosphere?.heat>.4?'fire':'wind'};
+  registerPlanetSpecies(freezeContent(spec));ids.push(id);
+ }
+ stage.models=ids.slice(0,4);stage.biosphere={id:world.id+'-biosphere',family:familyId,names:ids.filter((_,i)=>i===1||i===3).map(id=>planetSpecies.get(id).name),species:ids};
+ const prior=stage.escortEncounter||{};stage.escortEncounter={...prior,name:planetSpecies.get(ids[4]).name.toUpperCase(),model:ids[4],escort:ids[5],organic:true,rig:'appendages',count:prior.count||4,orbit:prior.orbit||2.6,formation:['screen','figure8','petals'][seed%3],pace:prior.pace||1};stage.revision++;
+}
+for(const release of contentReleases)for(const system of release.systems)for(const world of system.destinations)for(const stageId of world.stages){const stage=levelDefinitions.find(l=>l.id===stageId);installPlanetBiosphere(stage,world,system);}
 const expedition=buildExpedition(contentReleases,levelDefinitions);
 freezeContent(expedition.locations);
 const campaign=freezeContent(validateLevels(expedition.stages));

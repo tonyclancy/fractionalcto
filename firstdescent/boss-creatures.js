@@ -284,8 +284,8 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
  // so each power stroke keeps its sound when acceleration changes the beat.
  organicBossWingRate=window.organicBossWingRate=kind=>wingRates[kind]||0;
  organicBossWingPhase=window.organicBossWingPhase=(kind,b)=>(Number.isFinite(b.propulsionTime)?b.propulsionTime:(b.age||0))*organicBossWingRate(kind);
- animateAlienBoss=window.animateAlienBoss=function(kind,b){
-  const d=alienBossDesigns[kind];if(!d)return null;
+ animateAlienBoss=window.animateAlienBoss=function(kind,b,design=null){
+  const d=design||alienBossDesigns[kind];if(!d)return null;
   const age=b.age||0,jaw=opening(b),flight=Number.isFinite(b.propulsionTime)?b.propulsionTime:age,thrust=cl(Number.isFinite(b.propulsion)?b.propulsion:.3,0,1),climb=cl(-(b.flightVY||0)/420,-1,1),surge=cl((b.flightVX||0)/600,-1,1),attack=cl(b.attackDrive||0,0,1),load=cl(b.actionLoad||0,0,1),bank=cl(b.flightBank||0,-1,1);
   const pass=b.pass,turning=pass&&['turn','rear','reset'].includes(pass.stage)?Math.sin(cl((pass.age||0)/1.4,0,1)*Math.PI):0;
   const spine=spineState(kind,b,spineScratch),wingPhase=organicBossWingPhase(kind,b);d.mouthOpening=jaw;
