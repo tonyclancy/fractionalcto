@@ -14,6 +14,7 @@ let queuedSupplies=[],queuedSupplyLevel=-1,lastSupplySpawn=-Infinity,preBossReli
 let obstacles=[];
 
 
+let rescueCharge=0;
 let checkpoint=null,hudClock=0,sectorBlend=null,sectorIntroLead=0;
 let challengeState={wave:0,gate:false,warned:false,reward:false};
 let weaponOrb={owned:false,angle:0,target:0};
@@ -22,7 +23,7 @@ function refreshHullMeter(){
  const block=$('.hullblock');if(!block)return;
  let meter=$('#hullMeter');
  if(!meter){const label=block.querySelector('.eyebrow'),readout=document.createElement('b'),wrap=document.createElement('div');readout.id='hullReadout';label.append(' ',readout);wrap.className='hull-meter';wrap.setAttribute('role','meter');wrap.setAttribute('aria-label','Hull integrity');wrap.setAttribute('aria-valuemin','0');wrap.setAttribute('aria-valuemax','5');wrap.innerHTML='<i id="hullMeter"></i>';block.insertBefore(wrap,$('#hearts'));meter=$('#hullMeter');}
- const hp=clamp(ship?.hp||0,0,5);meter.style.width=(hp*20)+'%';meter.parentElement.setAttribute('aria-valuenow',String(hp));$('#hullReadout').textContent=hp+' / 5';block.classList.toggle('low-hull',hp<=2);
+ const hp=clamp(ship?.hp||0,0,5);meter.style.width=(hp*20)+'%';meter.parentElement.setAttribute('aria-valuenow',String(hp));$('#hullReadout').textContent=hp+' / 5'+(rescueCharge?' · RESCUE READY':'');block.classList.toggle('low-hull',hp<=2);
 }
 if(typeof setInterval==='function')setInterval(refreshHullMeter,80);
 function switchOrb(){if(state!=='playing'||sectorBlend||!weaponOrb.owned)return;weaponOrb.target=weaponOrb.target===0?Math.PI:0;updateHUD();}
@@ -92,7 +93,7 @@ function nativeFullscreenElement(){return document.fullscreenElement||document.w
 function ensureGameFullscreen(){if(!nativeFullscreenElement()&&!fullscreenPanel().classList.contains('expanded'))return toggleGameFullscreen();return requestLandscape();}
 // Resume audio before fullscreen consumes the browser user activation.
 function beginDescent(){enableAudio();const launch=()=>{start();sectorBlend={arrival:true,systemEntry:true,age:0,duration:6.2,destination:expedition.locations[sectors[0].id]};$('#announcement').style.opacity=0;annTimer=0;};if(window.safariImmersion?.request(launch))return;void ensureGameFullscreen();launch();}
-function start(){weaponOrb={owned:false,angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:0,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
+function start(){rescueCharge=0;weaponOrb={owned:false,angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:0,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
 function resetSector(){resetWaterWakes();trimSectorArt(sectors[level],sectors[level+1]);prepareSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;window.gpuModels?.prepare([bossDesign()?.mesh,...sectors[level].models.map(n=>meshes[n]),meshes.spore,meshes.missile,meshes.siphon,meshes.cannon,meshes.shrapnel,meshes.bone,meshes.rib,meshes.spineChip,meshes.chitinChip,meshes.skull,meshes.orbitalRock].filter(Boolean));challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setEnvironment?.(sectors[level].medium,sectors[level].theme);window.flightAudio?.setSector(sectors[level].music);window.flightAudio?.setBossApproach?.(0);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.inv=3;saveCheckpoint();updateHUD()}
 function panel(title,description,label,action){$('#overlay').classList.remove('hidden','records-view','title-screen');$('#overlay').innerHTML=`<div class="intro"><div class="eyebrow mint">FIRST DESCENT / FLIGHT RECORD</div><h1 class="result-title">${title}</h1><p class="introcopy">${description}</p><button class="primary" id="panelAction">${label}<span>↗</span></button><div class="launch-caption">SCORE ${String(score).padStart(6,'0')} · SECTOR ${level+1} / ${sectors.length}</div></div>`;$('#panelAction').onclick=action;$('#panelAction').focus()}
 function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause)}else if(state==='paused'){enableAudio();const resume=()=>{state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus();updateHUD();};if(window.safariImmersion?.request(resume))return;void ensureGameFullscreen();resume()}updateHUD()}
@@ -111,10 +112,11 @@ function fire(origin=ship,direction=1,fromOrb=false){
  else {const n=weapon==='spread'?power+2:power;for(let i=0;i<n;i++)launch(ship.x+48,ship.y+(i-(n-1)/2)*13,weapon,weapon==='spread'?(i-(n-1)/2)*.13:0)}
  if(!fromOrb)muzzleFlash=.07;window.flightAudio?.shot(weapon,ship.x);
 }
-function damage(){if(ship.inv>0||state!=='playing')return;if(ship.shield>0){ship.shield--;ship.inv=1.2;window.flightAudio?.shipHit(ship.x,true);burst(ship.x,ship.y,'#8ddfff',15)}else{ship.hp--;ship.inv=2;shake=10;flash=.12;burst(ship.x,ship.y,'#ffa782',30);window.flightAudio?.shipHit(ship.x);if(ship.hp<=0)end(false)}updateHUD()}
+function damage(){if(ship.inv>0||state!=='playing')return;if(ship.shield>0){ship.shield--;ship.inv=COMBAT_BALANCE.shieldGrace;window.flightAudio?.shipHit(ship.x,true);burst(ship.x,ship.y,'#8ddfff',15)}else{ship.hp--;ship.inv=COMBAT_BALANCE.hitGrace;shake=10;flash=.12;burst(ship.x,ship.y,'#ffa782',30);window.flightAudio?.shipHit(ship.x);if(ship.hp<=0){if(rescueCharge){rescueCharge=0;ship.hp=3;ship.inv=3.5;hostile=hostile.filter(b=>Math.hypot(b.x-ship.x,b.y-ship.y)>300);if(flightRun)flightRun.rescues=(flightRun.rescues||0)+1;rings.push({x:ship.x,y:ship.y,r:20,life:.9,c:'#fff1a2'});window.flightAudio?.pickup(ship.x);announce('RESCUE ACTIVATED','HULL RESTORED · ALL UPGRADES RETAINED');}else end(false);}}updateHUD()}
 function nova(){if(state!=='playing'||sectorBlend||novas<=0)return;novas--;flash=.55;shake=14;for(const e of enemies){explode(e.x,e.y,isOrganicEnemy(e)?'#87ffd1':'#ffb36b',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));score+=100}enemies=[];hostile=[];if(boss){if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))capitalNovaDamage(boss,95);else{boss.hp-=95;boss.hit=.2}}rings.push({x:ship.x,y:ship.y,r:10,life:1.2,c:'#c0fff0'});window.flightAudio?.explosion(ship.x,3,false);updateHUD()}
+function enemyWaveSlots(){return Math.max(0,levelPacing().maxActiveEnemies-enemies.filter(e=>e.hp>0&&!e.satellite&&!e.sentry).length);}
 function spawn(){
- if(enemies.filter(e=>!e.satellite&&!e.sentry).length>=levelPacing().maxActiveEnemies)return;
+ const slots=enemyWaveSlots();if(!slots)return;
  if(sectors[level].broodWaves.includes(waveIndex)){
   const profile=sectors[level].escortEncounter||null,hp=(130+difficulty()*35)*(profile?1.15:1),type=profile&&!profile.organic?2:3;
   const mother={brood:true,escortProfile:profile,type,x:W+210,y:380,base:380,age:0,phase:waveIndex*.4,speed:115,hp,max:hp,hit:0,r:54,shoot:2};enemies.push(mother);
@@ -122,7 +124,7 @@ function spawn(){
   for(let n=0;n<count;n++)enemies.push({satellite:true,mother,escortProfile:profile,orbit:n*TAU/count,type:profile&&!profile.organic?0:1,x:mother.x,y:mother.y,base:380,age:0,phase:n*.3,speed:245,hp:profile?20+difficulty()*2:14,max:profile?20+difficulty()*2:14,hit:0,r:20,shoot:profile?3+n*.65:Infinity});return;
  }
 
- const i=waveIndex,elite=i===11?'hunter':i%10===7?(Math.floor(i/10)%2?'hunter':'ace'):null,type=elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length],center=sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=elite?3:i===0?3:4+(difficulty()>0?1:0);
+ const i=waveIndex,elite=i===11?'hunter':i%10===7?(Math.floor(i/10)%2?'hunter':'ace'):null,type=elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length],center=sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=Math.min(slots,elite?3:i===0?3:4+(difficulty()>0?1:0));
  for(let n=0;n<count;n++){const leader=n===0?elite:null,memberType=elite&&n>0?0:type,offset=i%3===0?(n-(count-1)/2)*52:i%3===1?Math.sin(n*1.15)*75:(n%2?1:-1)*Math.ceil(n/2)*42,y=clamp(center+offset,100,H-100),hp=([7,9,22,13][memberType]+difficulty()*3)*(leader?2.5:1)*(sectors[level].enemyHealthScale||1);
  const enemy={x:W+180+n*96,y,base:y,type:memberType,elite:leader,wave:i,hp,max:hp,hit:0,age:0,phase:i*.45+n*.16,shoot:1.5+n*.38,speed:([220,180,130,205][memberType]+difficulty()*17)*(leader==='ace'?1.55:1)*(1+Math.min(i,20)*.018),r:memberType===2?39:31};prepareEnemyEntry(enemy,i,n);enemies.push(enemy);}
 }
@@ -137,6 +139,7 @@ function aimed(x,y,speed=520,offset=0,kind='bolt'){const a=Math.atan2(ship.y-y,s
 function updateBossWeapon(b,dt){
  if(typeof isCapitalSiege==='function'&&isCapitalSiege(b))return;
  if(bossIndex()>=3)return;
+ if(b.recovery>0){holdBossSalvo(b);return;}
  b.shoot-=dt;
  if(b.pass&&b.pass.stage!=='rear'){b.attack=null;b.fireHeading=null;return}
  if(!b.attack&&b.shoot<=0&&b.x>0&&b.x<W){const r=firingRig(b,true);b.attack={age:0,next:.42,index:0,heading:Math.atan2(ship.y-r.muzzleY,ship.x-r.muzzleX),target:{x:ship.x,y:ship.y}};b.fireHeading=r.heading;b.shoot=99}
@@ -148,7 +151,7 @@ function updateBossWeapon(b,dt){
  const r=firingRig(b,true);if(r.organic){const mouth=organicMouth(b);r.muzzleX=mouth.x;r.muzzleY=mouth.y;}else if(!bossDesign()&&bossIndex()===1&&imageReady(art.bossAtlas)){const gun=openingBossMount(b,a.index%2?'lower':'upper');r.muzzleX=gun.x;r.muzzleY=gun.y;}const speed=bossIndex()===0?560:bossIndex()===1?690:620,angle=b.fireHeading;
  hostile.push({x:r.muzzleX,y:r.muzzleY,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:r.organic?7:8,c:sectors[level].color,kind:r.organic?organicShotKind():'bolt',launchAngle:angle,scale:r.organic?.85:.9,bossShot:true});
  b.muzzle=.16;bossIndex()===1?window.flightAudio?.shot('bolt',b.x,true):window.flightAudio?.bossAttack?.('fire',bossIndex(),b.x);a.index++;a.next+=interval*(r.organic?.85:1);
- if(a.index>=count){b.attack=null;b.fireHeading=null;b.shoot=(b.hp/b.max<.5?.36:.58)*(r.organic?.72:1)}
+ if(a.index>=count){b.attack=null;b.fireHeading=null;b.shoot=(b.hp/b.max<.5?.36:.58)*(r.organic?.72:1)*COMBAT_BALANCE.salvoRest}
 }
 function updateBossWingAudio(b){if(!bossOrganic()||typeof organicBossWingPhase!=='function')return;const stroke=Math.floor(organicBossWingPhase(bossIndex(),b)/TAU);if(b.wingAudioStroke!==undefined&&stroke>b.wingAudioStroke)window.flightAudio?.wingbeat?.(b.x,b.propulsion||0,bossIndex());b.wingAudioStroke=stroke;}
 function steerHostile(b,dt){b.age=(b.age||0)+dt;if(b.kind==='seed'&&b.age>.85&&!b.split){b.split=true;for(let i=0;i<5;i++){const a=Math.PI+(i-2)*.28;hostile.push({x:b.x,y:b.y,vx:Math.cos(a)*620,vy:Math.sin(a)*620,r:7,scale:1,kind:'spore',c:b.c});}burst(b.x,b.y,b.c,10);b.x=-200;return;}if(b.kind!=='seeker'||b.age>1.8)return;const heading=Math.atan2(b.vy,b.vx),target=Math.atan2(ship.y-b.y,ship.x-b.x),delta=Math.atan2(Math.sin(target-heading),Math.cos(target-heading)),angle=heading+clamp(delta,-.7*dt,.7*dt),speed=Math.hypot(b.vx,b.vy);b.vx=Math.cos(angle)*speed;b.vy=Math.sin(angle)*speed}
@@ -169,7 +172,7 @@ function spawnSupplies(){
  const plan=supplyPlans[level],p=levelPacing();
  if(queuedSupplyLevel!==level){queuedSupplies=[];queuedSupplyLevel=level;lastSupplySpawn=-Infinity;preBossRelief=false;}
  while(supplyIndex<plan.length&&time>=plan[supplyIndex].at)queuedSupplies.push(plan[supplyIndex++]);
- if(p.preBossRelief&&!preBossRelief&&time>=sectors[level].duration-4.5&&ship.hp<=2){queuedSupplies.unshift({type:'repair',y:clamp(ship.y,120,H-120),relief:true});preBossRelief=true;}
+ if(p.preBossRelief&&!preBossRelief&&time>=sectors[level].duration-14&&ship.hp<=3){queuedSupplies.unshift({type:'repair',y:clamp(ship.y,120,H-120),relief:true});preBossRelief=true;}
  const item=queuedSupplies[0];
  if(!item||time-lastSupplySpawn<p.pickupGap||!supplyLaneClear(item))return;
  queuedSupplies.shift();lastSupplySpawn=time;drops.push(makeSupply({x:clamp(Math.max(ship.x+250,p.pickupX||650),220,W-130),y:item.y,type:item.type,relief:!!item.relief},item.relief?'rescue':'supply'));
@@ -185,9 +188,10 @@ function collect(d){
  else if(d.type==='frontShield')ship.frontShield=Math.min(8,(ship.frontShield||0)+6);
  else if(d.type==='shield')ship.shield=Math.min(3,ship.shield+2);
  else if(d.type==='repair')ship.hp=Math.min(5,ship.hp+2);
+ else if(d.type==='rescue')rescueCharge=1;
  else if(d.type==='nova')novas=Math.min(3,novas+1);
  score+=50;burst(d.x,d.y,'#a8ffdb',12);window.flightAudio?.pickup(d.x);
- const label={orb:'WEAPON ORB ONLINE · SPACE TO SWITCH',speed:`ENGINE BOOST ${speedLevel}/3`,companion:'WINGMATE ONLINE',power:'CANNONS UPGRADED',frontShield:'FRONT GUARD ONLINE',shield:'SHIELD RESTORED',repair:'HULL REPAIRED',nova:'NOVA RECHARGED'}[d.type]||weaponNames[d.type]+' ACQUIRED';
+ const label={orb:'WEAPON ORB ONLINE · SPACE TO SWITCH',speed:`ENGINE BOOST ${speedLevel}/3`,companion:'WINGMATE ONLINE',power:'CANNONS UPGRADED',frontShield:'FRONT GUARD ONLINE',shield:'SHIELD RESTORED',repair:'HULL REPAIRED',rescue:'RESCUE READY · SURVIVE ONE FATAL HIT',nova:'NOVA RECHARGED'}[d.type]||weaponNames[d.type]+' ACQUIRED';
  announce(label);annTimer=1.4;updateHUD();
 }
 // Capture once at the sector boundary. Blurring a small cached image avoids
@@ -398,7 +402,7 @@ if($('#introMusic'))$('#introMusic').onclick=()=>$('#music').onclick();
 function updateChallenge(){const c=sectors[level].challenge;if(!c)return;
  if(time>=c.at&&!challengeState.warned&&time<c.end){challengeState.warned=true;announce(c.title,themeIndex()===0?'ASTEROID NARROWS · FOLLOW THE OPEN CHANNEL':sectors[level].scrollAxis?'CHANGING SHAFT · FOLLOW THE OPEN CHANNEL':'OFFSET GATES AHEAD · FOLLOW THE OPEN CHANNEL');}
  if(!challengeState.gate&&time>=c.at-4&&time<c.end){challengeState.gate=true;const at=c.at-4,o={at,id:50,x:W+100-(time-at)*SCROLL_SPEED,w:420,width:420,shutters:true,parts:[{x:0,y:0,w:420,h:90,ceiling:true},{x:0,y:670,w:420,h:90,ceiling:false}]};obstacles.push(o);if(c.gate)enemies.push({sentry:true,anchorAt:at,x:o.x+110,y:125,base:125,type:2,age:0,phase:0,speed:0,r:28,hp:65,max:65,hit:0,shoot:2});}
- while(challengeState.wave<c.waves.length&&time>=c.waves[challengeState.wave]){const n=challengeState.wave++,type=c.types[n%c.types.length];for(let i=0;i<c.count;i++){const y=c.gate?330+i*45:180+((n*137+i*110)%380),hp=([10,13,27,17][type]+difficulty()*3)*(sectors[level].enemyHealthScale||1);const e={x:W+80+i*115,y,base:y,type,age:0,phase:n*.7+i*.25,speed:(210+difficulty()*15)*c.speed,r:type===2?39:31,hp,max:hp,hit:0,shoot:2+i*.5,challenge:true};if(sectors[level].scrollAxis)prepareEnemyEntry(e,n,i);enemies.push(e);}}
+ while(challengeState.wave<c.waves.length&&time>=c.waves[challengeState.wave]){const n=challengeState.wave++,type=c.types[n%c.types.length],count=Math.min(c.count,enemyWaveSlots());for(let i=0;i<count;i++){const y=c.gate?330+i*45:180+((n*137+i*110)%380),hp=([10,13,27,17][type]+difficulty()*3)*(sectors[level].enemyHealthScale||1);const e={x:W+80+i*115,y,base:y,type,age:0,phase:n*.7+i*.25,speed:(210+difficulty()*15)*c.speed,r:type===2?39:31,hp,max:hp,hit:0,shoot:2+i*.5,challenge:true};if(sectors[level].scrollAxis)prepareEnemyEntry(e,n,i);enemies.push(e);}}
  if(time>=c.end&&!challengeState.reward){challengeState.reward=true;drops.push(makeSupply({x:W-210,y:380,type:'repair'},'reward'));}
 }
 

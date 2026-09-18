@@ -331,10 +331,10 @@ function updateCapitalSiege(b,dt){
   if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=n.id==='core'?6:4;n.burstClock=0;}}
   if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?920:n.id==='reactor'?820:850,seeking=n.id!=='reactor'&&n.cycle%3===0&&n.burst===1;
     hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?8:7,kind:seeking?'seeker':'rocket',bossRound:true,scale:n.id==='core'?.95:.85,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.12:.14;window.flightAudio?.shot('missile',mount.x,true);
-   }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=n.id==='core'?.64:.76;n.heading=n.id==='reactor'?0:Math.PI;
+   }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=(n.id==='core'?.64:.76)*COMBAT_BALANCE.salvoRest;n.heading=n.id==='reactor'?0:Math.PI;
     if(n.id==='reactor'&&n.cycle%2===0){n.special={kind:'purge',age:0,warning:1.15,duration:.76,driveIndex:Math.floor(n.cycle/2)%capitalShipDesign(b).drives.length};}
     else if(n.id==='core'&&n.cycle%2===0){n.special={kind:'pulse',age:0,warning:1.3,duration:.3,gap:(n.cycle%4===0?-1:1)*.28};window.flightAudio?.laserCharge();}
-    else{n.target={x:ship.x,y:ship.y};n.warning=.62;}
+    else{n.target={x:ship.x,y:ship.y};n.warning=.8;}
    }}
  }
  const active=s.nodes.filter(n=>capitalNodeActive(b,n));b.siegeLoad=active.reduce((load,n)=>Math.max(load,n.special?Math.min(1,n.special.age/n.special.warning):n.warning>0?1-n.warning/.8:n.burst>0?1:0),0);b.siegeStrike=active.some(n=>n.burst>0||n.special&&n.special.age>=n.special.warning);

@@ -23,10 +23,12 @@ const BOSS_ENCOUNTERS=freezeContent({
  mother:{anatomy:'Compound eyes, six legs, two wings and halteres',inspiration:'horsefly / parasitoid wasp',habitat:'air',power:'brood-tempest',signature:'BROOD TEMPEST',cooldown:5.1,phaseStep:.4,warning:1.85}
 });
 function bossEncounterProfile(l){return BOSS_ENCOUNTERS[l.encounter||l.bossKind];}
-const GAME_RULESET='2026-09-alien-flight-v26';
+// Shared tuning keeps future encounters within the same learnable combat rhythm.
+const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.25,specialRest:1.15,hitGrace:2.4,shieldGrace:1.5,breathTracking:.55});
+const GAME_RULESET='2026-09-alien-flight-v27';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
- const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova']);
+ const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova','rescue']);
  const finite=n=>typeof n==='number'&&Number.isFinite(n);
  const ordered=a=>a.every((n,i)=>finite(n)&&n>=0&&(!i||n>a[i-1]));
  const fail=(l,message)=>{throw new Error('Invalid level '+(l?.id||'?')+': '+message)};
@@ -1736,7 +1738,7 @@ for(const l of levelDefinitions.slice(3,6)){
  l.waves=waves;l.revision++;
 }
 // The second sector expects carried upgrades, while remaining recoverable at MK I.
-{const l=levelDefinitions[1];l.hp=2350;l.bossArmor=1.2;l.enemyHealthScale=1.38;l.revision++;
+{const l=levelDefinitions[1];l.hp=2350;l.bossArmor=1.2;l.enemyHealthScale=1.22;l.revision++;
  const waves=[];for(let at=1;at<l.duration-3;at+=2.65*(1-.18*at/l.duration))waves.push(Number(at.toFixed(3)));l.waves=waves;}
 // Chapter one is one continuous journey inward, not six unrelated worlds.
 const descentLayers=[
@@ -1783,6 +1785,13 @@ levelDefinitions.forEach((l,i)=>{l.pacing=readabilityPacing[i];l.revision++;});
 levelDefinitions[0].challenge.waves=[25,29,33];
 levelDefinitions[0].challenge.count=2;
 levelDefinitions[0].revision++;
+// Shorter endurance fights; attack identities and escalating phases stay authored.
+levelDefinitions.forEach(l=>{
+ l.hp=Math.round(l.hp*COMBAT_BALANCE.bossHealth);
+ // A learnable survival reward early in section two, with one reserve at a time.
+ let at=l.checkpoints[1]+.5;while(l.supplies.some(d=>Math.abs(d.at-at)<.01))at+=.25;
+ l.supplies.push({at,type:'rescue',y:380});l.supplies.sort((a,b)=>a.at-b.at);l.revision++;
+});
 // A release adds a solar system. Each destination contributes an ordered
 // descent (planet) or a flight through the corona (star). Only authored stages
 // are published; a catalog entry never silently fabricates playable content.
@@ -1808,7 +1817,7 @@ function buildExpedition(releases,definitions){
  if(!route.length)throw Error('Expedition needs playable stages');
  return {stages:route,locations};
 }
-const contentReleases=freezeContent([{id:'first-contact',version:2,month:'2026-09',systems:[{
+const contentReleases=freezeContent([{id:'first-contact',version:3,month:'2026-09',systems:[{
  id:'vesper-system',name:'VESPER',star:{name:'VESPER A',type:'AMBER STAR'},destinations:[
   {id:'caelus',name:'CAELUS',kind:'planet',orbitalZone:'temperate',orbit:1.4,climate:'temperate',rings:true,orbitPhase:-.55,stages:[levelDefinitions[0].id]},
   {id:'ferrum',name:'FERRUM',kind:'planet',orbitalZone:'inner',orbit:.85,climate:'hot',rings:false,orbitPhase:2.3,surfaceAtlas:'frontier',surfaceBand:0,stages:[levelDefinitions[1].id]},
