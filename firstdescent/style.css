@@ -140,3 +140,19 @@ html.safari-locked .console.expanded canvas{max-width:100%;width:min(100%,calc((
 .console,.console *,.safari-swipe,.safari-swipe *{
  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
 }
+
+/* Touch drags belong to the whole play console, including the lower HUD. */
+.console{touch-action:none;overscroll-behavior:none}
+html.safari-locked .safari-scroller{overflow:hidden;touch-action:none;-webkit-overflow-scrolling:auto}
+body.game-expanded{overscroll-behavior:none}
+
+/* Navigation chart stays behind controls and scales with the play area. */
+#expeditionMap{position:absolute;left:43%;top:3%;width:57%;height:75%;object-fit:contain;pointer-events:none;opacity:1;background:radial-gradient(ellipse at center,#02101d85 0%,#02101d42 50%,transparent 73%)}
+.title-screen .arrival-orbit{display:none}
+@media(max-width:680px){#expeditionMap{left:45%;top:4%;width:55%;height:70%;opacity:.95}}
+
+.title-screen .missionnote{display:none}
+
+#destinationProgress{display:block;margin-top:5px;color:#8caeb1;font:9px monospace;letter-spacing:1px}@media(max-height:600px){#destinationProgress{font-size:7px;margin-top:2px}}
+
+.title-screen .introcopy{white-space:pre-line}

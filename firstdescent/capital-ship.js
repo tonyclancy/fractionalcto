@@ -373,13 +373,28 @@ function capitalSectionMesh(b,n){
  if(n.hp<=0&&(n.id==='dorsal'||n.id==='ventral'))return capitalSiegeMeshes[n.id+'Wreck'];
  const stage=capitalDamageStage(n);return capitalSiegeMeshes[key+(stage?'Damage'+stage:'')]||capitalSiegeMeshes[key];
 }
+function capitalFireProfile(n){const severity=clamp(1-n.hp/n.max,0,1);return{severity,vents:severity>.65?3:severity>.3?2:1,length:45+severity*130,width:7+severity*16};}
 function drawCapitalDamage(b,n){
- const severity=1-n.hp/n.max;if(severity<=0)return;
- const pod=n.id==='dorsal'||n.id==='ventral',local=pod?[n.local[0],n.local[1],-48]:[n.local[0],n.local[1],n.local[2]-18],p=bossMount(b,local),tip=bossMount(b,[local[0]+10,local[1]-9,local[2]-6]),dx=tip.x-p.x,dy=tip.y-p.y,flicker=.7+.3*Math.sin(b.age*31+n.local[1]);
- ctx.save();ctx.globalCompositeOperation='lighter';orb(p.x,p.y,9+severity*15,'#ff7833',(.2+severity*.38)*flicker);
- // Short leaks become persistent flames as the armor fails. Jets stay rooted
- // to the damaged section even when the ship reverses or barrel rolls.
- if(severity>.28){ctx.lineCap='round';for(let i=0;i<3;i++){const t=(b.age*(1.8+severity)+i/3)%1;ctx.globalAlpha=(1-t)*severity*.6;ctx.lineWidth=(1-t)*(5+severity*7);ctx.strokeStyle=i%2?'#ffad49':'#ff5423';ctx.beginPath();ctx.moveTo(p.x+dx*t*.2,p.y+dy*t*.2);ctx.quadraticCurveTo(p.x+dx*t*.7+Math.sin(b.age*23+i)*4,p.y+dy*t*.6,p.x+dx*t*(1+severity),p.y+dy*t*(1+severity));ctx.stroke();}}
+ const fire=capitalFireProfile(n),severity=fire.severity;if(severity<=0)return;
+ const pod=n.id==='dorsal'||n.id==='ventral',local=pod?[n.local[0],n.local[1],-48]:[n.local[0],n.local[1],n.local[2]-18];
+ ctx.save();
+ for(let j=0;j<fire.vents;j++){
+  const socket=[local[0]+(j-1)*9,local[1]+(j%2?3:-2),local[2]],p=bossMount(b,socket),tip=bossMount(b,[socket[0]+12,socket[1]-10,socket[2]-8]),dx=tip.x-p.x,dy=tip.y-p.y,angle=Math.atan2(dy,dx),phase=b.age*(10+j*1.3)+n.local[1]+j*2.7,length=fire.length*(.82+.12*Math.sin(phase)+.06*Math.sin(phase*2.3)),width=fire.width;
+  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(angle);
+  // Layered tapered flame ribbons issue from actual hull breaches. Their hot
+  // roots stay attached through yaw/roll, while the tips whip in the exhaust.
+  ctx.globalCompositeOperation='lighter';
+  for(let layer=0;layer<3;layer++){
+   const len=length*(1-layer*.23),w=width*(1-layer*.3),curl=Math.sin(phase+layer)*w*.9,g=ctx.createLinearGradient(0,0,len,0);
+   g.addColorStop(0,layer===2?'rgba(255,250,205,.95)':'rgba(255,194,64,.85)');g.addColorStop(.35,layer===2?'rgba(255,219,108,.9)':'rgba(255,91,18,.75)');g.addColorStop(1,'rgba(218,40,8,0)');ctx.fillStyle=g;
+   ctx.beginPath();ctx.moveTo(0,-w*.45);ctx.bezierCurveTo(len*.25,-w,len*.55,curl-w,len,curl);ctx.bezierCurveTo(len*.55,curl+w*.5,len*.25,w,0,w*.45);ctx.closePath();ctx.fill();
+  }
+  orb(0,0,22+severity*18,'#ff8b31',.38+severity*.3);
+  // A few deterministic embers communicate outward flow without allocations.
+  for(let k=0;k<4;k++){const t=(b.age*(.9+k*.15)+k*.24+j*.17)%1;ctx.globalAlpha=(1-t)*.75;ctx.fillStyle='#ffd183';ctx.fillRect(t*length,Math.sin(t*7+phase*.3+k)*width*t,2+severity*2,1.7);}
+  ctx.restore();
+  ctx.save();ctx.translate(p.x+dx*.4,p.y+dy*.4);ctx.globalAlpha=.4+severity*.25;drawSoftPlume({seed:j+n.local[0]},13+severity*20,.9+(b.age*.35+j*.3)%1.2,1);ctx.restore();
+ }
  ctx.restore();
 }
 function drawCapitalSiege(b){

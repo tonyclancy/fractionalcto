@@ -13,7 +13,7 @@ let runStorage;try{runStorage=window.localStorage;}catch{}
 const runStore=createRunStore(runStorage);
 let flightRun=null,runSequence=0;
 function beginFlightRun(){flightRun={schemaVersion:1,runId:window.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+(++runSequence)+'-'+Math.random().toString(36).slice(2),ruleset:GAME_RULESET,campaignId:CAMPAIGN_ID,campaignVersion:CAMPAIGN_VERSION,startedAt:new Date().toISOString(),activeTicks:0,retries:0,deaths:0,verification:'local-unverified'};}
-function recordFlightRun(win){if(!flightRun)return;runStore.save({...flightRun,recordedAt:new Date().toISOString(),score,levelId:sectors[level].id,section:currentSection()+1,outcome:win?'victory':'defeat'});}
+function recordFlightRun(win){if(!flightRun)return;runStore.save({...flightRun,recordedAt:new Date().toISOString(),score,...expedition.locations[sectors[level].id],levelId:sectors[level].id,section:currentSection()+1,outcome:win?'victory':'defeat'});}
 function showLocalScores(){
  const oldState=state;if(state==='playing')pause();
  const rows=runStore.list(GAME_RULESET,CAMPAIGN_VERSION);
@@ -21,7 +21,7 @@ function showLocalScores(){
  panel('FLIGHT<br><em>RECORDS</em>',description+'<br><small>Saved on this device · Online rankings coming later</small>','BACK',()=>{
   if(oldState==='title'){showTitleScreen();}
   else if(oldState==='playing'||oldState==='paused'){state='paused';panel('FLIGHT<br><em>PAUSED</em>','Ready when you are.','RESUME MISSION',pause);}
-  else panel(oldState==='victory'?'GALAXY<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',oldState==='victory'?'Campaign complete.':`Resume section ${checkpoint.section+1} of 4.`,oldState==='victory'?'FLY AGAIN':'RETRY SECTION',oldState==='victory'?start:retrySection);
+  else panel(oldState==='victory'?'SYSTEM<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',oldState==='victory'?'Campaign complete.':`Resume section ${checkpoint.section+1} of 4.`,oldState==='victory'?'FLY AGAIN':'RETRY SECTION',oldState==='victory'?start:retrySection);
  });
  $('#overlay').classList.add('records-view');
 }

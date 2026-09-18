@@ -2,7 +2,28 @@
 // Content only: append a definition to extend the campaign; identifiers stay stable.
 const LEVEL_THEMES={verdant:0,forge:1,abyss:2,reef:3,storm:4,core:5};
 const BOSS_KINDS={warden:0,cathedral:1,sovereign:2,monarch:3,regent:4,mother:5};
-const GAME_RULESET='2026-09-alien-flight-v23';
+// Reusable habitat and encounter definitions: a level selects these by stable ID.
+// Asset selection remains independent, so a biome can support many authored routes.
+const ENVIRONMENTS=freezeContent({
+ 'stellar-corona':{label:'STELLAR CORONA',medium:'air',heat:1,clouds:0,water:0},
+ 'high-atmosphere':{augmentation:'orbital',label:'HIGH ATMOSPHERE',medium:'air',heat:0,clouds:.95,water:0},
+ 'low-atmosphere':{label:'LOW ATMOSPHERE',medium:'air',heat:0,clouds:1,water:0},
+ 'surface':{label:'PLANET SURFACE',medium:'air',heat:.18,clouds:.45,water:0},
+ 'underground':{label:'UNDERGROUND',medium:'air',heat:.8,clouds:0,water:0},
+ 'undersea':{label:'SUBSURFACE OCEAN',medium:'water',heat:0,clouds:0,water:.8},
+ 'deep-underground':{label:'DEEP UNDERGROUND',medium:'air',heat:1,clouds:0,water:0},
+ 'deep-undersea':{augmentation:'pressure',label:'ABYSSAL SEA',medium:'water',heat:0,clouds:0,water:1}
+});
+const BOSS_ENCOUNTERS=freezeContent({
+ warden:{anatomy:'Armoured four-winged sky hunter',inspiration:'dragonfly / mantis',habitat:'air',power:'furnace-gale',signature:'FURNACE GALE',cooldown:5.8,phaseStep:.6,warning:1.45},
+ cathedral:{anatomy:'Sectional engine guardian',inspiration:'industrial turbine / armoured beetle',habitat:'air',power:'reactor-siege',signature:'REACTOR OVERDRIVE',cooldown:5.6,phaseStep:.5,warning:1.5},
+ sovereign:{anatomy:'Wide undulating pressure fins',inspiration:'manta ray / deep-sea shark',habitat:'water',power:'tidal-pressure',signature:'TIDAL PRESSURE',cooldown:5.6,phaseStep:.5,warning:1.65},
+ monarch:{anatomy:'Chambered mantle and grasping feeding arms',inspiration:'nautilus / octopus',habitat:'water',power:'abyssal-maw',signature:'ABYSSAL MAW',cooldown:4.6,phaseStep:.4,warning:1.6},
+ regent:{anatomy:'Gyroscopic armoured storm machine',inspiration:'gyroscope / storm cell',habitat:'air',power:'ion-sweep',signature:'ION SHEAR',cooldown:3.9,phaseStep:.35,warning:1.9},
+ mother:{anatomy:'Compound eyes, six legs, two wings and halteres',inspiration:'horsefly / parasitoid wasp',habitat:'air',power:'brood-tempest',signature:'BROOD TEMPEST',cooldown:5.1,phaseStep:.4,warning:1.85}
+});
+function bossEncounterProfile(l){return BOSS_ENCOUNTERS[l.encounter||l.bossKind];}
+const GAME_RULESET='2026-09-alien-flight-v25';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova']);
@@ -31,6 +52,8 @@ function validateLevels(definitions){
   if(!ordered(l.supplies.map(d=>d.at))||l.supplies.some(d=>d.at>=l.duration))fail(l,'invalid supply times');
   if(l.recovery.some(d=>!finite(d.x)||d.x<270||d.x>900))fail(l,'recovery pickup out of reach');
   if(l.scrollAxis&&!['up','down'].includes(l.scrollAxis))fail(l,'invalid scroll axis');
+  if(l.environment&&!ENVIRONMENTS[l.environment])fail(l,'unknown environment');
+  const encounter=bossEncounterProfile(l);if(!encounter||encounter.habitat!==(l.medium||encounter.habitat))fail(l,'encounter habitat mismatch');
   if(l.atmosphere&&['heat','clouds'].some(k=>!finite(l.atmosphere[k])||l.atmosphere[k]<0||l.atmosphere[k]>1))fail(l,'atmosphere heat/clouds must be between 0 and 1');
   if(l.entrySides&&(!Array.isArray(l.entrySides)||!l.entrySides.length||l.entrySides.some(side=>!['right','left','top','bottom'].includes(side))))fail(l,'invalid entry side');
   if(l.challenge){const c=l.challenge;if(typeof c.title!=='string'||!finite(c.at)||!finite(c.end)||c.at<0||c.end<=c.at||c.end>=l.duration||!Array.isArray(c.waves)||!ordered(c.waves)||c.waves.some(t=>t<c.at||t>c.end)||!Array.isArray(c.types)||!c.types.length||c.types.some(t=>!Number.isInteger(t)||t<0||t>3)||!Number.isInteger(c.count)||c.count<1||c.count>6||!finite(c.speed)||c.speed<.5||c.speed>2)fail(l,'invalid mid-sector challenge');}
@@ -1411,7 +1434,7 @@ const levelDefinitions=[
     "fog": "#4c1831",
     "sky": "#180812",
     "planet": "#ffaaa9",
-    "boss": "THE FIRST MOTHER",
+    "boss": "VESPER · THE BROOD QUEEN",
     "hp": 3750,
     "bossArmor": 1.23,
     "id": "crimson-heart",
@@ -1735,7 +1758,11 @@ const escortEncounters=[null,
 levelDefinitions.forEach((l,i)=>{if(i){l.escortEncounter=escortEncounters[i];l.broodWaves=[5,Math.min(l.waves.length-2,13)];l.revision++;}});
 // Habitats constrain fauna as the campaign grows: swimming anatomy stays underwater.
 levelDefinitions.forEach((l,i)=>{l.medium=[2,3].includes(i)?'water':'air';l.revision++;});
-levelDefinitions.forEach((l,i)=>{l.atmosphere={heat:[0,.65,0,0,0,1][i],clouds:[.8,0,0,0,.35,0][i]};l.revision++;});
+levelDefinitions.forEach((l,i)=>{
+ l.environment=['high-atmosphere','underground','undersea','deep-undersea','underground','deep-underground'][i];
+ const e=ENVIRONMENTS[l.environment];l.atmosphere={heat:i===4?0:e.heat,clouds:i===4?.35:e.clouds,water:e.water};
+ l.encounter=l.bossKind;l.revision++;
+});
 levelDefinitions[3].stratum='SUBMERGED REEF';
 levelDefinitions[3].expeditionNote='Flooded fungal reefs · symbiotic machines';
 levelDefinitions[4].models[1]='stormMoth';levelDefinitions[4].models[3]='stormPolyp';
@@ -1756,8 +1783,42 @@ levelDefinitions.forEach((l,i)=>{l.pacing=readabilityPacing[i];l.revision++;});
 levelDefinitions[0].challenge.waves=[25,29,33];
 levelDefinitions[0].challenge.count=2;
 levelDefinitions[0].revision++;
-const campaign=freezeContent(validateLevels(levelDefinitions));
-const CAMPAIGN_VERSION=campaign.map(l=>l.id+'@'+l.revision).join('|');
+// A release adds a solar system. Each destination contributes an ordered
+// descent (planet) or a flight through the corona (star). Only authored stages
+// are published; a catalog entry never silently fabricates playable content.
+const GALAXY=freezeContent({id:'the-pale-spiral',name:'THE PALE SPIRAL'});
+const ORBITAL_ZONES=freezeContent({inner:{label:'HOT INNER WORLDS',climates:['hot']},temperate:{label:'TEMPERATE WORLDS',climates:['temperate']},outer:{label:'ICE & GAS WORLDS',climates:['ice','gas']},stellar:{label:'STELLAR CORONA',climates:['plasma']}});
+function buildExpedition(releases,definitions){
+ const ids=new Set(),stages=new Map(definitions.map(l=>[l.id,l])),used=new Set(),route=[],locations={};
+ function identity(id){if(typeof id!=='string'||!/^[a-z0-9-]+$/.test(id)||ids.has(id))throw Error('Duplicate or invalid expedition identity: '+id);ids.add(id);}
+ for(const release of releases){identity(release.id);if(!Number.isInteger(release.version)||release.version<1||!/^\d{4}-\d{2}$/.test(release.month))throw Error('Invalid content release');
+  for(const system of release.systems){identity(system.id);if(!system.name||!system.star?.name||!system.destinations.length)throw Error('System needs a named star and destinations');
+   const planets=system.destinations.filter(d=>d.kind==='planet').sort((a,b)=>a.orbit-b.orbit),thermalRank={inner:0,temperate:1,outer:2};
+   if(planets.length<1||planets.length>6)throw Error('System requires one to six planets');
+   for(let i=0;i<planets.length;i++){const d=planets[i],previous=planets[i-1];if(d.orbit<=0||!(d.orbitalZone in thermalRank)||previous&&(d.orbit===previous.orbit||thermalRank[d.orbitalZone]<thermalRank[previous.orbitalZone]))throw Error('Planet orbits must cool from inner to outer without duplicate distances');}
+
+   for(const destination of system.destinations){identity(destination.id);if(!destination.name||!['planet','star'].includes(destination.kind)||!destination.stages.length)throw Error('Invalid destination');
+    const zone=ORBITAL_ZONES[destination.orbitalZone];if(!zone||!zone.climates.includes(destination.climate)||typeof destination.rings!=='boolean'||!Number.isFinite(destination.orbit)||destination.orbit<0)throw Error('Invalid orbital climate or rings');
+    for(const id of destination.stages){const stage=stages.get(id);if(!stage||used.has(id))throw Error('Missing or repeated expedition stage: '+id);if(destination.kind==='star'&&stage.environment!=='stellar-corona')throw Error('Star stages require a corona habitat');used.add(id);route.push(stage);locations[id]={releaseId:release.id,releaseVersion:release.version,systemId:system.id,systemName:system.name,destinationId:destination.id,destinationName:destination.name,destinationKind:destination.kind,starName:system.star?.name||system.name,orbit:destination.orbit,climate:destination.climate,rings:destination.rings,orbitalZone:destination.orbitalZone,galaxyId:GALAXY.id,ringTilt:destination.ringTilt??-.23,surfaceLongitude:destination.surfaceLongitude??0,orbitPhase:destination.orbitPhase??null};}
+   }
+  }
+ }
+ if(!route.length)throw Error('Expedition needs playable stages');
+ return {stages:route,locations};
+}
+const contentReleases=freezeContent([{id:'first-contact',version:1,month:'2026-09',systems:[{
+ id:'vesper-system',name:'VESPER',star:{name:'VESPER A',type:'AMBER STAR'},destinations:[
+  {id:'caelus',name:'CAELUS',kind:'planet',orbitalZone:'temperate',orbit:1.4,climate:'temperate',rings:true,stages:levelDefinitions.slice(0,2).map(l=>l.id)},
+  {id:'nacre',name:'NACRE',kind:'planet',orbitalZone:'outer',orbit:4.8,climate:'ice',rings:false,stages:levelDefinitions.slice(2,4).map(l=>l.id)},
+  {id:'pyra',name:'PYRA',kind:'planet',orbitalZone:'inner',orbit:.4,climate:'hot',rings:false,stages:levelDefinitions.slice(4).map(l=>l.id)}
+ ]
+}]}]);
+levelDefinitions[4].stratum='SUPERHEATED CAVERNS';levelDefinitions[4].expeditionNote='Pyra · electrical storms beneath the scorched surface';levelDefinitions[4].atmosphere.heat=.65;
+function expeditionSystem(location){return contentReleases.flatMap(r=>r.systems).find(s=>s.id===location.systemId);}
+const expedition=buildExpedition(contentReleases,levelDefinitions);
+freezeContent(expedition.locations);
+const campaign=freezeContent(validateLevels(expedition.stages));
+const CAMPAIGN_VERSION=contentReleases.map(r=>r.id+'@'+r.version).join('|')+'|'+campaign.map(l=>l.id+'@'+l.revision).join('|');
 
 const encounterRules=Object.freeze({
  warden:{hint:'Dodge its crossing charge · attack the exposed flank'},

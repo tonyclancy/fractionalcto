@@ -30,6 +30,9 @@ window.safariImmersion=(()=>{
   const zoomed=Math.abs(viewport.scale-1)>.03;
   const collapsed=landscape()&&!zoomed&&viewport.height+viewport.offsetTop>=Math.min(screen.width,screen.height)-20;
   clearTimeout(settle);
+  // Once play begins, browser chrome resizing must not reopen setup or pause.
+  // Adapt the locked viewport even if Safari temporarily shows its toolbar.
+  if(locked&&landscape()){complete();return;}
   if(collapsed){
    // Wait for toolbar animation to settle before consuming the setup gesture.
    settle=setTimeout(()=>{if(!active)return;locked=true;root.classList.remove('safari-unlock');root.classList.add('safari-locked');content.append(panel);prompt.hidden=true;scroller.scrollTop=1;window.flightImmersionChanged?.();complete();},180);

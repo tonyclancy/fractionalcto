@@ -2,7 +2,7 @@
 const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d'),W=1440,H=760;
 const $=s=>document.querySelector(s),TAU=Math.PI*2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rand=(a,b)=>a+Math.random()*(b-a);
 const titleMarkup=$('#overlay').innerHTML;
-function showTitleScreen(){state='title';$('#overlay').className='overlay title-screen';$('#overlay').innerHTML=titleMarkup;$('#launch').onclick=beginDescent;const music=$('#introMusic');if(music)music.onclick=()=>$('#music').onclick();window.flightAudio?.setTitle(!document.hidden);musicControls();}
+function showTitleScreen(){state='title';$('#overlay').className='overlay title-screen';$('#overlay').innerHTML=titleMarkup;$('#launch').onclick=beginDescent;const music=$('#introMusic');if(music)music.onclick=()=>$('#music').onclick();window.flightAudio?.setTitle(!document.hidden);musicControls();updateExpeditionIntro();drawNavigationChart();}
 const sectors=campaign;
 const themeIndex=()=>LEVEL_THEMES[sectors[level].theme],bossIndex=()=>BOSS_KINDS[sectors[level].bossKind],difficulty=()=>sectors[level].difficulty;
 const levelPacing=()=>sectors[level].pacing||{pickupGap:2.4,maxPickups:1,maxActiveEnemies:10,pickupX:650,preBossRelief:true};
@@ -76,7 +76,8 @@ function tone(freq=440,duration=.06,type='sine',vol=.04,slide=0){if(sound)window
 function enableAudio(){try{window.flightAudio?.init();window.flightAudio?.setEnabled(sound)}catch(error){console.warn('Audio unavailable',error)}}
 function glow(color,blur=15){ctx.shadowColor=color;ctx.shadowBlur=blur}function noGlow(){ctx.shadowBlur=0}
 function poly(points,fill,stroke){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.3;ctx.stroke()}}
-function orb(x,y,r,color,alpha=1){ctx.globalAlpha=alpha;const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);ctx.globalAlpha=1}
+const orbTextures=new Map();
+function orb(x,y,r,color,alpha=1){if(r<=0||alpha<=0)return;let sprite=orbTextures.get(color);if(!sprite){sprite=document.createElement('canvas');sprite.width=sprite.height=96;const c=sprite.getContext('2d'),g=c.createRadialGradient(48,48,0,48,48,48);g.addColorStop(0,color);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(0,0,96,96);if(orbTextures.size>=64)orbTextures.delete(orbTextures.keys().next().value);orbTextures.set(color,sprite);}ctx.globalAlpha=alpha;ctx.drawImage(sprite,x-r,y-r,r*2,r*2);ctx.globalAlpha=1;}
 function background(dt){drawBackdrop(dt)}
 function drawBaseShip(x,y,scale=1,preview=false){ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);const tilt=preview?Math.sin(world*.005)*.03:(keys.has('ArrowUp')||keys.has('w'))?-.09:(keys.has('ArrowDown')||keys.has('s'))?.09:0;ctx.rotate(tilt);
 orb(-44,0,67,'#26e5dd',.4);glow('#6af9da',20);poly([[-32,-8],[-75-rand(0,25),0],[-32,8]],'#6effdd');poly([[-36,-4],[-85-rand(0,20),0],[-36,4]],'#effff5');noGlow();
@@ -85,18 +86,18 @@ function enemyShape(e){drawEnemy(e)}
 function drawBoss(){if(boss)drawMenace(boss)}
 function burst(x,y,color,count=22){for(let i=0;i<count;i++){const a=rand(0,TAU),v=rand(45,320);particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rand(.2,.8),max:.8,c:color,r:rand(1,4)})}rings.push({x,y,r:8,life:.5,c:color})}
 function announce(title,sub=''){const el=$('#announcement');el.textContent=title;if(sub){let small=document.createElement('small');small.textContent=sub;el.append(small)}el.className=/^SECTOR|^FIRST CONTACT/.test(title)?'':'compact';el.style.opacity=1;annTimer=/^SECTOR/.test(title)?2.4:1.8}
-function updateHUD(){$('#score').textContent=String(score).padStart(6,'0');$('#sectorNum').textContent=`${String(level+1).padStart(2,'0')} / ${String(sectors.length).padStart(2,'0')}`;$('#sectorName').textContent=sectors[level].stratum+' · '+sectors[level].short;$('#hearts').textContent='▰ '.repeat(Math.max(0,ship.hp))+'▱ '.repeat(5-Math.max(0,ship.hp));$('#weapon').textContent=`${weaponNames[weapon]} / MK ${['I','II','III'][power-1]}${ship.shield>0?' + SHIELD':''}`;$('#loadout').textContent=`BOOST ${speedLevel}/3 · DRONES ${companion}/2${ship.frontShield?' · GUARD '+ship.frontShield:''}${weaponOrb.owned?' · ORB '+(weaponOrb.target===0?'FRONT':'REAR'):''}`;$('#novas').textContent='● '.repeat(novas)+'○ '.repeat(3-novas);$('#progressLabel').textContent=`${sectors[level].scrollAxis==='down'?'DESCENT · ':sectors[level].scrollAxis==='up'?'ASCENT · ':''}SECTION ${currentSection()+1} / 4`;$('#progress').style.width=Math.min(100,time/sectors[level].duration*100)+'%';$('#status').textContent=state==='playing'?(boss?'BOSS ENGAGED':`SECTION ${currentSection()+1} / 4`):state==='title'?'AWAITING PILOT':state.toUpperCase();if(boss){$('#bosshealth').style.width=Math.max(0,boss.hp/boss.max*100)+'%';const hint=$('#bosstactic');if(hint)hint.textContent=typeof isCapitalSiege==='function'&&isCapitalSiege(boss)?capitalSiegeHint(boss):typeof bossEncounterHint==='function'?bossEncounterHint(boss):boss.exposed>0?'EXPOSED · ATTACK NOW':encounterRules[sectors[level].bossKind].hint;}}
+function updateHUD(){$('#score').textContent=String(score).padStart(6,'0');$('#sectorNum').textContent=`${String(level+1).padStart(2,'0')} / ${String(sectors.length).padStart(2,'0')}`;$('#sectorName').textContent=expedition.locations[sectors[level].id].destinationName+' · '+sectors[level].short;const currentLocation=expedition.locations[sectors[level].id],routePlanets=expeditionSystem(currentLocation).destinations.filter(d=>d.kind==='planet').map(d=>d.id),planetIndex=routePlanets.indexOf(currentLocation.destinationId),planetProgress=$('#destinationProgress');if(planetProgress)planetProgress.textContent=currentLocation.destinationKind==='star'?`${currentLocation.systemName} · STELLAR CORONA`:`${currentLocation.systemName} · PLANET ${planetIndex+1} / ${routePlanets.length}`;$('#hearts').textContent='▰ '.repeat(Math.max(0,ship.hp))+'▱ '.repeat(5-Math.max(0,ship.hp));$('#weapon').textContent=`${weaponNames[weapon]} / MK ${['I','II','III'][power-1]}${ship.shield>0?' + SHIELD':''}`;$('#loadout').textContent=`BOOST ${speedLevel}/3 · DRONES ${companion}/2${ship.frontShield?' · GUARD '+ship.frontShield:''}${weaponOrb.owned?' · ORB '+(weaponOrb.target===0?'FRONT':'REAR'):''}`;$('#novas').textContent='● '.repeat(novas)+'○ '.repeat(3-novas);$('#progressLabel').textContent=`${sectors[level].scrollAxis==='down'?'DESCENT · ':sectors[level].scrollAxis==='up'?'ASCENT · ':''}SECTION ${currentSection()+1} / 4`;$('#progress').style.width=Math.min(100,time/sectors[level].duration*100)+'%';$('#status').textContent=state==='playing'?(boss?'BOSS ENGAGED':`SECTION ${currentSection()+1} / 4`):state==='title'?'AWAITING PILOT':state.toUpperCase();if(boss){$('#bosshealth').style.width=Math.max(0,boss.hp/boss.max*100)+'%';const hint=$('#bosstactic');if(hint)hint.textContent=bossEncounterProfile(sectors[level]).signature+' · '+(typeof isCapitalSiege==='function'&&isCapitalSiege(boss)?capitalSiegeHint(boss):typeof bossEncounterHint==='function'?bossEncounterHint(boss):boss.exposed>0?'EXPOSED · ATTACK NOW':encounterRules[sectors[level].bossKind].hint);}}
 function fullscreenPanel(){const panel=$('.console')||$('.stage');if(panel?.classList){panel.classList.contains??=()=>false;panel.classList.toggle??=()=>{};}return panel;}
 function nativeFullscreenElement(){return document.fullscreenElement||document.webkitFullscreenElement;}
 function ensureGameFullscreen(){if(!nativeFullscreenElement()&&!fullscreenPanel().classList.contains('expanded'))return toggleGameFullscreen();return requestLandscape();}
 // Resume audio before fullscreen consumes the browser user activation.
-function beginDescent(){enableAudio();if(window.safariImmersion?.request(start))return;void ensureGameFullscreen();start();}
+function beginDescent(){enableAudio();const launch=()=>{start();sectorBlend={arrival:true,systemEntry:true,age:0,duration:6.2,destination:expedition.locations[sectors[0].id]};$('#announcement').style.opacity=0;annTimer=0;};if(window.safariImmersion?.request(launch))return;void ensureGameFullscreen();launch();}
 function start(){weaponOrb={owned:false,angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:0,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
-function resetSector(){resetWaterWakes();prepareSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;window.gpuModels?.prepare([bossDesign()?.mesh,...sectors[level].models.map(n=>meshes[n]),meshes.spore,meshes.missile,meshes.siphon,meshes.cannon,meshes.shrapnel,meshes.bone,meshes.rib,meshes.spineChip,meshes.chitinChip,meshes.skull,meshes.orbitalRock].filter(Boolean));challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setEnvironment?.(sectors[level].medium,sectors[level].theme);window.flightAudio?.setSector(sectors[level].music);window.flightAudio?.setBossApproach?.(0);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.inv=3;saveCheckpoint();updateHUD()}
+function resetSector(){resetWaterWakes();trimSectorArt(sectors[level],sectors[level+1]);prepareSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;window.gpuModels?.prepare([bossDesign()?.mesh,...sectors[level].models.map(n=>meshes[n]),meshes.spore,meshes.missile,meshes.siphon,meshes.cannon,meshes.shrapnel,meshes.bone,meshes.rib,meshes.spineChip,meshes.chitinChip,meshes.skull,meshes.orbitalRock].filter(Boolean));challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setEnvironment?.(sectors[level].medium,sectors[level].theme);window.flightAudio?.setSector(sectors[level].music);window.flightAudio?.setBossApproach?.(0);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.inv=3;saveCheckpoint();updateHUD()}
 function panel(title,description,label,action){$('#overlay').classList.remove('hidden','records-view','title-screen');$('#overlay').innerHTML=`<div class="intro"><div class="eyebrow mint">FIRST DESCENT / FLIGHT RECORD</div><h1 class="result-title">${title}</h1><p class="introcopy">${description}</p><button class="primary" id="panelAction">${label}<span>↗</span></button><div class="launch-caption">SCORE ${String(score).padStart(6,'0')} · SECTOR ${level+1} / ${sectors.length}</div></div>`;$('#panelAction').onclick=action;$('#panelAction').focus()}
 function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause)}else if(state==='paused'){enableAudio();const resume=()=>{state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus();updateHUD();};if(window.safariImmersion?.request(resume))return;void ensureGameFullscreen();resume()}updateHUD()}
 function end(win){if(!win&&flightRun)flightRun.deaths++;recordFlightRun(win);window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();state=win?'victory':'gameover';$('#pause').hidden=true;$('#touchControls').classList.remove('active');$('#bossbar').hidden=true;
- panel(win?'GALAXY<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',win?`${sectors.length} sectors cleared. Your expedition made it home.`:`Restart sector ${level+1}, section ${checkpoint.section+1} of 4.<br>Your checkpoint loadout returns, with power and shield pickups ahead.`,win?'FLY AGAIN':'RETRY SECTION',win?start:retrySection);updateHUD()}
+ panel(win?'SYSTEM<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',win?`${new Set(Object.values(expedition.locations).filter(p=>p.destinationKind==='planet').map(p=>p.destinationId)).size} planets conquered · ${sectors.length} descents cleared.<br>The expedition is secured. New solar systems will arrive in future updates.`:`Restart sector ${level+1}, section ${checkpoint.section+1} of 4.<br>Your checkpoint loadout returns, with power and shield pickups ahead.`,win?'FLY AGAIN':'RETRY SECTION',win?beginDescent:retrySection);updateHUD()}
 function makeShot(x,y,kind,angle=0,side=0){
  const c={pulse:'#92ffe7',spread:'#ffc26b',beam:'#87cfff',helix:'#be93ff',wave:'#6cffe8',missile:'#ffb86c',drone:'#a1eeff'}[kind];
  const speed=kind==='missile'?430:kind==='wave'?660:850;
@@ -195,29 +196,44 @@ function sectorSceneTime(){return time+sectorIntroLead+(sectorBlend?.age||0);}
 function advanceSector(){
  // Capture scenery afresh so the old ship never becomes part of the fade.
  ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();background(0);drawDreamAtmosphere();drawStructures();window.gpuModels?.flush(ctx);drawNearField();ctx.restore();
- const motion={x:ship.x,y:ship.y,vx:ship.vx,vy:ship.vy};
+ const fromLocation=expedition.locations[sectors[level].id],fromDestination=fromLocation?.destinationId;const motion={x:ship.x,y:ship.y,vx:ship.vx,vy:ship.vy};
  const outgoing=document.createElement('canvas');outgoing.width=720;outgoing.height=380;
  outgoing.getContext('2d').drawImage(canvas,0,0,720,380);
  const haze=document.createElement('canvas');haze.width=720;haze.height=380;const hc=haze.getContext('2d');hc.filter='blur(9px)';hc.drawImage(outgoing,-18,-10,756,400);hc.filter='none';
  level++;ship.hp=Math.min(5,ship.hp+2);novas=Math.min(3,novas+1);resetSector();Object.assign(ship,motion);
- sectorBlend={outgoing,haze,age:0,duration:1.65};$('#announcement').style.opacity=0;annTimer=0;window.flightAudio?.setIntensity(0);
+ const destination=expedition.locations[sectors[level].id],travel=destination?.destinationId!==fromDestination;sectorBlend={outgoing,haze,age:0,duration:travel?(destination.systemId!==fromLocation.systemId?6.2:5):1.65,systemEntry:destination.systemId!==fromLocation.systemId,destination:travel?destination:null};$('#announcement').style.opacity=0;annTimer=0;window.flightAudio?.setIntensity(0);
 }
 function drawSectorBlend(){if(!sectorBlend)return;const u=clamp(sectorBlend.age/sectorBlend.duration,0,1),e=u*u*(3-2*u),soft=Math.sin(Math.PI*u);
+ if(sectorBlend.arrival){drawPlanetTransit(sectorBlend.destination,u);return;}
  ctx.save();ctx.globalAlpha=(1-e)*(1-soft*.8);ctx.drawImage(sectorBlend.outgoing,0,0,W,H);
  ctx.globalAlpha=(1-e)*soft*.8;ctx.drawImage(sectorBlend.haze,0,0,W,H);
- ctx.globalAlpha=soft*.12;ctx.fillStyle=sectors[level].color;ctx.fillRect(0,0,W,H);ctx.restore();
+ ctx.globalAlpha=soft*.12;ctx.fillStyle=sectors[level].color;ctx.fillRect(0,0,W,H);ctx.restore();if(sectorBlend.destination)drawPlanetTransit(sectorBlend.destination,u);
 }
 function updateShipMovement(dt,environment=true){
 let dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
-const len=Math.hypot(dx,dy)||1,maxSpeed=390+speedLevel*75;
+const water=environment&&sectors[level].medium==='water',mobility=water?.82:1;
+const len=Math.hypot(dx,dy)||1,maxSpeed=(390+speedLevel*75)*mobility;
 let targetVX=dx/len*maxSpeed,targetVY=dy/len*maxSpeed;
-const drag=pointer?.relative?{x:pointer.moveX||0,y:pointer.moveY||0}:null;
+const drag=pointer?.relative?{x:(pointer.moveX||0)*mobility,y:(pointer.moveY||0)*mobility}:null;
 if(drag){pointer.moveX=pointer.moveY=0;const magnitude=Math.hypot(drag.x,drag.y)/dt,scale=Math.min(1,maxSpeed/(magnitude||1));targetVX=drag.x/dt*scale;targetVY=drag.y/dt*scale}
 else if(pointer){const px=(pointer.x-ship.x)/dt,py=(pointer.y-ship.y)/dt,scale=Math.min(1,maxSpeed/(Math.hypot(px,py)||1));targetVX=px*scale;targetVY=py*scale}
-// Steering has no acceleration lag or release drift; only the visual attitude eases.
-ship.vx=targetVX;ship.vy=targetVY;
+// Water carries momentum. Smooth displacement before velocity so touch input
+// remains consistent when pointer events arrive less often than simulation ticks.
+if(water){
+ if(drag){
+  const release=1-Math.exp(-dt/.10),limit=maxSpeed*.16;
+  ship.waterInputX=clamp((ship.waterInputX||0)+drag.x,-limit,limit);
+  ship.waterInputY=clamp((ship.waterInputY||0)+drag.y,-limit,limit);
+  targetVX=ship.waterInputX*release/dt;targetVY=ship.waterInputY*release/dt;
+  ship.waterInputX*=1-release;ship.waterInputY*=1-release;
+  const cap=Math.min(1,maxSpeed/(Math.hypot(targetVX,targetVY)||1));targetVX*=cap;targetVY*=cap;
+ }else ship.waterInputX=ship.waterInputY=0;
+ const accelerating=Math.hypot(targetVX,targetVY)>Math.hypot(ship.vx||0,ship.vy||0),ease=1-Math.exp(-dt/(accelerating?.18:.24));
+ ship.vx=(ship.vx||0)+(targetVX-(ship.vx||0))*ease;ship.vy=(ship.vy||0)+(targetVY-(ship.vy||0))*ease;
+ if(Math.abs(ship.vx)<.5&&Math.abs(targetVX)<.5)ship.vx=0;if(Math.abs(ship.vy)<.5&&Math.abs(targetVY)<.5)ship.vy=0;
+}else{ship.waterInputX=ship.waterInputY=0;ship.vx=targetVX;ship.vy=targetVY;}
 const suction=environment&&boss?bossSuctionForce(boss):0,oldX=ship.x,oldY=ship.y;
-ship.x=clamp(ship.x+(drag?drag.x:ship.vx*dt)+suction*dt,40,W-65);ship.y=clamp(ship.y+(drag?drag.y:ship.vy*dt)+(environment?sectorCurrent()*dt:0),42,H-42);
+ship.x=clamp(ship.x+(drag&&!water?drag.x:ship.vx*dt)+suction*dt,40,W-65);ship.y=clamp(ship.y+(drag&&!water?drag.y:ship.vy*dt)+(environment?sectorCurrent()*dt:0),42,H-42);
 // A quick finger swipe still crosses solid scenery; it cannot teleport through it.
 if(drag&&environment&&ship.inv<=0&&obstacles.length){const steps=Math.ceil(Math.hypot(ship.x-oldX,ship.y-oldY)/12),solids=obstacles.flatMap(obstacleSolids);for(let i=1;i<=steps;i++){const t=i/steps,x=oldX+(ship.x-oldX)*t,y=oldY+(ship.y-oldY)*t;if(solids.some(r=>x+24>r.x&&x-24<r.x+r.w&&y+14>r.y&&y-14<r.y+r.h)||obstacles.some(o=>o.rotor&&rotorContact(o,x,y,18))){damage();break;}}}
 if(ship.x===40||ship.x===W-65)ship.vx=0;if(ship.y===42||ship.y===H-42)ship.vy=0;
@@ -239,13 +255,13 @@ for(const b of hostile){const oldX=b.x,oldY=b.y;steerHostile(b,dt);if(b.kind==='
 for(const d of drops){d.age+=dt;d.x-=(d.drift||70)*dt;const distance=Math.hypot(d.x-ship.x,d.y-ship.y);if(distance<150){d.x+=(ship.x-d.x)*dt*2.8;d.y+=(ship.y-d.y)*dt*2.8}if(distance<55){collect(d);d.x=-100}}drops=drops.filter(d=>d.x>-30);
 if(boss&&boss.hp<=0){window.flightAudio?.clear();explodeBoss(boss);enemies=[];hazards=[];acidClouds=[];rings.push({x:boss.x,y:boss.y,r:20,life:1.1,c:'#fff'});score+=3000*(level+1);boss=null;bossDefeated=true;transition=4;hostile=[];shots=[];flash=.48;shake=20;$('#bossbar').hidden=true;announce('SECTOR CLEARED','DESCENT ROUTE OPEN');tone(55,.9,'triangle',.04,-25)}
 if(state!=='playing')return;if(bossDefeated){transition-=dt;if(transition<=0){if(level===sectors.length-1){end(true)}else{advanceSector()}}}hudClock+=dt;if(hudClock>=.08){hudClock=0;updateHUD()}}
-function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));background(dt);drawDreamAtmosphere();drawStructures();if(sectorBlend){window.gpuModels?.flush(ctx);drawNearField();drawSectorBlend();}if(state==='title'){drawShip(1020,320+Math.sin(world*.004)*8,3.15,true);for(let i=0;i<3;i++){ctx.strokeStyle='#88f8dd';ctx.globalAlpha=.2-i*.05;ctx.beginPath();ctx.moveTo(630-i*65,317+i*5);ctx.lineTo(790-i*20,317+i*5);ctx.stroke()}ctx.globalAlpha=1}else{drawWaterWakes();for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'){ctx.save();ctx.globalAlpha*=ship.inv>0?.74+Math.sin(ship.inv*28)*.26:1;drawShip(ship.x,ship.y);ctx.restore();}drawFrontShield();drawWeaponOrb();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}
+function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));background(dt);drawDreamAtmosphere();drawStructures();if(sectorBlend){window.gpuModels?.flush(ctx);drawNearField();drawSectorBlend();}if(state==='title'){drawNavigationChart();drawShip(1090,560+Math.sin(world*.004)*8,1.3,true);for(let i=0;i<3;i++){ctx.strokeStyle='#88f8dd';ctx.globalAlpha=.2-i*.05;ctx.beginPath();ctx.moveTo(630-i*65,317+i*5);ctx.lineTo(790-i*20,317+i*5);ctx.stroke()}ctx.globalAlpha=1}else{drawWaterWakes();for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'){ctx.save();ctx.globalAlpha*=ship.inv>0?.74+Math.sin(ship.inv*28)*.26:1;drawShip(ship.x,ship.y);ctx.restore();}drawFrontShield();drawWeaponOrb();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}
 window.gpuModels?.flush(ctx);drawExplosions(dt);if(!sectorBlend)drawNearField();drawWaterAtmosphere(true);const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}ctx.restore();window.gpuModels?.flush(ctx)}
 let accumulator=0,frameError=null,musicUiClock=0,sectorArtPrefetched=false;
 let renderScale=1,renderQuality=matchMedia('(pointer: coarse)').matches?1:1.5,surfaceWidth=W,surfaceDirty=true;
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{surfaceDirty=true;}).observe(canvas);
 window.addEventListener('resize',()=>{surfaceDirty=true;});
-function resizeFlightSurface(){if(surfaceDirty){surfaceWidth=canvas.getBoundingClientRect?.().width||W;surfaceDirty=false;}const width=surfaceWidth;const ratio=Math.max(.75,Math.min(renderQuality,width*(window.devicePixelRatio||1)/W));if(Math.abs(renderScale-ratio)>.03||canvas.width!==Math.round(W*ratio)){renderScale=ratio;canvas.width=Math.round(W*ratio);canvas.height=Math.round(H*ratio);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';}window.flightRenderScale=renderScale;}
+function resizeFlightSurface(){if(surfaceDirty){surfaceWidth=canvas.getBoundingClientRect?.().width||W;surfaceDirty=false;}const width=surfaceWidth;const ratio=Math.max(.75,Math.min(renderQuality,width*(window.devicePixelRatio||1)/W));if(Math.abs(renderScale-ratio)>.03||canvas.width!==Math.round(W*ratio)){renderScale=ratio;canvas.width=Math.round(W*ratio);canvas.height=Math.round(H*ratio);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';}window.flightRenderScale=renderScale;window.flightEffectsQuality=renderQuality<=.75?.65:1;}
 
 function reportFrameError(error){
  if(frameError)return;
@@ -264,10 +280,11 @@ function frame(now){
  if(document.hidden){accumulator=0;return;}
  musicUiClock+=dt;if(musicUiClock>=.2){musicUiClock=0;musicControls();}
  // Fetch the following sector well before the transition, after startup.
+ if(state==='paused'&&!surfaceDirty){accumulator=0;return;}
  if(state==='playing'&&!sectorArtPrefetched&&time>sectors[level].duration*.65){sectorArtPrefetched=true;if(sectors[level+1])prepareSectorArt(sectors[level+1]);}
  try{accumulator+=dt;while(accumulator>=1/120){captureMotion();update(1/120);accumulator-=1/120}renderSmooth(dt,accumulator*120)}catch(error){reportFrameError(error)}
 }
-window.addEventListener('keydown',e=>{if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys.add(k);if(e.repeat)return;if(k==='Enter'&&state==='title'){beginDescent();return;}if(k==='p'||k==='Escape')pause();if(k==='x')nova();if(k===' ')switchOrb()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;if(state==='playing')pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause()});
+window.addEventListener('keydown',e=>{if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys.add(k);if(e.repeat)return;if(k==='Enter'&&state==='title'){beginDescent();return;}if(k==='p'||k==='Escape')pause();if(k==='x')nova();if(k===' ')switchOrb()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{const touchDevice=matchMedia('(pointer: coarse)').matches||(window.navigator?.maxTouchPoints||0)>0;keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;if(state==='playing'&&(!touchDevice||document.hidden))pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause()});
 // Relative dragging preserves the finger-to-ship offset. A stationary finger
 // is neutral, and lifting/repositioning never attracts the ship to the contact.
 function setPointer(e){
@@ -291,27 +308,44 @@ function releasePointer(e,tap=false){
  }else lastTouchTap=null;
  pointer=null;
 }
-canvas.addEventListener('pointerdown',e=>{
+function flightPointerDown(e){
  if(state!=='playing')return;
+ e.preventDefault();
  if(e.pointerType==='touch'){
   touchContacts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(touchContacts.size===2){const [a,b]=[...touchContacts.values()],distance=Math.hypot(a.x-b.x,a.y-b.y);if(distance>=24&&distance<=260)pinchGesture={distance};}
+  if(touchContacts.size===2){const [a,b]=[...touchContacts.values()],distance=Math.hypot(a.x-b.x,a.y-b.y);if(distance>=48&&distance<=300)pinchGesture={distance,starts:[{...a},{...b}],ids:[...touchContacts.keys()]};}
  }
+ canvas.setPointerCapture(e.pointerId);
  if(pointer)return;
  const relative=e.pointerType==='touch'||e.pointerType==='pen';
  pointer={id:e.pointerId,relative,started:e.timeStamp,startX:e.clientX,startY:e.clientY,dragged:false,lastClientX:e.clientX,lastClientY:e.clientY,moveX:0,moveY:0};
- canvas.setPointerCapture(e.pointerId);setPointer(e);
-});
-canvas.addEventListener('pointermove',e=>{
+ setPointer(e);
+}
+function flightPointerMove(e){
+ if(state==='playing')e.preventDefault();
  if(touchContacts.has(e.pointerId))touchContacts.set(e.pointerId,{x:e.clientX,y:e.clientY});
  if(pinchGesture&&touchContacts.size===2){
-  const [a,b]=[...touchContacts.values()],distance=Math.hypot(a.x-b.x,a.y-b.y),change=Math.abs(distance-pinchGesture.distance);
-  if(change>Math.max(24,pinchGesture.distance*.22)&&state==='playing')pause();
-  return;
+  const [a,b]=pinchGesture.ids.map(id=>touchContacts.get(id)),[sa,sb]=pinchGesture.starts;
+  if(a&&b){const ux=(sb.x-sa.x)/pinchGesture.distance,uy=(sb.y-sa.y)/pinchGesture.distance,
+   inwardA=(a.x-sa.x)*ux+(a.y-sa.y)*uy,inwardB=-((b.x-sb.x)*ux+(b.y-sb.y)*uy),distance=Math.hypot(a.x-b.x,a.y-b.y);
+   // Both fingers must deliberately move inward. One moving thumb beside a
+   // resting finger, parallel drags and stretches are ordinary play.
+   if(inwardA>18&&inwardB>18&&pinchGesture.distance-distance>Math.max(48,pinchGesture.distance*.3)&&state==='playing'){pause();return;}
+  }
  }
  setPointer(e);
-});
+}
+canvas.addEventListener('pointerdown',flightPointerDown);canvas.addEventListener('pointermove',flightPointerMove);
 canvas.addEventListener('pointerup',e=>releasePointer(e,true));canvas.addEventListener('pointercancel',releasePointer);canvas.addEventListener('lostpointercapture',releasePointer);
+// The lower HUD and letterboxing are also flight surfaces on touch devices.
+// Keep native page scrolling out of gameplay, while buttons retain taps.
+const flightSurface=fullscreenPanel();
+for(const [type,handler] of [['pointerdown',flightPointerDown],['pointermove',flightPointerMove],['pointerup',e=>releasePointer(e,true)],['pointercancel',releasePointer]])flightSurface.addEventListener(type,e=>{
+ if(e.target===canvas||e.target?.closest?.('button,a,.overlay')||!['touch','pen'].includes(e.pointerType))return;
+ handler(e);
+});
+flightSurface.addEventListener('touchmove',e=>{if(state==='playing'&&e.cancelable)e.preventDefault();},{passive:false});
+
 $('#launch').onclick=beginDescent;$('#pause').onclick=pause;$('#novaTouch').onclick=nova;$('#orbTouch').onclick=switchOrb;$('#sound').onclick=()=>{sound=!sound;enableAudio();$('#sound').textContent=sound?'SFX ON':'SFX OFF';$('#sound').setAttribute('aria-label',sound?'Mute sound effects':'Enable sound effects');if(sound){if(state!=='title')tone(660,.12,'sine',.05)}};async function requestLandscape(){try{await window.screen?.orientation?.lock?.('landscape');}catch{ /* Phones without orientation locking show the rotate hint. */ }}
 async function toggleGameFullscreen(){
  const stage=fullscreenPanel();
@@ -322,8 +356,9 @@ async function toggleGameFullscreen(){
 }
 function updateFullscreenButtons(){const active=!!nativeFullscreenElement()||fullscreenPanel().classList.contains('expanded');fullscreenPanel().classList.toggle('native-fullscreen',!!nativeFullscreenElement());for(const id of ['#fullscreen','#fullscreenStage']){const button=$(id);if(button){const native=!!(fullscreenPanel().requestFullscreen||fullscreenPanel().webkitRequestFullscreen);button.textContent=active?(native?'EXIT FULLSCREEN':'EXIT EXPANDED VIEW'):(native?'FULLSCREEN':'EXPAND GAME');button.setAttribute('aria-label',active?(native?'Exit fullscreen':'Exit expanded view'):(native?'Enter fullscreen':'Expand game'));}}}
 $('#fullscreen').onclick=toggleGameFullscreen;if($('#fullscreenStage'))$('#fullscreenStage').onclick=toggleGameFullscreen;document.addEventListener('fullscreenchange',updateFullscreenButtons);document.addEventListener('webkitfullscreenchange',updateFullscreenButtons);
-if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_game_status',description:'Read the current First Descent flight status.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:(input)=>{if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length)throw new Error('Expected an empty object');return {state,sector:level+1,score,hull:ship.hp,weapon,power,novas,speedLevel,companion,renderer:window.gpuModels?.stats()||{engine:'Canvas compatibility'}}}})).catch(()=>{})}catch{}}
-$('#records').onclick=showLocalScores;$('#campaignCaption').textContent=`${sectors.length} DEPTHS · ${sectors.length} BOSSES · 4 CHECKPOINTS PER SECTOR`;
+if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_game_status',description:'Read the current First Descent flight status.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:(input)=>{if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length)throw new Error('Expected an empty object');return {state,sector:level+1,score,hull:ship.hp,weapon,power,novas,speedLevel,companion,renderer:window.gpuModels?.stats()||{engine:'Canvas compatibility'},performance:window.flightPerformance||null}}})).catch(()=>{})}catch{}}
+function updateExpeditionIntro(){const system=contentReleases[0].systems[0],planets=system.destinations.filter(d=>d.kind==='planet'),stages=system.destinations.flatMap(d=>d.stages);$('#campaignCaption').textContent=`${system.star.name} · ${planets.length} PLANETS · ${stages.length} BOSSES`;const copy=$('.introcopy');if(copy)copy.textContent=`Something down there is awake.\n${planets.length} worlds orbit an unquiet sun.\nConquer each descent. Secure the ${system.name} system.`;const map=$('#expeditionMap');if(map)map.setAttribute('aria-label',`${GALAXY.name}, ${system.star.name} at the center, and ${planets.length} planets: ${planets.map(p=>p.name).join(', ')}`);}
+$('#records').onclick=showLocalScores;updateExpeditionIntro();
 updateHUD();requestAnimationFrame(frame);
 
 // Title music is independently switchable; the first gesture unlocks browser audio.

@@ -187,48 +187,67 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
  }
 
  function mother(){
-  const d=creator(5,'BROOD MOTHER','chitin',1.9,[-113,5,0],[{center:[5,1,0],radii:[102,39,34]},{center:[-78,-1,0],radii:[37,26,28]},{center:[89,8,0],radii:[44,22,25]}]),{part,loft,tube,sheet,armor,lens,sensePit}=d.tools;
-  const chitin=[143,65,43],cuticle=[55,48,42],limb=[195,123,59],membrane=[174,94,47];
-  part('queen axial body','fixed',{},()=>{
-   loft([[-109,0,0,8,16],[-91,-4,0,17,21],[-66,-3,0,25,27],[-38,0,0,37,34],[-7,3,0,38,37],[25,7,0,35,33],[58,9,0,31,28],[90,8,0,23,23],[118,8,0,11,15],[136,7,0,1,2]],cuticle,{steps:3,sides:32,ridge:.02});
-   armor(-83,-49,-5,26,27,chitin,{n:5,m:20});armor(-52,-24,0,35,32,chitin,{n:5,m:20});
-   for(let i=0;i<6;i++){const x=-20+i*24;armor(x,x+27,7,37-i*4.4,35-i*3.8,tint(chitin,1-i*.02),{n:4,m:18});}
-   // Ridged forehead protects a deep central intake rather than a reptile face.
-   loft([[-115,-7,0,2,10],[-103,-14,0,10,22],[-84,-15,0,15,28],[-61,-12,0,21,26]],chitin,{steps:4,sides:28,exponent:.73});
-   lens([-110,6,0],[2.2,13,16],[13,17,20],{wet:.85});
-   for(const side of [-1,1]){
-    tube([[-108,-13,side*13,2.5],[-87,-27,side*23,4],[-61,-26,side*25,2.6],[-30,-28,side*23,.6]],limb,{steps:4,sides:10});
-    for(let i=0;i<6;i++){const x=2+i*19,z=side*(35-i*3.2);lens([x,10,z],[7,4.8,1.4],[180,99,64],{em:.07,wet:.4});tube([[x-8,5,z-side,1.7],[x-2,2,z,2],[x+8,4,z-side,1.2]],limb,{steps:3,sides:8});}
+  const d=creator(5,'VESPER BROOD QUEEN','chitin',2.05,[-102,15,0],[{center:[-15,-3,0],radii:[43,36,32]},{center:[-67,-7,0],radii:[27,27,32]},{center:[60,13,0],radii:[47,30,26]}]),{part,loft,tube,sheet,armor,lens,sensePit,face}=d.tools;
+  const shell=[36,125,132],ridge=[103,177,158],joint=[30,46,47],leg=[62,70,61],wing=[164,190,179];
+  d.identity='alien-fly';
+  part('flight thorax and segmented abdomen','fixed',{},()=>{
+   // A high, compact flight thorax, narrow waist and tapered egg abdomen.
+   loft([[-53,-4,0,7,10],[-38,-8,0,26,27],[-16,-7,0,35,32],[10,0,0,29,27],[26,9,0,14,17],[44,15,0,26,25],[66,17,0,29,26],[89,18,0,21,19],[111,20,0,3,5]],shell,{steps:4,sides:28});
+   // Fine sutures follow the continuous skin, instead of oversized ring plates.
+   for(const [x,y,ry,rz] of [[-28,-8,31,30],[-5,-4,34,31],[43,15,26,25],[63,17,29,26],[82,18,25,22],[96,19,15,14]]){
+    const pts=[];for(let j=0;j<=24;j++){const a=j/24*TAU;pts.push([x+Math.sin(a*2)*1.1,y+Math.cos(a)*(ry+.35),Math.sin(a)*(rz+.35),.6]);}tube(pts,[28,75,78],{steps:1,sides:6});
    }
-  });
-  for(const side of [-1,1]){sensePit(-88,-12,side*27,side,chitin,2.3);sensePit(-78,-17,side*29,side,chitin,1.65);}
-  for(const up of [-1,1])part('split furnace jaw','jaw',{pivot:[-79,up*7,0],axis:[0,0,1],direction:-up,amount:.47},()=>{
    for(const side of [-1,1]){
-    tube([[-77,up*14,side*21,8,6],[-98,up*18,side*19,6,4],[-117,up*10,side*12,4,3],[-121,up*1,side*6,.8,.7]],limb,{steps:4,sides:12});
-    for(let i=0;i<5;i++)tube([[-92-i*5,up*(15-i),side*(18-i*2),2],[-95-i*5,up*(7-i),side*(15-i*2),.25]],tint(chitin,1.1),{steps:2,sides:7});
+    for(let i=0;i<4;i++)lens([39+i*17,18,side*(25-i*3.7)],[4,2.5,1],ridge,{wet:.6});
+    // Short thoracic bristles catch the light without becoming giant horns.
+    for(let i=0;i<11;i++){const x=-39+i*4.3,y=-30+Math.sin(i*.6)*3,z=side*(10+i%3*5);tube([[x,y,z,.65],[x+3,y-9-i%3,z+side*3,.12]],leg,{steps:2,sides:5});}
    }
+   loft([[-87,-7,0,3,8],[-76,-9,0,20,20],[-63,-9,0,23,23],[-47,-6,0,12,16]],shell,{steps:4,sides:28});
   });
-  // Four paired joint chains paddle in a travelling metachronal rhythm.
-  for(const side of [-1,1])for(let i=0;i<4;i++){
-   const root=[-44+i*37,17,side*(26-i*1.4)],elbow=[-60+i*40,35,side*(53-i*2)],knee=[-80+i*48,63,side*(67-i*2)];
-   part('brood limb','leg',{pivot:root,knee:elbow,side,index:i,amplitude:1.25},()=>{
-    tube([[...root,9,7],[...elbow,6.5,5],[...knee,4,3.8],[-77+i*48,79,side*(54-i*2),1.4,1],[-64+i*46,76,side*(45-i*2),.2,.4]],limb,{steps:4,sides:11});
-    tube([[root[0]-4,root[1]-4,root[2],3],[elbow[0]-3,elbow[1]-4,elbow[2],3],[knee[0]-4,knee[1]-2,knee[2],1]],chitin,{steps:3,sides:8});
+  for(const side of [-1,1]){
+   part('ruby compound eye','fixed',{},()=>{
+    const cx=-69,cy=-10,cz=side*19,rx=22,ry=26,rz=16;
+    lens([cx,cy,cz],[rx,ry,rz],[96,27,29],{wet:1});
+    // Hexagonal ommatidia lie on a convex eye surface, with no white eyeball.
+    for(let row=-5;row<=5;row++)for(let col=-4;col<=4;col++){
+     const xx=col*4.7+(row%2?2.35:0),yy=row*4.1;if((xx/rx)**2+(yy/ry)**2>.78)continue;
+     const vertices=[];for(let i=0;i<6;i++){const a=i*TAU/6,px=xx+Math.cos(a)*2.55,py=yy+Math.sin(a)*2.55;vertices.push([cx+px,cy+py,cz+side*(Math.sqrt(Math.max(.02,1-(px/rx)**2-(py/ry)**2))*rz+.35)]);}
+     const light=.76+.16*Math.sin(row*2+col*1.7)+Math.max(0,-yy/ry)*.23;face(side<0?vertices.reverse():vertices,tint([188,57,39],light),null,{wet:1,textureWeight:0,em:.025});
+    }
+   });
+   sensePit(-58,-32,side*10,side,shell,1.8);
+   part('aristate antenna','feeler',{pivot:[-84,-18,side*7],side,index:1},()=>{
+    tube([[-84,-18,side*7,2.2],[-95,-21,side*10,1.6],[-101,-28,side*12,.7],[-105,-36,side*14,.14]],leg,{steps:3,sides:7});
+    for(let i=0;i<5;i++)tube([[-99-i,-25-i*2,side*12,.3],[-105-i,-26-i*3,side*(15+i),.08]],ridge,{steps:2,sides:5});
+   });
+  }
+  // A short split proboscis opens around the existing attack socket.
+  for(const side of [-1,1])part('feeding proboscis','jaw',{pivot:[-82,10,side*5],axis:[0,1,0],direction:side,amount:.28},()=>{
+   tube([[-82,10,side*5,4],[-91,16,side*5,3.5],[-102,15,side*4,2.5]],joint,{steps:4,sides:12});lens([-102,15,side*4],[3,5,4],[122,67,44],{wet:.8});
+  });
+  for(const side of [-1,1])for(let i=0;i<3;i++){
+   const root=[-32+i*21,14,side*23],knee=[-49+i*31,39,side*38],foot=[-64+i*40,69,side*35];
+   part('jointed fly leg','leg',{pivot:root,knee,side,index:i,frequency:4.8,amplitude:.65},()=>{
+    tube([[...root,4.3],[...knee,3],[...foot,1.4],[foot[0]+9,79,side*29,.35]],leg,{steps:3,sides:9});
+    for(const split of [-1,1])tube([[foot[0]+9,77,side*29,.6],[foot[0]+4+split*3,82,side*(27+split),.1]],ridge,{steps:2,sides:6});
    });
   }
   for(const side of [-1,1]){
-   part('abdomen propulsion vane','undulate',{pivot:[51,15,side*23],side,span:88,amplitude:22,frequency:3.4,phase:side*.5},()=>{
-    const point=(u,v)=>{const width=8+Math.pow(Math.sin(u*Math.PI),.74)*88;return[22+u*119,17+Math.sin(u*Math.PI)*5+Math.sin(v*Math.PI)*5,side*(19+width*v)];};
-    sheet(point,membrane,24,9,.7);
-    for(let i=1;i<11;i++){const pts=[];for(let j=0;j<=4;j++)pts.push([...point(i/11,j/4),mix(2.5,.4,j/4)]);tube(pts,limb,{steps:2,sides:7});}
+   part('veined flight wing','wing',{pivot:[-21,-20,side*22],side,pair:0,amplitude:.36},()=>{
+    const point=(u,v)=>{const span=Math.sin(u*Math.PI)*54;return[-21+u*111+(v-.5)*span,-20-Math.sin(u*Math.PI)*8,side*(22+u*107+(v-.5)*span*.8)];};
+    sheet(point,wing,22,9,.3,{textureWeight:.22,wet:.8});
+    for(const v of [.07,.36,.68,.95]){const pts=[];for(let i=0;i<=7;i++)pts.push([...point(i/7,v),.75-i*.07]);tube(pts,[76,127,118],{steps:2,sides:5});}
+    for(const u of [.28,.49,.69,.85])tube([[...point(u,.12),.36],[...point(u,.9),.25]],ridge,{steps:2,sides:5});
    });
-   part('olfactory palp','feeler',{pivot:[-93,-21,side*13],side,index:3},()=>tube([[-93,-21,side*13,3.1],[-115,-36,side*24,2.4],[-128,-19,side*39,1.2],[-134,-5,side*44,.25]],cuticle,{steps:4,sides:9}));
+   part('balancing haltere','wing',{pivot:[13,2,side*25],side,pair:Math.PI,amplitude:.2},()=>{
+    tube([[13,2,side*25,1.2],[25,5,side*41,.7]],ridge,{steps:3,sides:7});lens([25,5,side*41],[3,3.5,3],[179,143,70],{wet:.5});
+   });
   }
   return d;
  }
 
  function build(){for(const d of [warden(),sovereign(),monarch(),mother()]){delete d.tools;d.triangles=d.mesh.reduce((n,f)=>n+f.v.length-2,0);d.vertexCount=new Set(d.mesh.flatMap(f=>f.v)).size;alienBossDesigns[d.kind]=d;meshes['alienBoss'+d.kind]=d.mesh;}return alienBossDesigns;}
- function opening(b){const a=b.breath;let n=.07+.045*Math.sin((b.age||0)*3.8);if(a){n=Math.min(cl(a.age/Math.max(.1,a.warning),0,1),cl((a.warning+a.duration+.7-a.age)/.7,0,1));}else if(b.vacuum>0)n=cl(b.vacuum/.6,0,1);else if(b.charge>0)n=.12+cl(1-b.charge/1.7,0,1)*.7;if(b.sporePods?.length)n=Math.max(n,.78);if(b.attack)n=Math.max(n,cl(b.attack.age/.45,0,1)*.78);if(b.salvoWindup)n=Math.max(n,cl(b.salvoWindup.age/.5,0,1)*.85);if(b.muzzle>0)n=Math.max(n,.85*cl(b.muzzle/.08,0,1));if(b.roar>0)n=Math.max(n,Math.sin(cl(b.roar/1.3,0,1)*Math.PI)*.95);return n;}
+ function opening(b){const a=b.breath;let n=.07+.045*Math.sin((b.age||0)*3.8);if(a){n=Math.min(cl(a.age/Math.max(.1,a.warning),0,1),cl((a.warning+a.duration+.7-a.age)/.7,0,1));}else if(b.vacuum>0)n=cl(b.vacuum/.6,0,1);else if(b.charge>0)n=.12+cl(1-b.charge/1.7,0,1)*.7;if(b.venom)n=Math.max(n,cl(b.venom.age/b.venom.warning,0,1)*.9);if(b.sporePods?.length)n=Math.max(n,.78);if(b.attack)n=Math.max(n,cl(b.attack.age/.45,0,1)*.78);if(b.salvoWindup)n=Math.max(n,cl(b.salvoWindup.age/.5,0,1)*.85);if(b.muzzle>0)n=Math.max(n,.85*cl(b.muzzle/.08,0,1));if(b.roar>0)n=Math.max(n,Math.sin(cl(b.roar/1.3,0,1)*Math.PI)*.95);return n;}
  buildAlienBosses=window.buildAlienBosses=build;
  function rotationMatrix(axis,angle){const [x,y,z]=unit(axis),c=Math.cos(angle),sn=Math.sin(angle),a=1-c;return[c+x*x*a,x*y*a-z*sn,x*z*a+y*sn,y*x*a+z*sn,c+y*y*a,y*z*a-x*sn,z*x*a-y*sn,z*y*a+x*sn,c+z*z*a];}
  function applyRotation(v,p,m){const x=v[0]-p[0],y=v[1]-p[1],z=v[2]-p[2];v[0]=p[0]+m[0]*x+m[1]*y+m[2]*z;v[1]=p[1]+m[3]*x+m[4]*y+m[5]*z;v[2]=p[2]+m[6]*x+m[7]*y+m[8]*z;}
@@ -260,7 +279,7 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
  // Smooth, asymmetric power/recovery stroke. The fast phase pushes against
  // the air; recovery feathers the outer membrane to reduce drag.
  function flightStroke(t){return Math.sin(t)+.27*Math.sin(2*t)-.07*Math.sin(3*t);}
- const wingRates={0:10.5,2:4.75,3:3.9,5:4.4};
+ const wingRates={0:10.5,2:4.75,3:3.9,5:26};
  // Radians per accumulated propulsion second. Audio uses this exact phase,
  // so each power stroke keeps its sound when acceleration changes the beat.
  organicBossWingRate=window.organicBossWingRate=kind=>wingRates[kind]||0;
@@ -273,10 +292,10 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
   // Every pose starts at its bind coordinates, including the flexible body.
   // All arrays are retained; there are no per-vertex temporary allocations.
   for(const p of d.parts){
-   const phase=(kind===5&&p.rig==='leg'?wingPhase:flight*(p.frequency||3.6))+(p.index||0)*1.32+(p.side||0)*.32,beat=wingPhase+(p.pair||0)*1.0;
+   const phase=flight*(p.frequency||3.6)+(p.index||0)*1.32+(p.side||0)*.32,beat=wingPhase+(p.pair||0)*1.0;
    let matrix=null,second=null;
    if(p.rig==='jaw')matrix=rotationMatrix(p.axis,p.direction*jaw*p.amount);
-   if(p.rig==='wing')matrix=rotationMatrix([1,0,0],p.side*(-.12-climb*.13+flightStroke(beat)*p.amplitude*(.72+thrust*.68)));
+   if(p.rig==='wing')matrix=rotationMatrix([1,0,0],p.side*((kind===5?-.45:-.12)-climb*.13+flightStroke(beat)*p.amplitude*(.72+thrust*.68)));
    if(p.rig==='leg'){
     const rake=turning*.22+load*.35,stroke=flightStroke(phase);
     matrix=rotationMatrix([1,0,0],p.side*(.07+thrust*.12+stroke*(.23+thrust*.38)+rake-attack*.24));
@@ -288,10 +307,10 @@ var alienBossDesigns={},buildAlienBosses,animateAlienBoss,alienBossPoint,organic
     if(p.rig==='jaw')applyRotation(v,p.pivot,matrix);
     else if(p.rig==='wing'){
      applyRotation(v,p.pivot,matrix);
-     const span=cl(Math.abs(r[2]-p.pivot[2])/115,0,1),recovery=Math.max(0,Math.cos(beat)),fold=p.side*(recovery*(.27+thrust*.2)+attack*.13)*span,cf=Math.cos(fold),sf=Math.sin(fold),x=v[0]-p.pivot[0],z=v[2]-p.pivot[2];
+     const span=cl(Math.abs(r[2]-p.pivot[2])/115,0,1),recovery=Math.max(0,Math.cos(beat)),fold=p.side*(recovery*(kind===5?.09:.27+thrust*.2)+attack*.13)*span,cf=Math.cos(fold),sf=Math.sin(fold),x=v[0]-p.pivot[0],z=v[2]-p.pivot[2];
      v[0]=p.pivot[0]+x*cf+z*sf;v[2]=p.pivot[2]+z*cf-x*sf;
      // Elastic trailing-edge lag follows the downstroke without changing span.
-     v[1]+=Math.sin(beat-.55)*span*span*(4+thrust*7);
+     v[1]+=Math.sin(beat-.55)*span*span*(kind===5?2:4+thrust*7);
     }else if(p.rig==='undulate'){
      const span=cl((Math.abs(r[2])-Math.abs(p.pivot[2]))/p.span,0,1),wave=wingPhase-r[0]*.047+(p.phase||0),stroke=flightStroke(wave),angle=(stroke*(.48+thrust*.6)+climb*.13+p.side*bank*.14+load*.2-attack*.3)*span,ca=Math.cos(angle),sa=Math.sin(angle),y=r[1]-p.pivot[1],z=r[2]-p.pivot[2];
      // A rotation of each fin ray gives the membrane a real power stroke.
