@@ -1,3 +1,4 @@
+function isTideEncounter(){return typeof updateTideEncounter==='function'&&sectors[level]?.encounterDirector==='tide-knots';}
 /* Painted scenery and sprite artwork, with procedural animation and combat effects. */
 const art={},artFiles={"blackHole":"black-hole-frontier-v1.webp","orisonOcean":"orison-ocean-v1.webp","orisonGas":"orison-gas-v1.webp","orisonCinder":"orison-cinder-v1.webp","orisonIce":"orison-ice-v1.webp","reefObstacle":"obstacle-reef.webp","stormObstacle":"obstacle-storm.webp","coreObstacle":"obstacle-core.webp","colonyObstacle":"obstacle-colony.webp","carrierObstacle":"obstacle-carrier.webp","derelictObstacle":"obstacle-derelict.webp","space":"space-panorama.webp","carrier":"carrier-panorama.webp","abyss":"abyss-panorama.webp","reef":"reef-descent.webp","storm":"storm-ascent.webp","core":"core-panorama.webp"};
 const artCrops={"reefObstacle":{"x":62,"y":24,"w":920,"h":1485},"stormObstacle":{"x":141,"y":14,"w":748,"h":1502},"coreObstacle":{"x":51,"y":6,"w":964,"h":1519},"colonyObstacle":{"x":260,"y":5,"w":509,"h":1525},"carrierObstacle":{"x":230,"y":2,"w":559,"h":1526},"derelictObstacle":{"x":255,"y":4,"w":530,"h":1527}};
@@ -430,7 +431,7 @@ function driveBoss(b,target,dt,drive,speed){
  const vx=b.navVX||0,vy=b.navVY||0;let nx=vx+((target.x-b.x)*drive*drive-2*drive*vx)*dt,ny=vy+((target.y-b.y)*drive*drive-2*drive*vy)*dt;
  const magnitude=Math.hypot(nx,ny),limit=speed/Math.max(speed,magnitude);b.navVX=nx*limit;b.navVY=ny*limit;b.x+=b.navVX*dt;b.y+=b.navVY*dt;
 }
-function moveBoss(b,dt){if(sectors[level].medium==='water')dt*=WATER_HANDLING.bossMotion;if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){moveCapitalShip(b,dt);return;}const kind=bossIndex(),oldX=b.x,oldY=b.y;
+function moveBoss(b,dt){if(isTideEncounter()){moveTideBoss(b,dt);return;}if(sectors[level].medium==='water')dt*=WATER_HANDLING.bossMotion;if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){moveCapitalShip(b,dt);return;}const kind=bossIndex(),oldX=b.x,oldY=b.y;
  const crossing=![1,4].includes(kind)&&updateBossPass(b,dt);
  if(!crossing&&Math.abs(ship.x-b.x)>120&&!b.breath){const targetYaw=ship.x>b.x?Math.PI:0;b.turnYaw=(b.turnYaw||0)+clamp(targetYaw-(b.turnYaw||0),-dt*2.4,dt*2.4);}
  if(crossing){b.navVX=(b.x-oldX)/dt;b.navVY=(b.y-oldY)/dt;}
@@ -470,8 +471,9 @@ function updateBossAttitude(b,dt,vx,vy){
 function bossCombatPhase(b){const ratio=b.max>0?b.hp/b.max:1;return ratio<.28?2:ratio<.62?1:0;}
 function bossPatternBusy(b){return !!(b.venom||(b.pass&&b.pass.stage!=='rear')||b.breath||b.charge>0||b.rush>0||b.vacuum>0||b.barrage>0||b.rackShots>0||b.sporePods?.length||b.salvoWindup||hazards.length||acidClouds.some(h=>h.bossTrap));}
 function holdBossSalvo(b){b.shoot=Math.max(b.shoot||0,.52);b.attack=null;b.fireHeading=null;}
-function bossEncounterHint(b){const k=bossIndex(),phase=bossCombatPhase(b);if(b.exposed>0)return 'EXPOSED · BONUS DAMAGE · ATTACK NOW';if(b.pass)return 'DODGE THE CHARGE · SWITCH YOUR ORB';if(k===0)return b.breath?.kind==='wind'?'WINGSTORM · CUT ACROSS THE PRESSURE':'FIRE BREATH · WATCH ITS MOUTH';if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return 'SWEEPING CANNON · FOLLOW THE SAFE SIDE';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → DIVE → VENOM TEMPEST'+(phase===2?' · ENRAGED':'');return '';}
+function bossEncounterHint(b){if(isTideEncounter())return b.exposed>0?'MANTLE OPEN · BONUS DAMAGE':'BREAK TIDE KNOTS · ESCAPE THROUGH THE RING GAPS';const k=bossIndex(),phase=bossCombatPhase(b);if(b.exposed>0)return 'EXPOSED · BONUS DAMAGE · ATTACK NOW';if(b.pass)return 'DODGE THE CHARGE · SWITCH YOUR ORB';if(k===0)return b.breath?.kind==='wind'?'WINGSTORM · CUT ACROSS THE PRESSURE':'FIRE BREATH · WATCH ITS MOUTH';if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return 'SWEEPING CANNON · FOLLOW THE SAFE SIDE';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → DIVE → VENOM TEMPEST'+(phase===2?' · ENRAGED':'');return '';}
 function updateBossSpecial(b,dt){
+ if(isTideEncounter()){updateTideEncounter(b,dt);return;}
  if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){updateCapitalSiege(b,dt);return;}
  const kind=bossIndex(),profile=bossEncounterProfile(sectors[level]),phase=bossCombatPhase(b),hadBreath=!!b.breath;
  b.recovery=Math.max(0,(b.recovery||0)-dt);updateBreath(b,dt);updateTechLaser(b,dt);updateBossSporePods(b,dt);updateEyeAttack(b,dt);
@@ -1026,14 +1028,14 @@ function asteroidSolids(o){const result=[];for(const [index,r] of obstacleForms(
  for(let i=0;i<48;i++)if(hi[i]>lo[i])result.push({x:lo[i],y:minY+i*step,w:hi[i]-lo[i],h:step,ceiling:r.ceiling});surface.collisionStamp=stamp;surface.collision=result.slice(first);for(let i=first;i<result.length;i++)result[i]={...result[i],x:result[i].x+r.x,y:result[i].y+r.y};}return result;}
 
 function encounterSocket(b,point,scale=2.15){if(bossDesign())return bossMount(b,point);const p=bossFlightPose(b),v=rotateVertex(point,p.yaw,p.roll,p.pitch,0,0);return{x:b.x+v[0]*scale*p.depth,y:b.y+v[1]*scale*p.depth};}
-function updateEncounter(b,dt){if(typeof isCapitalSiege==='function'&&isCapitalSiege(b))return;b.roar=Math.max(0,(b.roar||0)-dt);if(bossIndex()===0){b.roarClock=(b.roarClock??2)-dt;if(b.roarClock<=0&&!b.breath&&!b.pass){b.roar=1.3;b.roarClock=12;window.flightAudio?.roar?.(b.x);}}const k=bossIndex(),phase=bossCombatPhase(b);b.exposed=Math.max(0,(b.exposed||0)-dt);if(phase>(b.phaseSeen||0)){b.phaseSeen=phase;b.phaseNotice=true;}if(b.phaseNotice&&!bossPatternBusy(b)&&!b.recovery){b.phaseNotice=false;announce(phase===2?'HOSTILE ENRAGED':'HOSTILE ADAPTING','STRONGER PATTERNS · WATCH THE WINDUP');}
+function updateEncounter(b,dt){if(isTideEncounter())return;if(typeof isCapitalSiege==='function'&&isCapitalSiege(b))return;b.roar=Math.max(0,(b.roar||0)-dt);if(bossIndex()===0){b.roarClock=(b.roarClock??2)-dt;if(b.roarClock<=0&&!b.breath&&!b.pass){b.roar=1.3;b.roarClock=12;window.flightAudio?.roar?.(b.x);}}const k=bossIndex(),phase=bossCombatPhase(b);b.exposed=Math.max(0,(b.exposed||0)-dt);if(phase>(b.phaseSeen||0)){b.phaseSeen=phase;b.phaseNotice=true;}if(b.phaseNotice&&!bossPatternBusy(b)&&!b.recovery){b.phaseNotice=false;announce(phase===2?'HOSTILE ENRAGED':'HOSTILE ADAPTING','STRONGER PATTERNS · WATCH THE WINDUP');}
  if(k===1){b.generators??=[{hp:30,side:-1},{hp:30,side:1}];if(b.generators.every(n=>n.hp<=0)){if(!b.shieldBroken){b.shieldBroken=true;b.exposed=8;announce('SHIELD OFFLINE','EIGHT SECONDS TO ATTACK');}else if(b.exposed===0){for(const n of b.generators)n.hp=30;b.shieldBroken=false;}}}
  if(k===2){if(b.hadRush&&!(b.rush>0))b.exposed=3.5;b.hadRush=b.rush>0;}
  if(k===4){if(b.hadLaser&&!hazards.length)b.exposed=4;b.hadLaser=hazards.length>0;}
  if(k===5)b.hadGuards=enemies.some(e=>e.guardian&&e.hp>0);
 }
-function encounterDamage(b,s){if(typeof isCapitalSiege==='function'&&isCapitalSiege(b))return 0;const k=bossIndex();if(k===0){const behind=(s.x-b.x)*Math.cos(bossFlightPose(b).yaw)>0;return b.exposed>0?1.5:behind?1.4:b.breath?1.15:.85;}if(k===1)return b.shieldBroken?1.5:.55;if(k===2)return b.exposed>0?1.65:.9;if(k===3)return b.exposed>0||b.vacuum>0?1.65:1;if(k===4)return b.exposed>0?1.7:.9;return enemies.some(e=>e.guardian&&e.hp>0)?.45:b.exposed>0?1.55:1;}
-function hitEncounterNode(s){if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))return hitCapitalSection(s);if(!boss||bossIndex()!==1)return false;for(const n of boss.generators||[]){if(n.hp<=0)continue;const p=encounterSocket(boss,[-18,n.side*57,-40]);if(Math.hypot(s.x-p.x,s.y-p.y)<20+s.r){n.hp-=s.damage;burst(p.x,p.y,n.hp<=0?'#ffba70':'#81dfff',n.hp<=0?12:3);return true;}}return false;}
+function encounterDamage(b,s){if(isTideEncounter())return b.exposed>0?1.8:.4+.18*(b.tide?.pods.filter(p=>p.hp<=0).length||0);if(typeof isCapitalSiege==='function'&&isCapitalSiege(b))return 0;const k=bossIndex();if(k===0){const behind=(s.x-b.x)*Math.cos(bossFlightPose(b).yaw)>0;return b.exposed>0?1.5:behind?1.4:b.breath?1.15:.85;}if(k===1)return b.shieldBroken?1.5:.55;if(k===2)return b.exposed>0?1.65:.9;if(k===3)return b.exposed>0||b.vacuum>0?1.65:1;if(k===4)return b.exposed>0?1.7:.9;return enemies.some(e=>e.guardian&&e.hp>0)?.45:b.exposed>0?1.55:1;}
+function hitEncounterNode(s){if(isTideEncounter())return hitTideNode(s);if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))return hitCapitalSection(s);if(!boss||bossIndex()!==1)return false;for(const n of boss.generators||[]){if(n.hp<=0)continue;const p=encounterSocket(boss,[-18,n.side*57,-40]);if(Math.hypot(s.x-p.x,s.y-p.y)<20+s.r){n.hp-=s.damage;burst(p.x,p.y,n.hp<=0?'#ffba70':'#81dfff',n.hp<=0?12:3);return true;}}return false;}
 // Only physical charge effects and released attacks; no projected paths or landing markers.
 function drawBossPatternTelegraphs(b){
  ctx.save();
@@ -1042,7 +1044,7 @@ function drawBossPatternTelegraphs(b){
  if(bossIndex()===3&&b.vacuum>0){const m=expansionMouth(b);ctx.strokeStyle='#a0e6ce';ctx.lineWidth=1.5;for(let i=0;i<20;i++){const t=(b.age*.65+i/20)%1,x=m.x+(Math.cos(bossFlightPose(b).yaw)>0?-1:1)*820*(1-t),spread=(1-t)*178,yy=m.y+Math.sin(i*2.4)*spread;ctx.globalAlpha=Math.sin(t*Math.PI)*.33;ctx.beginPath();ctx.moveTo(x-19,yy);ctx.quadraticCurveTo(x,yy,x+26,yy-Math.sin(i*2.4)*10);ctx.stroke();}}
  ctx.restore();
 }
-function drawEncounterDefenses(b){if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){drawCapitalSiege(b);return;}const k=bossIndex();drawBossPatternTelegraphs(b);if(k===1){for(const n of b.generators||[]){const p=encounterSocket(b,[-18,n.side*57,-40]);if(n.hp>0){const pose=bossFlightPose(b);drawModel(meshes.weaponOrb,p.x,p.y,.75,pose.yaw,pose.roll,pose.pitch,b.age);healthBar(p.x,p.y-24,35,n.hp,30,'#98e5ff');}}}if((k===1&&!b.shieldBroken)||(k===5&&enemies.some(e=>e.guardian&&e.hp>0))){ctx.save();ctx.strokeStyle=k===1?'#77bfe8':'#b883c9';ctx.globalAlpha=.3;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(b.x,b.y,b.r*1.15,b.r*.9,0,0,TAU);ctx.stroke();ctx.restore();}}
+function drawEncounterDefenses(b){if(isTideEncounter()){drawTideEncounter(b);return;}if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){drawCapitalSiege(b);return;}const k=bossIndex();drawBossPatternTelegraphs(b);if(k===1){for(const n of b.generators||[]){const p=encounterSocket(b,[-18,n.side*57,-40]);if(n.hp>0){const pose=bossFlightPose(b);drawModel(meshes.weaponOrb,p.x,p.y,.75,pose.yaw,pose.roll,pose.pitch,b.age);healthBar(p.x,p.y-24,35,n.hp,30,'#98e5ff');}}}if((k===1&&!b.shieldBroken)||(k===5&&enemies.some(e=>e.guardian&&e.hp>0))){ctx.save();ctx.strokeStyle=k===1?'#77bfe8':'#b883c9';ctx.globalAlpha=.3;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(b.x,b.y,b.r*1.15,b.r*.9,0,0,TAU);ctx.stroke();ctx.restore();}}
 function sectorCurrent(){if(sectors[level].stellar?.weather==='wind'&&!boss)return Math.sin(time*Math.PI/7)*24;return themeIndex()===2&&!boss?Math.sin(time*Math.PI/6)*65:0;}
 function stormLane(){const cycle=Math.floor(time/14),phase=time%14;return themeIndex()===4&&time>10&&!boss&&phase<3.2?{x:W*(.28+(cycle%3)*.23),warning:phase<2,phase}:null;}
 function drawSectorRule(){const wind=sectorCurrent();if(Math.abs(wind)>12){ctx.save();ctx.strokeStyle='#b4d5e5';ctx.globalAlpha=.14;ctx.lineWidth=1;for(let i=0;i<12;i++){const x=120+i*105,y=(i*137+world*.45)%H;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+Math.sign(wind)*30);ctx.stroke();}ctx.restore();}const lane=stormLane();if(lane){ctx.save();ctx.strokeStyle=lane.warning?'#c5a7e7':'#e8dfff';ctx.globalAlpha=lane.warning?.45:.85;ctx.lineWidth=lane.warning?2:7;ctx.setLineDash(lane.warning?[9,12]:[]);for(const side of lane.warning?[-1,1]:[0]){ctx.beginPath();for(let i=0;i<=20;i++){const x=lane.x+side*28+(lane.warning?0:Math.sin(i*7+time*35)*12),y=i*H/20;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();}ctx.font='bold 11px sans-serif';ctx.fillStyle='#eee2ff';ctx.textAlign='center';ctx.fillText(lane.warning?'LIGHTNING BUILDING':'DISCHARGE',lane.x,60);ctx.restore();}}
@@ -1079,13 +1081,13 @@ function loadPlanetDisk(location){
  const id=location.surfaceDisk,file=PLANET_SURFACE_DISKS[id];if(!file||planetDiskPixels.has(id)||planetDiskRequests.has(id))return;
  planetDiskRequests.add(id);const image=new Image();image.decoding='async';image.onload=()=>{
   const surface=document.createElement('canvas');surface.width=image.naturalWidth;surface.height=image.naturalHeight;const c=surface.getContext('2d',{willReadFrequently:true});c.drawImage(image,0,0);
-  while(planetDiskPixels.size>=3)planetDiskPixels.delete(planetDiskPixels.keys().next().value);
+  while(planetDiskPixels.size>=8)planetDiskPixels.delete(planetDiskPixels.keys().next().value);
   planetDiskPixels.set(id,{data:c.getImageData(0,0,surface.width,surface.height).data,w:surface.width,h:surface.height});planetDiskRequests.delete(id);
   for(const world of Object.values(expedition.locations).filter(p=>p.surfaceDisk===id)){planetSurfaces.delete(world.destinationId);const old=planetCloseups.get(world.destinationId);if(old)old.cancelled=true;planetCloseups.delete(world.destinationId);}systemSurfaces.clear();
   planetSurface(location);const map=document.querySelector('#expeditionMap');if(map)map.navigationPainted=false;
   if(sectors.slice(level,level+2).some(s=>expedition.locations[s.id].destinationId===location.destinationId))preparePlanetCloseup(location);
   if(typeof surfaceDirty!=='undefined')surfaceDirty=true;
- };image.onerror=()=>{console.warn('Planet artwork unavailable:',id);};image.src='assets/'+file;
+ };image.onerror=()=>{planetDiskRequests.delete(id);console.warn('Planet artwork unavailable:',id);};image.src='assets/'+file;
 }
 const planetAtlasRequests=new Set();
 function loadPlanetAtlas(id,file){
@@ -1102,13 +1104,14 @@ function requestPlanetSurface(location){if(location.destinationKind==='star')ret
 // Bilinear atlas sampling prevents enlarged source texels becoming square tiles.
 // Both globe sizes share the same projection/lighting so the detail swap is seamless.
 function paintPlanetRows(location,pixels,size,from,to,diskSource=planetDiskPixels.get(location.surfaceDisk)){
+ const rotation=location.surfaceRotation||0,cosSurface=Math.cos(rotation),sinSurface=Math.sin(rotation),coverage=location.surfaceCoverage??.5;
  const climate=location.climate,atlas=planetAtlasPixels.get(location.surfaceAtlas||'original'),band=location.surfaceBand??{temperate:0,ice:1,hot:2}[climate],radius=size/2-2;
  for(let y=from;y<to;y++)for(let x=0;x<size;x++){
   const nx=(x-(size-1)/2)/radius,ny=(y-(size-1)/2)/radius,rr=nx*nx+ny*ny;if(rr>1)continue;const nz=Math.sqrt(1-rr),light=Math.max(.065,-nx*.49-ny*.42+nz*.69),rim=Math.pow(1-nz,4);let red,green,blue;
   if(diskSource){
    // Dedicated hemisphere artwork uses the entire image, rather than magnifying
    // a small longitude slice of a shared atlas. Lighting remains sphere-based.
-   const fx=clamp((nx*.5+.5)*(diskSource.w-1),0,diskSource.w-1),fy=clamp((ny*.5+.5)*(diskSource.h-1),0,diskSource.h-1),ix=Math.floor(fx),iy=Math.floor(fy),tx=fx-ix,ty=fy-iy,x1=Math.min(ix+1,diskSource.w-1),y1=Math.min(iy+1,diskSource.h-1),data=diskSource.data,k=(y*size+x)*4;
+   const fx=clamp(((nx*cosSurface-ny*sinSurface)*coverage+.5)*(diskSource.w-1),0,diskSource.w-1),fy=clamp(((nx*sinSurface+ny*cosSurface)*coverage+.5)*(diskSource.h-1),0,diskSource.h-1),ix=Math.floor(fx),iy=Math.floor(fy),tx=fx-ix,ty=fy-iy,x1=Math.min(ix+1,diskSource.w-1),y1=Math.min(iy+1,diskSource.h-1),data=diskSource.data,k=(y*size+x)*4;
    const a=(iy*diskSource.w+ix)*4,b=(iy*diskSource.w+x1)*4,c=(y1*diskSource.w+ix)*4,d=(y1*diskSource.w+x1)*4;
    for(let channel=0;channel<3;channel++){const value=((data[a+channel]*(1-tx)+data[b+channel]*tx)*(1-ty)+(data[c+channel]*(1-tx)+data[d+channel]*tx)*ty)*light*(location.surfaceTint?.[channel]||1)+rim*(channel===0?17:channel===1?39:58);pixels.data[k+channel]=Math.min(255,value);}
   }else if(atlas&&band!==undefined){
@@ -1470,7 +1473,7 @@ function drawTravelViewport(u){
  ctx.globalAlpha=opacity*.42;ctx.strokeStyle='#b2d8dc';ctx.lineWidth=1;
  for(const side of [-1,1])for(const vertical of [-1,1]){const x=side<0?24:W-24,y=vertical<0?26:H-26;ctx.beginPath();ctx.moveTo(x-side*34,y);ctx.lineTo(x,y);ctx.lineTo(x,y-vertical*24);ctx.stroke();}
  const x=W/2+(ship.x/W-.5)*12,y=H/2+(ship.y/H-.5)*9;ctx.globalAlpha=opacity*.20;ctx.beginPath();ctx.moveTo(x-15,y);ctx.lineTo(x-6,y);ctx.moveTo(x+6,y);ctx.lineTo(x+15,y);ctx.moveTo(x,y-15);ctx.lineTo(x,y-6);ctx.moveTo(x,y+6);ctx.lineTo(x,y+15);ctx.stroke();
- ctx.globalAlpha=opacity*.65;ctx.font='10px monospace';ctx.fillStyle='#acd0d5';ctx.fillText('COCKPIT VIEW / NAVIGATION GLASS',46,H-31);const intergalactic=sectorBlend?.origin&&sectorBlend.origin.galaxyId!==sectorBlend.destination?.galaxyId,turn=intergalactic&&u>.32&&u<.58?Math.sin(Math.PI*navigationEase((u-.32)/.26)):0,heading=intergalactic?galaxyFlightHeading(sectorBlend.destination):{x:0,y:0};ctx.textAlign='center';ctx.fillText(turn>.1?heading.label:'COURSE LOCKED',W/2,H-38);ctx.beginPath();ctx.moveTo(W/2-70,H-23);ctx.lineTo(W/2+70,H-23);ctx.stroke();ctx.fillStyle='#bcffe3';ctx.beginPath();ctx.arc(W/2+heading.x*turn*60,H-23+heading.y*turn*4,2.5,0,TAU);ctx.fill();ctx.textAlign='right';ctx.fillText('FIRST DESCENT · FLIGHT CAMERA',W-46,H-31);ctx.restore();
+ ctx.globalAlpha=opacity*.65;ctx.font='10px monospace';ctx.fillStyle='#acd0d5';ctx.fillText('COCKPIT VIEW / NAVIGATION GLASS',46,H-31);const intergalactic=sectorBlend?.origin&&sectorBlend.origin.galaxyId!==sectorBlend.destination?.galaxyId,turn=intergalactic&&u>.32&&u<.58?Math.sin(Math.PI*navigationEase((u-.32)/.26)):0,heading=intergalactic?galaxyFlightHeading(sectorBlend.destination):{x:0,y:0};ctx.textAlign='center';ctx.fillText(turn>.1?heading.label:'COURSE LOCKED',W/2,H-38);ctx.beginPath();ctx.moveTo(W/2-70,H-23);ctx.lineTo(W/2+70,H-23);ctx.stroke();ctx.fillStyle='#bcffe3';ctx.beginPath();ctx.arc(W/2+heading.x*turn*60,H-23+heading.y*turn*4,2.5,0,TAU);ctx.fill();ctx.textAlign='right';ctx.fillText('FIRST DESCENT · FLIGHT CAMERA',W-46,H-31);ctx.textAlign='center';ctx.globalAlpha=.8;ctx.font='12px monospace';ctx.fillStyle='#def5ef';ctx.fillText('SPACE / TAP TO SKIP',W/2,H-66);ctx.restore();
 }
 function drawPlanetTransit(location,u){
  const origin=sectorBlend?.origin;if(!origin){drawInitialGalaxyEntry(location,u);return;}if(origin.galaxyId!==location.galaxyId){drawGalaxyTransit(origin,location,u);return;}

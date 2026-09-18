@@ -28,6 +28,7 @@ let obstacles=[];
 
 
 let rescueCharge=0;
+const NAVIGATION_SPEED=2;
 let checkpoint=null,hudClock=0,sectorBlend=null,sectorIntroLead=0;
 let challengeState={wave:0,gate:false,warned:false,reward:false};
 let weaponOrb={owned:false,angle:0,target:0};
@@ -105,7 +106,7 @@ function fullscreenPanel(){const panel=$('.console')||$('.stage');if(panel?.clas
 function nativeFullscreenElement(){return document.fullscreenElement||document.webkitFullscreenElement;}
 function ensureGameFullscreen(){if(!nativeFullscreenElement()&&!fullscreenPanel().classList.contains('expanded'))return toggleGameFullscreen();return requestLandscape();}
 // Resume audio before fullscreen consumes the browser user activation.
-function beginDescent(){atlasOpen=false;atlasSystemId=null;$('#overlay').onclick=null;enableAudio();const launch=()=>{start();sectorBlend={arrival:true,systemEntry:true,age:0,duration:15.5,destination:expedition.locations[sectors[0].id]};$('#announcement').style.opacity=0;annTimer=0;render(0);};if(window.safariImmersion?.request(launch))return;void ensureGameFullscreen();launch();}
+function beginDescent(){atlasOpen=false;atlasSystemId=null;$('#overlay').onclick=null;enableAudio();const launch=()=>{start();sectorBlend={arrival:true,systemEntry:true,age:0,duration:15.5/NAVIGATION_SPEED,destination:expedition.locations[sectors[0].id]};$('#announcement').style.opacity=0;annTimer=0;render(0);};if(window.safariImmersion?.request(launch))return;void ensureGameFullscreen();launch();}
 function start(){rescueCharge=0;weaponOrb={owned:false,angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:0,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
 function resetSector(){flash=0;shake=0;if(sectors[level].stellar)requestStellarPhotosphere();resetWaterWakes();trimSectorArt(sectors[level],sectors[level+1]);prepareSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;window.gpuModels?.prepare([bossDesign()?.mesh,...sectors[level].models.map(n=>meshes[n]),meshes.spore,meshes.missile,meshes.siphon,meshes.cannon,meshes.shrapnel,meshes.bone,meshes.rib,meshes.spineChip,meshes.chitinChip,meshes.skull,meshes.orbitalRock].filter(Boolean));challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setEnvironment?.(sectors[level].medium,sectors[level].theme,sectors[level].environment);window.flightAudio?.setSector(sectors[level].music,sectors[level].id);window.flightAudio?.setBossApproach?.(0);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.inv=3;saveCheckpoint();updateHUD()}
 function panel(title,description,label,action){$('#overlay').classList.remove('hidden','records-view','title-screen');$('#overlay').innerHTML=`<div class="intro"><div class="eyebrow mint">FIRST DESCENT / FLIGHT RECORD</div><h1 class="result-title">${title}</h1><p class="introcopy">${description}</p><button class="primary" id="panelAction">${label}<span>↗</span></button><div class="launch-caption">SCORE ${String(score).padStart(6,'0')} · ${expedition.locations[sectors[level].id].systemName} · SECTOR ${systemStageProgress(expedition.locations[sectors[level].id]).number} / ${systemStageProgress(expedition.locations[sectors[level].id]).total}</div></div>`;$('#panelAction').onclick=action;$('#panelAction').focus()}
@@ -137,7 +138,7 @@ function spawn(){
   for(let n=0;n<count;n++)enemies.push({satellite:true,mother,escortProfile:profile,orbit:n*TAU/count,type:profile&&!profile.organic?0:1,x:mother.x,y:mother.y,base:380,age:0,phase:n*.3,speed:245,hp:profile?20+difficulty()*2:14,max:profile?20+difficulty()*2:14,hit:0,r:20,shoot:profile?3+n*.65:Infinity});return;
  }
 
- const i=waveIndex,elite=i===11?'hunter':i%10===7?(Math.floor(i/10)%2?'hunter':'ace'):null,type=elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length],center=sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=Math.min(slots,elite?3:i===0?3:4+(difficulty()>0?1:0));
+ const i=waveIndex,eliteInterval=sectors[level].systemChallenge?.eliteWaveInterval||10,elite=i===11?'hunter':i%eliteInterval===Math.min(7,eliteInterval-1)?(Math.floor(i/eliteInterval)%2?'hunter':'ace'):null,type=elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length],center=sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=Math.min(slots,elite?3:i===0?3:4+(difficulty()>0?1:0));
  for(let n=0;n<count;n++){const leader=n===0?elite:null,memberType=elite&&n>0?0:type,offset=i%3===0?(n-(count-1)/2)*52:i%3===1?Math.sin(n*1.15)*75:(n%2?1:-1)*Math.ceil(n/2)*42,y=clamp(center+offset,100,H-100),hp=([7,9,22,13][memberType]+difficulty()*3)*(leader?2.5:1)*(sectors[level].enemyHealthScale||1);
  const enemy={x:W+180+n*96,y,base:y,type:memberType,elite:leader,wave:i,hp,max:hp,hit:0,age:0,phase:i*.45+n*.16,shoot:1.5+n*.38,speed:([220,180,130,205][memberType]+difficulty()*17)*(leader==='ace'?1.55:1)*(1+Math.min(i,20)*.018),r:memberType===2?39:31};prepareEnemyEntry(enemy,i,n);enemies.push(enemy);}
 }
@@ -150,6 +151,7 @@ function aimed(x,y,speed=520,offset=0,kind='bolt'){const a=Math.atan2(ship.y-y,s
 // Boss attacks are timed sequences: a locked acid volley, a sweeping autocannon,
 // and a serpent's alternating venom strikes. Every round keeps its launch vector.
 function updateBossWeapon(b,dt){
+ if(isTideEncounter())return;
  if(typeof isCapitalSiege==='function'&&isCapitalSiege(b))return;
  if(bossIndex()>=3)return;
  if(b.recovery>0){holdBossSalvo(b);return;}
@@ -219,7 +221,21 @@ function advanceSector(target=level+1){
  outgoing.getContext('2d').drawImage(canvas,0,0,W,H);
  const haze=document.createElement('canvas');haze.width=720;haze.height=380;const hc=haze.getContext('2d');hc.filter='blur(9px)';hc.drawImage(outgoing,-18,-10,756,400);hc.filter='none';
  level=target;ship.hp=Math.min(5,ship.hp+2);novas=Math.min(3,novas+1);resetSector();Object.assign(ship,motion);
- const destination=expedition.locations[sectors[level].id],travel=destination?.destinationId!==fromDestination;sectorBlend={outgoing,haze,age:0,duration:destination.galaxyId!==fromLocation.galaxyId?24:destination.systemId!==fromLocation.systemId?14:travel?11.8:2.2,origin:fromLocation,galaxyEntry:destination.galaxyId!==fromLocation.galaxyId,systemEntry:destination.systemId!==fromLocation.systemId,destination:travel?destination:null};$('#announcement').style.opacity=0;annTimer=0;window.flightAudio?.setIntensity(0);
+ const destination=expedition.locations[sectors[level].id],travel=destination?.destinationId!==fromDestination;sectorBlend={outgoing,haze,age:0,duration:(destination.galaxyId!==fromLocation.galaxyId?24:destination.systemId!==fromLocation.systemId?14:travel?11.8:2.2)/NAVIGATION_SPEED,origin:fromLocation,galaxyEntry:destination.galaxyId!==fromLocation.galaxyId,systemEntry:destination.systemId!==fromLocation.systemId,destination:travel?destination:null};$('#announcement').style.opacity=0;annTimer=0;window.flightAudio?.setIntensity(0);
+}
+// Natural completion and skipping share the arrival bookkeeping. Skipping never
+// advances the level a second time or applies the orb command to gameplay.
+function finishSectorTravel(){
+ if(!sectorBlend)return false;
+ sectorIntroLead+=sectorBlend.duration;sectorBlend=null;
+ saveCheckpoint();window.flightAudio?.planetArrival?.();
+ announce(expedition.locations[sectors[level].id].destinationName,sectors[level].name);
+ return true;
+}
+function skipSectorTravel(){
+ if(state!=='playing'||!sectorBlend?.destination)return false;
+ pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;
+ return finishSectorTravel();
 }
 function drawSectorBlend(){if(!sectorBlend)return;const u=clamp(sectorBlend.age/sectorBlend.duration,0,1),e=u*u*(3-2*u),soft=Math.sin(Math.PI*u);
  if(sectorBlend.destination){drawPlanetTransit(sectorBlend.destination,u);drawTravelViewport(u);return;}
@@ -260,7 +276,7 @@ const targetPitch=clamp(ship.vy/2800,-.18,.18),targetYaw=clamp(ship.vx/3400,-.15
 flightPose.pitch+=(targetPitch-flightPose.pitch)*easing;const rollRate=-ship.vy/maxSpeed*7;flightPose.rollRate=((flightPose.rollRate||0)+(rollRate-(flightPose.rollRate||0))*(1-Math.exp(-dt*12)));flightPose.roll+=flightPose.rollRate*dt;if(Math.abs(ship.vy)<10)flightPose.roll+=(Math.round(flightPose.roll/TAU)*TAU-flightPose.roll)*(1-Math.exp(-dt*5));flightPose.yaw+=(targetYaw-flightPose.yaw)*easing;
 const accel=Math.hypot(ship.vx-flightPose.vx,ship.vy-flightPose.vy)/dt,thrust=clamp(.15+Math.max(0,ship.vx)/800+Math.abs(ship.vy)/2400+accel/22000,.1,1.1);flightPose.thrust+=(thrust-flightPose.thrust)*(1-Math.exp(-dt*8));flightPose.vx=ship.vx;flightPose.vy=ship.vy;
 }
-function update(dt){if(state!=='paused'){world+=dt*SCROLL_SPEED;navigationClock+=dt;}if(state!=='playing')return;if(sectorBlend){updateShipMovement(dt,false);updateWeaponOrb(dt);flash=Math.max(0,flash-dt);shake=Math.max(0,shake-dt*30);sectorBlend.age+=dt;if(sectorBlend.age>=sectorBlend.duration){sectorIntroLead+=sectorBlend.duration;sectorBlend=null;saveCheckpoint();window.flightAudio?.planetArrival?.();announce(expedition.locations[sectors[level].id].destinationName,sectors[level].name);}return;}if(flightRun)flightRun.activeTicks+=Math.round(dt*120);time+=dt;if(checkpoint&&currentSection()>checkpoint.section){saveCheckpoint();announce('SECTION '+(checkpoint.section+1)+' / 4','CHECKPOINT SAVED')}ship.inv=Math.max(0,ship.inv-dt);ship.frontFlash=Math.max(0,(ship.frontFlash||0)-dt);fireClock-=dt;spawnClock-=dt;companionClock-=dt;muzzleFlash=Math.max(0,muzzleFlash-dt);if(companion>0&&companionClock<=0&&!bossDefeated){for(let i=0;i<companion;i++){const pos=dronePosition(i);makeShot(pos.x+20,pos.y,'drone');window.flightAudio?.shot('drone',pos.x,true)}companionClock=.3}spawnSupplies();flash=Math.max(0,flash-dt);shake=Math.max(0,shake-dt*30);if(annTimer>0){annTimer-=dt;if(annTimer<=0)$('#announcement').style.opacity=0}
+function update(dt){if(state!=='paused'){world+=dt*SCROLL_SPEED;navigationClock+=dt;}if(state!=='playing')return;if(sectorBlend){updateShipMovement(dt,false);updateWeaponOrb(dt);flash=Math.max(0,flash-dt);shake=Math.max(0,shake-dt*30);sectorBlend.age+=dt;if(sectorBlend.age>=sectorBlend.duration)finishSectorTravel();return;}if(flightRun)flightRun.activeTicks+=Math.round(dt*120);time+=dt;if(checkpoint&&currentSection()>checkpoint.section){saveCheckpoint();announce('SECTION '+(checkpoint.section+1)+' / 4','CHECKPOINT SAVED')}ship.inv=Math.max(0,ship.inv-dt);ship.frontFlash=Math.max(0,(ship.frontFlash||0)-dt);fireClock-=dt;spawnClock-=dt;companionClock-=dt;muzzleFlash=Math.max(0,muzzleFlash-dt);if(companion>0&&companionClock<=0&&!bossDefeated){for(let i=0;i<companion;i++){const pos=dronePosition(i);makeShot(pos.x+20,pos.y,'drone');window.flightAudio?.shot('drone',pos.x,true)}companionClock=.3}spawnSupplies();flash=Math.max(0,flash-dt);shake=Math.max(0,shake-dt*30);if(annTimer>0){annTimer-=dt;if(annTimer<=0)$('#announcement').style.opacity=0}
 updateShipMovement(dt);
 updateWeaponOrb(dt);if(fireClock<=0&&!bossDefeated){if(weaponOrb.owned&&Math.abs(weaponOrb.angle-weaponOrb.target)<.02)fire(orbPosition(),weaponOrb.target===0?1:-1,true);else fire();fireClock=weapon==='missile'?.38:weapon==='wave'?.28:weapon==='beam'?.18:.13}
 updateStructures(dt);const flare=stellarFlare();if(flare&&!flare.warning&&(flare.top?ship.y<flare.height:ship.y>H-flare.height))damage();const storm=stormLane();if(storm&&!storm.warning&&Math.abs(ship.x-storm.x)<32)damage();updateAcidClouds(dt);updateChallenge();while(waveIndex<waveTimes[level].length&&time>=waveTimes[level][waveIndex]){spawn();waveIndex++}if(time>sectors[level].duration&&!boss&&!bossDefeated){boss={x:W+180,y:H/2,r:sectors[level].bossRadius,hp:sectors[level].hp,max:sectors[level].hp,age:0,shoot:2,hit:0,special:10,charge:0};enemies=[];announce('WARNING','MASSIVE HOSTILE SIGNATURE');$('#bossbar').hidden=false;$('#bossname').textContent=sectors[level].boss;if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))initCapitalSiege(boss);window.flightAudio?.bossEntrance?.()}
@@ -316,15 +332,16 @@ function testLevelHotkey(e){
  window.flightAudio?.clear();enableAudio();window.flightAudio?.setMusicActive(true);
  state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');
  ship.hp=5;shake=flash=0;accumulator=0;companionClock=0;
- if(target!==level){advanceSector(target);sectorBlend.testing=true;}else{resetSector();sectorBlend={arrival:true,systemEntry:true,testing:true,age:0,duration:15.5,destination:expedition.locations[sectors[level].id]};$('#announcement').style.opacity=0;annTimer=0;}
+ if(target!==level){advanceSector(target);sectorBlend.testing=true;}else{resetSector();sectorBlend={arrival:true,systemEntry:true,testing:true,age:0,duration:15.5/NAVIGATION_SPEED,destination:expedition.locations[sectors[level].id]};$('#announcement').style.opacity=0;annTimer=0;}
  canvas.focus();updateHUD();return true;
 }
-window.addEventListener('keydown',e=>{if(atlasOpen){if(e.key==='Escape'){e.preventDefault();atlasSystemId?showUniverseAtlas():closeUniverseAtlas();}return;}if(testLevelHotkey(e))return;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys.add(k);if(e.repeat)return;if(k==='Enter'&&state==='title'&&!e.target?.closest?.('button,a')){e.preventDefault();beginDescent();return;}if(k==='p'||k==='Escape')pause();if(k==='x')nova();if(k===' ')switchOrb()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{const touchDevice=matchMedia('(pointer: coarse)').matches||(window.navigator?.maxTouchPoints||0)>0;keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;if(state==='playing'&&(!touchDevice||document.hidden))pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause()});
+window.addEventListener('keydown',e=>{if(atlasOpen){if(e.key==='Escape'){e.preventDefault();atlasSystemId?showUniverseAtlas():closeUniverseAtlas();}return;}if(testLevelHotkey(e))return;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys.add(k);if(e.repeat)return;if(k===' '&&skipSectorTravel()){keys.delete(k);return;}if(k==='Enter'&&state==='title'&&!e.target?.closest?.('button,a')){e.preventDefault();beginDescent();return;}if(k==='p'||k==='Escape')pause();if(k==='x')nova();if(k===' ')switchOrb()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{const touchDevice=matchMedia('(pointer: coarse)').matches||(window.navigator?.maxTouchPoints||0)>0;keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;if(state==='playing'&&(!touchDevice||document.hidden))pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause()});
 // Relative dragging preserves the finger-to-ship offset. A stationary finger
 // is neutral, and lifting/repositioning never attracts the ship to the contact.
 function setPointer(e){
  if(!pointer||e.pointerId!==pointer.id)return;
  const r=canvas.getBoundingClientRect();
+ if(Math.hypot(e.clientX-pointer.startX,e.clientY-pointer.startY)>12)pointer.dragged=true;
  if(pointer.relative){
   // Consume displacement once, rather than treating a held offset as velocity.
   // One screen pixel of finger travel moves the ship one screen pixel.
@@ -337,6 +354,7 @@ function releasePointer(e,tap=false){
  touchContacts.delete(e.pointerId);if(touchContacts.size<2)pinchGesture=null;
  if(!pointer||e.pointerId!==pointer.id)return;
  const p=pointer,elapsed=e.timeStamp-p.started;
+ if(tap&&!p.dragged&&elapsed>=0&&elapsed<=230&&skipSectorTravel())return;
  if(tap&&p.relative&&!p.dragged&&elapsed>=0&&elapsed<=230&&state==='playing'){
   if(lastTouchTap&&e.timeStamp-lastTouchTap.at<=320&&Math.hypot(e.clientX-lastTouchTap.x,e.clientY-lastTouchTap.y)<=40){switchOrb();lastTouchTap=null;}
   else lastTouchTap={at:e.timeStamp,x:e.clientX,y:e.clientY};
