@@ -23,7 +23,7 @@ const BOSS_ENCOUNTERS=freezeContent({
  mother:{anatomy:'Compound eyes, six legs, two wings and halteres',inspiration:'horsefly / parasitoid wasp',habitat:'air',power:'brood-tempest',signature:'BROOD TEMPEST',cooldown:5.1,phaseStep:.4,warning:1.85}
 });
 function bossEncounterProfile(l){return BOSS_ENCOUNTERS[l.encounter||l.bossKind];}
-const GAME_RULESET='2026-09-alien-flight-v25';
+const GAME_RULESET='2026-09-alien-flight-v26';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova']);
@@ -1787,6 +1787,7 @@ levelDefinitions[0].revision++;
 // descent (planet) or a flight through the corona (star). Only authored stages
 // are published; a catalog entry never silently fabricates playable content.
 const GALAXY=freezeContent({id:'the-pale-spiral',name:'THE PALE SPIRAL'});
+const PLANET_SURFACE_ATLASES=freezeContent({original:'planet-surfaces-v1.webp',frontier:'planet-frontier-v1.webp'});
 const ORBITAL_ZONES=freezeContent({inner:{label:'HOT INNER WORLDS',climates:['hot']},temperate:{label:'TEMPERATE WORLDS',climates:['temperate']},outer:{label:'ICE & GAS WORLDS',climates:['ice','gas']},stellar:{label:'STELLAR CORONA',climates:['plasma']}});
 function buildExpedition(releases,definitions){
  const ids=new Set(),stages=new Map(definitions.map(l=>[l.id,l])),used=new Set(),route=[],locations={};
@@ -1798,22 +1799,28 @@ function buildExpedition(releases,definitions){
    for(let i=0;i<planets.length;i++){const d=planets[i],previous=planets[i-1];if(d.orbit<=0||!(d.orbitalZone in thermalRank)||previous&&(d.orbit===previous.orbit||thermalRank[d.orbitalZone]<thermalRank[previous.orbitalZone]))throw Error('Planet orbits must cool from inner to outer without duplicate distances');}
 
    for(const destination of system.destinations){identity(destination.id);if(!destination.name||!['planet','star'].includes(destination.kind)||!destination.stages.length)throw Error('Invalid destination');
+    if(destination.surfaceAtlas&&(!PLANET_SURFACE_ATLASES[destination.surfaceAtlas]||!Number.isInteger(destination.surfaceBand)||destination.surfaceBand<0||destination.surfaceBand>2))throw Error('Invalid planetary surface atlas');
     const zone=ORBITAL_ZONES[destination.orbitalZone];if(!zone||!zone.climates.includes(destination.climate)||typeof destination.rings!=='boolean'||!Number.isFinite(destination.orbit)||destination.orbit<0)throw Error('Invalid orbital climate or rings');
-    for(const id of destination.stages){const stage=stages.get(id);if(!stage||used.has(id))throw Error('Missing or repeated expedition stage: '+id);if(destination.kind==='star'&&stage.environment!=='stellar-corona')throw Error('Star stages require a corona habitat');used.add(id);route.push(stage);locations[id]={releaseId:release.id,releaseVersion:release.version,systemId:system.id,systemName:system.name,destinationId:destination.id,destinationName:destination.name,destinationKind:destination.kind,starName:system.star?.name||system.name,orbit:destination.orbit,climate:destination.climate,rings:destination.rings,orbitalZone:destination.orbitalZone,galaxyId:GALAXY.id,ringTilt:destination.ringTilt??-.23,surfaceLongitude:destination.surfaceLongitude??0,orbitPhase:destination.orbitPhase??null};}
+    for(const id of destination.stages){const stage=stages.get(id);if(!stage||used.has(id))throw Error('Missing or repeated expedition stage: '+id);if(destination.kind==='star'&&stage.environment!=='stellar-corona')throw Error('Star stages require a corona habitat');used.add(id);route.push(stage);locations[id]={releaseId:release.id,releaseVersion:release.version,systemId:system.id,systemName:system.name,destinationId:destination.id,destinationName:destination.name,destinationKind:destination.kind,starName:system.star?.name||system.name,orbit:destination.orbit,climate:destination.climate,rings:destination.rings,orbitalZone:destination.orbitalZone,galaxyId:GALAXY.id,ringTilt:destination.ringTilt??-.23,surfaceLongitude:destination.surfaceLongitude??0,orbitPhase:destination.orbitPhase??null,surfaceAtlas:destination.surfaceAtlas||'original',surfaceBand:destination.surfaceBand??null};}
    }
   }
  }
  if(!route.length)throw Error('Expedition needs playable stages');
  return {stages:route,locations};
 }
-const contentReleases=freezeContent([{id:'first-contact',version:1,month:'2026-09',systems:[{
+const contentReleases=freezeContent([{id:'first-contact',version:2,month:'2026-09',systems:[{
  id:'vesper-system',name:'VESPER',star:{name:'VESPER A',type:'AMBER STAR'},destinations:[
-  {id:'caelus',name:'CAELUS',kind:'planet',orbitalZone:'temperate',orbit:1.4,climate:'temperate',rings:true,stages:levelDefinitions.slice(0,2).map(l=>l.id)},
-  {id:'nacre',name:'NACRE',kind:'planet',orbitalZone:'outer',orbit:4.8,climate:'ice',rings:false,stages:levelDefinitions.slice(2,4).map(l=>l.id)},
-  {id:'pyra',name:'PYRA',kind:'planet',orbitalZone:'inner',orbit:.4,climate:'hot',rings:false,stages:levelDefinitions.slice(4).map(l=>l.id)}
+  {id:'caelus',name:'CAELUS',kind:'planet',orbitalZone:'temperate',orbit:1.4,climate:'temperate',rings:true,orbitPhase:-.55,stages:[levelDefinitions[0].id]},
+  {id:'ferrum',name:'FERRUM',kind:'planet',orbitalZone:'inner',orbit:.85,climate:'hot',rings:false,orbitPhase:2.3,surfaceAtlas:'frontier',surfaceBand:0,stages:[levelDefinitions[1].id]},
+  {id:'nacre',name:'NACRE',kind:'planet',orbitalZone:'outer',orbit:4.8,climate:'ice',rings:false,orbitPhase:3.9,stages:[levelDefinitions[2].id]},
+  {id:'pelagos',name:'PELAGOS',kind:'planet',orbitalZone:'temperate',orbit:2.6,climate:'temperate',rings:false,orbitPhase:1.0,surfaceAtlas:'frontier',surfaceBand:1,stages:[levelDefinitions[3].id]},
+  {id:'voltis',name:'VOLTIS',kind:'planet',orbitalZone:'inner',orbit:.45,climate:'hot',rings:false,orbitPhase:3.55,surfaceAtlas:'frontier',surfaceBand:2,stages:[levelDefinitions[4].id]},
+  {id:'pyra',name:'PYRA',kind:'planet',orbitalZone:'inner',orbit:.2,climate:'hot',rings:false,orbitPhase:-.6,stages:[levelDefinitions[5].id]}
  ]
 }]}]);
-levelDefinitions[4].stratum='SUPERHEATED CAVERNS';levelDefinitions[4].expeditionNote='Pyra · electrical storms beneath the scorched surface';levelDefinitions[4].atmosphere.heat=.65;
+levelDefinitions[1].expeditionNote='Ferrum · abandoned planetary foundry';
+levelDefinitions[3].expeditionNote='Pelagos · deep ocean reefs and pressure-adapted life';
+levelDefinitions[4].stratum='SUPERHEATED CAVERNS';levelDefinitions[4].expeditionNote='Voltis · electrical storms beneath the scorched surface';levelDefinitions[4].atmosphere.heat=.65;
 function expeditionSystem(location){return contentReleases.flatMap(r=>r.systems).find(s=>s.id===location.systemId);}
 const expedition=buildExpedition(contentReleases,levelDefinitions);
 freezeContent(expedition.locations);

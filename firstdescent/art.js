@@ -1004,21 +1004,21 @@ function drawAnatomicalJaw(b){const k=bossIndex(),mesh=meshes[k===2?'sovereignJa
 
 // Retained navigation artwork. Atlas sampling and spherical lighting are baked
 // once per destination; travel frames only transform cached canvases.
-let navigationSurface=null,planetAtlasPixels=null;const planetSurfaces=new Map(),systemSurfaces=new Map();
-const planetAtlas=new Image();planetAtlas.decoding='async';
-planetAtlas.onload=()=>{
- const surface=document.createElement('canvas');surface.width=planetAtlas.naturalWidth;surface.height=planetAtlas.naturalHeight;const c=surface.getContext('2d',{willReadFrequently:true});c.drawImage(planetAtlas,0,0);
- planetAtlasPixels={data:c.getImageData(0,0,surface.width,surface.height).data,w:surface.width,h:surface.height/3};planetSurfaces.clear();systemSurfaces.clear();navigationSurface=null;
- const map=document.querySelector('#expeditionMap');if(map)map.navigationPainted=false;
- // Spread the small number of one-time globe bakes across idle turns.
- const locations=Object.values(expedition.locations).filter((p,i,a)=>a.findIndex(q=>q.destinationId===p.destinationId)===i);let i=0;
- const warm=()=>{if(i<locations.length){planetSurface(locations[i++]);setTimeout(warm,30);}};setTimeout(warm,0);
-};
-planetAtlas.src='assets/planet-surfaces-v1.webp';
+let navigationSurface=null;const planetAtlasPixels=new Map(),planetSurfaces=new Map(),systemSurfaces=new Map();
+function loadPlanetAtlas(id,file){
+ const image=new Image();image.decoding='async';image.onload=()=>{
+  const surface=document.createElement('canvas');surface.width=image.naturalWidth;surface.height=image.naturalHeight;const c=surface.getContext('2d',{willReadFrequently:true});c.drawImage(image,0,0);
+  planetAtlasPixels.set(id,{data:c.getImageData(0,0,surface.width,surface.height).data,w:surface.width,h:surface.height/3});
+  const locations=Object.values(expedition.locations).filter((p,i,a)=>p.surfaceAtlas===id&&a.findIndex(q=>q.destinationId===p.destinationId)===i);for(const p of locations)planetSurfaces.delete(p.destinationId);systemSurfaces.clear();navigationSurface=null;
+  const map=document.querySelector('#expeditionMap');if(map)map.navigationPainted=false;
+  let i=0;const warm=()=>{if(i<locations.length){planetSurface(locations[i++]);setTimeout(warm,30);}};setTimeout(warm,0);
+ };image.src='assets/'+file;
+}
+for(const [id,file] of Object.entries(PLANET_SURFACE_ATLASES))loadPlanetAtlas(id,file);
 function planetSurface(location){
  const climate=location.climate,key=location.destinationId||climate;if(planetSurfaces.has(key))return planetSurfaces.get(key);
- const surface=document.createElement('canvas'),size=512;surface.width=surface.height=size;const c=surface.getContext('2d'),pixels=c.createImageData(size,size);if(!pixels?.data)return null;
- const atlas=planetAtlasPixels,band={temperate:0,ice:1,hot:2}[climate],radius=size/2-2;
+ const surface=document.createElement('canvas'),size=512;surface.width=surface.height=size;const c=surface.getContext('2d'),pixels=c.createImageData(size,size);if(!pixels?.data){planetSurfaces.set(key,null);return null;}
+ const atlas=planetAtlasPixels.get(location.surfaceAtlas||'original'),band=location.surfaceBand??{temperate:0,ice:1,hot:2}[climate],radius=size/2-2;
  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
   const nx=(x-(size-1)/2)/radius,ny=(y-(size-1)/2)/radius,rr=nx*nx+ny*ny;if(rr>1)continue;const nz=Math.sqrt(1-rr),light=Math.max(.065,-nx*.49-ny*.42+nz*.69),rim=Math.pow(1-nz,4);
   let color;
@@ -1090,7 +1090,7 @@ function drawTransitRoute(location,origin,u){
  const a=from||{x:90,y:440},b=to,mx=(a.x+b.x)/2,my=(a.y+b.y)/2,len=Math.hypot(mx-400,my-272)||1,cx=mx+(mx-400)/len*150,cy=my+(my-272)/len*150,progress=clamp((u-.24)/.30,0,1),smooth=progress*progress*(3-2*progress);
  const point=t=>({x:(1-t)**2*a.x+2*(1-t)*t*cx+t*t*b.x,y:(1-t)**2*a.y+2*(1-t)*t*cy+t*t*b.y});
  ctx.save();ctx.translate(W/2-440,H*.52-272*1.1);ctx.scale(1.1,1.1);ctx.setLineDash([4,8]);ctx.lineWidth=2;ctx.strokeStyle='#93b6b777';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo(cx,cy,b.x,b.y);ctx.stroke();ctx.setLineDash([]);
- ctx.strokeStyle='#acffe0';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(a.x,a.y);for(let i=1;i<=40;i++){const p=point(smooth*i/40);ctx.lineTo(p.x,p.y);}ctx.stroke();const p=point(smooth),next=point(Math.min(1,smooth+.01)),heading=Math.atan2(next.y-p.y,next.x-p.x);ctx.translate(p.x,p.y);ctx.rotate(heading);ctx.fillStyle='#f4ffdd';ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(-7,-5);ctx.lineTo(-3,0);ctx.lineTo(-7,5);ctx.closePath();ctx.fill();ctx.restore();
+ ctx.strokeStyle='#acffe0';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(a.x,a.y);for(let i=1;i<=40;i++){const p=point(smooth*i/40);ctx.lineTo(p.x,p.y);}ctx.stroke();const p=point(smooth),heading=Math.atan2((1-smooth)*(cy-a.y)+smooth*(b.y-cy),(1-smooth)*(cx-a.x)+smooth*(b.x-cx));ctx.translate(p.x,p.y);ctx.rotate(heading);ctx.fillStyle='#78dfff88';ctx.beginPath();ctx.moveTo(-19,-3);ctx.lineTo(-46-5*Math.sin(u*120),0);ctx.lineTo(-19,3);ctx.closePath();ctx.fill();drawModel(meshes.player,0,0,.62,0,Math.sin(u*12)*.24,0,u*8.4);window.gpuModels?.flush(ctx);ctx.restore();
 }
 function drawPlanetTransit(location,u){
  const origin=sectorBlend?.origin;if(!origin){drawPlanetApproach(location,u);return;}
