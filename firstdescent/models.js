@@ -70,8 +70,10 @@ function buildWeapons(){let m=meshBuilder();m.ellipsoid(0,0,0,15,7,7,[85,105,122
 buildWeapons();
 function buildShieldAndBone(){let m=meshBuilder();m.ellipsoid(0,0,0,8,13,8,[109,150,174],0,12,8);for(const side of [-1,1]){m.tube([[0,side*8,0],[8,side*22,0],[4,side*37,0]],5,[128,166,189]);m.ellipsoid(4,side*33,-3,3,5,3,[118,246,245],.85,8,6)}m.ellipsoid(-4,0,-7,4,7,3,[102,247,249],.75,10,6);meshes.frontShield=m.faces;
  m=meshBuilder();m.tube([[-12,5,0],[-9,-3,-1],[-2,-8,0],[7,-6,1],[12,1,0]],2.6,[224,205,174]);m.wedge([-12,5,-1],[-15,8,-1],[-11,7,0],2,[172,137,115]);meshes.rib=m.faces;
- m=meshBuilder();m.ellipsoid(0,0,0,5,6,4,[210,198,171],0,10,7);for(const side of [-1,1]){m.wedge([side*2,0,0],[side*11,-4,1],[side*7,4,0],3,[221,212,185]);m.ellipsoid(side*3,-3,-3,1.5,2,1,[101,85,72],0,6,4)}m.wedge([-2,-3,1],[0,-13,2],[3,-3,2],3,[230,217,186]);meshes.spineChip=m.faces;
- m=meshBuilder();m.ellipsoid(0,0,0,8,7,3,[199,194,164],0,10,6);m.ellipsoid(-3,-1,-3,2,2,1,[52,60,52],0,7,5);m.ellipsoid(3,-1,-3,2,2,1,[52,60,52],0,7,5);for(let i=0;i<3;i++)m.wedge([-5+i*4,4,-1],[-7+i*4,10,-2],[-2+i*4,5,-1],2,[235,222,186]);meshes.chitinChip=m.faces;
+ m=meshBuilder();m.ellipsoid(0,0,0,5,6,4,[210,198,171],0,10,7);for(const side of [-1,1]){m.wedge([side*2,0,0],[side*11,-4,1],[side*7,4,0],3,[221,212,185]);}m.ellipsoid(0,0,-4,2,2.6,1,[101,85,72],0,8,5);m.wedge([-2,-3,1],[0,-13,2],[3,-3,2],3,[230,217,186]);meshes.spineChip=m.faces;
+ m=meshBuilder();m.ellipsoid(0,0,0,8,7,3,[199,194,164],0,10,6);m.ellipsoid(-3,-1,-3,2,2,1,[52,60,52],0,7,5);m.ellipsoid(3,-1,-3,2,2,1,[52,60,52],0,7,5);for(let i=0;i<3;i++)m.wedge([-5+i*4,4,-1],[-7+i*4,10,-2],[-2+i*4,5,-1],2,[235,222,186]);meshes.skull=m.faces;
+ // Shell fragments have ridges, not paired eye sockets or teeth.
+ m=meshBuilder();m.wedge([-10,-5,-2],[9,-7,1],[5,9,-1],3,[152,157,119]);m.tube([[-8,-3,-3],[-1,-1,-5],[5,6,-2]],1.2,[209,201,157]);meshes.chitinChip=m.faces;
 }buildShieldAndBone();
 function refineBossSurfaces(){
  const shell=meshBuilder();for(let row=0;row<5;row++){const x=-5+row*8;for(let j=0;j<7;j++){const angle=(j/6)*Math.PI+.25,y=Math.cos(angle)*24,z=Math.sin(angle)*-25;shell.ellipsoid(x,y,z,7,5,3,[69+row*7,124+row*4,99],0,16,10);if(j%2===0)shell.ellipsoid(x-2,y-1,z-3,2,1.5,1,[149,230,128],.5,10,7)}}for(const side of [-1,1])shell.tube([[-12,side*23,-12],[-29,side*32,-16],[-48,side*25,-19],[-53,side*10,-21]],4,[213,211,169]);meshes.hiveHead=meshes.hiveHead.concat(shell.faces);

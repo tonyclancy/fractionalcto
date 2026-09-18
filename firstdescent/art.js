@@ -32,6 +32,102 @@ function drawBackdrop(dt=1/60){
  const flow=vertical==='up'?1:-1;
  for(let i=0;i<22;i++){const p=sceneryPosition((i*137.7)%W,(i*167.4)%H,.38+(i%4)*.055,40);ctx.globalAlpha=.08+(i%3)*.035;ctx.strokeStyle='#c1dcec';ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+(vertical?0:2+i%3),p.y+(vertical?flow*(2+i%3):0));ctx.stroke()}ctx.globalAlpha=1;
  const v=ctx.createLinearGradient(0,0,0,H);v.addColorStop(0,'#02061160');v.addColorStop(.24,'transparent');v.addColorStop(.75,'transparent');v.addColorStop(1,'#02061166');ctx.fillStyle=v;ctx.fillRect(0,0,W,H);
+ drawWaterAtmosphere(false);
+ drawCloudAtmosphere();drawHeatHaze();
+}
+let cloudSurfaces=null,heatSurface=null;
+function cloudTexture(seed){
+ const surface=document.createElement('canvas');surface.width=512;surface.height=192;const c=surface.getContext('2d');
+ // Feathered, irregular lobes are baked once. Only whole layers drift during
+ // play, so clouds have volume without regenerating noise every frame.
+ for(let i=0;i<32;i++){
+  const u=i/31,x=38+u*436,y=102+Math.sin(i*2.37+seed)*20,r=22+Math.sin(Math.PI*u)*38;
+  c.save();c.translate(x,y);c.scale(1,.58+Math.sin(i+seed)*.12);
+  const g=c.createRadialGradient(-r*.15,-r*.2,0,0,0,r);g.addColorStop(0,'#dde6df24');g.addColorStop(.4,'#bacbca1c');g.addColorStop(1,'#8bacae00');c.fillStyle=g;c.fillRect(-r,-r,r*2,r*2);c.restore();
+ }
+ return surface;
+}
+function drawCloudAtmosphere(){
+ const cover=sectors[level].atmosphere?.clouds||0;if(!cover||sectors[level].medium==='water')return;
+ cloudSurfaces??=[cloudTexture(1),cloudTexture(4),cloudTexture(7)];ctx.save();const t=sectorSceneTime();
+ for(let layer=0;layer<2;layer++)for(let i=0;i<3;i++){
+  const width=layer?800:1050,height=layer?210:155,span=W+width,x=((i*span/3-t*(layer?40:12)+span)%span+span)%span-width;
+  const y=(layer?H*.65:H*.24)+Math.sin(i*2.4+layer)*80+Math.sin(t*.09+i)*8;
+  ctx.globalAlpha=cover*(layer?.32:.2);ctx.drawImage(cloudSurfaces[(i+layer)%3],x,y,width,height);
+ }ctx.restore();
+}
+function heatHazeOffset(y,t,strength){const depth=clamp((y/H-.28)/.72,0,1);return strength*depth*(Math.sin(y*.024-t*2.5)*2.2+Math.sin(y*.047-t*1.4)*.8);}
+function drawHeatHaze(){
+ const heat=sectors[level].atmosphere?.heat||0;if(!heat)return;
+ if(!heatSurface){heatSurface=document.createElement('canvas');heatSurface.width=W;heatSurface.height=H;}
+ const c=heatSurface.getContext('2d');c.drawImage(canvas,0,0,canvas.width,canvas.height,0,0,W,H);
+ const t=sectorSceneTime();ctx.save();
+ // Refract the already-painted scenery only. The single reusable GPU-backed
+ // surface needs no pixel readback; ships, projectiles and HUD stay sharp.
+ for(let y=Math.floor(H*.28);y<H;y+=8){const h=Math.min(8,H-y),shift=heatHazeOffset(y,t,heat);ctx.globalAlpha=clamp((y/H-.28)/.45,0,1)*.78;ctx.drawImage(heatSurface,4,y,W-8,h,4+shift,y,W-8,h);}
+ ctx.restore();
+}
+// Habitat-driven, bounded layers work for any future submerged sector.
+function drawWaterAtmosphere(foreground=false){
+ if(sectors[level].medium!=='water')return;
+ const t=sectorSceneTime(),deep=themeIndex()===3;ctx.save();
+ if(!foreground){
+  const depth=ctx.createLinearGradient(0,0,0,H);depth.addColorStop(0,deep?'#197b8c20':'#52b6c72b');depth.addColorStop(1,'#011f3b70');ctx.fillStyle=depth;ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='screen';
+  // Sunlight scatters through the surface as broad, feathered illumination.
+  // No polygon cones or parallel rays: those read as artificial spotlights.
+  for(let i=0;i<4;i++){
+   const x=i*W/3+Math.sin(t*.12+i*2.1)*75,y=-100+Math.sin(t*.17+i)*35;
+   ctx.save();ctx.translate(x,y);ctx.scale(1,.82);
+   const g=ctx.createRadialGradient(0,0,0,0,0,620);g.addColorStop(0,deep?'#a6dac317':'#d2ebcc23');g.addColorStop(.38,deep?'#67c7c40c':'#86d8cb14');g.addColorStop(1,'#69bbc600');ctx.fillStyle=g;ctx.fillRect(-620,-620,1240,1240);ctx.restore();
+  }
+  // Slowly shifting, overlapping surface patches provide a gentle shimmer.
+  for(let i=0;i<8;i++){
+   const x=(i+.5)*W/8+Math.sin(t*.27+i*1.8)*34,y=20+Math.sin(t*.31+i*2.4)*28;
+   ctx.save();ctx.translate(x,y);ctx.scale(1,.38);
+   const g=ctx.createRadialGradient(0,0,0,0,0,180);g.addColorStop(0,deep?'#c4ebd10a':'#e0f4d713');g.addColorStop(1,'#a6dfca00');ctx.fillStyle=g;ctx.fillRect(-180,-180,360,360);ctx.restore();
+  }
+ }else{
+  // Rising air pockets, suspended sediment and the pilot's propulsive wake.
+  for(let i=0;i<38;i++){const speed=18+i%5*7,y=H+20-((t*speed+i*127)%(H+40)),x=((i*197-t*(11+i%4*5))%(W+40)+W+40)%(W+40)-20+Math.sin(t*.9+i)*7,r=1.5+i%4;
+   ctx.globalAlpha=.16+(i%3)*.055;ctx.strokeStyle='#afe9ed';ctx.lineWidth=.8;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.stroke();ctx.fillStyle='#efffff';ctx.fillRect(x-r*.35,y-r*.5,.9,.9);
+  }
+ }
+ ctx.restore();
+}
+let waterWakes=[],waterWakeTracks=new WeakMap();
+function resetWaterWakes(){waterWakes=[];waterWakeTracks=new WeakMap();}
+function updateWaterWakes(dt){
+ if(sectors[level].medium!=='water'){if(waterWakes.length)resetWaterWakes();return;}
+ for(const p of waterWakes){p.age+=dt;p.x+=p.vx*dt;p.y+=(p.vy-9)*dt;}
+ waterWakes=waterWakes.filter(p=>p.age<p.life);
+ function trace(actor,size,forward){
+  let track=waterWakeTracks.get(actor);if(!track){track={x:actor.x,y:actor.y,clock:0};waterWakeTracks.set(actor,track);}
+  const dx=actor.x-track.x,dy=actor.y-track.y;track.x=actor.x;track.y=actor.y;
+  // Ignore checkpoint/entry teleports; add the animal's through-water drive
+  // so hovering in the scrolling camera still leaves a modest propulsive wake.
+  if(Math.hypot(dx,dy)>100||actor.x< -80||actor.x>W+80)return;
+  const vx=dx/dt+forward*95,vy=dy/dt,speed=Math.hypot(vx,vy),effort=clamp(speed/440,.12,1),angle=Math.atan2(vy,vx);
+  track.clock+=dt;if(track.clock<.11-effort*.045)return;track.clock=0;
+  const ux=Math.cos(angle),uy=Math.sin(angle),seed=time*19+actor.y*.07;
+  waterWakes.push({x:actor.x-ux*size*.85,y:actor.y-uy*size*.85,vx:-ux*(30+effort*60),vy:-uy*(30+effort*60),angle,size,effort,seed,age:0,life:.65+effort*.5});
+ }
+ trace(ship,28,1);
+ for(const d of drops)trace(d,9,-1);
+ for(const e of enemies)if(e.hp>0)trace(e,e.satellite?9:e.brood?48:23,e.direction||-1);
+ if(boss&&boss.hp>0)trace(boss,Math.min(100,(boss.r||120)*.65),Math.cos(bossFlightPose(boss).yaw)>0?-1:1);
+ if(waterWakes.length>120)waterWakes.splice(0,waterWakes.length-120);
+}
+function drawWaterWakes(){
+ if(sectors[level].medium!=='water')return;ctx.save();ctx.lineCap='round';
+ for(const p of waterWakes){const fade=(1-p.age/p.life)**2,width=p.size*(.4+p.age*.9),length=18+p.effort*42+p.age*30;
+  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);ctx.globalAlpha=fade*(.14+p.effort*.2);ctx.strokeStyle='#b8e5dc';ctx.lineWidth=2.4;
+  // Two broken curling edges spread out behind the body, never a solid cone.
+  for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(3,side*width*.35);ctx.bezierCurveTo(-length*.3,side*width*.85,-length*.65,side*width,-length,side*width*.75);ctx.stroke();}
+  ctx.globalAlpha=fade*(.2+p.effort*.22);ctx.strokeStyle='#c9f5ec';ctx.lineWidth=1.3;
+  for(let i=0;i<3;i++){const x=-length*(i/3+.1),y=Math.sin(p.seed+i*2.1+p.age*4)*width*.52,r=(1.3+i*.75)*(1+p.age*.5);ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.stroke();}
+  ctx.restore();
+ }ctx.restore();
 }
 // Software-projected solid geometry: yaw reveals the nose and side faces.
 function projectHull(v,yaw,roll,pitch){let [x,y,z]=v;let xx=x*Math.cos(yaw)+z*Math.sin(yaw),zz=-x*Math.sin(yaw)+z*Math.cos(yaw);let yy=y*Math.cos(roll)-zz*Math.sin(roll);zz=y*Math.sin(roll)+zz*Math.cos(roll);const f=340/(340+zz);return{x:(xx*Math.cos(pitch)-yy*Math.sin(pitch))*f,y:(xx*Math.sin(pitch)+yy*Math.cos(pitch))*f,z:zz}}
@@ -79,7 +175,7 @@ function blockWithFrontShield(b,oldX){if(!(ship.frontShield>0)||b.vx>=0)return f
 function drawFrontShield(){if(!(ship.frontShield>0))return;const p=frontShieldPosition(),hit=ship.frontFlash>0;ctx.save();ctx.translate(p.x,p.y);const fill=ctx.createRadialGradient(0,0,3,0,0,48);fill.addColorStop(0,'#88ffe908');fill.addColorStop(.7,'#71ffe91a');fill.addColorStop(1,'#b9fff066');ctx.fillStyle=fill;ctx.beginPath();ctx.ellipse(0,0,20,43,0,-Math.PI/2,Math.PI/2);ctx.closePath();ctx.fill();glow('#72ffea',hit?28:15);for(let i=0;i<3;i++){ctx.globalAlpha=(hit?1:.75)/(i+1);ctx.lineWidth=i===0?2:4+i*3;ctx.strokeStyle=hit?'#ffffff':'#8cfff0';ctx.beginPath();ctx.ellipse(0,0,20+i,43+i,0,-Math.PI/2,Math.PI/2);ctx.stroke();}ctx.globalAlpha=.18;ctx.lineWidth=1;for(let y=-30;y<=30;y+=12){ctx.beginPath();ctx.moveTo(1,y);ctx.lineTo(15*Math.sqrt(1-y*y/1800),y);ctx.stroke();}noGlow();ctx.restore();}
 
 function enemyKinematics(e,dt){
- if(e.guardian&&boss){e.age+=dt;const a=e.age*.9+e.orbit;const u=passEase(Math.min(1,e.age/1.2)),x=boss.x+Math.cos(a)*155,y=boss.y+Math.sin(a)*130;e.x=(e.emergeX??x)+(x-(e.emergeX??x))*u;e.y=(e.emergeY??y)+(y-(e.emergeY??y))*u;e.travelYaw=Math.sin(a)*.35;e.travelPitch=Math.cos(a)*.18;return;}
+ if(e.guardian&&boss){e.age+=dt;const a=e.age*.9+e.orbit;const u=passEase(Math.min(1,e.age/1.2)),x=boss.x+Math.cos(a)*155,y=boss.y+Math.sin(a)*130;e.x=(e.emergeX??x)+(x-(e.emergeX??x))*u;e.y=(e.emergeY??y)+(y-(e.emergeY??y))*u;e.direction=ship.x>=e.x?1:-1;e.travelYaw=Math.sin(a)*.35;e.travelPitch=Math.cos(a)*.18;return;}
  if(e.verticalTravel){e.age+=dt;const organic=isOrganicEnemy(e),frequency=e.type===1?(themeIndex()===0?4.8:3.2):(themeIndex()===2?9:3.8),stroke=Math.pow((1+Math.cos((e.age+e.phase)*frequency))*.5,5);if(organic&&stroke>.65&&(e.stroke??0)<=.65)window.flightAudio?.swim(e);const speed=e.speed*(organic?.70+stroke*.90:.78*(1+.1*Math.sin(e.age*2.2+e.phase)));e.y+=e.verticalDirection*speed*dt;const desired=enemyRouteX(e,e.baseX+Math.sin(e.age*.8+e.phase)*42);e.routeX+=clamp((desired-e.routeX)*(1-Math.exp(-dt*6)),-260*dt,260*dt);e.x=e.routeX;e.travelPitch=-e.verticalDirection*.25+Math.sin(e.age*.7)*.06;e.travelYaw=(e.direction===1?Math.PI:0)+Math.sin(e.age*.8)*.12;e.depth=1;e.stroke=stroke;return;}
  if(e.sentry){e.age+=dt;e.x=W+210-(time-e.anchorAt)*SCROLL_SPEED;const gate=obstacles.find(o=>o.shutters&&o.at===e.anchorAt);if(gate){const r=obstacleSolids(gate)[0];if(sectors[level].scrollAxis){e.x=r.side==='left'?r.x+r.w+30:r.x-30;e.y=r.y+r.h/2;}else e.y=r.h+32;}e.travelPitch=e.travelYaw=0;return;}
  if(e.satellite&&e.mother){
@@ -161,7 +257,7 @@ function drawEnemy(e){
  if(themeIndex()===1&&!organic)for(const side of [-1,1]){const mount=projectHull([28,side*(e.type===2?27:20),-10],yaw,roll,pitch),vector=clamp((e.travelPitch||0)*1.1,-.35,.35);drawModel(meshes.vectorEngine,e.x+mount.x,e.y+mount.y,1,yaw,roll,pitch+vector,e.age,e.hit);orb(e.x+mount.x+22,e.y+mount.y,13,'#ffb067',.3+(e.stroke||0)*.3);}
  drawEmitter(e);if(e.elite){ctx.save();ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle=e.elite==='hunter'?'#ffbc79':'#ff849f';ctx.fillText(e.elite==='hunter'?'MISSILE HUNTER':'ACE INTERCEPTOR',e.x,e.y-e.r-34);ctx.restore()}if(e.max>5&&(e.hp<e.max||e.elite))healthBar(e.x,e.y-e.r-24,e.elite?80:e.type===2?64:46,e.hp,e.max,e.hit>0?'#fff':organic?'#9cffc3':'#ffb797');
 }
-function bossFlightPose(b){return{yaw:(b.turnYaw||0)+(b.flightYaw||0),pitch:(b.flightPitch||0)+(b.beamPitch||0),roll:(b.flightBank||0)+(b.maneuverRoll||0),depth:1};}
+function bossFlightPose(b){return{yaw:(b.turnYaw||0)+(b.flightYaw||0),pitch:(b.flightPitch||0)+(b.beamPitch||0),roll:(b.flightBank||0)+(b.maneuverRoll||0)+(b.barrelRoll||0),depth:1};}
 // A separately aimed organic cannon is mounted in the front-facing cheek socket.
 function bossLaserRig(b){const body=bossFlightPose(b),mount=rotateVertex([-30,0,-17],body.yaw,body.roll,body.pitch,0,0),root={x:b.x-35+mount[0]*2.35*body.depth,y:b.y+mount[1]*2.35*body.depth},h=hazards[0];return{...root,scale:1.9*body.depth,yaw:h?-.5:body.yaw-.25,roll:h?0:body.roll,pitch:h?Math.atan2(root.y-h.y,root.x):body.pitch};}
 function bossLaserOrigin(b){const rig=bossLaserRig(b),v=rotateVertex(bossLaserMeshes[0].tip,rig.yaw,rig.roll,rig.pitch,0,0);return{x:rig.x+v[0]*rig.scale,y:rig.y+v[1]*rig.scale,scale:rig.scale/1.9};}
@@ -228,6 +324,7 @@ function driveBoss(b,target,dt,drive,speed){
 }
 function moveBoss(b,dt){if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){moveCapitalShip(b,dt);return;}const kind=bossIndex(),oldX=b.x,oldY=b.y;
  const crossing=![1,4].includes(kind)&&updateBossPass(b,dt);
+ if(!crossing&&Math.abs(ship.x-b.x)>120&&!b.breath){const targetYaw=ship.x>b.x?Math.PI:0;b.turnYaw=(b.turnYaw||0)+clamp(targetYaw-(b.turnYaw||0),-dt*2.4,dt*2.4);}
  if(crossing){b.navVX=(b.x-oldX)/dt;b.navVY=(b.y-oldY)/dt;}
  else{
   const route=bossFlightRoutes[kind];b.patrolTime=(b.patrolTime||0)+dt*(1.25+bossCombatPhase(b)*.12);
@@ -259,12 +356,12 @@ function updateBossAttitude(b,dt,vx,vy){
    b.maneuverRoll=p.rollStart+(kind===3?Math.sin(u*Math.PI)**2*1.15:sign*(kind===5?-1:1)*TAU*passEase(u));
   }
  }
- const effort=clamp(Math.hypot(vx,vy)/450,0,1);b.propulsion=(b.propulsion||0)+(effort-(b.propulsion||0))*response;b.propulsionTime=(b.propulsionTime||0)+dt*(1.28+effort*.9+.22*(1-clamp(b.hp/(b.max||b.hp||1),0,1)));b.depth=1;
+ const effort=clamp(Math.hypot(vx,vy)/450,0,1);b.propulsion=(b.propulsion||0)+(effort-(b.propulsion||0))*response;b.propulsionTime=(b.propulsionTime||0)+dt*(1.62+effort*1.08+.32*(1-clamp(b.hp/(b.max||b.hp||1),0,1)));b.depth=1;
 }
 
 function bossCombatPhase(b){const ratio=b.max>0?b.hp/b.max:1;return ratio<.28?2:ratio<.62?1:0;}
-function bossPatternBusy(b){return !!(b.pass||b.breath||b.charge>0||b.rush>0||b.vacuum>0||b.barrage>0||b.rackShots>0||b.sporePods?.length||b.salvoWindup||hazards.length||acidClouds.some(h=>h.bossTrap));}
-function holdBossSalvo(b){b.shoot=Math.max(b.shoot||0,1.1);b.attack=null;b.fireHeading=null;}
+function bossPatternBusy(b){return !!((b.pass&&b.pass.stage!=='rear')||b.breath||b.charge>0||b.rush>0||b.vacuum>0||b.barrage>0||b.rackShots>0||b.sporePods?.length||b.salvoWindup||hazards.length||acidClouds.some(h=>h.bossTrap));}
+function holdBossSalvo(b){b.shoot=Math.max(b.shoot||0,.52);b.attack=null;b.fireHeading=null;}
 function bossEncounterHint(b){const k=bossIndex(),phase=bossCombatPhase(b);if(b.exposed>0)return 'EXPOSED · ATTACK NOW';if(b.pass)return 'DODGE THE CHARGE · SWITCH YOUR ORB';if(k===0)return b.breath?.kind==='wind'?'WINGSTORM · CUT ACROSS THE PRESSURE':'FIRE BREATH · WATCH ITS MOUTH';if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return 'SWEEPING CANNON · FOLLOW THE SAFE SIDE';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → CLAW DIVE → ELEMENTAL STRIKE'+(phase===2?' · ENRAGED':'');return '';}
 function updateBossSpecial(b,dt){
  if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){updateCapitalSiege(b,dt);return;}
@@ -272,13 +369,16 @@ function updateBossSpecial(b,dt){
  b.recovery=Math.max(0,(b.recovery||0)-dt);updateBreath(b,dt);updateTechLaser(b,dt);updateBossSporePods(b,dt);updateEyeAttack(b,dt);
  if(hadBreath&&!b.breath){b.recovery=kind===0?2:1.6;b.exposed=Math.max(b.exposed||0,kind===2?3:1.5);if(kind===0&&b.wardenCombo){b.wardenCombo=false;b.passClock=0;}}
  if(b.comboPassPending&&b.pass)b.comboPassStarted=true;
+ // The queen's elemental follow-up belongs to the far-side fight, rather
+ // than waiting until she has crossed back to the right of the screen.
+ if(b.comboPassPending&&b.pass?.stage==='rear'&&b.pass.age>=.8){b.comboPassPending=false;b.comboPassStarted=false;}
  if(b.comboPassPending&&b.comboPassStarted&&!b.pass){b.comboPassPending=false;b.comboPassStarted=false;b.recovery=1.6;}
- if(b.pass){b.charge=0;b.salvoWindup=null;holdBossSalvo(b);return;}
+ if(b.pass&&b.pass.stage!=='rear'){b.charge=0;b.salvoWindup=null;holdBossSalvo(b);return;}
  if(kind>=3){updateExpansionBoss(b,dt);return;}
  b.rush=Math.max(0,(b.rush||0)-dt);
- if(bossPatternBusy(b)||b.recovery>0){holdBossSalvo(b);}else b.special-=dt;
+ if(bossPatternBusy(b)){holdBossSalvo(b);}else if(b.recovery<=0)b.special-=dt;
  if(b.special<=0&&!bossPatternBusy(b)&&!b.recovery){
-  b.lockY=clamp(ship.y,110,H-110);b.lockX=ship.x;b.specialCount=(b.specialCount||0)+1;b.special=kind===0?8.8-phase*.8:8-phase*.7;
+  b.lockY=clamp(ship.y,110,H-110);b.lockX=ship.x;b.specialCount=(b.specialCount||0)+1;b.special=kind===0?5.8-phase*.6:5.6-phase*.5;
   if(kind===0){const wingstorm=phase>0&&b.specialCount%2===0;if(wingstorm){startBreath(b,'wind',1.15,{duration:1.25+phase*.18,sweep:.24+phase*.07});announce('WARDEN WINGS LOCKING','CROSS THE PRESSURE BEFORE IT BUILDS');}else{startBreath(b,'fire',1.45,{duration:1.65+phase*.25});b.wardenCombo=phase===2&&b.specialCount%3===0;announce('WARDEN INHALING',b.wardenCombo?'FIRE WILL FLOW INTO A DIVING STRIKE':'KEEP CLEAR OF ITS MOUTH');}}
   else if(kind===2){const pressure=phase>0&&b.specialCount%2===0;startBreath(b,pressure?'wind':'water',1.65,{duration:pressure?1.8:2.3+phase*.2,sweep:(pressure?.38:.20)+phase*.025});b.pressureFollowup=pressure;announce(pressure?'PRESSURE FRONT BUILDING':'SOVEREIGN TIDAL SWEEP',pressure?'DODGE THE PUSH · A WATER JET FOLLOWS':'MOVE AHEAD OF THE BLUE SWEEP');}
   else{b.charge=1.5;b.specialFired=false;announce('MISSILE RACKS OPEN','MOVE AWAY FROM THE TARGET MARKER');}
@@ -291,9 +391,9 @@ function updateBossSpecial(b,dt){
 
 function drawSpecialWarning(b){}
 
-function laserHalfWidth(h,x){return (h.width/2)*(.5+.5*clamp((h.x-x)/180,0,1));}
-function drawHazards(){if(boss){drawBreath(boss);}for(const h of hazards){if(boss){const p=h.kind==='tech'?techLaserOrigin(boss):bossLaserOrigin(boss);h.x=p.x;h.startY=p.y;if(h.kind==='tech')h.y=p.y-Math.tan(p.angle)*p.x;}const armed=h.age>=h.warning,c=h.kind==='tech'?'#bdaaff':'#83ffd6';ctx.save();ctx.strokeStyle=c;ctx.fillStyle=c;
- if(armed){const nearX=Math.max(0,h.x-180),nearY=h.y+(h.startY-h.y)*nearX/h.x,tip=laserHalfWidth(h,h.x);glow(c,24);ctx.globalAlpha=.8;poly([[h.x,h.startY-tip],[nearX,nearY-h.width/2],[0,h.y-h.width/2],[0,h.y+h.width/2],[nearX,nearY+h.width/2],[h.x,h.startY+tip]],c);ctx.globalAlpha=.95;ctx.strokeStyle='#edfff9';ctx.lineWidth=h.kind==='tech'?22:13;ctx.beginPath();ctx.moveTo(h.x,h.startY);ctx.lineTo(0,h.y);ctx.stroke();orb(h.x,h.startY,h.kind==='tech'?39:28,h.kind==='tech'?'#eee4ff':'#d8fff1',.7);if(h.kind==='tech')for(let i=0;i<4;i++){const travel=(h.age*2.6+i*.25)%1,x=h.x*(1-travel),y=h.startY+(h.y-h.startY)*travel;orb(x,y,8+travel*4,'#f1eaff',.38);}}
+function laserHalfWidth(h,x){return (h.width/2)*(.5+.5*clamp(Math.abs(h.x-x)/180,0,1));}
+function drawHazards(){if(boss)drawBreath(boss);for(const h of hazards){if(boss){const p=h.kind==='tech'?techLaserOrigin(boss):bossLaserOrigin(boss);h.x=p.x;h.startY=p.y;h.angle=p.angle??Math.atan2(h.y-p.y,-p.x);}const armed=h.age>=h.warning,c=h.kind==='tech'?'#bdaaff':'#83ffd6';ctx.save();
+ if(armed){const angle=h.angle??Math.atan2(h.y-h.startY,-h.x),length=Math.hypot(W,H)+300;ctx.translate(h.x,h.startY);ctx.rotate(angle);glow(c,24);ctx.globalAlpha=.8;poly([[0,-h.width/4],[180,-h.width/2],[length,-h.width/2],[length,h.width/2],[180,h.width/2],[0,h.width/4]],c);ctx.globalAlpha=.95;ctx.strokeStyle='#edfff9';ctx.lineWidth=h.kind==='tech'?22:13;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(length,0);ctx.stroke();orb(0,0,h.kind==='tech'?39:28,'#eee4ff',.7);if(h.kind==='tech')for(let i=0;i<4;i++){const travel=(h.age*2.6+i*.25)%1;orb(length*travel,0,8+travel*4,'#f1eaff',.38);}}
  ctx.restore();}if(boss){if(!bossDesign()&&!bossOrganic()&&bossIndex()!==4)drawBossChamber(boss);drawSpecialWarning(boss)}}
 function moveShot(s,dt){s.age+=dt;s.trail.push({x:s.x,y:s.y});if(s.trail.length>12)s.trail.shift();
  if(s.kind==='missile'){const direction=s.direction||1;let target=typeof isCapitalSiege==='function'&&isCapitalSiege(boss)?capitalShotTarget(s):(boss&&(boss.x-s.x)*direction>0?boss:null);for(const e of enemies){if(e.hp>0&&(e.x-s.x)*direction>-40&&(!target||Math.hypot(e.x-s.x,e.y-s.y)<Math.hypot(target.x-s.x,target.y-s.y)))target=e}if(target){const a=Math.atan2(target.y-s.y,target.x-s.x);s.vx+=(Math.cos(a)*600-s.vx)*Math.min(1,dt*5);s.vy+=(Math.sin(a)*600-s.vy)*Math.min(1,dt*5)}}
@@ -338,6 +438,7 @@ function explode(x,y,c,size=1,organic=false,voice=1){
  window.flightAudio?.explosion(x,size,organic);if(organic)window.flightAudio?.alienCry?.(x,size,voice);
  if(organic&&level>=3&&voice<64&&voice%3===0){acidClouds.push({x,y,age:0,life:3.6,warning:.75,r:Math.min(64,38+size*9),seed:voice});if(acidClouds.length>6)acidClouds.shift();}
  const pieces=[];const count=Math.min(90,Math.floor(rand(20,35)+size*9+(organic?18:0))),bias=rand(0,TAU);for(let i=0;i<count;i++){const z=rand(-1,1),a=rand(0,TAU),r=Math.sqrt(1-z*z),v=rand(35,210)*Math.sqrt(size);pieces.push({x:0,y:0,z:0,vx:Math.cos(a)*r*v+Math.cos(bias)*v*.25,vy:Math.sin(a)*r*v+Math.sin(bias)*v*.25,vz:z*v,seed:rand(0,8),delay:rand(0,.16),radius:rand(5,22)*Math.sqrt(size),volume:i<7,debris:Math.random()<.32,fluid:organic&&i%6!==0})}
+ if(organic){let skull=false;for(const piece of pieces){if(piece.fluid)continue;piece.fragment=skull?['bone','rib','spineChip','chitinChip'][Math.floor(piece.seed)%4]:'skull';skull=true;}}
  pieces.sort((a,b)=>b.vz-a.vz);const effect={x,y,c,size,organic,bloodGreen:voice%3===0,bloodKind:voice%3,age:0,life:rand(1.25,1.9)+size*.15,pieces};explosions.push(effect);if(!organic)burst(x,y,c,Math.floor(16*size));if(explosions.length>16)explosions.shift();return effect;
 }
 function explodeBoss(b){
@@ -365,7 +466,7 @@ function drawExplosions(dt){for(const e of explosions){if(state!=='paused')e.age
  const radius=rr*(.24+(p.seed%1)*.23),length=Math.min(28,Math.hypot(p.vx,p.vy)*.09)*(1-t);
  const outline=[];for(let j=0;j<12;j++){const a=j/12*TAU,r=radius*(.8+Math.sin(j*2.3+p.seed)*.2+Math.cos(j*4.1+p.seed)*.1);outline.push([Math.cos(a)*r-(Math.cos(a)<0?length*Math.pow(-Math.cos(a),7):0),Math.sin(a)*r]);}ctx.beginPath();ctx.moveTo((outline[11][0]+outline[0][0])/2,(outline[11][1]+outline[0][1])/2);for(let j=0;j<12;j++){const a=outline[j],b=outline[(j+1)%12];ctx.quadraticCurveTo(a[0],a[1],(a[0]+b[0])/2,(a[1]+b[1])/2);}ctx.closePath();ctx.fill();
  ctx.fillStyle=blood[2];ctx.globalAlpha=fade*.45;ctx.beginPath();ctx.arc(radius*.12,-radius*.28,Math.max(.5,radius*.12),0,TAU);ctx.fill();ctx.globalAlpha=fade;ctx.fillStyle=blood[1];for(let j=0;j<3;j++){const a=p.seed+j*2.1;ctx.beginPath();ctx.arc(-length*(.7+j*.4),Math.sin(a)*radius*(1.1+j*.5),radius*(.11+j*.04),0,TAU);ctx.fill();}
- }else if(p.debris||e.organic){drawModel(meshes[e.organic?['bone','rib','spineChip','chitinChip'][Math.floor(p.seed)%4]:'shrapnel'],0,0,f*(.7+p.radius*.045),p.seed+e.age*3.4,p.seed*.3+e.age*5,e.age*2.3,e.age)}
+ }else if(p.debris||e.organic){drawModel(meshes[e.organic?(p.fragment||'bone'):'shrapnel'],0,0,f*(.7+p.radius*.045),p.seed+e.age*3.4,p.seed*.3+e.age*5,e.age*2.3,e.age)}
  else if(p.volume){drawSoftPlume(p,rr,e.age,fade)}
  else {const g=ctx.createRadialGradient(-rr*.3,-rr*.35,rr*.05,0,0,rr);g.addColorStop(0,e.age<.35?'#fffce0':'#e8a36b');g.addColorStop(.3,e.age<.4?'#ffe49b':e.c);g.addColorStop(.68,e.age<.7?'#d66e32':'#473c42');g.addColorStop(1,'#0a121800');ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,rr,0,TAU);ctx.fill()}
  ctx.restore();}
@@ -419,7 +520,7 @@ function bossArmPoints(b,side){
 }
 function updateBossArms(b,dt){
  if(bossIndex()===0){b.armAttack=null;return;}
- if(b.pass){b.armAttack=null;return;}
+ if(b.pass&&b.pass.stage!=='rear'){b.armAttack=null;return;}
  if(bossIndex()!==0)return;b.armClock=(b.armClock??6)-dt;
  if(b.armClock<=0&&!b.armAttack){b.armAttack={age:0,x:Math.max(90,ship.x-30),y:ship.y};b.armClock=8;}
  if(!b.armAttack)return;b.armAttack.age+=dt;
@@ -509,8 +610,8 @@ function updateBossPass(b,dt){const profile=bossPassProfiles[bossIndex()];if(!pr
  const next=stage=>{if(stage==='dash'||stage==='return')window.flightAudio?.bossAttack?.('lunge',bossIndex(),b.x);p.stage=stage;p.age=0;p.fromX=b.x;p.fromY=b.y;};
  if(p.stage==='warn'){const u=clamp(p.age/1.55,0,1),brake=u-6*u*u*u+8*u*u*u*u-3*u*u*u*u*u;b.x=p.fromX+(p.vx0||0)*1.55*brake;b.y=p.fromY+(p.y-p.fromY)*passEase(u)+(p.vy0||0)*1.55*brake;if(p.age>=1.55)next('dash');}
  else if(p.stage==='dash'){const t=clamp(p.age/profile.dash,0,1),ease=passEase(t);b.x=p.fromX+(profile.left-p.fromX)*ease;b.y=p.y+profile.curve*Math.pow(Math.sin(Math.PI*t),2);if(t===1)next('turn');}
- else if(p.stage==='turn'){b.turnYaw=Math.PI*passEase(p.age/profile.turn);if(p.age>=profile.turn){b.facing=1;b.shoot=.6;next('rear');announce('HOSTILE BEHIND','SWITCH ORB · ATTACK FROM THE REAR');}}
- else if(p.stage==='rear'){const t=p.age/profile.rear;b.x=p.fromX+70*Math.pow(Math.sin(Math.PI*t),2);b.y=p.fromY+Math.sin(t*Math.PI*2)*32*Math.pow(Math.sin(t*Math.PI),2);if(p.age>=profile.rear){p.y=clamp(ship.y,p.halfHeight+40,H-p.halfHeight-40);next('returnWarn');}}
+ else if(p.stage==='turn'){b.turnYaw=Math.PI*passEase(p.age/profile.turn);if(p.age>=profile.turn){b.facing=1;b.shoot=0;b.special=1.1;b.recovery=0;next('rear');announce('HOSTILE BEHIND','SWITCH ORB · ATTACK FROM THE REAR');}}
+ else if(p.stage==='rear'){const t=clamp(p.age/profile.rear,0,1);b.x=p.fromX+70*Math.pow(Math.sin(Math.PI*t),2);b.y=p.fromY+Math.sin(t*Math.PI*2)*32*Math.pow(Math.sin(t*Math.PI),2);if(p.age>=profile.rear&&!bossPatternBusy(b)){p.y=clamp(ship.y,p.halfHeight+40,H-p.halfHeight-40);next('returnWarn');}}
  else if(p.stage==='returnWarn'){b.y=p.fromY+(p.y-p.fromY)*passEase(p.age/1.55);if(p.age>=1.55)next('return');}
  else if(p.stage==='return'){const t=clamp(p.age/profile.dash,0,1);b.x=p.fromX+(1090-p.fromX)*passEase(t);b.y=p.y-profile.curve*Math.pow(Math.sin(Math.PI*t),2);if(t===1)next('resetTurn');}
  else if(p.stage==='resetTurn'){b.turnYaw=Math.PI*(1-passEase(p.age/profile.turn));if(p.age>=profile.turn){b.turnYaw=0;b.facing=-1;b.pass=null;b.passClock=profile.wait-bossCombatPhase(b)*1.5;b.special=3.5;b.shoot=1.6;b.navVX=b.navVY=0;}}
@@ -527,7 +628,7 @@ function drawShutterPassage(o){const img=art[sectors[level].obstacleArt||['colon
 }
 
 function bossOrganic(){return ![1,4].includes(bossIndex());}
-function bossSuctionForce(b){if(!(b.vacuum>0)||bossIndex()!==3)return 0;const mouth=expansionMouth(b),dx=mouth.x-ship.x,dy=Math.abs(mouth.y-ship.y);if(dx<0||dx>900||dy>190)return 0;return (245+bossCombatPhase(b)*27)*clamp(dx/140,0,1)*clamp((900-dx)/450,0,1)*clamp((190-dy)/85,0,1)*Math.min(1,b.vacuum/.6);}
+function bossSuctionForce(b){if(!(b.vacuum>0)||bossIndex()!==3)return 0;const mouth=expansionMouth(b),dx=mouth.x-ship.x,dy=Math.abs(mouth.y-ship.y);const distance=Math.abs(dx);if(distance>900||dy>190)return 0;return Math.sign(dx)*(245+bossCombatPhase(b)*27)*clamp(distance/140,0,1)*clamp((900-distance)/450,0,1)*clamp((190-dy)/85,0,1)*Math.min(1,b.vacuum/.6);}
 function expansionMouth(b){if(bossDesign())return bossMount(b,bossDesign().mouth);const p=bossFlightPose(b),v=rotateVertex((bossIndex()===5||bossIndex()===3)?[-99,-9,-4]:[-63,7,-9],p.yaw,p.roll,p.pitch,0,0);const scale=(bossIndex()===5?2.15:2.1)*p.depth;return{x:b.x+v[0]*scale,y:b.y+v[1]*scale};}
 // Compatibility entry point used by encounter probes; all bosses share the drive.
 function moveExpansionBoss(b,dt){moveBoss(b,dt);}
@@ -535,7 +636,7 @@ function spawnBossSporePods(b,count,acid=false){
  const phase=bossCombatPhase(b),mouth=expansionMouth(b),final=bossIndex()===5;b.sporePods=[];
  // Spores alternate around a clear corridor; acid pods pursue the ship.
  // Both visibly leave the mouth and warn before their settled pools arm.
- for(let i=0;i<count;i++){const y=i%2?Math.min(H-100,b.lockY+155):Math.max(100,b.lockY-155),x=240+i*190;
+ for(let i=0;i<count;i++){const y=i%2?Math.min(H-100,b.lockY+155):Math.max(100,b.lockY-155),x=b.x<ship.x?W-(240+i*190):240+i*190;
   b.sporePods.push({age:-i*.22,fromX:mouth.x,fromY:mouth.y,x:mouth.x,y:mouth.y,toX:acid?clamp(ship.x+(i-(count-1)/2)*72,90,W-90):x,toY:acid?clamp(ship.y,100,H-100):y,trackOffset:(i-(count-1)/2)*72,flight:1.05,r:(final?60:48)+phase*4,visualScale:final?1.15:.95,acid});}
  b.muzzle=.16;
 }
@@ -544,17 +645,17 @@ function updateBossSporePods(b,dt){
   if(u>=1&&!p.landed){p.landed=true;acidClouds.push({x:p.toX,y:p.toY,age:0,warning:1.25,life:4.8,r:p.r,seed:p.toX,spore:!p.acid,bossTrap:true});}}
  if(b.sporePods)b.sporePods=b.sporePods.filter(p=>!p.landed);
 }
-function spawnBossGuardians(b){const phase=bossCombatPhase(b),count=3+(phase===2?1:0),hp=22+phase*5;for(let i=0;i<count;i++){const a=i*TAU/count,origin=encounterSocket(b,[48,Math.cos(a)*22,Math.sin(a)*24]);enemies.push({guardian:true,emergeX:origin.x,emergeY:origin.y,type:1,x:origin.x,y:origin.y,base:origin.y,age:0,phase:a,orbit:a,hp,max:hp,r:23,hit:0,shoot:3.2,speed:210,direction:-1});}b.hadGuards=true;b.broodWatch=true;}
+function spawnBossGuardians(b){const phase=bossCombatPhase(b),count=3+(phase===2?1:0),hp=22+phase*5;for(let i=0;i<count;i++){const a=i*TAU/count,origin=encounterSocket(b,[48,Math.cos(a)*22,Math.sin(a)*24]);enemies.push({guardian:true,emergeX:origin.x,emergeY:origin.y,type:1,x:origin.x,y:origin.y,base:origin.y,age:0,phase:a,orbit:a,hp,max:hp,r:23,hit:0,shoot:3.2,speed:210,direction:ship.x>=b.x?1:-1});}b.hadGuards=true;b.broodWatch=true;}
 function advanceMotherCombo(b,dt){
  if(b.broodWatch){if(enemies.some(e=>e.guardian&&e.hp>0))return;b.broodWatch=false;b.exposed=5;b.recovery=1.7;announce('BROOD SHROUD BROKEN','ATTACK THE EXPOSED QUEEN · CLAW DIVE NEXT');}
  if(b.comboPassPending||bossPatternBusy(b)||b.recovery>0)return;
- const step=b.comboSteps?.[0];if(!step)return;step.delay-=dt;holdBossSalvo(b);if(step.delay>0)return;b.comboSteps.shift();const phase=bossCombatPhase(b);
+ const step=b.comboSteps?.[0];if(!step)return;step.delay-=dt;if(b.pass?.stage!=='rear')holdBossSalvo(b);if(step.delay>0)return;b.comboSteps.shift();const phase=bossCombatPhase(b);
  if(step.kind==='claw'){b.passClock=0;b.comboPassPending=true;b.comboPassStarted=false;announce('QUEEN CLAWS UNFURLING','DODGE THE COMING DIVE');}
  else if(step.kind==='fire'){b.lockX=ship.x;b.lockY=clamp(ship.y,130,H-130);startBreath(b,'fire',1.6,{duration:2.15+phase*.2,sweep:phase===2?.12:0});announce('FURNACE LUNGS IGNITING','KEEP CLEAR OF ITS MOUTH');}
  else if(step.kind==='acid'){b.lockY=clamp(ship.y,210,H-210);spawnBossSporePods(b,3+Number(phase===2),true);announce('CORROSIVE EGGS RELEASED','AVOID THE ACID POOLS');}
 }
 function updateMotherSalvo(b,dt){
- const v=b.salvoWindup;if(!v)return;if(b.pass||b.breath||b.charge>0||b.vacuum>0){b.salvoWindup=null;return;}v.age+=dt;b.muzzle=.04+.1*clamp(v.age/v.warning,0,1);if(v.age<v.warning)return;
+ const v=b.salvoWindup;if(!v)return;if((b.pass&&b.pass.stage!=='rear')||b.breath||b.charge>0||b.vacuum>0){b.salvoWindup=null;return;}v.age+=dt;b.muzzle=.04+.1*clamp(v.age/v.warning,0,1);if(v.age<v.warning)return;
  const m=expansionMouth(b),phase=bossCombatPhase(b),speed=720+phase*35;v.heading=v.target?Math.atan2(v.target.y-m.y,v.target.x-m.x):v.heading;
  for(const offset of v.offsets){const angle=v.heading+offset;hostile.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:8+phase,scale:.9+phase*.06,bossShot:true,kind:'fire',c:'#ffa160',launchAngle:angle});}
  b.salvoWindup=null;b.muzzle=.22;window.flightAudio?.bossAttack?.('fire',bossIndex(),m.x);
@@ -562,10 +663,11 @@ function updateMotherSalvo(b,dt){
 function updateExpansionBoss(b,dt){
  const kind=bossIndex(),phase=bossCombatPhase(b);b.vacuum=Math.max(0,(b.vacuum||0)-dt);b.barrage=Math.max(0,(b.barrage||0)-dt);
  if(kind===5){updateMotherSalvo(b,dt);advanceMotherCombo(b,dt);}
- const busy=bossPatternBusy(b)||b.recovery>0||b.broodWatch||b.comboPassPending||b.comboSteps?.length;
- if(busy)holdBossSalvo(b);else b.special-=dt;
- if(b.special<=0&&!busy){
-  b.charge=kind===3?1.7:kind===4?1.9:2;b.special=kind===3?6.7-phase*.6:kind===4?5.4-phase*.45:7.2-phase*.5;b.lockY=clamp(ship.y,210,H-210);b.lockX=ship.x;b.specialCount=(b.specialCount||0)+1;b.specialFired=false;
+ const sequencePending=b.comboPassPending||b.comboSteps?.length;
+ const busy=bossPatternBusy(b)||b.recovery>0||b.broodWatch||(b.pass?.stage!=='rear'&&sequencePending);
+ if(busy)holdBossSalvo(b);else if(!sequencePending)b.special-=dt;
+ if(b.special<=0&&!busy&&!sequencePending){
+  b.charge=kind===3?1.6:kind===4?1.9:1.85;b.special=kind===3?4.6-phase*.4:kind===4?3.9-phase*.35:5.1-phase*.4;b.lockY=clamp(ship.y,210,H-210);b.lockX=ship.x;b.specialCount=(b.specialCount||0)+1;b.specialFired=false;
   if(kind===3){b.specialMode=b.specialCount%2?'spores':'vacuum';announce(b.specialMode==='spores'?'MONARCH SPORE PODS OPENING':'FEEDING MAW OPENING',b.specialMode==='spores'?'WATCH THE PODS · KEEP THE OPEN CORRIDOR':'FLY BACKWARDS OR ESCAPE ABOVE / BELOW');window.flightAudio?.breath?.('inhale',b.charge);}
   else if(kind===4){b.specialMode='sweep';b.beamPrep=(b.specialCount%2?1:-1)*(.18+phase*.025);announce('GYRO CANNON SWEEP CHARGING','KEEP CLEAR OF THE CANNON');window.flightAudio?.laserCharge();}
   else{b.specialMode='brood';announce('GUARDIAN BROOD EMERGING','BREAK THE SHROUD · DIVE AND ELEMENTAL STRIKES FOLLOW');window.flightAudio?.breath?.('inhale',b.charge);}
@@ -581,18 +683,20 @@ function updateExpansionBoss(b,dt){
  // Deliberately different minor attacks occupy recovery gaps only. All angles
  // lock at launch: no ordinary round can home in after the player dodges.
  if(kind===4){
-  if(!busy&&!b.charge){b.shoot-=dt;if(b.shoot<=0&&b.x<W-80){const m=techLaserOrigin(b),speed=670+phase*25,offsets=phase===2?[-.11,0,.11]:[-.055,.055];for(const offset of offsets){const angle=m.angle+offset;hostile.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:phase===2?8:7,kind:'rocket',bossRound:true,regentShot:true,scale:.85+phase*.05,c:'#ccbaff',launchAngle:angle});}b.shoot=1.95-phase*.16;b.muzzle=.2;window.flightAudio?.shot('missile',m.x,true);}}
+  const canFire=(!b.pass||b.pass.stage==='rear')&&!b.charge&&!hazards.some(h=>h.kind==='tech');
+  if(canFire){b.shoot-=dt;if(b.shoot<=0&&b.x>0&&b.x<W){const m=techLaserOrigin(b),speed=700+phase*30,offsets=phase===2?[-.11,0,.11]:[-.075,.075];for(const offset of offsets){const angle=m.angle+offset;hostile.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:phase===2?8:7,kind:'rocket',bossRound:true,regentShot:true,scale:.85+phase*.05,c:'#ccbaff',launchAngle:angle});}b.shoot=.7-phase*.07;b.muzzle=.2;window.flightAudio?.shot('missile',m.x,true);}}
   return;
  }
- if(!busy&&!b.charge){b.shoot-=dt;if(b.shoot<=0&&b.x<W-80){const m=kind===4?techLaserOrigin(b):expansionMouth(b),a=Math.atan2(ship.y-m.y,ship.x-m.x),offsets=kind===3?[-.24,.24]:kind===4?[-.10,.10]:[-.2,0,.2];
-  if(kind===5){b.salvoWindup={age:0,warning:.8,heading:a,target:{x:ship.x,y:ship.y},offsets:phase===0?[-.34,0,.34]:phase===1?[-.4,-.2,.2,.4]:[-.5,-.3,-.1,.1,.3,.5]};b.shoot=1.7-phase*.12;return;}
-  for(const offset of offsets)hostile.push({x:m.x,y:m.y,vx:Math.cos(a+offset)*(kind===3?500:600),vy:Math.sin(a+offset)*(kind===3?500:600),r:kind===3?8:7,scale:kind===3?.9:.85,bossShot:kind!==4,kind:kind===4?'rocket':organicShotKind(),c:sectors[level].color,launchAngle:a+offset});b.shoot=2-phase*.2;b.muzzle=.16;kind===4?window.flightAudio?.shot('missile',b.x,true):window.flightAudio?.bossAttack?.('fire',kind,b.x);}}
+ const canFire=(!b.pass||b.pass.stage==='rear')&&!b.charge&&!b.breath&&!b.vacuum&&!b.sporePods?.length&&!b.salvoWindup&&!b.broodWatch;
+ if(canFire){b.shoot-=dt;if(b.shoot<=0&&b.x>0&&b.x<W){const m=kind===4?techLaserOrigin(b):expansionMouth(b),a=Math.atan2(ship.y-m.y,ship.x-m.x),offsets=kind===3?[-.32,-.1,.1,.32]:kind===4?[-.10,.10]:[-.28,-.09,.09,.28];
+  if(kind===5){b.salvoWindup={age:0,warning:.5,heading:a,target:{x:ship.x,y:ship.y},offsets:phase===0?[-.34,0,.34]:phase===1?[-.4,-.2,.2,.4]:[-.5,-.3,-.1,.1,.3,.5]};b.shoot=.65-phase*.06;return;}
+  for(const offset of offsets)hostile.push({x:m.x,y:m.y,vx:Math.cos(a+offset)*(kind===3?540:650),vy:Math.sin(a+offset)*(kind===3?540:650),r:kind===3?8:7,scale:kind===3?.9:.85,bossShot:kind!==4,kind:kind===4?'rocket':organicShotKind(),c:sectors[level].color,launchAngle:a+offset});b.shoot=.72-phase*.07;b.muzzle=.16;kind===4?window.flightAudio?.shot('missile',b.x,true):window.flightAudio?.bossAttack?.('fire',kind,b.x);}}
 }
 
 function drawExpansionBoss(b){const k=bossIndex(),p=bossFlightPose(b),scale=k===3?2.1:k===4?2:2.15;if(k===5||k===3){animateDragonWings(b.age,k===3);animateAnatomicalSkin(meshes[k===3?'reefMonarch':'progenitor'],b.age);}drawModel(meshes[k===3?'reefMonarch':k===4?'stormRegent':'progenitor'],b.x,b.y,scale*p.depth,p.yaw,p.roll,p.pitch,b.age,b.hit);if(k===5||k===3)drawModel(meshes[k===3?'pteroWings':'dragonWings'],b.x,b.y,scale*p.depth,p.yaw,p.roll,p.pitch,b.age,b.hit);
  if(k===4){for(const side of [-1,1])drawModel(meshes.regentRing,b.x,b.y,1.8,p.yaw+side*.35,b.age*side*.8,p.pitch,b.age);for(const side of [-1,1]){const v=rotateVertex([-69,side*40,0],p.yaw,p.roll,p.pitch,0,0);drawModel(meshes.cannon,b.x+v[0]*scale,b.y+v[1]*scale,1.8,p.yaw,p.roll,p.pitch,b.age,b.hit);}return;}
  const m=expansionMouth(b);drawAnatomicalJaw(b);
- if(k===3&&(b.vacuum>0||b.charge>0)){ctx.save();ctx.strokeStyle='#90ebec';ctx.lineWidth=1.5;for(let i=0;i<28;i++){const t=((b.age*(b.vacuum>0?.7:.12)+i/28)%1),x=m.x-820*(1-t),spread=(1-t)*175,yy=m.y+Math.sin(i*2.4)*spread;ctx.globalAlpha=Math.sin(t*Math.PI)*.32;ctx.beginPath();ctx.moveTo(x-25,yy+Math.sin(i*2.4)*5);ctx.quadraticCurveTo(x,yy,x+24,yy-Math.sin(i*2.4)*7);ctx.stroke();}ctx.restore();}
+ if(k===3&&(b.vacuum>0||b.charge>0)){ctx.save();ctx.strokeStyle='#90ebec';ctx.lineWidth=1.5;for(let i=0;i<28;i++){const t=((b.age*(b.vacuum>0?.7:.12)+i/28)%1),x=m.x+(Math.cos(bossFlightPose(b).yaw)>0?-1:1)*820*(1-t),spread=(1-t)*175,yy=m.y+Math.sin(i*2.4)*spread;ctx.globalAlpha=Math.sin(t*Math.PI)*.32;ctx.beginPath();ctx.moveTo(x-25,yy+Math.sin(i*2.4)*5);ctx.quadraticCurveTo(x,yy,x+24,yy-Math.sin(i*2.4)*7);ctx.stroke();}ctx.restore();}
 }
 
 // Campaign-wide world distance used to push later paintings to their capped
@@ -676,11 +780,12 @@ function techSweepWarningBounds(b,h,x){
  for(const angle of [-span,span,b.beamPitch||0]){const pitch=(b.flightPitch||0)+angle,tip=rotateVertex(design.mouth,pose.yaw,pose.roll,pitch,0,0),axis=rotateVertex([-1,0,0],pose.yaw,pose.roll,pitch,0,0),mx=b.x+tip[0]*design.scale,my=b.y+tip[1]*design.scale,y=my+axis[1]/axis[0]*(x-mx);top=Math.min(top,y-margin);bottom=Math.max(bottom,y+margin);}
  return{top,bottom};
 }
+function techBeamContact(h,x,y){const a=h.angle??Math.PI,dx=x-h.x,dy=y-h.startY,along=dx*Math.cos(a)+dy*Math.sin(a),across=-dx*Math.sin(a)+dy*Math.cos(a);return along>=0&&Math.abs(across)<h.width*.5*(.5+.5*clamp(along/180,0,1))+12;}
 function updateTechLaser(b,dt){
  const beam=hazards.find(h=>h.kind==='tech');let target=b.beamPrep||0;
  if(beam&&Number.isFinite(beam.sweepFrom)){const u=clamp((beam.age-beam.warning)/(beam.life-beam.warning),0,1),travel=beam.doubleSweep?(u<.5?passEase(u*2):1-passEase((u-.5)*2)):passEase(u);target=beam.sweepFrom+(beam.sweepTo-beam.sweepFrom)*travel;}
  b.beamPitch=(b.beamPitch||0)+(target-(b.beamPitch||0))*(1-Math.exp(-dt*6));
- for(const h of hazards){if(h.kind!=='tech')continue;const r=techLaserOrigin(b);h.x=r.x;h.startY=r.y;h.y=r.y-Math.tan(r.angle)*r.x;h.age+=dt;if(h.age>=h.warning&&!h.sounded){h.sounded=true;window.flightAudio?.laserBeam(h.life-h.warning);}if(h.age>=h.warning&&h.age<h.life&&ship.x<h.x&&Math.abs(ship.y-(h.y+(h.startY-h.y)*ship.x/h.x))<laserHalfWidth(h,ship.x)+12)damage();}
+ for(const h of hazards){if(h.kind!=='tech')continue;const r=techLaserOrigin(b);h.x=r.x;h.startY=r.y;h.angle=r.angle;h.y=r.y-Math.tan(r.angle)*r.x;h.age+=dt;if(h.age>=h.warning&&!h.sounded){h.sounded=true;window.flightAudio?.laserBeam(h.life-h.warning);}if(h.age>=h.warning&&h.age<h.life&&techBeamContact(h,ship.x,ship.y))damage();}
  const had=hazards.length;hazards=hazards.filter(h=>h.age<h.life);if(had&&!hazards.length){b.recovery=2.3;b.exposed=Math.max(b.exposed||0,3.2);}
 }
 
@@ -814,7 +919,7 @@ function drawBossPatternTelegraphs(b){
  ctx.save();
  for(const p of b.sporePods||[])if(p.emitted){orb(p.x,p.y,12*(p.visualScale||1),p.acid?'#bcc965':'#91dfb1',.6);drawModel(meshes.spore,p.x,p.y,p.visualScale||1.4,0,p.age*3,0,p.age);}
  if(b.salvoWindup){const v=b.salvoWindup,m=expansionMouth(b),q=clamp(v.age/v.warning,0,1);orb(m.x,m.y,20+q*25,'#ffad5d',.35+q*.2);}
- if(bossIndex()===3&&b.vacuum>0){const m=expansionMouth(b);ctx.strokeStyle='#a0e6ce';ctx.lineWidth=1.5;for(let i=0;i<20;i++){const t=(b.age*.65+i/20)%1,x=m.x-820*(1-t),spread=(1-t)*178,yy=m.y+Math.sin(i*2.4)*spread;ctx.globalAlpha=Math.sin(t*Math.PI)*.33;ctx.beginPath();ctx.moveTo(x-19,yy);ctx.quadraticCurveTo(x,yy,x+26,yy-Math.sin(i*2.4)*10);ctx.stroke();}}
+ if(bossIndex()===3&&b.vacuum>0){const m=expansionMouth(b);ctx.strokeStyle='#a0e6ce';ctx.lineWidth=1.5;for(let i=0;i<20;i++){const t=(b.age*.65+i/20)%1,x=m.x+(Math.cos(bossFlightPose(b).yaw)>0?-1:1)*820*(1-t),spread=(1-t)*178,yy=m.y+Math.sin(i*2.4)*spread;ctx.globalAlpha=Math.sin(t*Math.PI)*.33;ctx.beginPath();ctx.moveTo(x-19,yy);ctx.quadraticCurveTo(x,yy,x+26,yy-Math.sin(i*2.4)*10);ctx.stroke();}}
  ctx.restore();
 }
 function drawEncounterDefenses(b){if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){drawCapitalSiege(b);return;}const k=bossIndex();drawBossPatternTelegraphs(b);if(k===1){for(const n of b.generators||[]){const p=encounterSocket(b,[-18,n.side*57,-40]);if(n.hp>0){const pose=bossFlightPose(b);drawModel(meshes.weaponOrb,p.x,p.y,.75,pose.yaw,pose.roll,pose.pitch,b.age);healthBar(p.x,p.y-24,35,n.hp,30,'#98e5ff');}}}if((k===1&&!b.shieldBroken)||(k===5&&enemies.some(e=>e.guardian&&e.hp>0))){ctx.save();ctx.strokeStyle=k===1?'#77bfe8':'#b883c9';ctx.globalAlpha=.3;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(b.x,b.y,b.r*1.15,b.r*.9,0,0,TAU);ctx.stroke();ctx.restore();}}

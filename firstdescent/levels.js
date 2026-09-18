@@ -2,7 +2,7 @@
 // Content only: append a definition to extend the campaign; identifiers stay stable.
 const LEVEL_THEMES={verdant:0,forge:1,abyss:2,reef:3,storm:4,core:5};
 const BOSS_KINDS={warden:0,cathedral:1,sovereign:2,monarch:3,regent:4,mother:5};
-const GAME_RULESET='2026-09-alien-flight-v22';
+const GAME_RULESET='2026-09-alien-flight-v23';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova']);
@@ -31,6 +31,7 @@ function validateLevels(definitions){
   if(!ordered(l.supplies.map(d=>d.at))||l.supplies.some(d=>d.at>=l.duration))fail(l,'invalid supply times');
   if(l.recovery.some(d=>!finite(d.x)||d.x<270||d.x>900))fail(l,'recovery pickup out of reach');
   if(l.scrollAxis&&!['up','down'].includes(l.scrollAxis))fail(l,'invalid scroll axis');
+  if(l.atmosphere&&['heat','clouds'].some(k=>!finite(l.atmosphere[k])||l.atmosphere[k]<0||l.atmosphere[k]>1))fail(l,'atmosphere heat/clouds must be between 0 and 1');
   if(l.entrySides&&(!Array.isArray(l.entrySides)||!l.entrySides.length||l.entrySides.some(side=>!['right','left','top','bottom'].includes(side))))fail(l,'invalid entry side');
   if(l.challenge){const c=l.challenge;if(typeof c.title!=='string'||!finite(c.at)||!finite(c.end)||c.at<0||c.end<=c.at||c.end>=l.duration||!Array.isArray(c.waves)||!ordered(c.waves)||c.waves.some(t=>t<c.at||t>c.end)||!Array.isArray(c.types)||!c.types.length||c.types.some(t=>!Number.isInteger(t)||t<0||t>3)||!Number.isInteger(c.count)||c.count<1||c.count>6||!finite(c.speed)||c.speed<.5||c.speed>2)fail(l,'invalid mid-sector challenge');}
   if(l.pacing){const p=l.pacing;if(!finite(p.pickupGap)||p.pickupGap<1.5||p.pickupGap>5||!Number.isInteger(p.maxPickups)||p.maxPickups<1||p.maxPickups>2||!Number.isInteger(p.maxActiveEnemies)||p.maxActiveEnemies<5||p.maxActiveEnemies>18||!finite(p.pickupX)||p.pickupX<420||p.pickupX>900||typeof p.preBossRelief!=='boolean')fail(l,'invalid readability pacing');}
@@ -1734,6 +1735,7 @@ const escortEncounters=[null,
 levelDefinitions.forEach((l,i)=>{if(i){l.escortEncounter=escortEncounters[i];l.broodWaves=[5,Math.min(l.waves.length-2,13)];l.revision++;}});
 // Habitats constrain fauna as the campaign grows: swimming anatomy stays underwater.
 levelDefinitions.forEach((l,i)=>{l.medium=[2,3].includes(i)?'water':'air';l.revision++;});
+levelDefinitions.forEach((l,i)=>{l.atmosphere={heat:[0,.65,0,0,0,1][i],clouds:[.8,0,0,0,.35,0][i]};l.revision++;});
 levelDefinitions[3].stratum='SUBMERGED REEF';
 levelDefinitions[3].expeditionNote='Flooded fungal reefs · symbiotic machines';
 levelDefinitions[4].models[1]='stormMoth';levelDefinitions[4].models[3]='stormPolyp';

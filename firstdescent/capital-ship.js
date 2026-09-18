@@ -103,9 +103,25 @@ const capitalSiegeMeshes=(()=>{
   const x=-52+i*19,y=side*8;h.tube(x,x+10,y,-34,2.4,metal,false,2.4,10);
   h.tube(x+2,x+4,y,-34,3.1,brass,false,3.1,10);
  }
+ // A fully built opposite broadside remains visible after the ship turns bow
+ // to stern. Layered armor and lit service trenches avoid a blank underside.
+ for(const side of [-1,1]){
+  const mirror=p=>p.map(([x,y])=>[x,y*side]);
+  h.plate(mirror([[-104,8],[-73,29],[-23,39],[8,30],[-32,11]]),29,38,[96,108,111],1.15);
+  h.plate(mirror([[-17,39],[28,40],[63,28],[48,12],[2,20]]),30,40,[110,121,121],1.1);
+  h.plate(mirror([[47,27],[82,23],[91,10],[64,8]]),27,36,[76,90,94],.9);
+  h.rod([-74,side*18,42],[70,side*18,40],1.65,edge,10);
+  h.rod([-58,side*22,43],[48,side*27,41],.65,brass,8);
+  for(let i=0;i<6;i++){
+   const x=-62+i*24,y=side*(25+Math.sin(i*.85)*5);
+   h.box(x,y,41,11,5,4,dark,.45);h.light(x,y,43.4,5,.9,i%2?cold:hot);
+  }
+ }
+ h.box(10,0,35,68,24,9,recess,1);
+ for(let i=0;i<11;i++){const x=-14+i*5;h.box(x,0,41,1.5,21,8,brass,.25);h.box(x,0,46,1.4,14,1,[103,79,57],.15);}
  // Small rigid dorsal sensor tracks the flight direction independently.
  const scanner=h.mesh.length;h.hull([[-25,-5,-31,2,3],[-9,-5,-35,4,5],[5,-5,-34,3,4]],metal,8);h.light(-20,-5,-39,6,1,hot);h.part('recessed targeting scanner',scanner,[-7,-5,-32],'y',.3);
- h.mesh.dynamic=true;h.mesh.capitalHull=true;out.hull=h.mesh;out.drives=drives;out.guns=guns;
+ h.mesh.dynamic=true;h.mesh.capitalHull=true;h.mesh.reverseDetailed=true;out.hull=h.mesh;out.drives=drives;out.guns=guns;
 
  for(const sign of [-1,1]){
   const id=sign<0?'dorsal':'ventral',y=sign*65,m=build();
@@ -118,9 +134,11 @@ const capitalSiegeMeshes=(()=>{
   }
   for(let i=0;i<8;i++){m.box(1+i*2.6,y,-45,1.05,17,2,brass,.15);if(i<4)m.light(-23+i*6,y+sign*10,-45,3,1.6,hot);}
   m.light(-17,y,-45.7,12,2.4,hot);out[id]=m.mesh;
-  const wreck=build();wreck.box(-8,sign*51,-23,45,21,25,dark,1);wreck.box(-8,y,-22,47,17,22,recess,.9);
+  const wreck=build();
+  for(const z of [-32,-17]){wreck.rod([-31,y-sign*10,z],[14,y-sign*10,z],1.9,dark);for(const x of [-28,-12,5])wreck.rod([x,sign*43,z],[x+5,y+sign*5,z-3],1.4,metal);}
+  wreck.rod([-27,y,-27],[12,y,-27],2.2,brass);
   for(let j=0;j<6;j++){
-   const x=-30+j*8;wreck.plate([[x,y-9],[x+5,y-8],[x+7,y+7+(j%3)*2],[x+2,y+4]],-40-(j%2)*3,-30,j%2?metal:brass,.4);
+   const x=-30+j*8;wreck.plate([[x,y-sign*9],[x+6,y-sign*8],[x+8,y+sign*(j%3+1)],[x+4,y-sign*3],[x+1,y+sign*5]],-35-(j%2)*3,-31,j%2?dark:metal,.4);
    if(j%2===0)wreck.light(x+3,y,-36,2,4,hot);
   }
   out[id+'Wreck']=wreck.mesh;
@@ -141,6 +159,25 @@ const capitalSiegeMeshes=(()=>{
   }
   if(open){m.tube(-96,-86,0,-25,7.8,hot,false,7,24);m.tube(-97.3,-95,0,-25,4,cold,false,4,20);}
   out[open?'coreOpen':'coreClosed']=m.mesh;
+ }
+ // Retained damage states: scorched armor and raised, torn breach rims.
+ // The marks are real geometry on both broadsides, so they follow every roll.
+ for(const key of ['dorsal','ventral','reactorOpen','coreOpen']){
+  const base=out[key],pod=key==='dorsal'||key==='ventral',y=key==='dorsal'?-65:key==='ventral'?65:0,x=pod?-12:key==='reactorOpen'?99:-91,z=pod?-47:key==='reactorOpen'?-25:-41;
+  for(let stage=1;stage<=3;stage++){
+   const m=build();
+   // Share the original module; only the small breach geometry is retained
+   // per damage state. This keeps all variants inside the mesh budget.
+   m.mesh.damageBase=base;
+   for(const side of [-1,1])for(let j=0;j<stage;j++){
+    const cx=x+(j-1)* (pod?12:4),cy=y+(j%2?4:-3),zz=side<0?z:-z*.65,r=pod?7+j:4+j;
+    const rim=Array.from({length:9},(_,i)=>{const a=i/9*Math.PI*2,rr=r*(i%2?.7:1.15);return[cx+Math.cos(a)*rr*1.65,cy+Math.sin(a)*rr,zz];});
+    m.face(side<0?rim:rim.slice().reverse(),[13,16,18]);
+    for(let i=0;i<rim.length;i++){const a=rim[i],b=rim[(i+1)%rim.length],tip=[(a[0]+b[0])*.5,(a[1]+b[1])*.5,zz+side*(1.8+i%3)];m.face([a,b,tip],i%3?[93,66,47]:[175,110,61]);}
+    for(let k=0;k<3;k++)m.rod([cx-r,cy+k*2-2,zz+side*.5],[cx+r*.7,cy+k*2-3,zz+side*.5],.42,k===1?[244,108,36]:[118,86,60],5);
+   }
+   m.mesh.damageStage=stage;out[key+'Damage'+stage]=m.mesh;
+  }
  }
  return out;
 })();
@@ -165,7 +202,7 @@ function capitalShipDesign(b){
 function initCapitalSiege(b){
  if(b.siege)return b.siege;
  const total=b.max||b.hp||1000,node=(id,local,radii,fraction,clock)=>({id,local,radii,radius:Math.max(radii[1],radii[2])*3.4,hp:total*fraction,max:total*fraction,hit:0,clock,warning:0,muzzle:0,heading:Math.PI,cycle:0,special:null});
- b.siege={stage:'batteries',age:0,orbGranted:false,pulses:[],nodes:[node('dorsal',[-12,-65,-28],[50,16,17],.15,2.8),node('ventral',[-12,65,-28],[50,16,17],.15,4.3),node('reactor',[103,0,-8],[13,15,15],.23,2.6),node('core',[-94,0,-25],[15,15,15],.47,2.4)]};
+ b.siege={stage:'batteries',age:0,orbGranted:false,pulses:[],maneuverClock:6.5,maneuver:null,nodes:[node('dorsal',[-12,-65,-28],[50,16,17],.15,2.8),node('ventral',[-12,65,-28],[50,16,17],.15,4.3),node('reactor',[103,0,-8],[13,15,15],.23,2.6),node('core',[-94,0,-25],[15,15,15],.47,2.4)]};
  b.hp=total;b.max=total;b.pass=null;b.charge=0;b.attack=null;b.special=Infinity;
  announce('EXCAVATOR PRIME · ARMOR LOCKED','DESTROY THE UPPER AND LOWER STABILIZER PODS');
  return b.siege;
@@ -191,7 +228,7 @@ function capitalFirstHullHit(b,a,z,padding=0){
   if(A<1e-12)continue;const D=B*B-4*A*C;if(D<0)continue;const t=(-B-Math.sqrt(D))/(2*A);if(t>=0&&t<=1)nearest=Math.min(nearest,t);
  }return nearest;
 }
-function capitalShotSideAllowed(b,n,s,a){const p=capitalNodePosition(b,n);return n.id!=='reactor'||(s.vx<0&&a.x>=p.x-n.radius*.35);}
+function capitalShotSideAllowed(b,n,s,a){if(n.id!=='reactor')return true;const p=capitalNodePosition(b,n),tip=bossMount(b,[n.local[0]+20,n.local[1],n.local[2]]),dx=tip.x-p.x,dy=tip.y-p.y,len=Math.hypot(dx,dy)||1;return s.vx*dx+(s.vy||0)*dy<0&&((a.x-p.x)*dx+(a.y-p.y)*dy)/len>=-n.radius*.35;}
 function capitalShotTarget(s){
  if(!isCapitalSiege())return null;const b=boss;initCapitalSiege(b);let chosen=null,best=Infinity;
  for(const n of b.siege.nodes){if(!capitalNodeActive(b,n))continue;const p=capitalNodePosition(b,n),direction=s.direction||Math.sign(s.vx)||1;if((p.x-s.x)*direction<=0||!capitalShotSideAllowed(b,n,s,s))continue;
@@ -233,13 +270,30 @@ function capitalNovaDamage(b,amount){
  for(const n of targets)capitalDamageNode(b,n,amount/Math.max(1,targets.length));return true;
 }
 function moveCapitalShip(b,dt){
- initCapitalSiege(b);const oldX=b.x,oldY=b.y,age=b.age||0;b.maneuverRoll=.23+Math.sin(age*.7)*.1;
- // Destroyed stabilizers change the patrol into tighter, faster attack circuits.
- const phase=b.siege.stage==='core'?1.55:b.siege.stage==='reactor'?1.25:1;
- const orbit=age*.65*phase,thrust=Math.max(0,Math.sin(age*.7*phase))**6;const targetX=805+Math.cos(orbit)*82-thrust*(b.siege.stage==='core'?95:50),targetY=H*.5+Math.sin(orbit*2)*34;
- b.navVX=clamp((b.navVX||0)+((targetX-b.x)*2.1-(b.navVX||0)*2.9)*dt,-155,95);
- b.navVY=clamp((b.navVY||0)+((targetY-b.y)*2.6-(b.navVY||0)*3.2)*dt,-40,40);
- b.x+=b.navVX*dt;b.y+=b.navVY*dt;updateBossAttitude(b,dt,(b.x-oldX)/dt,(b.y-oldY)/dt);
+ const siege=initCapitalSiege(b),oldX=b.x,oldY=b.y,age=b.age||0,phase=siege.stage==='core'?1.6:siege.stage==='reactor'?1.3:1;
+ if(!siege.maneuver)b.maneuverRoll=.12+Math.sin(age*1.8)*.06;b.turnYaw??=0;b.barrelRoll??=0;
+ const active=siege.nodes.filter(n=>capitalNodeActive(b,n)),weaponsBusy=active.some(n=>n.special||n.warning>0||n.burst>0);
+ if(!siege.maneuver){
+  siege.maneuverClock-=dt*phase;
+  if(siege.maneuverClock<=0&&!weaponsBusy&&b.x<W-220){siege.maneuver={stage:'warn',age:0,duration:.7,fromX:b.x,fromY:b.y,toX:b.x,toY:b.y,fromRoll:b.maneuverRoll,fromBarrel:b.barrelRoll};announce('EXCAVATOR ATTACK RUN','BREAK ABOVE OR BELOW THE HULL');window.flightAudio?.thrusterBurst?.(.32);}
+ }
+ const m=siege.maneuver,next=(stage,duration,toX=b.x,toY=b.y)=>{m.stage=stage;m.age=0;m.duration=duration;m.fromX=b.x;m.fromY=b.y;m.toX=toX;m.toY=toY;m.fromRoll=b.maneuverRoll;m.fromBarrel=b.barrelRoll;};
+ if(m){
+  m.age+=dt;const u=clamp(m.age/m.duration,0,1),ease=u*u*(3-2*u);
+  if(m.stage==='warn'){b.navVX*=Math.exp(-dt*5);b.navVY*=Math.exp(-dt*5);b.x+=b.navVX*dt;b.y+=b.navVY*dt;b.actionLoad=Math.max(b.actionLoad||0,u);if(u>=1)next('lunge',1.05,520,H*.5);}
+  else if(m.stage==='lunge'){b.x=m.fromX+(m.toX-m.fromX)*ease;b.y=m.fromY+(m.toY-m.fromY)*ease;b.attackDrive=1;b.propulsion=1;if(u>=1)next('turn',1.05,b.x,b.y);}
+  else if(m.stage==='turn'){b.turnYaw=Math.PI*ease;b.barrelRoll=m.fromBarrel;if(u>=1){next('rear',1.45,b.x,H*.5);for(const n of active){n.target={x:ship.x,y:ship.y};n.warning=Math.min(n.warning||Infinity,.32);n.burst=0;}}}
+  else if(m.stage==='rear'){b.y=m.fromY+(m.toY-m.fromY)*ease;b.turnYaw=Math.PI;b.barrelRoll=m.fromBarrel+TAU*ease;b.propulsion=.7;if(u>=1)next('return',1.18,900,H*.5);}
+  else if(m.stage==='return'){b.x=m.fromX+(m.toX-m.fromX)*ease;b.y=m.fromY+(m.toY-m.fromY)*ease;b.turnYaw=Math.PI;b.attackDrive=1;b.propulsion=1;if(u>=1)next('resetTurn',1.25,b.x,b.y);}
+  else if(m.stage==='resetTurn'){b.turnYaw=Math.PI*(1-ease);b.barrelRoll=m.fromBarrel;if(u>=1){b.turnYaw=0;siege.maneuver=null;siege.maneuverClock=6.1-phase*.6;}}
+  b.navVX=(b.x-oldX)/dt;b.navVY=(b.y-oldY)/dt;
+ }else{
+  // Destroyed sections make the patrol tighter and more urgent.
+  const orbit=age*.82*phase,thrust=Math.max(0,Math.sin(age*.9*phase))**6,targetX=805+Math.cos(orbit)*98-thrust*(siege.stage==='core'?110:58),targetY=H*.5+Math.sin(orbit*2)*32;
+  b.navVX=clamp((b.navVX||0)+((targetX-b.x)*2.35-(b.navVX||0)*3)*dt,-185,120);
+  b.navVY=clamp((b.navVY||0)+((targetY-b.y)*2.9-(b.navVY||0)*3.25)*dt,-42,42);b.x+=b.navVX*dt;b.y+=b.navVY*dt;
+ }
+ updateBossAttitude(b,dt,(b.x-oldX)/dt,(b.y-oldY)/dt);
 }
 function capitalGunMounts(b,n){
  const sy=n.id==='dorsal'?-65:65;
@@ -271,15 +325,16 @@ function updateCapitalDischarges(b,dt){
 function updateCapitalSiege(b,dt){
  const s=initCapitalSiege(b);s.age+=dt;b.charge=0;b.attack=null;b.special=Infinity;
  updateCapitalDischarges(b,dt);
- for(const n of s.nodes){n.hit=Math.max(0,n.hit-dt);n.muzzle=Math.max(0,n.muzzle-dt);if(!capitalNodeActive(b,n)||b.x>W-240||n.special)continue;
+ if(s.maneuver?.stage==='lunge'){b.siegeLoad=1;b.siegeStrike=false;return;}
+ for(const n of s.nodes){n.hit=Math.max(0,n.hit-dt);n.muzzle=Math.max(0,n.muzzle-dt);if(!capitalNodeActive(b,n)||(b.x<0||b.x>W)||n.special)continue;
   if(n.target){const gun=capitalGunMounts(b,n)[0],axis=gun.heading-(n.aimOffset||0),desired=Math.atan2(n.target.y-gun.baseY,n.target.x-gun.baseX),offset=clamp(Math.atan2(Math.sin(desired-axis),Math.cos(desired-axis)),-.65,.65);n.aimOffset=(n.aimOffset||0)+clamp(offset-(n.aimOffset||0),-dt*2,dt*2);}
   if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=n.id==='core'?6:4;n.burstClock=0;}}
-  if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?880:n.id==='reactor'?780:810,seeking=n.id!=='reactor'&&n.cycle%3===0&&n.burst===1;
-    hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?8:7,kind:seeking?'seeker':'rocket',bossRound:true,scale:n.id==='core'?.95:.85,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.14:.17;window.flightAudio?.shot('missile',mount.x,true);
-   }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=n.id==='core'?1.9:2.15;n.heading=n.id==='reactor'?0:Math.PI;
+  if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?920:n.id==='reactor'?820:850,seeking=n.id!=='reactor'&&n.cycle%3===0&&n.burst===1;
+    hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?8:7,kind:seeking?'seeker':'rocket',bossRound:true,scale:n.id==='core'?.95:.85,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.12:.14;window.flightAudio?.shot('missile',mount.x,true);
+   }}else if(n.warning<=0){n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=n.id==='core'?.64:.76;n.heading=n.id==='reactor'?0:Math.PI;
     if(n.id==='reactor'&&n.cycle%2===0){n.special={kind:'purge',age:0,warning:1.15,duration:.76,driveIndex:Math.floor(n.cycle/2)%capitalShipDesign(b).drives.length};}
     else if(n.id==='core'&&n.cycle%2===0){n.special={kind:'pulse',age:0,warning:1.3,duration:.3,gap:(n.cycle%4===0?-1:1)*.28};window.flightAudio?.laserCharge();}
-    else{n.target={x:ship.x,y:ship.y};n.warning=.8;}
+    else{n.target={x:ship.x,y:ship.y};n.warning=.62;}
    }}
  }
  const active=s.nodes.filter(n=>capitalNodeActive(b,n));b.siegeLoad=active.reduce((load,n)=>Math.max(load,n.special?Math.min(1,n.special.age/n.special.warning):n.warning>0?1-n.warning/.8:n.burst>0?1:0),0);b.siegeStrike=active.some(n=>n.burst>0||n.special&&n.special.age>=n.special.warning);
@@ -290,6 +345,7 @@ function drawCapitalDischarges(b){
  for(const node of b.siege.nodes){const a=node.special;if(!a)continue;const frame=capitalDischargeFrame(b,a.kind),charging=a.age<a.warning;
   ctx.save();ctx.translate(frame.x,frame.y);ctx.rotate(frame.heading);
   if(a.kind==='purge'){
+   ctx.strokeStyle='#c8eaff';ctx.lineWidth=3;ctx.globalAlpha=.78;ctx.beginPath();ctx.ellipse(1,0,4,frame.radius*1.08,0,0,TAU);ctx.stroke();ctx.globalAlpha=1;
    if(charging){
     const ignition=capitalIgnitionFlash(a),heat=clamp(a.age/a.warning,0,1);
     orb(0,0,frame.radius*.6,'#ffbb67',heat*.3);
@@ -300,7 +356,7 @@ function drawCapitalDischarges(b){
     // Continuous nozzle-attached exhaust, with compression diamonds inside it.
     for(const [width,length,alpha,hot,tail] of [[r,300,.72,'#b5eaff','rgba(76,139,255,0)'],[r*.53,245,.92,'#fff7d6','rgba(255,163,76,0)']]){
      ctx.globalAlpha=fade*alpha;const gradient=ctx.createLinearGradient(0,0,length,0);gradient.addColorStop(0,hot);gradient.addColorStop(.2,hot);gradient.addColorStop(1,tail);ctx.fillStyle=gradient;
-     ctx.beginPath();ctx.moveTo(0,-width);ctx.bezierCurveTo(length*.3,-width*.72,length*.65,-width*.9,length,0);ctx.bezierCurveTo(length*.65,width*.9,length*.3,width*.72,0,width);ctx.closePath();ctx.fill();
+     ctx.beginPath();ctx.moveTo(3,-width*.62);ctx.bezierCurveTo(length*.18,-width,length*.65,-width*.9,length,0);ctx.bezierCurveTo(length*.65,width*.9,length*.18,width,3,width*.62);ctx.closePath();ctx.fill();
     }
     for(let i=0;i<5;i++){const x=25+i*43,w=(11-i*1.4)*(1+.09*Math.sin(age*55-i));ctx.globalAlpha=fade*(.64-i*.09);ctx.fillStyle='#e9f8ff';ctx.beginPath();ctx.moveTo(x-10,0);ctx.lineTo(x,-w);ctx.lineTo(x+17,0);ctx.lineTo(x,w);ctx.closePath();ctx.fill();}
     orb(0,0,r*.75,'#fff6d4',fade*.9);
@@ -311,24 +367,37 @@ function drawCapitalDischarges(b){
  for(const pulse of b.siege.pulses){const gap=capitalPulseGap(pulse.r),alpha=Math.min(1,pulse.age/.035,(pulse.life-pulse.age)/.3);ctx.globalAlpha=Math.max(0,alpha);ctx.lineCap='round';for(const [start,end] of [[-.82,Math.max(-.82,pulse.gap-gap)],[Math.min(.82,pulse.gap+gap),.82]]){if(end<=start)continue;for(const [width,color] of [[48,'rgba(105,187,245,.22)'],[25,'rgba(132,220,255,.75)'],[7,'#f2fdff']]){ctx.lineWidth=width;ctx.strokeStyle=color;ctx.beginPath();ctx.arc(pulse.x,pulse.y,pulse.r,pulse.heading+start,pulse.heading+end);ctx.stroke();}}}
  ctx.restore();
 }
+function capitalDamageStage(n){return n.hp>=n.max?0:n.hp<=0?3:n.hp/n.max>.65?1:n.hp/n.max>.3?2:3;}
+function capitalSectionMesh(b,n){
+ const key=n.id==='dorsal'||n.id==='ventral'?n.id:n.id==='reactor'?(b.siege.stage==='batteries'?'reactorClosed':'reactorOpen'):(b.siege.stage==='core'?'coreOpen':'coreClosed');
+ if(n.hp<=0&&(n.id==='dorsal'||n.id==='ventral'))return capitalSiegeMeshes[n.id+'Wreck'];
+ const stage=capitalDamageStage(n);return capitalSiegeMeshes[key+(stage?'Damage'+stage:'')]||capitalSiegeMeshes[key];
+}
+function drawCapitalDamage(b,n){
+ const severity=1-n.hp/n.max;if(severity<=0)return;
+ const pod=n.id==='dorsal'||n.id==='ventral',local=pod?[n.local[0],n.local[1],-48]:[n.local[0],n.local[1],n.local[2]-18],p=bossMount(b,local),tip=bossMount(b,[local[0]+10,local[1]-9,local[2]-6]),dx=tip.x-p.x,dy=tip.y-p.y,flicker=.7+.3*Math.sin(b.age*31+n.local[1]);
+ ctx.save();ctx.globalCompositeOperation='lighter';orb(p.x,p.y,9+severity*15,'#ff7833',(.2+severity*.38)*flicker);
+ // Short leaks become persistent flames as the armor fails. Jets stay rooted
+ // to the damaged section even when the ship reverses or barrel rolls.
+ if(severity>.28){ctx.lineCap='round';for(let i=0;i<3;i++){const t=(b.age*(1.8+severity)+i/3)%1;ctx.globalAlpha=(1-t)*severity*.6;ctx.lineWidth=(1-t)*(5+severity*7);ctx.strokeStyle=i%2?'#ffad49':'#ff5423';ctx.beginPath();ctx.moveTo(p.x+dx*t*.2,p.y+dy*t*.2);ctx.quadraticCurveTo(p.x+dx*t*.7+Math.sin(b.age*23+i)*4,p.y+dy*t*.6,p.x+dx*t*(1+severity),p.y+dy*t*(1+severity));ctx.stroke();}}
+ ctx.restore();
+}
 function drawCapitalSiege(b){
  const s=initCapitalSiege(b),pose=bossFlightPose(b),scale=capitalShipDesign(b).scale;
  const mesh=(m,hit=0)=>drawModel(m,b.x,b.y,scale,pose.yaw,pose.roll,pose.pitch,b.age,hit);
- for(const n of s.nodes){
-  if(n.id==='dorsal'||n.id==='ventral')mesh(capitalSiegeMeshes[n.id+(n.hp<=0?'Wreck':'')],n.hit);
-  else if(n.id==='reactor')mesh(capitalSiegeMeshes[s.stage==='batteries'?'reactorClosed':'reactorOpen'],n.hit);
-  else mesh(capitalSiegeMeshes[s.stage==='core'?'coreOpen':'coreClosed'],n.hit);
- }
+ for(const n of s.nodes){const section=capitalSectionMesh(b,n);if(section.damageBase)mesh(section.damageBase,n.hit);mesh(section,n.hit);}
  for(const n of s.nodes)if(capitalNodeActive(b,n))for(const gun of capitalGunMounts(b,n))drawModel(meshes.cannon,gun.baseX,gun.baseY,.8,0,0,gun.heading-Math.PI,b.age,n.hit);
  // Flush modules before drawing their targeting information, keeping labels
  // clear while the actual objects remain solid GPU-rendered geometry.
  window.gpuModels?.flush(ctx);
  drawCapitalDischarges(b);
+ for(const n of s.nodes)drawCapitalDamage(b,n);
  ctx.save();ctx.textAlign='center';ctx.font='bold 10px "DM Sans",sans-serif';
  for(const n of s.nodes){if(n.hp<=0)continue;const p=capitalNodePosition(b,n),active=capitalNodeActive(b,n);
-  if(active){const above=n.id==='dorsal'||n.id==='core',yy=p.y+(above?-1:1)*(n.radius+20);healthBar(p.x,yy,70,n.hp,n.max,'#ffc782');ctx.fillStyle='#ffe3bb';ctx.fillText(n.id==='dorsal'?'UPPER STABILIZER':n.id==='ventral'?'LOWER STABILIZER':n.id==='reactor'?'AFT REACTOR':'COMMAND CORE',p.x,yy+(above?-7:17));}
+  if(active){const above=n.id==='dorsal'||n.id==='core',yy=p.y+(above?-1:1)*(n.radius+20),pulse=.65+.35*Math.sin(b.age*8+n.local[1]);healthBar(p.x,yy,76,n.hp,n.max,'#ffc782');ctx.fillStyle='#fff0ca';ctx.fillText(n.id==='dorsal'?'UPPER STABILIZER':n.id==='ventral'?'LOWER STABILIZER':n.id==='reactor'?'AFT REACTOR':'COMMAND CORE',p.x,yy+(above?-7:17));ctx.strokeStyle='#ffd089';ctx.lineWidth=2.5;ctx.globalAlpha=pulse;ctx.setLineDash([8,7]);ctx.beginPath();ctx.arc(p.x,p.y,n.radius+8+b.age%1*4,b.age*.9,b.age*.9+Math.PI*1.45);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;}
 
   if(n.muzzle>0){const gun=capitalGunMounts(b,n)[n.lastGun||0],strength=n.muzzle/.17;ctx.save();ctx.translate(gun.x,gun.y);ctx.rotate(gun.heading);orb(9,0,29,'#ffd399',strength*.85);ctx.globalAlpha=strength;poly([[0,-7],[39,0],[0,7]],'#fff0be');ctx.strokeStyle='#ffe8bb';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(11+(1-strength)*18,0,4,8+(1-strength)*14,0,0,TAU);ctx.stroke();ctx.restore();}
  }
+ for(const n of s.nodes)if(n.hp<=0){const p=capitalNodePosition(b,n),pulse=.5+.5*Math.sin(b.age*17+n.local[0]);ctx.save();ctx.globalCompositeOperation='lighter';orb(p.x,p.y,18+(n.id==='reactor'?8:0),'#ff6d31',.16+.14*pulse);ctx.strokeStyle='#ffbd72';ctx.lineWidth=1.5;ctx.globalAlpha=.35+.45*pulse;for(let i=0;i<3;i++){const a=b.age*(1.8+i*.7)+i*2.1,len=10+8*Math.sin(b.age*9+i)**2;ctx.beginPath();ctx.moveTo(p.x+Math.cos(a)*7,p.y+Math.sin(a)*7);ctx.lineTo(p.x+Math.cos(a)*len,p.y+Math.sin(a)*len);ctx.stroke();}ctx.globalCompositeOperation='source-over';ctx.fillStyle='rgba(25,25,30,.24)';ctx.beginPath();ctx.arc(p.x-8-Math.sin(b.age*.8)*5,p.y-16-(b.age*7%28),13+(b.age*3%8),0,TAU);ctx.fill();ctx.restore();}
  ctx.restore();
 }
