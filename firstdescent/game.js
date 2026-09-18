@@ -201,13 +201,13 @@ function advanceSector(){
  outgoing.getContext('2d').drawImage(canvas,0,0,720,380);
  const haze=document.createElement('canvas');haze.width=720;haze.height=380;const hc=haze.getContext('2d');hc.filter='blur(9px)';hc.drawImage(outgoing,-18,-10,756,400);hc.filter='none';
  level++;ship.hp=Math.min(5,ship.hp+2);novas=Math.min(3,novas+1);resetSector();Object.assign(ship,motion);
- const destination=expedition.locations[sectors[level].id],travel=destination?.destinationId!==fromDestination;sectorBlend={outgoing,haze,age:0,duration:travel?(destination.systemId!==fromLocation.systemId?6.2:5):1.65,systemEntry:destination.systemId!==fromLocation.systemId,destination:travel?destination:null};$('#announcement').style.opacity=0;annTimer=0;window.flightAudio?.setIntensity(0);
+ const destination=expedition.locations[sectors[level].id],travel=destination?.destinationId!==fromDestination;sectorBlend={outgoing,haze,age:0,duration:travel?8.4:2.2,origin:fromLocation,systemEntry:destination.systemId!==fromLocation.systemId,destination:travel?destination:null};$('#announcement').style.opacity=0;annTimer=0;window.flightAudio?.setIntensity(0);
 }
 function drawSectorBlend(){if(!sectorBlend)return;const u=clamp(sectorBlend.age/sectorBlend.duration,0,1),e=u*u*(3-2*u),soft=Math.sin(Math.PI*u);
  if(sectorBlend.arrival){drawPlanetTransit(sectorBlend.destination,u);return;}
  ctx.save();ctx.globalAlpha=(1-e)*(1-soft*.8);ctx.drawImage(sectorBlend.outgoing,0,0,W,H);
  ctx.globalAlpha=(1-e)*soft*.8;ctx.drawImage(sectorBlend.haze,0,0,W,H);
- ctx.globalAlpha=soft*.12;ctx.fillStyle=sectors[level].color;ctx.fillRect(0,0,W,H);ctx.restore();if(sectorBlend.destination)drawPlanetTransit(sectorBlend.destination,u);
+ ctx.globalAlpha=soft*.12;ctx.fillStyle=sectors[level].color;ctx.fillRect(0,0,W,H);ctx.restore();if(sectorBlend.destination)drawPlanetTransit(sectorBlend.destination,u);else drawDescentLabel(u);
 }
 function updateShipMovement(dt,environment=true){
 let dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);

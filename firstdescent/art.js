@@ -1069,7 +1069,7 @@ function systemArtwork(system,selectedId){
 }
 function navigationArtwork(){return systemArtwork(contentReleases[0].systems[0],contentReleases[0].systems[0].destinations[0].id);}
 function drawNavigationChart(){const map=document.querySelector('#expeditionMap');if(map&&!map.navigationPainted){map.navigationPainted=true;const c=map.getContext('2d');c.clearRect(0,0,map.width,map.height);c.drawImage(navigationArtwork(),0,0,map.width,map.height);}}
-function drawPlanetTransit(location,u){
+function drawPlanetApproach(location,u){
  const system=expeditionSystem(location),entry=!!sectorBlend?.systemEntry,smooth=v=>{v=clamp(v,0,1);return v*v*(3-2*v);},opacity=smooth(u/.065)*(1-smooth((u-.9)/.1));
  const approach=smooth((u-.3)/.6),layout=systemOrbitLayout(system),target=layout.find(item=>item.destination.id===location.destinationId),tx=target?.x||400,ty=target?.y||272;
  // Zoom about the actual chart destination, then push into its lit limb. The
@@ -1083,7 +1083,28 @@ function drawPlanetTransit(location,u){
  for(const item of layout){ctx.strokeStyle=`rgba(165,191,208,${.29*(1-smooth(approach/.32))})`;ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(W/2+(400-cx)*base*zoom,H*.52+(272-cy)*base*zoom,item.radius*base*zoom,item.radius*.59*base*zoom,0,0,TAU);ctx.stroke();if(item===target)continue;const other=expedition.locations[item.destination.stages[0]];drawNavigationPlanet(ctx,W/2+(item.x-cx)*base*zoom,H*.52+(item.y-cy)*base*zoom,29*base*zoom,other);}
  drawNavigationPlanet(ctx,sx,sy,r,location);ctx.restore();}
  const entryHaze=smooth((u-.78)/.16);if(entryHaze>0){const tint=location.climate==='hot'?'#ca7858':'#a5dce4';ctx.save();ctx.globalAlpha*=entryHaze*.56;const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,tint+'00');g.addColorStop(.6,tint+'22');g.addColorStop(1,tint+'bb');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);cloudSurfaces??=[cloudTexture(1),cloudTexture(4),cloudTexture(7)];for(let i=0;i<3;i++)ctx.drawImage(cloudSurfaces[i],i*650-500-entryHaze*250,H*.52-i*75,1800,380);ctx.restore();}
- ctx.save();ctx.globalAlpha*=1-smooth((u-.87)/.08);ctx.fillStyle='#dcfff1';ctx.font='bold 27px monospace';ctx.fillText(approach<.03?(entry?'ENTERING ':'TRAVERSING ')+system.name+' SYSTEM':u>.78?'ENTERING '+location.destinationName+' ATMOSPHERE':'APPROACHING '+location.destinationName,64,74);ctx.font='13px monospace';ctx.fillStyle='#9abcc6';ctx.fillText(approach<.03?system.star.name+' · '+layout.length+' PLANETS · TARGET '+location.destinationName:location.destinationKind==='star'?'STELLAR CORONA ENTRY':'ORBITAL INSERTION / BEGIN DESCENT',65,102);ctx.restore();ctx.restore();
+ ctx.save();ctx.globalAlpha*=(sectorBlend?.origin&&u<.32?0:1)*(1-smooth((u-.87)/.08));ctx.fillStyle='#dcfff1';ctx.font='bold 27px monospace';ctx.fillText(approach<.03?(entry?'ENTERING ':'TRAVERSING ')+system.name+' SYSTEM':u>.78?'ENTERING '+location.destinationName+' ATMOSPHERE':'APPROACHING '+location.destinationName,64,74);ctx.font='13px monospace';ctx.fillStyle='#9abcc6';ctx.fillText(approach<.03?system.star.name+' · '+layout.length+' PLANETS · TARGET '+location.destinationName:location.destinationKind==='star'?'STELLAR CORONA ENTRY':'ORBITAL INSERTION / BEGIN DESCENT',65,102);ctx.restore();ctx.restore();
+}
+function drawTransitRoute(location,origin,u){
+ const system=expeditionSystem(location),layout=systemOrbitLayout(system),from=layout.find(p=>p.destination.id===origin.destinationId),to=layout.find(p=>p.destination.id===location.destinationId);if(!to)return;
+ const a=from||{x:90,y:440},b=to,mx=(a.x+b.x)/2,my=(a.y+b.y)/2,len=Math.hypot(mx-400,my-272)||1,cx=mx+(mx-400)/len*150,cy=my+(my-272)/len*150,progress=clamp((u-.24)/.30,0,1),smooth=progress*progress*(3-2*progress);
+ const point=t=>({x:(1-t)**2*a.x+2*(1-t)*t*cx+t*t*b.x,y:(1-t)**2*a.y+2*(1-t)*t*cy+t*t*b.y});
+ ctx.save();ctx.translate(W/2-440,H*.52-272*1.1);ctx.scale(1.1,1.1);ctx.setLineDash([4,8]);ctx.lineWidth=2;ctx.strokeStyle='#93b6b777';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo(cx,cy,b.x,b.y);ctx.stroke();ctx.setLineDash([]);
+ ctx.strokeStyle='#acffe0';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(a.x,a.y);for(let i=1;i<=40;i++){const p=point(smooth*i/40);ctx.lineTo(p.x,p.y);}ctx.stroke();const p=point(smooth),next=point(Math.min(1,smooth+.01)),heading=Math.atan2(next.y-p.y,next.x-p.x);ctx.translate(p.x,p.y);ctx.rotate(heading);ctx.fillStyle='#f4ffdd';ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(-7,-5);ctx.lineTo(-3,0);ctx.lineTo(-7,5);ctx.closePath();ctx.fill();ctx.restore();
+}
+function drawPlanetTransit(location,u){
+ const origin=sectorBlend?.origin;if(!origin){drawPlanetApproach(location,u);return;}
+ const smooth=v=>{v=clamp(v,0,1);return v*v*(3-2*v);},system=expeditionSystem(location),exit=smooth(u/.28),chart=smooth((u-.19)/.08),approach=clamp((u-.4)/.6,0,1);
+ ctx.save();ctx.globalAlpha=smooth(u/.04)*(1-smooth((u-.94)/.06));ctx.fillStyle='#020914';ctx.fillRect(0,0,W,H);ctx.restore();
+ if(u<.28){ctx.save();ctx.globalAlpha=smooth(u/.04)*(1-chart);drawNavigationSun(ctx,W*.86,H*.17,19);drawNavigationPlanet(ctx,W*.47,H*.58+(1-exit)*420,95+(1-exit)**2*1050,origin);ctx.fillStyle='#e1fff0';ctx.font='bold 31px monospace';ctx.fillText(origin.destinationName+' CONQUERED',64,74);ctx.fillStyle='#afcbd1';ctx.font='14px monospace';ctx.fillText('LEAVING ORBIT / NEXT DESTINATION: '+location.destinationName,65,106);ctx.restore();}
+ if(u>=.19&&u<.4){ctx.save();ctx.globalAlpha=chart;ctx.drawImage(systemArtwork(system,location.destinationId),W/2-440,H*.52-272*1.1,880,605);ctx.restore();}
+ if(u>=.4)drawPlanetApproach(location,approach);
+ if(u>.22&&u<.59){ctx.save();ctx.globalAlpha=smooth((u-.22)/.05)*(1-smooth((u-.54)/.05));drawTransitRoute(location,origin,u);ctx.fillStyle='#dffff1';ctx.font='bold 27px monospace';ctx.fillText(origin.destinationName+'  →  '+location.destinationName,64,74);ctx.font='13px monospace';ctx.fillStyle='#b0cbd3';ctx.fillText('INTERPLANETARY FLIGHT / '+system.star.name+' SYSTEM',65,103);ctx.restore();}
+ // Named phases make the change of world legible even on a small display.
+ if(u>.06&&u<.94){ctx.save();ctx.globalAlpha=smooth((u-.06)/.05)*(1-smooth((u-.88)/.06));const labels=['01  DEPARTURE','02  SYSTEM TRANSIT','03  PLANET DESCENT'],phase=u<.24?0:u<.59?1:2;ctx.font='bold 13px monospace';labels.forEach((label,i)=>{const x=W*.23+i*W*.24;ctx.fillStyle=i===phase?'#b4ffe0':'#81939b';ctx.fillText(label,x,H-35);ctx.fillStyle=i<=phase?'#a3e8cf':'#223940';ctx.fillRect(x,H-24,W*.19,2);});ctx.restore();}
+}
+function drawDescentLabel(u){
+ const s=sectors[level],location=expedition.locations[s.id];ctx.save();ctx.globalAlpha=Math.sin(Math.PI*u);ctx.fillStyle='#d9fff0';ctx.font='bold 27px monospace';ctx.fillText(location.destinationName+' / CONTINUING DESCENT',64,75);ctx.font='14px monospace';ctx.fillStyle='#b3c8d1';ctx.fillText('ENTERING '+(s.stratum||ENVIRONMENTS[s.environment]?.label||s.short),65,105);ctx.restore();
 }
 function planetarySkyVisible(definition,location){return !!location?.rings&&['high-atmosphere','low-atmosphere','surface'].includes(definition.environment);}
 function drawPlanetarySky(){
