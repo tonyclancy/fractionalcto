@@ -278,7 +278,7 @@ if(isBoss&&bossDesign()){const d=bossDesign(),p=bossFlightPose(e),local=d.guns?d
  // The barrel is a separate articulated mount. Its local muzzle points along -X.
  const heading=isBoss&&e.fireHeading!=null?e.fireHeading:!isBoss&&!e.elite?(e.direction===1?0:Math.PI):Math.atan2(ship.y-y,ship.x-x),pitch=Math.atan2(Math.sin(heading-Math.PI),Math.cos(heading-Math.PI)),yaw=0;
  const v=rotateVertex([-29,0,0],yaw,0,pitch,0,0),f=460/(460+v[2]);return{organic,scale,yaw,pitch,x,y,heading,muzzleX:x+v[0]*f*scale,muzzleY:y+v[1]*f*scale}}
-function drawEmitter(e,isBoss=false){const r=firingRig(e,isBoss),pulse=Math.max(0,e.muzzle||0)/.16;if(!r.native){ctx.save();ctx.translate(r.x,r.y);ctx.scale(1,1+(r.organic?pulse*.22:0));drawModel(meshes[r.organic?'siphon':'cannon'],0,0,r.scale,r.yaw,0,r.pitch,e.age);ctx.restore();}if(isBoss&&e.attack&&e.attack.age<.7){const charge=e.attack.age/.7;orb(r.muzzleX,r.muzzleY,12+charge*22,r.organic?'#b8ef89':'#ffd8a1',.2+charge*.5);}if(pulse>0)orb(r.muzzleX,r.muzzleY,12*r.scale,r.organic?'#b8ef89':'#ffd8a1',pulse*.55)}
+function drawEmitter(e,isBoss=false){const r=firingRig(e,isBoss),pulse=Math.max(0,e.muzzle||0)/.16;if(!r.native){ctx.save();ctx.translate(r.x,r.y);ctx.scale(1,1+(r.organic?pulse*.22:0));drawModel(meshes[r.organic?'siphon':'cannon'],0,0,r.scale,r.yaw,0,r.pitch,e.age);ctx.restore();}if(!isBoss&&e.shotWindup){const charge=clamp(e.shotWindup.age/COMBAT_BALANCE.enemyWindup,0,1);orb(r.muzzleX,r.muzzleY,8+charge*10,r.organic?'#ffcf83':'#ffb36a',.35+charge*.5);}if(isBoss&&e.attack&&e.attack.age<.7){const charge=e.attack.age/.7;orb(r.muzzleX,r.muzzleY,12+charge*22,r.organic?'#b8ef89':'#ffd8a1',.2+charge*.5);}if(pulse>0)orb(r.muzzleX,r.muzzleY,12*r.scale,r.organic?'#b8ef89':'#ffd8a1',pulse*.55)}
 // A complete roll around the hull's longitudinal axis; no scale changes.
 function mechanicalFlightRoll(e){
  const age=e.age+(e.phase||0)*.3;
@@ -383,7 +383,7 @@ function bossDesign(kind=bossIndex()){
  if(kind===1&&typeof isCapitalSiege==='function'&&isCapitalSiege(typeof boss==='undefined'?null:boss))return capitalShipDesign(boss);
  const base=(typeof alienBossDesigns!=='undefined'&&alienBossDesigns[kind])||(typeof machineBossDesigns!=='undefined'&&machineBossDesigns[kind])||null,definition=sectors[level],palette=definition.bossPalette||(definition.biosphere?[1,1,1]:null);
  if(!base||!palette||kind!==bossIndex())return base;
- if(!bossVariants.has(definition.id)){while(bossVariants.size>=4)bossVariants.delete(bossVariants.keys().next().value);if(definition.biosphere?.boss){bossVariants.set(definition.id,buildSpeciesBoss(definition.biosphere.boss,base));}else{const mesh=base.mesh.map(f=>({...f,c:f.c.map((v,i)=>Math.min(255,Math.round(v*palette[i])))}));for(const k of ['skin','dynamic','alienMaterial'])mesh[k]=base.mesh[k];bossVariants.set(definition.id,{...base,mesh});}}
+ if(!bossVariants.has(definition.id)){while(bossVariants.size>=4)bossVariants.delete(bossVariants.keys().next().value);if(definition.biosphere?.boss){bossVariants.set(definition.id,buildSpeciesBoss(definition.biosphere.boss,base,definition.systemChallenge?.progress||0));}else{const mesh=base.mesh.map(f=>({...f,c:f.c.map((v,i)=>Math.min(255,Math.round(v*palette[i])))}));for(const k of ['skin','dynamic','alienMaterial'])mesh[k]=base.mesh[k];bossVariants.set(definition.id,{...base,mesh});}}
  return bossVariants.get(definition.id);
 }
 function bossLocalPoint(b,local){return bossOrganic()&&!bossDesign()?.procedural&&typeof alienBossPoint==='function'?alienBossPoint(bossIndex(),b,local):local;}
@@ -1034,7 +1034,18 @@ function updateEncounter(b,dt){if(isTideEncounter())return;if(typeof isCapitalSi
  if(k===4){if(b.hadLaser&&!hazards.length)b.exposed=4;b.hadLaser=hazards.length>0;}
  if(k===5)b.hadGuards=enemies.some(e=>e.guardian&&e.hp>0);
 }
-function encounterDamage(b,s){if(isTideEncounter())return b.exposed>0?1.8:.4+.18*(b.tide?.pods.filter(p=>p.hp<=0).length||0);if(typeof isCapitalSiege==='function'&&isCapitalSiege(b))return 0;const k=bossIndex();if(k===0){const behind=(s.x-b.x)*Math.cos(bossFlightPose(b).yaw)>0;return b.exposed>0?1.5:behind?1.4:b.breath?1.15:.85;}if(k===1)return b.shieldBroken?1.5:.55;if(k===2)return b.exposed>0?1.65:.9;if(k===3)return b.exposed>0||b.vacuum>0?1.65:1;if(k===4)return b.exposed>0?1.7:.9;return enemies.some(e=>e.guardian&&e.hp>0)?.45:b.exposed>0?1.55:1;}
+// Short, decisive openings matter more than prolonged firing into armor.
+function encounterDamage(b,s){
+ if(isTideEncounter())return b.exposed>0?2.2:.65+.15*(b.tide?.pods.filter(p=>p.hp<=0).length||0);
+ if(typeof isCapitalSiege==='function'&&isCapitalSiege(b))return 0;
+ const k=bossIndex();
+ if(k===0){const behind=(s.x-b.x)*Math.cos(bossFlightPose(b).yaw)>0;return b.exposed>0?2:behind?1.4:b.breath?1.15:.85;}
+ if(k===1)return b.shieldBroken?2:.55;
+ if(k===2)return b.exposed>0?2.1:.9;
+ if(k===3)return b.exposed>0||b.vacuum>0?2.1:1;
+ if(k===4)return b.exposed>0?2.1:.9;
+ return enemies.some(e=>e.guardian&&e.hp>0)?.6:b.exposed>0?2:1;
+}
 function hitEncounterNode(s){if(isTideEncounter())return hitTideNode(s);if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))return hitCapitalSection(s);if(!boss||bossIndex()!==1)return false;for(const n of boss.generators||[]){if(n.hp<=0)continue;const p=encounterSocket(boss,[-18,n.side*57,-40]);if(Math.hypot(s.x-p.x,s.y-p.y)<20+s.r){n.hp-=s.damage;burst(p.x,p.y,n.hp<=0?'#ffba70':'#81dfff',n.hp<=0?12:3);return true;}}return false;}
 // Only physical charge effects and released attacks; no projected paths or landing markers.
 function drawBossPatternTelegraphs(b){

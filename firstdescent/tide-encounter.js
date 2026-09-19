@@ -31,7 +31,7 @@ function updateTideEncounter(b,dt){
  // Small aimed pearls are emitted by actual dorsal organs on either side.
  t.shot-=dt;if(t.shot<=0&&t.phase!=='exposed'&&b.x>50&&b.x<W-50){
   const m=bossMount(b,TIDE_ORGANS[(t.cycle+Math.floor(b.age*2))%3]),a=Math.atan2(ship.y-m.y,ship.x-m.x);const speed=340+phase*35;
-  hostile.push({x:m.x,y:m.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:6,c:'#97e9d9',kind:'water',launchAngle:a,bossShot:true});t.shot=.65-phase*.1;
+  hostile.push({x:m.x,y:m.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:6,c:'#97e9d9',kind:'water',launchAngle:a,bossShot:true});t.shot=(.65-phase*.1)*(sectors[level].salvoRestScale||1);
  }
 }
 function moveTideBoss(b,dt){

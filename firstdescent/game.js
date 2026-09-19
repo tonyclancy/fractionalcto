@@ -98,7 +98,7 @@ function retrySection(){
  state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();
  announce('SECTION '+(saved.section+1)+' / 4','CHECKPOINT RESTORED · POWER + SHIELD AHEAD');updateHUD();
 }
-function bossDamage(amount){return amount/((1+Math.max(0,power-1)*.09+companion*.035)*(sectors[level].bossArmor||1));}
+function bossDamage(amount){return amount/(sectors[level].bossArmor||1);}
 
 const waveTimes=sectors.map(s=>s.waves),gatePlans=sectors.map(s=>s.obstacles),supplyPlans=sectors.map(s=>s.supplies);
 const SCROLL_SPEED=100;
@@ -127,22 +127,30 @@ function ensureGameFullscreen(){if(!nativeFullscreenElement()&&!fullscreenPanel(
 // Resume audio before fullscreen consumes the browser user activation.
 function beginDescent(){atlasOpen=false;atlasSystemId=null;$('#overlay').onclick=null;enableAudio();const launch=()=>{start();sectorBlend={arrival:true,systemEntry:true,age:0,duration:15.5/NAVIGATION_SPEED,destination:expedition.locations[sectors[0].id]};$('#announcement').style.opacity=0;annTimer=0;render(0);};if(window.safariImmersion?.request(launch))return;void ensureGameFullscreen();launch();}
 function start(){rescueCharge=0;weaponOrb={owned:false,flash:0};pilotTurn={angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:0,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
-function resetSector(){flash=0;shake=0;if(sectors[level].stellar)requestStellarPhotosphere();resetWaterWakes();trimSectorArt(sectors[level],sectors[level+1]);prepareSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;window.gpuModels?.prepare([bossDesign()?.mesh,...sectors[level].models.map(n=>meshes[n]),meshes.spore,meshes.missile,meshes.siphon,meshes.cannon,meshes.shrapnel,meshes.bone,meshes.rib,meshes.spineChip,meshes.chitinChip,meshes.skull,meshes.orbitalRock].filter(Boolean));challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setEnvironment?.(sectors[level].medium,sectors[level].theme,sectors[level].environment);window.flightAudio?.setSector(sectors[level].music,sectors[level].id);window.flightAudio?.setBossApproach?.(0);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.inv=3;saveCheckpoint();updateHUD()}
+function resetSector(){flash=0;shake=0;if(sectors[level].stellar)requestStellarPhotosphere();resetWaterWakes();trimSectorArt(sectors[level],sectors[level+1]);prepareSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;window.gpuModels?.prepare([bossDesign()?.mesh,...sectors[level].models.map(n=>meshes[n]),meshes.spore,meshes.missile,meshes.siphon,meshes.cannon,meshes.shrapnel,meshes.bone,meshes.rib,meshes.spineChip,meshes.chitinChip,meshes.skull,meshes.orbitalRock].filter(Boolean));challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setEnvironment?.(sectors[level].medium,sectors[level].theme,sectors[level].environment);window.flightAudio?.setSector(sectors[level].music,sectors[level].id,{kind:bossIndex(),organic:bossOrganic(),anatomy:bossDesign()?.mesh.anatomyProgram||sectors[level].biosphere?.boss.anatomy,habitat:sectors[level].medium,seed:sectors[level].biosphere?.boss.genome?.seed,protection:sectors[level].biosphere?.boss.genome?.protection});window.flightAudio?.setBossApproach?.(0);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.edgeBounceX=ship.edgeBounceY=null;ship.inv=3;saveCheckpoint();updateHUD()}
 function panel(title,description,label,action){$('#overlay').classList.remove('hidden','records-view','title-screen');$('#overlay').innerHTML=`<div class="intro"><div class="eyebrow mint">FIRST DESCENT / FLIGHT RECORD</div><h1 class="result-title">${title}</h1><p class="introcopy">${description}</p><button class="primary" id="panelAction">${label}<span>↗</span></button><div class="launch-caption">SCORE ${String(score).padStart(6,'0')} · ${expedition.locations[sectors[level].id].systemName} · SECTOR ${systemStageProgress(expedition.locations[sectors[level].id]).number} / ${systemStageProgress(expedition.locations[sectors[level].id]).total}</div></div>`;$('#panelAction').onclick=action;$('#panelAction').focus()}
 function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause)}else if(state==='paused'){enableAudio();const resume=()=>{state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus();updateHUD();};if(window.safariImmersion?.request(resume))return;void ensureGameFullscreen();resume()}updateHUD()}
 function end(win){if(!win&&flightRun)flightRun.deaths++;recordFlightRun(win);window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();state=win?'victory':'gameover';$('#pause').hidden=true;$('#touchControls').classList.remove('active');$('#bossbar').hidden=true;
  panel(win?'SYSTEMS<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',win?`${contentReleases.flatMap(r=>r.systems).length} systems secured · ${new Set(Object.values(expedition.locations).filter(p=>p.destinationKind==='planet').map(p=>p.destinationId)).size} planets conquered · ${sectors.length} descents cleared.<br>The expedition is secured. New solar systems will arrive in future updates.`:`Restart sector ${level+1}, section ${checkpoint.section+1} of 4.<br>Your checkpoint loadout returns, with power and shield pickups ahead.`,win?'FLY AGAIN':'RETRY SECTION',win?beginDescent:retrySection);updateHUD()}
+// Upgrades widen coverage and increase total output without multiplying every barrel.
+const WEAPON_DAMAGE={pulse:3.2,spread:2.6,beam:6,helix:2.8,wave:6,missile:10,drone:2};
+const POWER_OUTPUT=[1,1.35,1.75];
 function makeShot(x,y,kind,angle=0,side=0){
  const c={pulse:'#92ffe7',spread:'#ffc26b',beam:'#87cfff',helix:'#be93ff',wave:'#6cffe8',missile:'#ffb86c',drone:'#a1eeff'}[kind];
  const speed=kind==='missile'?430:kind==='wave'?660:850;
- shots.push({x,y,base:y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,damage:(kind==='beam'?5+power:kind==='wave'?4+power:kind==='missile'?8+power*2:2+power*.6)*(1-(power-1)*.065),r:kind==='wave'?22:kind==='beam'?10:kind==='missile'?8:6,c,kind,beam:['beam','wave'].includes(kind),seen:new Set(),age:0,side,trail:[]});
+ shots.push({x,y,base:y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,damage:WEAPON_DAMAGE[kind]||WEAPON_DAMAGE.pulse,r:kind==='wave'?22:kind==='beam'?10:kind==='missile'?8:6,c,kind,beam:['beam','wave'].includes(kind),seen:new Set(),age:0,side,trail:[]});
 }
 function fire(origin=ship,direction=shipDirection(),fromOrb=false){
+ const first=shots.length;
  const launch=(x,y,...args)=>{makeShot(origin.x+(x-ship.x)*(fromOrb?.4:1)*direction,origin.y+y-ship.y,...args);const s=shots[shots.length-1];s.vx*=direction;s.direction=direction;};
  if(weapon==='helix'){for(const side of [-1,1])launch(ship.x+48,ship.y,'helix',0,side);if(power===3)launch(ship.x+50,ship.y,'pulse')}
  else if(weapon==='wave'){launch(ship.x+50,ship.y,'wave');if(power>1)for(const side of [-1,1])launch(ship.x+25,ship.y+side*24,'wave',side*.09)}
  else if(weapon==='missile'){for(const side of [-1,1])launch(ship.x+26,ship.y+side*27,'missile',side*.18);if(power>1)launch(ship.x+50,ship.y,'pulse')}
  else {const n=weapon==='spread'?power+2:power;for(let i=0;i<n;i++)launch(ship.x+48,ship.y+(i-(n-1)/2)*13,weapon,weapon==='spread'?(i-(n-1)/2)*.13:0)}
+ const baseCount=weapon==='spread'?3:['helix','missile'].includes(weapon)?2:1;
+ const budget=WEAPON_DAMAGE[weapon]*baseCount*POWER_OUTPUT[power-1];
+ let total=0;for(let i=first;i<shots.length;i++)total+=shots[i].damage;
+ for(let i=first;i<shots.length;i++)shots[i].damage*=budget/total;
  if(!fromOrb)muzzleFlash=.07;window.flightAudio?.shot(weapon,ship.x);
 }
 function damage(){if(ship.inv>0||state!=='playing')return;if(ship.shield>0){ship.shield--;ship.inv=COMBAT_BALANCE.shieldGrace;window.flightAudio?.shipHit(ship.x,true);burst(ship.x,ship.y,'#8ddfff',15)}else{ship.hp--;ship.inv=COMBAT_BALANCE.hitGrace;shake=10;flash=.12;burst(ship.x,ship.y,'#ffa782',30);window.flightAudio?.shipHit(ship.x);if(ship.hp<=0){if(rescueCharge){rescueCharge=0;ship.hp=3;ship.inv=3.5;hostile=hostile.filter(b=>Math.hypot(b.x-ship.x,b.y-ship.y)>300);if(flightRun)flightRun.rescues=(flightRun.rescues||0)+1;rings.push({x:ship.x,y:ship.y,r:20,life:.9,c:'#fff1a2'});window.flightAudio?.pickup(ship.x);announce('RESCUE ACTIVATED','HULL RESTORED · ALL UPGRADES RETAINED');}else end(false);}}updateHUD()}
@@ -157,7 +165,7 @@ function spawn(){
   for(let n=0;n<count;n++)enemies.push({satellite:true,mother,escortProfile:profile,orbit:n*TAU/count,type:profile&&!profile.organic?0:1,x:mother.x,y:mother.y,base:380,age:0,phase:n*.3,speed:245,hp:profile?20+difficulty()*2:14,max:profile?20+difficulty()*2:14,hit:0,r:20,shoot:profile?3+n*.65:Infinity});return;
  }
 
- const i=waveIndex,eliteInterval=sectors[level].systemChallenge?.eliteWaveInterval||10,elite=i===11?'hunter':i%eliteInterval===Math.min(7,eliteInterval-1)?(Math.floor(i/eliteInterval)%2?'hunter':'ace'):null,type=elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length],center=sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=Math.min(slots,elite?3:i===0?3:4+(difficulty()>0?1:0));
+ const i=waveIndex,eliteInterval=sectors[level].systemChallenge?.eliteWaveInterval||10,elite=i===11?'hunter':i%eliteInterval===Math.min(7,eliteInterval-1)?(Math.floor(i/eliteInterval)%2?'hunter':'ace'):null,type=elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length],center=sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=Math.min(slots,elite?3:i<2?3:4+(difficulty()>0?1:0));
  for(let n=0;n<count;n++){const leader=n===0?elite:null,memberType=elite&&n>0?0:type,offset=i%3===0?(n-(count-1)/2)*52:i%3===1?Math.sin(n*1.15)*75:(n%2?1:-1)*Math.ceil(n/2)*42,y=clamp(center+offset,100,H-100),hp=([7,9,22,13][memberType]+difficulty()*3)*(leader?2.5:1)*(sectors[level].enemyHealthScale||1);
  const enemy={x:W+180+n*96,y,base:y,type:memberType,elite:leader,wave:i,hp,max:hp,hit:0,age:0,phase:i*.45+n*.16,shoot:1.5+n*.38,speed:([220,180,130,205][memberType]+difficulty()*17)*(leader==='ace'?1.55:1)*(1+Math.min(i,20)*.018),r:memberType===2?39:31};prepareEnemyEntry(enemy,i,n);enemies.push(enemy);}
 }
@@ -165,6 +173,28 @@ function updateStructures(dt){
  const plan=gatePlans[level];while(gateIndex<plan.length&&time>=plan[gateIndex].at){const g=plan[gateIndex];obstacles.push({...g,id:gateIndex,x:W+100,w:g.width||82+difficulty()*8});gateIndex++}
  for(const o of obstacles){o.x=W+100-(time-o.at)*SCROLL_SPEED;if(o.rotor&&rotorContact(o,ship.x,ship.y,18))damage();if(obstacleSolids(o).some(r=>ship.x+24>r.x&&ship.x-24<r.x+r.w&&ship.y+14>r.y&&ship.y-14<r.y+r.h))damage()}
  obstacles=obstacles.filter(o=>o.x+o.w>-30);
+}
+// A visible emitter charge precedes every ordinary/elite shot. Aimed rounds
+// commit to the pilot's position at the warning, rewarding a deliberate dodge.
+function updateEnemyWeapon(e,dt){
+ e.shoot-=dt;
+ const visible=e.x>45&&e.x<W-45&&e.y>35&&e.y<H-35&&(!e.entry||e.age>1.6);
+ if(!visible){e.shotWindup=null;return;}
+ if(!e.shotWindup&&e.shoot<=0){
+  if(Math.hypot(e.x-ship.x,e.y-ship.y)<COMBAT_BALANCE.enemyShotClearance)return;
+  e.shotWindup={age:0,targetX:ship.x,targetY:ship.y};
+ }
+ const windup=e.shotWindup;if(!windup)return;
+ windup.age+=dt;if(windup.age<COMBAT_BALANCE.enemyWindup)return;
+ const rig=firingRig(e),speed=e.elite==='hunter'?(rig.organic?420:640):(rig.organic?520:760)+difficulty()*45;
+ // Never release a surprise point-blank shot after an enemy swoops into the pilot.
+ if(Math.hypot(rig.muzzleX-ship.x,rig.muzzleY-ship.y)<COMBAT_BALANCE.enemyShotClearance)return;
+ const angle=e.elite?Math.atan2(windup.targetY-rig.muzzleY,windup.targetX-rig.muzzleX):(e.direction===1?0:Math.PI);
+ const kind=e.elite==='hunter'?'seeker':rig.organic?organicShotKind(e):'bolt';
+ hostile.push({x:rig.muzzleX,y:rig.muzzleY,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:7,c:sectors[level].color,kind,launchAngle:angle});
+ e.muzzle=.16;e.shotWindup=null;
+ e.shoot=((e.elite==='hunter'?1.65:3.2)-difficulty()*.2)*(enemySpecies(e)?.cadence||1);
+ window.flightAudio?.shot(kind,e.x,true);
 }
 function aimed(x,y,speed=520,offset=0,kind='bolt'){const a=Math.atan2(ship.y-y,ship.x-x)+offset;hostile.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:7,c:sectors[level].color,kind,launchAngle:a})}
 // Boss attacks are timed sequences: a locked acid volley, a sweeping autocannon,
@@ -189,18 +219,16 @@ function updateBossWeapon(b,dt){
 }
 function updateBossWingAudio(b){if(!bossOrganic()||typeof organicBossWingPhase!=='function')return;const stroke=Math.floor(organicBossWingPhase(bossIndex(),b)/TAU);if(b.wingAudioStroke!==undefined&&stroke>b.wingAudioStroke)window.flightAudio?.wingbeat?.(b.x,b.propulsion||0,bossIndex());b.wingAudioStroke=stroke;}
 function steerHostile(b,dt){b.age=(b.age||0)+dt;if(b.kind==='seed'&&b.age>.85&&!b.split){b.split=true;for(let i=0;i<5;i++){const a=Math.PI+(i-2)*.28;hostile.push({x:b.x,y:b.y,vx:Math.cos(a)*620,vy:Math.sin(a)*620,r:7,scale:1,kind:'spore',c:b.c});}burst(b.x,b.y,b.c,10);b.x=-200;return;}if(b.kind!=='seeker'||b.age>1.8)return;const heading=Math.atan2(b.vy,b.vx),target=Math.atan2(ship.y-b.y,ship.x-b.x),delta=Math.atan2(Math.sin(target-heading),Math.cos(target-heading)),angle=heading+clamp(delta,-.7*dt,.7*dt),speed=Math.hypot(b.vx,b.vy);b.vx=Math.cos(angle)*speed;b.vy=Math.sin(angle)*speed}
-function supplyLaneClear(item){
- const p=levelPacing(),x=clamp(Math.max(ship.x+250,p.pickupX||650),220,W-130),y=item.y;
- if(drops.length>=p.maxPickups)return false;
- if(obstacles.some(o=>obstacleSolids(o).some(r=>x+30>r.x&&x-30<r.x+r.w&&y+30>r.y&&y-30<r.y+r.h)))return false;
- if(hostile.some(b=>b.x>x-180&&b.x<x+180&&Math.abs(b.y-y)<95))return false;
- return !enemies.some(e=>e.x>x-100&&e.x<x+160&&Math.abs(e.y-y)<78&&!e.satellite);
+function supplySlotAvailable(){
+ // Supplies now enter at the right edge, not at the old projected pickup point.
+ // Enemy positions must not delay a learnable supply timetable.
+ return drops.length<levelPacing().maxPickups;
 }
 // Familiar power-ups enter visibly from the right, with a steady drift.
 // Checkpoint supplies retain their authored spacing and repeatable order.
 function makeSupply(item,reason='supply'){
  const stagger=reason==='checkpoint'?Math.max(0,750-item.x)*.55:0;
- return {...item,x:W+72+stagger,y:clamp(item.y,60,H-60),r:23,age:0,drift:120};
+ return {...item,x:W+72+stagger,y:clamp(item.y,60,H-60),r:23,age:0,drift:160};
 }
 function spawnSupplies(){
  const plan=supplyPlans[level],p=levelPacing();
@@ -208,7 +236,7 @@ function spawnSupplies(){
  while(supplyIndex<plan.length&&time>=plan[supplyIndex].at)queuedSupplies.push(plan[supplyIndex++]);
  if(p.preBossRelief&&!preBossRelief&&time>=sectors[level].duration-14&&ship.hp<=3){queuedSupplies.unshift({type:'repair',y:clamp(ship.y,120,H-120),relief:true});preBossRelief=true;}
  const item=queuedSupplies[0];
- if(!item||time-lastSupplySpawn<p.pickupGap||!supplyLaneClear(item))return;
+ if(!item||time-lastSupplySpawn<p.pickupGap||!supplySlotAvailable())return;
  queuedSupplies.shift();lastSupplySpawn=time;drops.push(makeSupply({x:clamp(Math.max(ship.x+250,p.pickupX||650),220,W-130),y:item.y,type:item.type,relief:!!item.relief},item.relief?'rescue':'supply'));
 }
 function enemyExplosionSize(e){return e.satellite?.65:e.brood?1.8:e.type===2?1.5:1}
@@ -262,6 +290,18 @@ function drawSectorBlend(){if(!sectorBlend)return;const u=clamp(sectorBlend.age/
  ctx.globalAlpha=(1-e)*soft*.8;ctx.drawImage(sectorBlend.haze,0,0,W,H);
  ctx.globalAlpha=soft*.12;ctx.fillStyle=sectors[level].color;ctx.fillRect(0,0,W,H);ctx.restore();if(sectorBlend.destination)drawPlanetTransit(sectorBlend.destination,u);else drawDescentLabel(u);
 }
+// One small rebound per edge contact. Input away cancels it immediately;
+// holding against the boundary does not retrigger a perpetual wobble.
+function pilotEdgeBounce(axis,value,min,max,input,dt){
+ const field=axis==='x'?'edgeBounceX':'edgeBounceY';let bounce=ship[field];
+ if(bounce&&((bounce.side===1?value-min:max-value)>22||input*bounce.side>0)){ship[field]=null;bounce=null;}
+ if(!bounce&&(value<min||value>max)){bounce=ship[field]={side:value<min?1:-1,age:0};}
+ if(bounce){
+  bounce.age+=dt;
+  if(bounce.age<.24){const u=bounce.age/.24;return(bounce.side===1?min:max)+bounce.side*10*Math.sin(Math.PI*u)*(1-u*.35);}
+ }
+ return clamp(value,min,max);
+}
 function updateShipMovement(dt,environment=true){
 let dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
 const water=environment&&sectors[level].medium==='water',mobility=water?WATER_HANDLING.pilotSpeed:1;
@@ -287,7 +327,7 @@ if(water){
  if(Math.abs(ship.vx)<.5&&Math.abs(targetVX)<.5)ship.vx=0;if(Math.abs(ship.vy)<.5&&Math.abs(targetVY)<.5)ship.vy=0;
 }else{ship.waterInputX=ship.waterInputY=0;ship.vx=targetVX;ship.vy=targetVY;}
 const suction=environment&&boss?bossSuctionForce(boss):0,oldX=ship.x,oldY=ship.y;
-ship.x=clamp(ship.x+(drag&&!water?drag.x:ship.vx*dt)+suction*dt,40,W-65);ship.y=clamp(ship.y+(drag&&!water?drag.y:ship.vy*dt)+(environment?sectorCurrent()*dt:0),42,H-42);
+ship.x=pilotEdgeBounce('x',ship.x+(drag&&!water?drag.x:ship.vx*dt)+suction*dt,40,W-65,targetVX,dt);ship.y=pilotEdgeBounce('y',ship.y+(drag&&!water?drag.y:ship.vy*dt)+(environment?sectorCurrent()*dt:0),42,H-42,targetVY,dt);
 // A quick finger swipe still crosses solid scenery; it cannot teleport through it.
 if(drag&&environment&&ship.inv<=0&&obstacles.length){const steps=Math.ceil(Math.hypot(ship.x-oldX,ship.y-oldY)/12),solids=obstacles.flatMap(obstacleSolids);for(let i=1;i<=steps;i++){const t=i/steps,x=oldX+(ship.x-oldX)*t,y=oldY+(ship.y-oldY)*t;if(solids.some(r=>x+24>r.x&&x-24<r.x+r.w&&y+14>r.y&&y-14<r.y+r.h)||obstacles.some(o=>o.rotor&&rotorContact(o,x,y,18))){damage();break;}}}
 if(ship.x===40||ship.x===W-65)ship.vx=0;if(ship.y===42||ship.y===H-42)ship.vy=0;
@@ -299,10 +339,10 @@ function update(dt){if(state!=='paused'){world+=dt*SCROLL_SPEED;navigationClock+
 updateShipMovement(dt);
 updatePilotTurn(dt);if(fireClock<=0&&!bossDefeated&&!shipTurning()){if(weaponOrb.owned)fire(orbPosition(),shipDirection(),true);else fire();fireClock=weapon==='missile'?.38:weapon==='wave'?.28:weapon==='beam'?.18:.13}
 updateStructures(dt);const flare=stellarFlare();if(flare&&!flare.warning&&(flare.top?ship.y<flare.height:ship.y>H-flare.height))damage();const storm=stormLane();if(storm&&!storm.warning&&Math.abs(ship.x-storm.x)<32)damage();updateAcidClouds(dt);updateChallenge();while(waveIndex<waveTimes[level].length&&time>=waveTimes[level][waveIndex]){spawn();waveIndex++}if(time>sectors[level].duration&&!boss&&!bossDefeated){boss={x:W+180,y:H/2,r:sectors[level].bossRadius,hp:sectors[level].hp,max:sectors[level].hp,age:0,shoot:2,hit:0,special:10,charge:0};enemies=[];announce('WARNING','MASSIVE HOSTILE SIGNATURE');$('#bossbar').hidden=false;$('#bossname').textContent=sectors[level].boss;if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))initCapitalSiege(boss);window.flightAudio?.bossEntrance?.()}
-for(const e of enemies){enemyKinematics(e,dt);e.muzzle=Math.max(0,(e.muzzle||0)-dt);e.hit=Math.max(0,e.hit-dt);e.shoot-=dt;if(e.shoot<0&&e.x>45&&e.x<W-45&&e.y>35&&e.y<H-35&&(!e.entry||e.age>1.6)){const rig=firingRig(e);e.muzzle=.16;if(e.x>0&&e.x<W)window.flightAudio?.shot(e.elite==='hunter'?'seeker':rig.organic?'spore':'bolt',e.x,true);if(e.elite)aimed(rig.muzzleX,rig.muzzleY,e.elite==='hunter'?(rig.organic?420:640):(rig.organic?520:760)+difficulty()*45,0,e.elite==='hunter'?'seeker':rig.organic?organicShotKind(e):'bolt');else hostile.push({x:rig.muzzleX,y:rig.muzzleY,vx:(e.direction||-1)*((rig.organic?520:760)+difficulty()*45),vy:0,r:7,c:sectors[level].color,kind:rig.organic?organicShotKind(e):'bolt',launchAngle:e.direction===1?0:Math.PI});e.shoot=((e.elite==='hunter'?1.65:3.2)-difficulty()*.2)*(enemySpecies(e)?.cadence||1)}if(Math.hypot(e.x-ship.x,e.y-ship.y)<43){damage();if(!e.brood){explode(e.x,e.y,'#ffb48a',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));e.hp=0}}}
+for(const e of enemies){enemyKinematics(e,dt);e.muzzle=Math.max(0,(e.muzzle||0)-dt);e.hit=Math.max(0,e.hit-dt);updateEnemyWeapon(e,dt);if(Math.hypot(e.x-ship.x,e.y-ship.y)<43){damage();if(!e.brood){explode(e.x,e.y,'#ffb48a',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));e.hp=0}}}
 const bossApproach=boss?1:clamp((time-(sectors[level].duration-18))/18,0,1);window.flightAudio?.setBossApproach?.(bossApproach,!!boss);window.flightAudio?.setIntensity(boss?.96:Math.max(Math.min(.75,enemies.length/24),bossApproach*.82));if(boss){const b=boss;b.age+=dt;b.depth=1;b.muzzle=Math.max(0,(b.muzzle||0)-dt);updateBossSpecial(b,dt);updateEncounter(b,dt);updateBossArms(b,dt);moveBoss(b,dt);updateBossWingAudio(b);b.hit=Math.max(0,b.hit-dt);updateBossWeapon(b,dt);if(bossBodyHit(b,ship.x,ship.y,18))damage()}
 updateWaterWakes(dt);
-for(const s of shots){const oldX=s.x,oldY=s.y;moveShot(s,dt);const impact=shotTerrainHit(oldX,oldY,s);if(impact){terrainImpact(impact.x,impact.y,s.vx,s.vy);s.x=W+100;continue}if(hitEncounterNode(s)){s.x=W+100;continue;}for(const e of enemies){if(e.hp>0&&!s.seen.has(e)&&Math.hypot(e.x-s.x,e.y-s.y)<e.r*(e.depth||1)+s.r+7){e.hp-=s.damage;e.hit=.12;s.seen.add(e);if(!s.beam)s.x=W+100;burst(e.x,e.y,s.c,3);if(e.hp<=0)kill(e)}}if(boss&&!s.seen.has(boss)&&bossBodyHit(boss,s.x,s.y,s.r)){boss.hp-=bossDamage(s.damage)*encounterDamage(boss,s);boss.hit=.1;s.seen.add(boss);s.x=W+100;burst(s.x>W?boss.x-boss.r*.6:s.x,s.y,s.c,2)}}shots=shots.filter(s=>s.x>-70&&s.x<W+60&&s.y>-30&&s.y<H+30);enemies=enemies.filter(e=>e.hp>0&&(e.entry?e.age<16&&(e.age<4.5||(e.x>-170&&e.x<W+170&&e.y>-100&&e.y<H+100)):e.x>-170));
+for(const s of shots){const oldX=s.x,oldY=s.y;moveShot(s,dt);const impact=shotTerrainHit(oldX,oldY,s);if(impact){terrainImpact(impact.x,impact.y,s.vx,s.vy);s.x=W+100;continue}if(hitEncounterNode(s)){s.x=W+100;continue;}for(const e of enemies){if(e.hp>0&&!s.seen.has(e)&&Math.hypot(e.x-s.x,e.y-s.y)<e.r*(e.depth||1)+s.r+7){e.hp-=s.damage;e.hit=.12;s.seen.add(e);if(!s.beam)s.x=W+100;burst(e.x,e.y,s.c,3);if(e.hp<=0)kill(e)}}if(boss&&!s.seen.has(boss)&&bossBodyHit(boss,s.x,s.y,s.r)){boss.hp-=bossDamage(s.damage)*encounterDamage(boss,s);boss.hit=.1;s.seen.add(boss);burst(s.x,s.y,s.c,2);s.x=W+100}}shots=shots.filter(s=>s.x>-70&&s.x<W+60&&s.y>-30&&s.y<H+30);enemies=enemies.filter(e=>e.hp>0&&(e.entry?e.age<16&&(e.age<4.5||(e.x>-170&&e.x<W+170&&e.y>-100&&e.y<H+100)):e.x>-170));
 // Ordinary hostile rounds obey the same solid scenery as the player's rounds.
 // Breath volumes and beam hazards are managed separately by their encounter rules.
 for(const b of hostile){const oldX=b.x,oldY=b.y;steerHostile(b,dt);if(b.kind==='seed'&&b.split)continue;b.x+=b.vx*dt;b.y+=b.vy*dt;const impact=shotTerrainHit(oldX,oldY,b);if(impact){terrainImpact(impact.x,impact.y,b.vx,b.vy);b.x=-100;continue}if(blockWithOrb(b,oldX,oldY)||blockWithFrontShield(b,oldX)){b.x=-100;continue}if(Math.hypot(b.x-ship.x,b.y-ship.y)<b.r+14){damage();b.x=-100}}hostile=hostile.filter(b=>b.x>-50&&b.x<W+200&&b.y>-50&&b.y<H+50);

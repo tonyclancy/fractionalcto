@@ -24,9 +24,9 @@ const BOSS_ENCOUNTERS=freezeContent({
 });
 function bossEncounterProfile(l){return l.encounterProfile||BOSS_ENCOUNTERS[l.encounter||l.bossKind];}
 // Shared tuning keeps future encounters within the same learnable combat rhythm.
-const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.25,specialRest:1.15,hitGrace:2.4,shieldGrace:1.5,breathTracking:.55});
+const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.25,specialRest:1.15,hitGrace:2.4,shieldGrace:1.5,breathTracking:.55,enemyWindup:.48,enemyShotClearance:180});
 const WATER_HANDLING=freezeContent({pilotSpeed:.9,acceleration:.065,braking:.09,reversal:.05,touchBuffer:.04,enemyMotion:.78,bossMotion:.84});
-const GAME_RULESET='2026-09-system-arcs-v30';
+const GAME_RULESET='2026-09-boss-tempo-v33';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova','rescue']);
@@ -1971,13 +1971,18 @@ function worldTemplate(system,index){
 function systemChallengeBudget(index,count){
  if(!Number.isInteger(index)||!Number.isInteger(count)||count<1||index<0||index>=count)throw Error('Invalid system challenge position');
  const progress=count===1?0:index/(count-1);
- return {version:2,index,count,progress,difficulty:Number((.75+progress*2.75).toFixed(3)),hp:Math.round(1750+1150*progress),enemyHealthScale:1.04+progress*.18,bossArmor:1+progress*.12,maxActiveEnemies:9+Math.round(progress*5),waves:18+Math.round(progress*8),eliteWaveInterval:11-Math.round(progress*4),salvoRestScale:1.18-progress*.27,specialCooldown:6.8-progress*1.8,warning:1.85-progress*.25};
+ return {version:2,index,count,progress,difficulty:Number((.75+progress*2.75).toFixed(3)),hp:Math.round(1000+300*progress),enemyHealthScale:1.04+progress*.18,bossArmor:1+progress*.12,maxActiveEnemies:9+Math.round(progress*5),waves:18+Math.round(progress*8),eliteWaveInterval:11-Math.round(progress*4),salvoRestScale:1-progress*.24,specialCooldown:6.1-progress*1.65,warning:1.85-progress*.25};
 }
 function applySystemChallenge(stage,index,count){
  const b=systemChallengeBudget(index,count);stage.systemChallenge=b;
  Object.assign(stage,{difficulty:b.difficulty,hp:b.hp,enemyHealthScale:b.enemyHealthScale,bossArmor:b.bossArmor,salvoRestScale:b.salvoRestScale});
- stage.pacing={...stage.pacing,maxActiveEnemies:b.maxActiveEnemies,pickupGap:2.7-b.progress*.4,maxPickups:1,preBossRelief:true};
- stage.waves=Array.from({length:b.waves},(_,i)=>Number((1.5+i*(stage.duration-7)/(b.waves-1)).toFixed(3)));
+ stage.pacing={...stage.pacing,maxActiveEnemies:b.maxActiveEnemies,pickupGap:2.7-b.progress*.4,maxPickups:2,preBossRelief:true};
+ // A little room to read the opening; the same authored wave count builds later.
+ stage.waves=Array.from({length:b.waves},(_,i)=>Number((3+Math.pow(i/(b.waves-1),.82)*(stage.duration-8.5)).toFixed(3)));
+ // Defense is the first learnable pickup, before the opening obstacle reaches the pilot.
+ const guard=stage.supplies.find(d=>d.type==='frontShield'),speed=stage.supplies.find(d=>d.type==='speed');
+ if(guard){guard.at=1;guard.y=380;}if(speed)speed.at=3.5;
+ stage.supplies.sort((a,b)=>a.at-b.at);
  stage.broodWaves=b.progress>=.6?[5,13,Math.min(b.waves-2,21)]:[5,13];
  stage.encounterProfile={...bossEncounterProfile(stage),cooldown:b.specialCooldown,warning:b.warning};
  if(stage.challenge){stage.challenge.count=b.progress<.65?2:3;stage.challenge.speed=1+b.progress*.1;}
@@ -2141,10 +2146,9 @@ function installPlanetBiosphere(stage,world,system){
   const spec={...blueprint,id,name:world.name+' '+(organic?(role===4?'Crown ':'')+blueprint.name:machinePlan+' '+(role===4?'overseer':role===5?'satellite':role===2?'gunship':'interceptor')),planet:world.id,system:system.id,lineage:system.id,organic,anatomy:organic?body:null,bodyPlan:body,machinePlan,armor:pool.armor,sensory:['antlers','barbels','compound'][(seed>>>9)%3],integument:['quills','pores','ridges'][(seed>>>13)%3],variant:hash%4,form:body,habitat:stage.medium,color:palette[0].map((v,i)=>Math.min(235,Math.round(v*(.9+unit(i*4)*.2)))),accent:palette[1],length:.88+unit(3)*.18,girth:.87+unit(9)*.23,span:1,small:role===5?.85:1,heavy:role===2,frequency:3.3+unit(6)*2.2,amplitude:blueprint.gait==='glide'?24:36,cadence:.93+unit(13)*.18,shot:water?'water':stage.atmosphere?.heat>.4?'fire':'wind'};
   spec.genome=developSpeciesGenome(world.id,system.id,stage.medium,role,false,world.climate,stage.worldIdentity.design);
   spec.gait=spec.genome.locomotion==='fins'?'glide':spec.genome.locomotion==='siphon'?'jet':spec.genome.locomotion==='jets'?'hover':spec.genome.finPairs>1?'flutter':'swoop';
-  spec.name=world.name+' '+(organic?({beetle:'scuteling',skimmer:'dartsail',drake:'thornmaw',mantis:'sicklewing',moth:'veilwing',manta:'driftveil',leviathan:'riftjaw',bell:'bellmantle',squid:'siphon',nautilus:'vaultshell',crab:'clawguard',trilobite:'ridgeback'}[organicAnatomyProgram(spec.genome)])+' '+(role===4?'carrier':role===5?'juvenile':role===3?'hunter':'forager'):spec.genome.machineFrame+' '+(role===4?'overseer':role===5?'satellite':role===2?'gunship':'interceptor'));
+  spec.name=world.name+' '+(organic?({sailwing:'sailscourge',razorcrab:'razorclaw',hammerfin:'broadmaw',sailback:'ridgestalker',beetle:'scuteling',skimmer:'dartsail',drake:'thornmaw',mantis:'sicklewing',moth:'veilwing',manta:'driftveil',leviathan:'riftjaw',bell:'bellmantle',squid:'siphon',nautilus:'vaultshell',crab:'clawguard',trilobite:'ridgeback'}[organicAnatomyProgram(spec.genome)])+' '+(role===4?'carrier':role===5?'juvenile':role===3?'hunter':'forager'):spec.genome.machineFrame+' '+(role===4?'overseer':role===5?'satellite':role===2?'gunship':'interceptor'));
   // Explicit pilot assignments: approved models are never scattered across every world.
   if(world.id==='caelus'){spec.authoredAsset=['vector-bastion','shellmaw','vector-bastion','thorn-skate','vesper-brood','needleling'][role];spec.name='CAELUS '+['Vector scout','Shellmaw','Vector guard','Thorn skate','Brood carrier','Needleling'][role];}
-  if(world.id==='ferrum'&&role===0){spec.authoredAsset='vector-bastion';spec.name='FERRUM Vector Bastion';}
   registerPlanetSpecies(freezeContent(spec));ids.push(id);
  }
  const bossSeed=speciesHash(world.id+':boss'),bossAnatomy=anatomy[4];
@@ -2152,7 +2156,7 @@ function installPlanetBiosphere(stage,world,system){
  stage.biosphere.boss.genome=developSpeciesGenome(world.id,system.id,stage.medium,6,true,world.climate,stage.worldIdentity.design);
  if(world.id==='caelus'){stage.biosphere.boss.authoredAsset='vesper-reaver';stage.boss='THE VESPER REAVER';}
  if(world.id==='nacre'){stage.biosphere.boss.authoredAsset='rift-lantern';stage.encounterDirector='tide-knots';stage.boss='THE RIFT LANTERN';}
- const prior=stage.escortEncounter||{};stage.escortEncounter={...prior,name:planetSpecies.get(ids[4]).name.toUpperCase(),model:ids[4],escort:ids[5],organic:!mechanicalSwarm,rig:'appendages',count:prior.count||4,orbit:prior.orbit||2.6,formation:['screen','figure8','petals'][seed%3],pace:prior.pace||1};stage.revision+=2;
+ const prior=stage.escortEncounter||{};stage.escortEncounter={...prior,name:planetSpecies.get(ids[4]).name.toUpperCase(),model:ids[4],escort:ids[5],organic:!mechanicalSwarm,rig:'appendages',count:prior.count||4,orbit:prior.orbit||2.6,formation:['screen','figure8','petals'][seed%3],pace:prior.pace||1};stage.revision+=3;
 }
 for(const release of contentReleases)for(const system of release.systems)for(const world of system.destinations)for(const stageId of world.stages){const stage=levelDefinitions.find(l=>l.id===stageId);installPlanetBiosphere(stage,world,system);}
 const expedition=buildExpedition(contentReleases,levelDefinitions);

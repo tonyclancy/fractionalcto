@@ -884,7 +884,7 @@ function buildPlanetMachine(spec){
 }
 // Boss castes reserve an anatomy unused by that planet's regular roster.
 // Combat contracts (attacks, HP, weak points) are supplied by the level, not DNA.
-function buildSpeciesBoss(spec,base){
+function buildSpeciesBossGeometry(spec,base){
  if(spec.authoredAsset==='vesper-reaver'){
   const mesh=buildSpeciesAnatomy(spec);mesh.authoredAsset=spec.authoredAsset;delete mesh.development;
   return{...base,mesh,parts:null,procedural:true,anatomy:'winged-predator',habitat:'air',scale:2.8,mouth:[-50,1,0],guns:null,drives:null,bodyVolumes:[{center:[0,0,0],radii:[49,22,24]}]};
@@ -897,6 +897,20 @@ function buildSpeciesBoss(spec,base){
  const volumes={wyvern:[[-1,0,0],[30,13,14]],moth:[[0,0,0],[28,12,12]],wasp:[[0,0,0],[36,12,14]],skyworm:[[8,1,0],[50,13,13]],eel:[[8,1,0],[50,13,13]],manta:[[0,0,0],[29,12,24]],nautilus:[[5,0,0],[35,35,13]],crab:[[-2,0,0],[27,20,28]],jelly:[[-6,0,0],[28,30,30]],squid:[[0,0,0],[33,19,20]],urchin:[[0,0,0],[25,27,27]],trilobite:[[3,0,0],[38,18,20]]};
  const [center,radii]=spec.organic?volumes[spec.anatomy]:[[0,0,0],[38,29,15]];
  return{...base,mesh,parts:null,procedural:true,anatomy:spec.anatomy,habitat:spec.habitat,scale,mouth:mesh.muzzle,guns:spec.organic?null:[mesh.muzzle,[mesh.muzzle[0],-mesh.muzzle[1],mesh.muzzle[2]]],drives:spec.organic?null:mesh.ports.map(p=>({center:p,axis:[1,0,0],radius:4})),bodyVolumes:mesh.bodyVolumes||[{center,radii}]};
+}
+// Size the solid body, not just a long tail or wing tip. A shared rigid scale
+// keeps skin, joints, weapon sockets and collision volumes in agreement.
+function buildSpeciesBoss(spec,base,progress=0){
+ const d=buildSpeciesBossGeometry(spec,base),volumes=d.bodyVolumes;
+ const bodyLength=Math.max(...volumes.map(v=>v.center[0]+v.radii[0]))-Math.min(...volumes.map(v=>v.center[0]-v.radii[0]));
+ const lo=[Infinity,Infinity,Infinity],hi=[-Infinity,-Infinity,-Infinity];
+ for(const f of d.mesh)for(const p of f.v)for(let axis=0;axis<3;axis++){lo[axis]=Math.min(lo[axis],p[axis]);hi[axis]=Math.max(hi[axis],p[axis]);}
+ const span=hi.map((n,i)=>n-lo[i]),target=380+60*Math.max(0,Math.min(1,progress));
+ // Leave navigation room even as a winged boss rolls its wings into view.
+ const limit=Math.min(820/span[0],660/Math.max(span[1],span[2]));
+ d.scale=Math.max(d.scale,Math.min(target/bodyLength,limit));
+ d.footprint={bodyLength:bodyLength*d.scale,span:span.map(n=>n*d.scale)};
+ return d;
 }
 function enemySpecies(e,definition=sectors[level]){return planetSpecies.get(e.satellite?e.escortProfile?.escort:e.escortProfile?.model||definition.models[e.type]);}
 
@@ -925,7 +939,8 @@ function developSpeciesGenome(planetId,systemId,habitat,role,boss=false,climate=
   machineFrame:recipe?.machineArchitecture||['catamaran','radial','blade','arc','casket','fork','delta','spindle'][(hash+role*3)%8],
   modules:2+(hash>>>15)%4,engineSpread:17+rnd()*29,nose:22+rnd()*34,moduleSweep:-22+rnd()*38,
   plating:['faceted','lamellar','skeletal'][(hash>>>8)%3]};
- genome.locomotion=habitat==='water'?(['chalice','mantle','vault'].includes(clade)?'siphon':'fins'):(['chalice','vault','mantle'].includes(clade)?'jets':'wings');
+ const anatomy=organicAnatomyProgram(genome);
+ genome.locomotion=habitat==='water'?(['bell','squid','nautilus'].includes(anatomy)?'siphon':'fins'):['bell','squid','nautilus','leviathan','manta','sailback','hammerfin'].includes(anatomy)?'jets':'wings';
  if(recipe)genome.designId=recipe.id;
  if(habitat==='air'&&genome.limbs==='paddles')genome.limbs='claws';
  if(clade==='hammer')genome.head='hammer';if(clade==='mantle'||clade==='chalice')genome.neck=3;
@@ -953,20 +968,30 @@ function organicAnatomyProgram(g){
   chalice:['bell','squid','manta','nautilus'],hammer:['crab','trilobite','squid','leviathan'],
   vault:['trilobite','manta','bell','crab'],fork:['leviathan','squid','manta','nautilus']
  };
- const plan=(g.habitat==='water'?waterCastes[g.clade]||waterCastes.lancet:choices)[g.boss?3:g.role===4?2:g.role===3?1:0];
- return plan;
+ const castes=g.habitat==='water'?waterCastes[g.clade]||waterCastes.lancet:choices,role=g.boss?3:g.role===4?2:g.role===3?1:0;
+ // Related ecologies need not put the same animal in the same encounter role.
+ // Rotate the complete roster, preserving a separate leader and boss anatomy.
+ const plan=castes[(role+((g.lineage>>>17)%castes.length))%castes.length];
+ const relatives={drake:'sailwing',mantis:'razorcrab',manta:'hammerfin',leviathan:'sailback'};
+ return relatives[plan]&&((g.lineage>>>4)&1)?relatives[plan]:plan;
 }
 function buildDevelopedOrganism(spec){
  const g=spec.genome,plan=organicAnatomyProgram(g),m=meshBuilder(),skin=spec.color,accent=spec.accent,
  dark=skin.map(v=>Math.round(v*.22)),edge=skin.map((v,i)=>Math.round(v*.64+accent[i]*.36)),light=skin.map(v=>Math.min(220,Math.round(v*1.18+15))),ports=[];
- const air=g.habitat==='air',boss=g.boss,variation=(g.seed%997)/997,bodyStretch=.94+(g.bodyLength%23)/150;
- const soft=['bell','squid','manta','leviathan'].includes(plan),armored=!soft;
+ const air=g.habitat==='air',boss=g.boss,bodyStretch=Math.max(.78,Math.min(1.30,g.bodyLength/80));
+ // Express the genome in the silhouette, not merely names and slight recolouring.
+ const girthScale=Math.max(.78,Math.min(1.35,g.girth/18)),depthScale=Math.max(.75,Math.min(1.3,g.depth/18));
+ const soft=['bell','squid','manta','leviathan','hammerfin','sailback'].includes(plan),armored=!soft;
  const mark=(start,j,weight=.6)=>{for(let i=start;i<m.faces.length;i++){if(j)m.faces[i].joint=j;m.faces[i].textureWeight=weight;}};
  const ell=(p,r,c=skin,j=null,wet=false)=>{const start=m.faces.length;m.ellipsoid(...p,...r,c,0,r[0]<3?12:20,r[0]<3?6:12);mark(start,j);if(wet)for(let i=start;i<m.faces.length;i++){m.faces[i].wet=1;m.faces[i].textureWeight=0;}};
  const tube=(pts,r,c=skin,j=null)=>{const start=m.faces.length;m.tube(pts,r,c,0,0,8,4);mark(start,j);};
  // All primary bodies include the snout, neck and trunk in ONE sealed surface.
  // Profiles: x, centre-y, vertical radius, depth radius.
  const programs={
+  sailwing:[[-48,0,1,3],[-35,-2,6,9],[-19,-3,12,17],[1,-1,16,21],[21,1,9,15],[38,4,3,5],[53,5,.4,.5]],
+  razorcrab:[[-46,2,2,8],[-35,0,8,20],[-17,-3,17,28],[3,-3,19,27],[24,0,11,19],[39,3,.5,3]],
+  hammerfin:[[-42,2,1,8],[-33,0,6,30],[-23,-1,8,32],[-9,0,12,19],[12,1,10,13],[34,3,4,7],[49,3,.5,1]],
+  sailback:[[-52,1,1,3],[-40,0,6,8],[-26,-2,11,12],[-4,-4,16,15],[19,-2,12,12],[44,2,5,6],[71,4,.3,.5]],
   skimmer:[[-51,0,1,2],[-39,-1,5,6],[-24,-1,10,10],[-7,0,13,12],[15,2,11,10],[35,3,5,5],[54,3,.4,.5]],
   drake:[[-52,1,2,3],[-39,0,7,9],[-22,-1,12,12],[0,0,17,15],[24,2,11,10],[43,3,4,4],[66,5,.4,.5]],
   beetle:[[-39,1,2,4],[-30,-1,9,12],[-18,-3,16,18],[0,-2,19,19],[21,1,13,14],[37,3,5,6],[44,4,.4,.6]],
@@ -980,7 +1005,7 @@ function buildDevelopedOrganism(spec){
   crab:[[-44,3,4,10],[-34,0,9,19],[-18,-2,17,32],[4,-3,20,35],[25,0,13,27],[41,4,1,4]],
   trilobite:[[-43,1,2,5],[-33,0,10,18],[-15,-2,15,23],[6,-1,14,22],[25,1,9,16],[44,3,1,3]]
  };
- const profile=programs[plan].map(p=>[p[0]*bodyStretch,p[1],p[2]*(.93+variation*.12),p[3]*(.95+((g.seed>>>7)%101)/1000)]);
+ const profile=programs[plan].map((p,i,points)=>{const u=i/(points.length-1),head=i<3?1+(g.headSize-1)*(1-i/3)*.5:1;return[p[0]*bodyStretch+(i<3?(2-i)*(g.neck-10)*.35:0),p[1]+Math.sin(Math.PI*u)*g.arch*.25,p[2]*girthScale*head,p[3]*depthScale*head];});
  function section(u){const a=Math.min(profile.length-2,Math.floor(u*(profile.length-1))),t=u*(profile.length-1)-a;
   return profile[a].map((v,i)=>{const p=profile[Math.max(0,a-1)][i],b=profile[a+1][i],n=profile[Math.min(profile.length-1,a+2)][i],r=.5*(2*v+(-p+b)*t+(2*p-5*v+4*b-n)*t*t+(-p+3*v-3*b+n)*t*t*t);return i>1?Math.max(.25,r):r;});}
  function surface(u,a,offset=0){const p=section(u);return[p[0],p[1]-Math.cos(a)*(p[2]+offset),Math.sin(a)*(p[3]+offset)];}
@@ -1036,8 +1061,8 @@ function buildDevelopedOrganism(spec){
   for(const split of [-1,1])tube([palm,[palm[0]-10,palm[1]+split*7,palm[2]],[palm[0]-20,palm[1]+split*2,palm[2]-side*2]],3.4,edge,j);
  }}
  function wings(count=1,span=47){for(let pair=0;pair<count;pair++)for(const side of [-1,1]){
-  const root=surface(.36+pair*.18,side*1.18),spread=span*(.94+variation*.1)*(pair?.72:1);
-  membrane(root,[root[0]-(plan==='moth'?24:10),root[1]-4,side*(Math.abs(root[2])+spread)],[root[0]+(plan==='moth'?23:36),root[1]+5,side*(Math.abs(root[2])+spread*.66)]);
+  const root=surface(.36+pair*.18,side*1.18),spread=Math.min(78-Math.abs(root[2]),span*Math.max(.72,Math.min(1.3,g.wingSpan/54))*(pair?.72:1)),sweep=g.wingSweep*.65,chord=.75+(g.seed>>>12)%4*.18;
+  membrane(root,[root[0]-(plan==='moth'?24:10)+sweep,root[1]-4,side*(Math.abs(root[2])+spread)],[root[0]+(plan==='moth'?23:36)*chord+sweep,root[1]+5,side*(Math.abs(root[2])+spread*.66)]);
  }}
  // Curved overlapping scutes hug the animal, without rectangular collars.
  function scutes(count){for(let i=0;i<count;i++){
@@ -1049,6 +1074,10 @@ function buildDevelopedOrganism(spec){
    m.faces.push({v:[shell(t/nu,p),shell(t/nu,q),shell((t+1)/nu,q),shell((t+1)/nu,p)],c:skin.map(v=>Math.round(v*pigment)),em:0,flex:0,textureWeight:.95});
   }
  }}
+ if(plan==='sailwing'){wings(2,65);legs(1,17);scutes(3);}
+ if(plan==='razorcrab'){wings(1,34);claws();legs(2,16);scutes(5);}
+ if(plan==='hammerfin'){for(const side of [-1,1]){const root=surface(.55,side*1.5);membrane(root,[root[0]+9,root[1]+6,side*65],[root[0]+38,root[1]+9,side*30],3);}scutes(3);}
+ if(plan==='sailback'){for(const side of [-1,1]){const root=surface(.43,side*1.6);membrane(root,[root[0]+4,root[1]+9,side*31],[root[0]+28,root[1]+5,side*18],3);}const root=surface(.35,0);membrane(root,[root[0]+13,root[1]-39,2],[root[0]+58,root[1]-5,1],4);scutes(4);}
  if(plan==='beetle'){wings(1,40);legs(3,15);scutes(4);}
  if(plan==='skimmer'){wings(1,55);legs(2,13);}
  if(plan==='drake'){wings(1,59);legs(2,22);scutes(3);}
@@ -1064,7 +1093,7 @@ function buildDevelopedOrganism(spec){
  if(plan==='nautilus'){arms(4,true);scutes(5);for(const side of [-1,1]){const pts=Array.from({length:30},(_,i)=>{const a=i/29*Math.PI*3.8,r=4+i*.64;return[7+Math.cos(a)*r,-5+Math.sin(a)*r,side*(24-i*.12)];});tube(pts,1.3,edge);}}
  if(plan==='crab'){legs(3,19);claws();scutes(2);if(air)wings(2,57);}
  if(plan==='trilobite'){scutes(7);for(let pair=0;pair<3;pair++)for(const side of [-1,1]){const root=surface(.36+pair*.13,side*1.85);membrane(root,[root[0]-6,root[1]+7,side*(Math.abs(root[2])+15)],[root[0]+11,root[1]+4,side*(Math.abs(root[2])+12)],air?1:3);}}
- if(air&&['bell','squid','nautilus','leviathan','manta'].includes(plan)){
+ if(air&&['bell','squid','nautilus','leviathan','manta','sailback','hammerfin'].includes(plan)){
   for(const side of [-1,1]){const p=surface(.70,side*1.55);tube([p,[p[0]+6,p[1]+2,p[2]],[p[0]+11,p[1]+1,p[2]]],3.8,dark);ports.push([p[0]+12,p[1]+1,p[2]]);}
  }
  if(g.protection!=='none'&&['skimmer','moth','manta','bell','squid'].includes(plan))scutes(g.protection==='stellar'?5:3);
@@ -1081,7 +1110,7 @@ function buildDevelopedOrganism(spec){
  // Breathing slits are embedded along the flank and follow its curvature.
  for(const side of [-1,1])for(let i=0;i<(boss?5:3);i++){const u=.39+i*.047;const pts=[surface(u,side*1.2,.6),surface(u+.008,side*1.55,.6),surface(u+.018,side*1.9,.6)];tube(pts,.8,dark);}
  // Subtle two-scale pigmentation gives structure without neon checkerboards.
- for(const f of m.faces){if(f.textureWeight===0)continue;const p=f.v[0],v=Math.sin(p[0]*.08+Math.sin(p[2]*.13))*Math.cos(p[1]*.12),belly=p[1]>4?.07:0;f.c=f.c.map((n,i)=>Math.round(Math.max(0,Math.min(245,n*(.93+v*.07)+light[i]*belly))));}
+ for(const f of m.faces){if(f.textureWeight===0)continue;const p=f.v[0],q=g.patternScale,v=g.pattern==='bands'?Math.sin(p[0]*q):g.pattern==='freckles'?Math.pow(Math.max(0,Math.sin(p[0]*q)*Math.cos(p[2]*q*1.8)),5)*2-1:g.pattern==='reticulate'?Math.sin(p[0]*q+Math.sin(p[2]*q))*Math.cos(p[1]*q):Math.sin(p[0]*q*.5+Math.sin(p[2]*q)*2),belly=p[1]>4?.07:0;f.c=f.c.map((n,i)=>Math.round(Math.max(0,Math.min(245,n*(.88+v*.18)+light[i]*belly))));}
  const scale=(spec.small||1)*(boss?1:.88),transform=p=>p.map(v=>v*scale);
  for(const f of m.faces){f.v=f.v.map(transform);if(f.joint)f.joint=[...transform(f.joint.slice(0,3)),f.joint[3]];if(f.blink)f.blink=[f.blink[0]*scale,f.blink[1]];}
  const bodyVolumes=[.25,.5,.73].map(u=>{const p=section(u);return{center:transform([p[0],p[1],0]),radii:transform([18,p[2]*.94,p[3]*.94])};});
@@ -1103,9 +1132,10 @@ function buildDevelopedMachine(spec){
   pod([-8,0,0],g.nose,8,11);
  }else if(frame==='catamaran'||frame==='fork'){
   for(const side of [-1,1]){const p=[g.moduleSweep,side*spread,side*3];tube([[-g.nose*.3,0,0],[10,side*spread,0]],3);pod(p,g.nose*(frame==='fork'?1.2:.8),8+g.modules,7);engine([p[0]+g.nose,p[1],p[2]],6);}
-  pod([-8,0,0],g.nose*.68,8,9);
+  pod([frame==='fork'?-18:-8,0,0],g.nose*(frame==='fork'?1.35:.68),frame==='fork'?6:8,9);
+  if(frame==='fork'){engine([g.nose*.9,0,0],5);muzzle=[-18-g.nose*1.35,0,3];}
  }else if(frame==='delta'||frame==='blade'){
-  pod([-10,0,0],g.nose+12,9,7);for(const side of [-1,1]){m.wedge([-g.nose*.4,side*4,1],[g.moduleSweep,side*(spread+16),-4],[g.nose,side*9,6],frame==='blade'?3:7,c);pod([18,side*spread*.6,-4],18,5,5);engine([35,side*spread*.6,-4],5);}
+  pod([-10,0,0],g.nose+12,9,7);for(const side of [-1,1]){m.wedge([-g.nose*.4,side*4,1],[frame==='blade'?-g.nose: g.moduleSweep,side*(spread+16),-4],[frame==='blade'?4:g.nose,side*9,6],frame==='blade'?3:7,c);pod([18,side*spread*.6,-4],18,5,5);engine([35,side*spread*.6,-4],5);}
  }else if(frame==='casket'){
   pod([0,0,0],g.nose*.8,spread*.78,11);for(let i=0;i<n;i++)pod([-8+i*9,(i%2?1:-1)*spread*.65,8],14,9,7);for(const side of [-1,1])engine([g.nose*.8,side*spread*.6,0],7);
  }else{

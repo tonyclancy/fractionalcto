@@ -211,8 +211,8 @@ window.flightAudio=(()=>{
   'em','emd','c','b','am','emg','c','b'
  ];
  const titleTheme=[
-  [[0,64,.5],[1,67,.5],[2,71,1.5],[5,69,.5],[6,67,.9]],
-  [[0,66,.5],[1,67,.5],[2,64,2],[7,59,.4]],
+  [[0,64,.75],[2,71,.5],[3,69,.5],[4,67,1],[7,66,.4]],
+  [[0,64,1.5],[3,59,.5],[4,62,1],[6,64,.85]],
   [[0,67,1.5],[3,64,.5],[4,62,1],[6,64,.75]],
   [[0,66,1],[2,63,1],[4,59,1.5]],
   [[0,64,1.5],[3,67,.5],[4,69,1],[6,67,.5],[7,64,.45]],
@@ -246,7 +246,7 @@ window.flightAudio=(()=>{
   [[0,66,1],[2,63,1],[4,59,1.5]]
  ];
  const titlePhrases=[...titleTheme,...titleDevelopment,...titleBridge,...titleReturn];
- const descentHook=[[[0,0,.5],[1,3,.5],[2,7,1.5],[5,5,.5],[6,3,.9]],[[0,2,.5],[1,3,.5],[2,0,2],[7,-5,.4]]];
+ const descentHook=[[[0,0,.75],[2,7,.5],[3,5,.5],[4,3,1],[7,2,.4]],[[0,0,1.5],[3,-5,.5],[4,-2,1],[6,0,.85]]];
  // Subsequent passes re-orchestrate the song instead of restarting the same
  // recording: a spacious response, then a warmer, rhythm-led variation.
  function titleVariation(index){const pass=Math.floor(index/256)%4,bar=Math.floor(index/8)%32;return{pass,ambient:pass===1&&bar<8,answer:pass>0&&bar%4>=2,warm:pass===2,counter:pass===3};}
@@ -297,6 +297,25 @@ window.flightAudio=(()=>{
  const scoreTimbres=['pluck','pulse','glass','reed','pulse','brass'];
  let planetMusicSeed=0,planetTheme=null;
  function worldMusicIdentity(identity){let seed=0;for(const c of String(identity||''))seed=(Math.imul(seed,31)+c.charCodeAt(0))>>>0;return seed;}
+ // Sound identities follow anatomy/material, not merely the six attack scripts.
+ // Seeded registers and pulse patterns stay recognisable on repeat encounters.
+ const bossVoiceFamilies={
+  hunter:{instrument:'reed',pulse:[0,3,4,6],register:92},
+  swarm:{instrument:'ribbon',pulse:[0,1,4,5,7],register:73},
+  carapace:{instrument:'pluck',pulse:[0,2,5],register:62},
+  leviathan:{instrument:'choir',pulse:[0,4,7],register:51},
+  siphon:{instrument:'glass',pulse:[0,3,6],register:67},
+  turbine:{instrument:'brass',pulse:[0,2,3,6],register:84},
+  ion:{instrument:'crystal',pulse:[0,1,4,6,7],register:108},
+  plasma:{instrument:'ribbon',pulse:[0,3,4,7],register:58}
+ };
+ let bossVoice={family:'hunter',kind:0,seed:0,pitch:92,rate:18,...bossVoiceFamilies.hunter},bossActionSerial=0;
+ function setBossIdentity(profile={}){
+  const kind=profile.kind??Math.max(0,sectorTrack),organic=profile.organic??![1,4].includes(kind),anatomy=profile.anatomy||'',water=profile.habitat==='water'||environment==='water';
+  const family=!organic?(kind===4?'ion':'turbine'):profile.protection==='stellar'?'plasma':/squid|nautilus|bell|jelly/.test(anatomy)?'siphon':water?'leviathan':/moth|wasp|mantis|beetle/.test(anatomy)||!anatomy&&kind===5?'swarm':/crab|trilobite/.test(anatomy)?'carapace':'hunter';
+  const seed=(profile.seed??planetMusicSeed)>>>0,base=bossVoiceFamilies[family];
+  bossVoice={...base,family,kind,seed,pitch:base.register*(.87+(seed%29)/100),rate:12+(seed>>>9)%14};bossActionSerial=0;
+ }
  function currentSectorTheme(){return planetTheme?.track===sectorTrack?planetTheme:sectorMusic[Math.max(0,sectorTrack)];}
  function planetPhrase(bar){
   const contours=[[12,19,15,22],[19,15,12,7],[12,17,19,15],[22,19,14,12],[15,12,19,24],[7,12,15,19],[19,22,15,12],[12,7,14,19]],rhythms=[[0,2,5,7],[0,3,4,6],[1,3,5,6],[0,1,4,7],[0,2,4,6],[1,2,5,7]],contour=contours[(planetMusicSeed+bar*(1+(planetMusicSeed>>>23)%3))%contours.length],rhythm=rhythms[(Math.floor(planetMusicSeed/8)+bar)%rhythms.length];
@@ -377,21 +396,21 @@ window.flightAudio=(()=>{
   if(phraseEnd&&step===7&&bar!==31)for(let i=0;i<2;i++)note({frequency:[116,87][i],end:[78,56][i],duration:.13,gain:.019-i*.003,type:'sine',cutoff:480,offset:offset+i*beat*.25,music:true});
  }
  function bossMusicStep(index,offset,beat){
-  const theme=currentSectorTheme(),figure=bossApproaches[sectorTrack],step=index%8,bar=Math.floor(index/8),chord=theme.chords[bar%4],root=chord[0],intro=bar<4;
+  const theme=currentSectorTheme(),figure=bossApproaches[sectorTrack],step=index%8,bar=Math.floor(index/8),chord=theme.chords[bar%4],root=chord[0],intro=bar<4,breathing=bar%16>=8&&bar%16<10,returning=bar%16>=12,voice=bossVoiceFamilies[bossVoice.family];
   // A separate minor-key overture replaces the ordinary score immediately.
   // Midrange horn harmonics remain audible on phone speakers above the bass.
   if(step===0){
-   for(const [i,pitch] of chord.entries())note({frequency:hz(pitch+12),duration:beat*(intro?3.4:1.5),attack:.06,hold:beat*.8,gain:intro?.047:.032,type:figure.type==='sine'?'triangle':figure.type,cutoff:1700,pan:(i-1)*.22,offset,music:true,priority:4});
+   for(const [i,pitch] of chord.entries())note({frequency:hz(pitch+12),duration:beat*(intro?3.4:1.5),attack:.06,hold:beat*.8,gain:intro?.047:.032,instrument:voice.instrument,type:figure.type==='sine'?'triangle':figure.type,cutoff:1700,pan:(i-1)*.22,offset,music:true,priority:4});
    note({frequency:hz(root-12),duration:beat*3.6,hold:beat*1.1,attack:.02,gain:.1,cutoff:240,offset,music:true,priority:4});
   }
   const pitch=harmonicPitch(root+12+figure.notes[(step+(bar%2)*2)%8],chord);
-  note({frequency:hz(pitch),duration:beat*.37,hold:beat*.1,gain:step%2?.041:.059,type:'triangle',cutoff:2200,pan:step%2?-.15:.15,offset,music:true,priority:3});
-  if(figure.pulse.includes(step)){
+  if(!breathing||step===0||step===4)note({frequency:hz(pitch),duration:beat*(breathing?1.35:.37),hold:beat*.1,gain:step%2?.035:.052,instrument:voice.instrument,type:'triangle',cutoff:2200,pan:step%2?-.15:.15,offset,music:true,priority:3});
+  if((intro?figure.pulse:voice.pulse).includes(step)&&(!breathing||step===0)){
    note({frequency:110,end:38,duration:.23,hold:.04,gain:.105,cutoff:450,offset,music:true,priority:4});
    noise({duration:.14,gain:.043,cutoff:1500,end:260,body:true,offset,music:true,priority:3});
   }
-  arcadeOrchestration(index,offset,beat,chord,{drive:true,quiet:intro&&bar===0});
-  if(step===6||step===7)noise({duration:.075,gain:.025,cutoff:2500,end:600,offset,music:true,priority:2});
+  arcadeOrchestration(index,offset,beat,chord,{drive:returning,quiet:breathing||intro&&bar===0});
+  if(!breathing&&(step===6||step===7))noise({duration:.075,gain:.025,cutoff:2500,end:600,offset,music:true,priority:2});
  }
  function startTitleLoop(){
   if(!titleActive||!musicEnabled||!context||context.state!=='running'||musicTimer!==null)return;
@@ -410,7 +429,7 @@ window.flightAudio=(()=>{
     if(step===0)arrangement=sectorArrangement(musicStep,smoothedIntensity);
     const form=arrangement,chord=theme.chords[form.chordIndex],offset=Math.max(0,nextBeat-context.currentTime),phrase=Math.floor(bar/4)%4,cadence=bar%4===3&&step>=6,groove=offset+(step%2?beat*arr.swing:0);
     arcadeOrchestration(musicStep,groove,beat,chord,{quiet:form.quiet||form.rest,drive:form.drive});
-    const refrain=(!planetMusicSeed||bar>=4)&&bar%16<2&&!form.quiet&&!form.rest,hook=refrain?descentHook[bar%2].find(n=>n[0]===step):null,melody=refrain?{pitch:hook?harmonicPitch(chord[0]+24+hook[1],chord,hook[2]>=1.5):-1,duration:Math.min(hook?.[2]||1,(8-step)*.5-.04),busy:true}:sectorMelody(theme,form,bar,step),lead=melody.pitch;
+    const refrain=bar%16>=4&&bar%16<=5&&!form.quiet&&!form.rest,hook=refrain?descentHook[bar%2].find(n=>n[0]===step):null,melody=refrain?{pitch:hook?harmonicPitch(chord[0]+24+hook[1],chord,hook[2]>=1.5):-1,duration:Math.min(hook?.[2]||1,(8-step)*.5-.04),busy:true}:sectorMelody(theme,form,bar,step),lead=melody.pitch;
     if(lead>=0&&!cadence)note({frequency:hz(lead),duration:beat*melody.duration*.94,hold:beat*melody.duration*.38,attack:.014,gain:form.quiet?.034:form.drive?.048:.042,instrument:form.quiet?'glass':scoreTimbres[sectorTrack],type:'triangle',cutoff:form.quiet?1800:form.drive?3200:2600,cutoffEnd:1200,vibrato:5,vibratoRate:4.4,pan:form.answer?-.15:.12,offset:groove,space:true,music:true,priority:2});
     if(form.answer&&!form.drive&&!form.rest&&(step===2||step===6)){
      const line=sectorCounterlines[sectorTrack],interval=line[(bar+(step===6?4:0))%line.length],pitch=harmonicPitch(chord[0]+interval+12,chord,true);
@@ -441,7 +460,7 @@ window.flightAudio=(()=>{
   musicTimer=setInterval(tick,50);tick();
  }
  function setTitle(active){if(active){pendingBossCue=null;bossApproach=0;bossEngaged=false;}if(active&&sectorTrack!==-1){stopTitleLoop();musicStep=0;}if(active){sectorTrack=-1;intensity=0;}titleActive=active;if(active)startTitleLoop();else stopTitleLoop()}
- function setSector(sector,identity=''){pendingBossCue=null;intensity=0;smoothedIntensity=0;bossApproach=0;smoothedApproach=0;bossEngaged=false;stopTitleLoop();musicStep=0;sectorTrack=Math.max(0,Math.min(sectorMusic.length-1,Math.trunc(sector)||0));planetMusicSeed=worldMusicIdentity(identity);const base=sectorMusic[sectorTrack],shift=identity?[0,2,-2,5,-5,3,-3][planetMusicSeed%7]:0;planetTheme={...base,track:sectorTrack,chords:base.chords.map(c=>c.map(n=>n+shift))};titleActive=true;startTitleLoop()}
+ function setSector(sector,identity='',bossProfile={}){pendingBossCue=null;intensity=0;smoothedIntensity=0;bossApproach=0;smoothedApproach=0;bossEngaged=false;stopTitleLoop();musicStep=0;sectorTrack=Math.max(0,Math.min(sectorMusic.length-1,Math.trunc(sector)||0));planetMusicSeed=worldMusicIdentity(identity);setBossIdentity(bossProfile);const base=sectorMusic[sectorTrack],shift=identity?[0,2,-2,5,-5,3,-3][planetMusicSeed%7]:0;planetTheme={...base,track:sectorTrack,chords:base.chords.map(c=>c.map(n=>n+shift))};titleActive=true;startTitleLoop()}
  function setMusicActive(active){titleActive=active;if(active)startTitleLoop();else stopTitleLoop()}
  function setMusicEnabled(value){musicEnabled=value;try{localStorage.setItem('neon-vanguard-title-music',value?'on':'off')}catch{}if(value)startTitleLoop();else stopTitleLoop()}
  function intro(){
@@ -479,20 +498,46 @@ window.flightAudio=(()=>{
  }
  // Boss attacks reserve priority above routine gunfire and wing beats.
  function bossAttack(action='fire',kind=0,x=1000){
-  if(!enabled||!context||context.state!=='running')return;
-  const pan=Math.max(-.85,Math.min(.85,(x/1440-.5)*1.5)),lunging=action==='lunge',pitch=({0:128,2:78,3:96,5:61})[kind]||110;
-  if(lunging){
-   duckMusic(.64,1.15);
-   lungeThroat(pitch,pan);
-   // Sustained sub-bass anchors the scream, with a gently beating chest tone.
-   note({priority:5,frequency:48+pitch*.12,end:31,duration:1.2,gain:.19,type:'sine',pan,cutoff:180,attack:.045,hold:.55,vibrato:95,vibratoRate:6});
-   noise({priority:5,duration:.98,gain:.13,cutoff:1700,end:230,pan,body:true,wet:true,band:true,resonance:1.8});
-   return;
+  if(!enabled||!context||context.state!=='running'||x< -100||x>1540)return;
+  const v=bossVoice,pan=Math.max(-.8,Math.min(.8,(x/1440-.5)*1.5)),large=['lunge','roar'].includes(action),length=large?(action==='roar'?1.25:.88):.22;
+  const pitch=v.pitch*(1+Math.sin(++bossActionSerial*2.399+v.seed%31)*.025),family=v.family;
+  duckMusic(large?.55:.84,large?length:.16);
+  const n=(o)=>note({priority:5,pan,...o}),h=(o)=>noise({priority:5,pan,...o});
+  // Short projectile cues remain compact; movement gestures have distinct syntax.
+  h({duration:length*.85,gain:large?.19:.055,cutoff:family==='ion'?210:160,end:45,body:true,pressure:true});
+  if(family==='hunter'){
+   if(large)lungeThroat(pitch,pan);
+   n({frequency:pitch*.55,end:33,duration:length,gain:large?.15:.065,cutoff:260,attack:.018});
+   for(let i=0;i<(large?3:1);i++)h({duration:length*.28,gain:large?.065:.09,cutoff:1900+i*270,end:400,offset:i*length*.17,highpass:240,body:true,tremolo:24+i*3});
+  }else if(family==='swarm'){
+   // Chitin latch clicks open, then an insect stridulation accelerates.
+   for(let i=0;i<(large?4:2);i++)h({duration:.035+i*.012,gain:large?.11:.07,cutoff:1800+i*310,end:650,offset:i*(large?.09:.035),highpass:350});
+   h({duration:length,gain:large?.18:.07,cutoff:650,end:190,body:true,tremolo:v.rate*1.8,band:true,resonance:.6});
+   n({frequency:pitch,end:pitch*.58,duration:length*.8,gain:large?.10:.05,instrument:'reed',cutoff:700});
+  }else if(family==='carapace'){
+   for(let i=0;i<(large?3:1);i++){h({duration:.10,gain:.11,cutoff:1300,end:180,body:true,offset:i*.18});n({frequency:pitch*(1+i*.3),end:35,duration:.20,gain:.075,cutoff:450,offset:i*.18});}
+   if(large)h({duration:length*.8,gain:.10,cutoff:850,end:170,body:true,tremolo:9,offset:.08});
+  }else if(family==='leviathan'){
+   // A pressure surge and two voiced resonances, not an airborne scream.
+   n({frequency:pitch,end:pitch*1.25,duration:length,gain:large?.17:.065,attack:large?.065:.012,hold:length*.25,instrument:'silk',cutoff:460,vibrato:22,vibratoRate:3});
+   n({frequency:pitch*3,end:pitch*1.5,duration:length*.86,gain:large?.085:.035,attack:.025,instrument:'choir',cutoff:950});
+   h({duration:length*.65,gain:large?.14:.07,cutoff:1200,end:240,wet:true,body:true,offset:length*.12});
+  }else if(family==='siphon'){
+   h({duration:length*.7,gain:large?.21:.08,cutoff:300,end:1400,body:true,wet:true});
+   for(let i=0;i<(large?3:2);i++)n({frequency:pitch*(2.4-i*.35),end:pitch*.55,duration:.12+i*.04,gain:large?.09:.045,type:'sine',cutoff:850,offset:length*(.18+i*.19)});
+   if(large)h({duration:.35,gain:.16,cutoff:900,end:110,wet:true,pressure:true,body:true,offset:length*.58});
+  }else if(family==='turbine'){
+   n({frequency:pitch,end:pitch*2.5,duration:length*.45,gain:large?.13:.055,instrument:'brass',cutoff:1200,attack:.012});
+   h({duration:length*.8,gain:large?.24:.11,cutoff:2400,end:430,body:true,offset:length*.19,tremolo:v.rate});
+   for(let i=0;i<(large?3:1);i++)h({duration:.045,gain:.07,cutoff:3900,end:1100,highpass:700,offset:length*(.1+i*.15)});
+  }else if(family==='ion'){
+   for(let i=0;i<(large?4:2);i++)n({frequency:pitch*(2-i*.2),end:pitch*.7,duration:.095,gain:.08,instrument:'pulse',cutoff:1800,offset:i*(large?.12:.045)});
+   h({duration:length*.75,gain:large?.19:.06,cutoff:1800,end:270,arcade:true,body:true,offset:.06});
+  }else{
+   h({duration:length,gain:large?.24:.10,cutoff:1700,end:260,body:true,tremolo:8});
+   for(let i=0;i<(large?4:2);i++)h({duration:.045+i*.012,gain:.085,cutoff:3200+i*220,end:900,offset:length*(.12+i*.18),highpass:550});
+   n({frequency:pitch,end:35,duration:length*.8,gain:large?.12:.045,instrument:'bass',cutoff:230});
   }
-  duckMusic(.88,.22);
-  note({priority:5,frequency:pitch*1.8,end:pitch*.42,duration:.22,gain:.085,type:'sawtooth',pan,cutoff:1500,attack:.012});
-  note({priority:5,frequency:pitch*.6,end:32,duration:.25,gain:.095,type:'sine',pan,cutoff:220});
-  noise({priority:5,duration:.18,gain:.12,cutoff:2800,end:700,pan,body:true,wet:true});
  }
  function shot(kind='pulse',x=720,enemy=false){
   if(!enabled||!context||context.state!=='running'||x< -100||x>1540)return;
@@ -519,19 +564,19 @@ window.flightAudio=(()=>{
   // Encounter cues bypass music ducking AND the world acoustic filter. They
   // reserve priority six, so weapon fire/wing beats cannot steal the entrance.
   duckMusic(.12,duration);duckWorld(duration);
-  const hits=reveal?4:3,spacing=reveal?.30:.37;
+  const hits=reveal?4:3,spacing=(reveal?.30:.37)*( .91+(bossVoice.seed%7)*.03);
   for(let i=0;i<hits;i++){
    const offset=i*spacing,weight=1-i*.09;
    note({frequency:reveal?74:68,end:reveal?33:39,duration:reveal?.58:.4,hold:.055,gain:.13*weight,cutoff:250,offset,cue:true});
    note({frequency:reveal?175:145,end:reveal?82:72,duration:.42,gain:.075*weight,type:'triangle',cutoff:1200,offset,cue:true});
    noise({duration:reveal?.34:.22,gain:.095*weight,cutoff:reveal?2600:1700,end:260,highpass:100,offset,cue:true});
   }
-  if(reveal){noise({duration:1.3,gain:.19,cutoff:300,end:65,body:true,pressure:true,offset:.03,cue:true});noise({duration:.66,gain:.09,cutoff:2300,end:400,body:true,offset:.03,cue:true});}
+  if(reveal){bossAttack('roar',bossVoice.kind,1000);noise({duration:1.3,gain:.19,cutoff:300,end:65,body:true,pressure:true,offset:.03,cue:true});noise({duration:.66,gain:.09,cutoff:2300,end:400,body:true,offset:.03,cue:true});}
   if(!musicEnabled)return true;
   const shapes=[[0,7,3,1,0],[0,6,7,3,0],[0,5,8,1,0],[0,3,10,7,0],[0,1,7,6,0],[0,8,7,1,0]],shape=shapes[sectorTrack];
   for(let i=0;i<5;i++){
    const offset=.12+i*(reveal?.68:.50),pitch=harmonicPitch(root+12+shape[i],theme.chords[0]),length=i===4?1.65:.72;
-   note({frequency:hz(pitch),duration:length,attack:.035,hold:length*.48,gain:reveal?.12:.095,instrument:'brass',cutoff:2600,cutoffEnd:1100,vibrato:9,vibratoRate:4.2,pan:.06,offset,music:true,cue:true});
+   note({frequency:hz(pitch),duration:length,attack:.035,hold:length*.48,gain:reveal?.12:.095,instrument:bossVoice.instrument,cutoff:2600,cutoffEnd:1100,vibrato:9,vibratoRate:4.2,pan:.06,offset,music:true,cue:true});
    if(i===0||i===4)note({frequency:hz(root+19),duration:length,attack:.06,hold:length*.45,gain:.043,instrument:'reed',cutoff:1600,pan:-.25,offset,music:true,cue:true});
   }
   note({frequency:hz(root-12),duration,attack:.04,hold:duration*.62,gain:.14,instrument:'bass',cutoff:340,offset:.02,music:true,cue:true});
@@ -573,10 +618,10 @@ window.flightAudio=(()=>{
  note({priority:boss?5:4,frequency:base*.49,end:base*.31,duration:duration*.9,gain:gain*.85,pan,type:'sine',cutoff:260,attack:.035});
  for(let i=0;i<pulses;i++)noise({priority:boss?5:4,duration:duration*.42,gain:gain*.7,cutoff:1000+(id%7)*210,end:260+(id%4)*90,offset:i*duration*.18,pan,band:true,resonance:1.1+id%3*.25,wet:true,body:true});
  }
- function roar(x=1000){if(!enabled||!context||context.state!=='running')return;const pan=(x/1440-.5)*.8;duckMusic(.58,1.25);note({priority:5,frequency:88,end:39,duration:1.35,gain:.19,pan,type:'sawtooth',cutoff:520,guitar:true,attack:.09,hold:.45});note({priority:5,frequency:44,end:28,duration:1.4,gain:.22,pan,type:'sine',cutoff:160,attack:.06});for(let i=0;i<4;i++)noise({priority:5,duration:.58,gain:.15,cutoff:650-i*80,end:140,offset:i*.21,pan,body:true,wet:true});}
- function breath(kind,duration=2.4){if(!enabled)return;const inhale=kind==='inhale',fire=kind==='fire',water=kind==='water',wind=kind==='wind';duckMusic(wind?.58:.65,duration);noise({priority:5,duration,gain:inhale?.08:wind?.25:.22,cutoff:inhale?260:fire?1700:water?2600:1250,end:inhale?1000:fire?480:water?1100:260,body:true,wet:water||wind,tremolo:wind?24:0});if(!inhale){noise({priority:5,duration,gain:fire?.3:wind?.24:.16,cutoff:fire?220:wind?170:380,end:wind?48:80,body:true,tremolo:wind?12:0});if(fire)for(let i=0;i<6;i++)noise({priority:5,duration:.13,gain:.06,cutoff:2400,end:450,offset:i*duration/6});if(wind)for(let i=0;i<4;i++)noise({priority:5,duration:.2,gain:.045,cutoff:1900,end:520,offset:i*duration/4,pan:i%2?-.18:.18,body:true});}}
+ function roar(x=1000){bossAttack('roar',bossVoice.kind,x);}
+ function breath(kind,duration=2.4){if(!enabled)return;const inhale=kind==='inhale',fire=kind==='fire',water=kind==='water',wind=kind==='wind';duckMusic(wind?.58:.65,duration);noise({priority:5,duration,gain:inhale?.08:wind?.25:.22,cutoff:inhale?260:fire?1700:water?2600:1250,end:inhale?1000:fire?480:water?1100:260,body:true,wet:water||wind,tremolo:wind?24:0});if(!inhale){bossAttack('special',bossVoice.kind,720);noise({priority:5,duration,gain:fire?.3:wind?.24:.16,cutoff:fire?220:wind?170:380,end:wind?48:80,body:true,tremolo:wind?12:0});if(fire)for(let i=0;i<6;i++)noise({priority:5,duration:.13,gain:.06,cutoff:2400,end:450,offset:i*duration/6});if(wind)for(let i=0;i<4;i++)noise({priority:5,duration:.2,gain:.045,cutoff:1900,end:520,offset:i*duration/4,pan:i%2?-.18:.18,body:true});}}
  function laserCharge(){note({priority:5,frequency:85,end:420,duration:1.25,attack:.22,hold:.7,gain:.075,type:'sawtooth',cutoff:1100,guitar:true});note({priority:5,frequency:43,end:78,duration:1.25,attack:.18,hold:.75,gain:.13,type:'sine',cutoff:220});noise({priority:5,duration:1.25,gain:.09,cutoff:160,end:1100,body:true})}
- function thrusterBurst(duration=.76){if(enabled)duckMusic(.35,duration);noise({priority:5,duration,gain:.25,cutoff:1300,end:420,body:true});noise({priority:5,duration,gain:.22,cutoff:170,end:55,body:true});note({priority:5,frequency:68,end:38,duration,attack:.015,gain:.16,type:'sine',cutoff:150});}
+ function thrusterBurst(duration=.76){if(enabled)duckMusic(.35,duration);const register=bossVoice.pitch/84;noise({priority:5,duration,gain:.25,cutoff:1100+bossVoice.seed%500,end:420,body:true,tremolo:bossVoice.rate});noise({priority:5,duration,gain:.22,cutoff:170,end:55,body:true});note({priority:5,frequency:68*register,end:38*register,duration,attack:.015,gain:.16,type:'sine',cutoff:150});}
  function laserBeam(duration=1.6){if(enabled)duckMusic(.55,duration);note({priority:5,frequency:620,end:95,duration:.32,attack:.004,gain:.14,type:'sawtooth',cutoff:2300,guitar:true,space:true});noise({priority:5,duration:.18,gain:.22,cutoff:2600,end:600});noise({priority:5,duration,gain:.23,cutoff:1300,end:650,body:true});noise({priority:5,duration,gain:.23,cutoff:190,end:75,body:true});note({priority:5,frequency:60,end:42,duration,attack:.015,hold:duration*.7,gain:.19,type:'sine',cutoff:180})}
 
 
@@ -630,5 +675,5 @@ window.flightAudio=(()=>{
   noise({duration:profile.length*.85,hold:.065,gain:.10+force*.02,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
   noise({duration:.30,gain:.028,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
- return{init,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:4,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
+ return{init,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:5,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
 })();

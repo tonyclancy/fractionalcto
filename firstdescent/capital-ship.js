@@ -173,7 +173,7 @@ const capitalSiegeMeshes=(()=>{
     const cx=x+(j-1)* (pod?12:4),cy=y+(j%2?4:-3),zz=side<0?z:-z*.65,r=pod?7+j:4+j;
     const rim=Array.from({length:9},(_,i)=>{const a=i/9*Math.PI*2,rr=r*(i%2?.7:1.15);return[cx+Math.cos(a)*rr*1.65,cy+Math.sin(a)*rr,zz];});
     m.face(side<0?rim:rim.slice().reverse(),[13,16,18]);
-    for(let i=0;i<rim.length;i++){const a=rim[i],b=rim[(i+1)%rim.length],tip=[(a[0]+b[0])*.5,(a[1]+b[1])*.5,zz+side*(1.8+i%3)];m.face([a,b,tip],i%3?[93,66,47]:[175,110,61]);}
+    for(let i=0;i<rim.length;i++){const a=rim[i],b=rim[(i+1)%rim.length],tip=[(a[0]+b[0])*.5,(a[1]+b[1])*.5,zz+side*(3.5+i%3*1.8)];m.face([a,b,tip],i%3?[93,66,47]:[175,110,61]);}
     for(let k=0;k<3;k++)m.rod([cx-r,cy+k*2-2,zz+side*.5],[cx+r*.7,cy+k*2-3,zz+side*.5],.42,k===1?[244,108,36]:[118,86,60],5);
    }
    m.mesh.damageStage=stage;out[key+'Damage'+stage]=m.mesh;
@@ -241,7 +241,7 @@ function initCapitalSiege(b){
 }
 function capitalNodePosition(b,n){return bossMount(b,n.local);}
 function capitalNodeActive(b,n){const siege=initCapitalSiege(b);return n.hp>0&&(siege.stage==='batteries'?(n.id==='dorsal'||n.id==='ventral'):n.id===siege.stage);}
-function capitalSiegeHint(b){const s=initCapitalSiege(b),special=s.nodes.find(n=>n.special)?.special;if(special)return special.kind==='purge'?'THRUSTER IGNITION · CLEAR THE EXHAUST':'CAPACITOR DISCHARGE · DODGE THROUGH THE GAP';return s.stage==='batteries'?'STABILIZER PODS · '+s.nodes.slice(0,2).filter(n=>n.hp>0).length+' REMAIN':s.stage==='reactor'?'AFT REACTOR · FLY BEHIND · SPACE: REAR FIRE':'COMMAND CORE EXPOSED · ATTACK THE BOW';}
+function capitalSiegeHint(b){const s=initCapitalSiege(b),special=s.nodes.find(n=>n.special)?.special;if(special)return special.kind==='purge'?'THRUSTER IGNITION · CLEAR THE EXHAUST':'CAPACITOR DISCHARGE · DODGE THROUGH THE GAP';return s.stage==='batteries'?'STABILIZER PODS · '+s.nodes.slice(0,2).filter(n=>n.hp>0).length+' REMAIN':s.stage==='reactor'?'AFT REACTOR · FLY BEHIND · SPACE: FLIP':'COMMAND CORE EXPOSED · ATTACK THE BOW';}
 function capitalNodeShape(b,n,padding=0){
  const p=capitalNodePosition(b,n),scale=capitalShipDesign(b).scale,pose=bossFlightPose(b),axes=n.radii.map((r,i)=>{const a=[0,0,0];a[i]=r*scale+padding;return rotateVertex(a,pose.yaw,pose.roll,pose.pitch,0,0);});
  let xx=0,xy=0,yy=0;for(const a of axes){xx+=a[0]*a[0];xy+=a[0]*a[1];yy+=a[1]*a[1];}return{x:p.x,y:p.y,xx,xy,yy,det:xx*yy-xy*xy};
@@ -275,7 +275,7 @@ function capitalAdvanceStage(b){
   // A recovered weapon orb is guaranteed here, even after a checkpoint loss.
   // The player keeps their weapon and chooses when to move the orb to the rear.
   if(!weaponOrb.owned){weaponOrb.owned=true;weaponOrb.flash=.25;s.orbGranted=true;window.flightAudio?.pickup(ship.x);updateHUD();}
-  announce('STABILIZER PODS DESTROYED','FLY AROUND THE HULL · SPACE: REAR FIRE · BREAK THE AFT REACTOR');
+  announce('STABILIZER PODS DESTROYED','FLY AROUND THE HULL · SPACE: FLIP · BREAK THE AFT REACTOR');
  }else if(s.stage==='reactor'&&s.nodes[2].hp<=0){s.stage='core';announce('REACTOR BREACHED · COMMAND CORE OPEN','RETURN TO THE BOW · SPACE SWITCHES THE WEAPON ORB');}
 }
 function capitalDamageNode(b,n,amount){
@@ -289,7 +289,7 @@ function hitCapitalSection(s){
  let node=null,tNode=Infinity;
  for(const n of b.siege.nodes){if(n.hp<=0)continue;const t=capitalNodeIntersection(b,n,a,z,s.r||0);if(t<tNode){tNode=t;node=n;}}
  if(node&&tNode<=hull+.015){
-  if(capitalNodeActive(b,node)&&capitalShotSideAllowed(b,node,s,a))capitalDamageNode(b,node,bossDamage(s.damage));
+  if(capitalNodeActive(b,node)&&capitalShotSideAllowed(b,node,s,a))capitalDamageNode(b,node,bossDamage(s.damage)*1.25);
   else terrainImpact(a.x+(z.x-a.x)*tNode,a.y+(z.y-a.y)*tNode,s.vx,s.vy);
   return true;
  }
@@ -405,27 +405,43 @@ function capitalSectionMesh(b,n){
  if(n.hp<=0&&(n.id==='dorsal'||n.id==='ventral'))return capitalSiegeMeshes[n.id+'Wreck'];
  const stage=capitalDamageStage(n);return capitalSiegeMeshes[key+(stage?'Damage'+stage:'')]||capitalSiegeMeshes[key];
 }
-function capitalFireProfile(n){const severity=clamp(1-n.hp/n.max,0,1);return{severity,vents:severity>.65?3:severity>.3?2:1,length:45+severity*130,width:7+severity*16};}
+function capitalFireProfile(n){const severity=clamp(1-n.hp/n.max,0,1);return{severity,vents:severity>.65?3:severity>.3?2:1,length:24+severity*70,width:12+severity*24};}
+// Reuse small textured billows instead of drawing long, engine-like flame ribbons.
+const capitalDamageSprites=new Map();
+function capitalDamageSprite(smoke,seed){
+ const key=(smoke?'smoke':'fire')+seed;if(capitalDamageSprites.has(key))return capitalDamageSprites.get(key);
+ const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
+ for(let k=0;k<13;k++){
+  const a=k*2.4+seed,x=64+Math.cos(a)*(15+k),y=64+Math.sin(a)*(12+k),r=19+k*.9,fill=g.createRadialGradient(x-r*.18,y-r*.23,1,x,y,r);
+  fill.addColorStop(0,smoke?'rgba(59,51,45,.52)':'rgba(255,227,148,.8)');
+  fill.addColorStop(.38,smoke?'rgba(29,27,28,.55)':'rgba(244,119,22,.7)');
+  fill.addColorStop(.7,smoke?'rgba(20,22,26,.4)':'rgba(150,39,9,.34)');
+  fill.addColorStop(1,'rgba(18,18,22,0)');g.fillStyle=fill;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill();
+ }
+ capitalDamageSprites.set(key,c);return c;
+}
 function drawCapitalDamage(b,n){
  const fire=capitalFireProfile(n),severity=fire.severity;if(severity<=0)return;
  const pod=n.id==='dorsal'||n.id==='ventral',local=pod?[n.local[0],n.local[1],-48]:[n.local[0],n.local[1],n.local[2]-18];
  ctx.save();
  for(let j=0;j<fire.vents;j++){
-  const socket=[local[0]+(j-1)*9,local[1]+(j%2?3:-2),local[2]],p=bossMount(b,socket),tip=bossMount(b,[socket[0]+12,socket[1]-10,socket[2]-8]),dx=tip.x-p.x,dy=tip.y-p.y,angle=Math.atan2(dy,dx),phase=b.age*(10+j*1.3)+n.local[1]+j*2.7,length=fire.length*(.82+.12*Math.sin(phase)+.06*Math.sin(phase*2.3)),width=fire.width;
-  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(angle);
-  // Layered tapered flame ribbons issue from actual hull breaches. Their hot
-  // roots stay attached through yaw/roll, while the tips whip in the exhaust.
-  ctx.globalCompositeOperation='lighter';
-  for(let layer=0;layer<3;layer++){
-   const len=length*(1-layer*.23),w=width*(1-layer*.3),curl=Math.sin(phase+layer)*w*.9,g=ctx.createLinearGradient(0,0,len,0);
-   g.addColorStop(0,layer===2?'rgba(255,250,205,.95)':'rgba(255,194,64,.85)');g.addColorStop(.35,layer===2?'rgba(255,219,108,.9)':'rgba(255,91,18,.75)');g.addColorStop(1,'rgba(218,40,8,0)');ctx.fillStyle=g;
-   ctx.beginPath();ctx.moveTo(0,-w*.45);ctx.bezierCurveTo(len*.25,-w,len*.55,curl-w,len,curl);ctx.bezierCurveTo(len*.55,curl+w*.5,len*.25,w,0,w*.45);ctx.closePath();ctx.fill();
+  const socket=[local[0]+(j-1)*9,local[1]+(j%2?3:-2),local[2]],p=bossMount(b,socket);
+  // Smoke rises in world space; the breach follows the rolling hull. A broken
+  // module burns irregularly, unlike the parallel blue plumes of its engines.
+  for(let k=0;k<5;k++){
+   const t=(b.age*.36+k/5+j*.19)%1,size=fire.width*(1.2+t*2.2),x=p.x+Math.sin(t*5+j*2+k*.4)*22*t,y=p.y-15-t*(65+severity*70);
+   ctx.globalAlpha=Math.sin(Math.PI*t)*(.42+severity*.38);ctx.drawImage(capitalDamageSprite(true,j),x-size,y-size,size*2,size*2);
   }
-  orb(0,0,22+severity*18,'#ff8b31',.38+severity*.3);
-  // A few deterministic embers communicate outward flow without allocations.
-  for(let k=0;k<4;k++){const t=(b.age*(.9+k*.15)+k*.24+j*.17)%1;ctx.globalAlpha=(1-t)*.75;ctx.fillStyle='#ffd183';ctx.fillRect(t*length,Math.sin(t*7+phase*.3+k)*width*t,2+severity*2,1.7);}
-  ctx.restore();
-  ctx.save();ctx.translate(p.x+dx*.4,p.y+dy*.4);ctx.globalAlpha=.4+severity*.25;drawSoftPlume({seed:j+n.local[0]},13+severity*20,.9+(b.age*.35+j*.3)%1.2,1);ctx.restore();
+  ctx.globalAlpha=1;orb(p.x,p.y,12+severity*13,'#fa6f23',.23+severity*.2);
+  for(let k=0;k<4;k++){
+   const t=(b.age*(1.1+j*.17)+k/4+j*.23)%1,envelope=Math.sin(Math.PI*t),size=fire.width*(.7+t*.75),x=p.x+Math.sin(t*8+j*2.7+k)*size*.48,y=p.y-t*fire.length;
+   ctx.globalAlpha=envelope*(.65+severity*.3);ctx.drawImage(capitalDamageSprite(false,j),x-size,y-size,size*2,size*2);
+  }
+  // Short falling sparks and glowing fragments, with independent trajectories.
+  for(let k=0;k<5;k++){
+   const t=(b.age*.65+k*.21+j*.13)%1,vx=Math.sin(k*2.3+j)*40,x=p.x+vx*t,y=p.y-25*t+65*t*t;
+   ctx.globalAlpha=(1-t)*severity;ctx.strokeStyle=k%2?'#ffd49b':'#dc642b';ctx.lineWidth=k%2?1.3:2.2;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-vx*.04,y-(130*t-25)*.04);ctx.stroke();
+  }
  }
  ctx.restore();
 }
