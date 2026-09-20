@@ -409,6 +409,28 @@ function bossDesign(kind=bossIndex()){
  if(!bossVariants.has(definition.id)){while(bossVariants.size>=4)bossVariants.delete(bossVariants.keys().next().value);if(definition.biosphere?.boss){bossVariants.set(definition.id,buildSpeciesBoss(definition.biosphere.boss,base,definition.systemChallenge?.progress||0));}else{const mesh=base.mesh.map(f=>({...f,c:f.c.map((v,i)=>Math.min(255,Math.round(v*palette[i])))}));for(const k of ['skin','dynamic','alienMaterial'])mesh[k]=base.mesh[k];bossVariants.set(definition.id,{...base,mesh});}}
  return bossVariants.get(definition.id);
 }
+// Measure the rendered model rather than the small gameplay collision radius.
+// Authored GLBs have their own bounds; the CPU fallback uses its actual mesh.
+function bossEntryRadius(b){
+ const d=bossDesign();if(!d)return Math.max(200,b.r||0);
+ const gpuRadius=window.gpuModels?.modelRadius?.(d.mesh);let radius=0;
+ if(Number.isFinite(gpuRadius))radius=gpuRadius;
+ else{for(const face of d.mesh)for(const v of face.v)radius=Math.max(radius,Math.hypot(...v));radius+=90;}
+ for(const v of d.bodyVolumes||[])radius=Math.max(radius,Math.hypot(...v.center)+Math.hypot(...v.radii));
+ return radius*d.scale;
+}
+function beginBossEntry(b){
+ const radius=bossEntryRadius(b),toX=isCapitalSiege(b)?900:W*.72;
+ b.x=W+radius+48;b.y=H*.5;b.navVX=b.navVY=0;
+ b.entry={age:0,fromX:b.x,toX,radius,duration:clamp((b.x-toX)/300,2.4,4.4)};
+ window.gpuModels?.prepare?.([bossDesign().mesh]);
+}
+function updateBossEntry(b,dt){
+ const e=b.entry,oldX=b.x;e.age+=dt;const u=clamp(e.age/e.duration,0,1),ease=u*u*(3-2*u);
+ b.x=e.fromX+(e.toX-e.fromX)*ease;b.navVX=(b.x-oldX)/dt;
+ updateBossAttitude(b,dt,b.navVX,0);
+ if(u===1){b.x=e.toX;b.navVX=b.navVY=0;b.entry=null;}
+}
 function bossLocalPoint(b,local){return bossOrganic()&&!bossDesign()?.procedural&&typeof alienBossPoint==='function'?alienBossPoint(bossIndex(),b,local):local;}
 function bossMount(b,local){const d=bossDesign(),p=bossFlightPose(b),v=rotateVertex(bossLocalPoint(b,local),p.yaw,p.roll,p.pitch,0,0),scale=d.scale*p.depth;return{x:b.x+v[0]*scale,y:b.y+v[1]*scale};}
 // Exhaust follows the animated engine outlet through the same body transform.
@@ -494,7 +516,7 @@ function updateBossAttitude(b,dt,vx,vy){
 }
 
 function bossCombatPhase(b){const ratio=b.max>0?b.hp/b.max:1;return ratio<.28?2:ratio<.62?1:0;}
-function bossPatternBusy(b){return !!(b.venom||(b.pass&&b.pass.stage!=='rear')||b.breath||b.charge>0||b.rush>0||b.vacuum>0||b.barrage>0||b.rackShots>0||b.sporePods?.length||b.salvoWindup||hazards.length||acidClouds.some(h=>h.bossTrap));}
+function bossPatternBusy(b){return !!(bossIndex()===0&&b.exposed>0||b.venom||(b.pass&&b.pass.stage!=='rear')||b.breath||b.charge>0||b.rush>0||b.vacuum>0||b.barrage>0||b.rackShots>0||b.sporePods?.length||b.salvoWindup||hazards.length||acidClouds.some(h=>h.bossTrap));}
 function holdBossSalvo(b){b.shoot=Math.max(b.shoot||0,.52);b.attack=null;b.fireHeading=null;}
 function bossEncounterHint(b){if(isTideEncounter())return b.exposed>0?'MANTLE OPEN · BONUS DAMAGE':'BREAK TIDE KNOTS · ESCAPE THROUGH THE RING GAPS';const k=bossIndex(),phase=bossCombatPhase(b);if(b.exposed>0)return 'ALIGN WITH THE GLOWING WEAK POINT · BONUS DAMAGE';if(b.pass)return 'DODGE THE CHARGE · FLIP TO FACE THE BOSS';if(k===0)return b.breath?.kind==='wind'?'WINGSTORM · CUT ACROSS THE PRESSURE':b.breath?'FIRE BREATH · WATCH ITS MOUTH':bossTechnique(sectors[level]).response;if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return b.capacitorSalvo?'CAPACITOR LOCK · SIDESTEP THE BURST':'ARMORED · BAIT THE SWEEP THEN AIM AT THE VENT';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → DIVE → VENOM TEMPEST'+(phase===2?' · ENRAGED':'');return '';}
 function updateBossSpecial(b,dt){
@@ -744,7 +766,7 @@ const bossPassProfiles={
 };
 function updateBossPass(b,dt){const profile=bossPassProfiles[bossIndex()];if(!profile)return false;
  b.passClock=(b.passClock??profile.first)-dt;
- if(!b.pass&&!b.breath&&!b.eyeAttack&&b.passClock<=0&&b.charge<=0&&!(b.vacuum>0)&&!(b.barrage>0)&&!hazards.length&&!b.rackShots&&!b.salvoWindup&&!b.recovery&&!b.pressureFollowup&&!b.sporePods?.length&&!acidClouds.some(h=>h.bossTrap)&&!b.broodWatch&&(!b.comboSteps?.length||b.comboPassPending)){
+ if(!b.pass&&!b.breath&&!b.eyeAttack&&b.passClock<=0&&b.charge<=0&&!(b.vacuum>0)&&!(b.barrage>0)&&!hazards.length&&!b.rackShots&&!b.salvoWindup&&!b.recovery&&!(bossIndex()===0&&b.exposed>0)&&!b.pressureFollowup&&!b.sporePods?.length&&!acidClouds.some(h=>h.bossTrap)&&!b.broodWatch&&(!b.comboSteps?.length||b.comboPassPending)){
   const clearance=80,bodyHalf=chargeLaneHalfHeight(),room=H/2-clearance-bodyHalf;
   // Preserve the creature's size. Only reduce its path's curve to fit the arena;
   // future oversized designs keep patrolling/firing instead of sealing both exits.

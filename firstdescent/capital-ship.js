@@ -258,7 +258,7 @@ function capitalNodeActive(b,n){const siege=initCapitalSiege(b);return n.hp>0&&(
 // Sealed command armor protects the core; it does not disable its prow guns.
 // After one stabilizer is lost, those guns cover the surviving battery and aft approach.
 function capitalNodeArmed(b,n){return n.hp>0&&(capitalNodeActive(b,n)||n.id==='core'&&b.siege.nodes.slice(0,2).some(p=>p.hp<=0));}
-function capitalSiegeHint(b){const s=initCapitalSiege(b),special=s.nodes.find(n=>n.special)?.special;if(special)return special.kind==='purge'?'THRUSTER IGNITION · CLEAR THE EXHAUST':'CAPACITOR DISCHARGE · DODGE THROUGH THE GAP';return s.stage==='batteries'?'STABILIZER PODS · '+s.nodes.slice(0,2).filter(n=>n.hp>0).length+' REMAIN':s.stage==='reactor'?'AFT REACTOR · FLY BEHIND · SPACE: FLIP':'COMMAND CORE EXPOSED · ATTACK THE BOW';}
+function capitalSiegeHint(b){const s=initCapitalSiege(b);if(s.stagger>0)return 'SECTION RUPTURED · REPOSITION WHILE GUNS REBOOT';const special=s.nodes.find(n=>n.special)?.special;if(special)return special.kind==='purge'?'THRUSTER IGNITION · CLEAR THE EXHAUST':'CAPACITOR DISCHARGE · DODGE THROUGH THE GAP';return s.stage==='batteries'?'STABILIZER PODS · '+s.nodes.slice(0,2).filter(n=>n.hp>0).length+' REMAIN':s.stage==='reactor'?'AFT REACTOR · FLY BEHIND · SPACE: FLIP':'COMMAND CORE EXPOSED · ATTACK THE BOW';}
 function capitalNodeShape(b,n,padding=0){
  const p=capitalNodePosition(b,n),scale=capitalShipDesign(b).scale,pose=bossFlightPose(b),axes=n.radii.map((r,i)=>{const a=[0,0,0];a[i]=r*scale+padding;return rotateVertex(a,pose.yaw,pose.roll,pose.pitch,0,0);});
  let xx=0,xy=0,yy=0;for(const a of axes){xx+=a[0]*a[0];xy+=a[0]*a[1];yy+=a[1]*a[1];}return{x:p.x,y:p.y,xx,xy,yy,det:xx*yy-xy*xy};
@@ -297,7 +297,11 @@ function capitalAdvanceStage(b){
 }
 function capitalDamageNode(b,n,amount){
  if(!capitalNodeActive(b,n))return;const lost=Math.min(n.hp,Math.max(0,amount));n.hp-=lost;b.hp=b.siege.nodes.reduce((sum,node)=>sum+node.hp,0);n.hit=.1;const p=capitalNodePosition(b,n);
- if(n.hp<=0){n.warning=0;n.burst=0;n.muzzle=0;n.special=null;explode(p.x,p.y,'#ffc27e',n.id==='core'?2.1:1.55,false);if(n.id==='core')for(const local of [[-45,-20,-10],[20,10,-10],[62,-25,-10]]){const breach=bossMount(b,local);explode(breach.x,breach.y,'#ffb869',1.35,false);}score+=n.id==='dorsal'||n.id==='ventral'?450:700;capitalAdvanceStage(b);}
+ if(n.hp<=0){n.warning=0;n.burst=0;n.muzzle=0;n.special=null;explode(p.x,p.y,'#ffc27e',n.id==='core'?2.1:1.55,false);if(n.id==='core')for(const local of [[-45,-20,-10],[20,10,-10],[62,-25,-10]]){const breach=bossMount(b,local);explode(breach.x,breach.y,'#ffb869',1.35,false);}score+=n.id==='dorsal'||n.id==='ventral'?450:700;capitalAdvanceStage(b);
+   // A successful dismantling interrupts queued volleys, but never erases rounds
+   // already in flight. Every new section must give its normal firing warning.
+   b.siege.stagger=.95;for(const other of b.siege.nodes){other.warning=0;other.burst=0;other.muzzle=0;other.target=null;other.clock=.45;}
+  }
  else burst(p.x,p.y,'#ffd799',3);
 }
 function hitCapitalSection(s){
@@ -320,11 +324,11 @@ function capitalNovaDamage(b,amount){
 }
 function moveCapitalShip(b,dt){
  const siege=initCapitalSiege(b),oldX=b.x,oldY=b.y,age=b.age||0,phase=siege.stage==='core'?1.6:siege.stage==='reactor'?1.3:1;
- if(!siege.maneuver)b.maneuverRoll=.12+Math.sin(age*1.8)*.06;b.turnYaw??=0;b.barrelRoll??=0;
+ if(!siege.maneuver){const roll=.12+Math.sin(age*1.8)*.06;b.maneuverRoll=(b.maneuverRoll||0)+(roll-(b.maneuverRoll||0))*(1-Math.exp(-dt*7));}b.turnYaw??=0;b.barrelRoll??=0;
  const active=siege.nodes.filter(n=>capitalNodeArmed(b,n)),weaponsBusy=active.some(n=>n.special||n.warning>0||n.burst>0);
  if(!siege.maneuver){
   siege.maneuverClock-=dt*phase;
-  if(siege.maneuverClock<=0&&!weaponsBusy&&b.x<W-220){siege.maneuver={stage:'warn',age:0,duration:1.1,attackY:clamp(ship.y,290,H-290),fromX:b.x,fromY:b.y,toX:b.x,toY:b.y,fromRoll:b.maneuverRoll,fromBarrel:b.barrelRoll};announce('DREADNOUGHT ATTACK RUN','BREAK ABOVE OR BELOW THE HULL');window.flightAudio?.thrusterBurst?.(.32);}
+  if(siege.maneuverClock<=0&&!(siege.stagger>0)&&!weaponsBusy&&b.x<W-220){siege.maneuver={stage:'warn',age:0,duration:1.1,attackY:clamp(ship.y,290,H-290),fromX:b.x,fromY:b.y,toX:b.x,toY:b.y,fromRoll:b.maneuverRoll,fromBarrel:b.barrelRoll};announce('DREADNOUGHT ATTACK RUN','BREAK ABOVE OR BELOW THE HULL');window.flightAudio?.thrusterBurst?.(.32);}
  }
  const m=siege.maneuver,next=(stage,duration,toX=b.x,toY=b.y)=>{m.stage=stage;m.age=0;m.duration=duration;m.fromX=b.x;m.fromY=b.y;m.toX=toX;m.toY=toY;m.fromRoll=b.maneuverRoll;m.fromBarrel=b.barrelRoll;};
  if(m){
@@ -374,6 +378,7 @@ function updateCapitalDischarges(b,dt){
 function updateCapitalSiege(b,dt){
  const s=initCapitalSiege(b);s.age+=dt;b.charge=0;b.attack=null;b.special=Infinity;
  updateCapitalDischarges(b,dt);
+ if(s.stagger>0){s.stagger=Math.max(0,s.stagger-dt);b.siegeLoad=0;b.siegeStrike=false;return;}
  if(s.maneuver?.stage==='lunge'){b.siegeLoad=1;b.siegeStrike=false;return;}
  for(const n of s.nodes){n.hit=Math.max(0,n.hit-dt);n.muzzle=Math.max(0,n.muzzle-dt);if(!capitalNodeArmed(b,n)||(b.x<0||b.x>W)||n.special)continue;const covering=!capitalNodeActive(b,n),lastBattery=s.stage==='batteries'&&s.nodes.slice(0,2).filter(p=>p.hp>0).length===1;
   if(n.target){const gun=capitalGunMounts(b,n)[0],axis=gun.heading-(n.aimOffset||0),desired=Math.atan2(n.target.y-gun.baseY,n.target.x-gun.baseX),offset=clamp(Math.atan2(Math.sin(desired-axis),Math.cos(desired-axis)),-.65,.65);n.aimOffset=(n.aimOffset||0)+clamp(offset-(n.aimOffset||0),-dt*2,dt*2);}

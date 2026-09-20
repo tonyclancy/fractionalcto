@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 29404173,
+  "bytes": 29407441,
   "assets": [
     {
       "path": "art.js",
-      "bytes": 202070,
-      "sha256": "6c491979e49441ea285dc6a058d491d22bbd9f5162d0c27b0aa04e34a01034ba"
+      "bytes": 203277,
+      "sha256": "ba605ab018d50109eef51189767556550d886055ddeb64ac2efd978ff063f2cc"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -396,23 +396,23 @@
     },
     {
       "path": "capital-ship.js",
-      "bytes": 41724,
-      "sha256": "bd137d2855afc9d5be9bd601e39a7f6e892c33af3e2a40e821f8b669097e185f"
+      "bytes": 42301,
+      "sha256": "d36d1a38d9833891d1c39dee49430fb78821d2485a995fcfd9d63ea675e16152"
     },
     {
       "path": "game.js",
-      "bytes": 77240,
-      "sha256": "a77fdf916c161f4ba4ea7f4ee825f5273fc09ca744bf09f7ed3ad728e272aff1"
+      "bytes": 77332,
+      "sha256": "d8c42fb5f5e4ffd5fb0c23d43788e282382a2130c3d98a0e8c587d20f9b93550"
     },
     {
       "path": "index.html",
-      "bytes": 6379,
-      "sha256": "ff86d6e73baf9c3ab5e813830d8fc3953d745f05e2ed6f8486a7ff1681d3cbb9"
+      "bytes": 6391,
+      "sha256": "1c526bfe8f862676194e89e28f540598392dbac4d7a42ca499fe3bf407847875"
     },
     {
       "path": "levels.js",
-      "bytes": 98501,
-      "sha256": "0e93b6a322b556e4dd8fb398411c2f8d5d61dcd4b2b478df3427d544687fbd88"
+      "bytes": 98505,
+      "sha256": "a67c3bd5542efa9d13faf711d1635a8d6cf3ce3ef82fa326391910810b9a034b"
     },
     {
       "path": "manifest.webmanifest",
@@ -431,8 +431,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 26866,
-      "sha256": "52a4f7524813fad13386fe0361971d70612bba38d616f123a8d1e423d4c2cf91"
+      "bytes": 27075,
+      "sha256": "5bc50fbf57a94915aee8123c61a44b281cd40e914e2ee190c64c80fbc6abac84"
     },
     {
       "path": "runs.js",
@@ -451,8 +451,8 @@
     },
     {
       "path": "tide-encounter.js",
-      "bytes": 4438,
-      "sha256": "d5050ea2392113e0577fc9a1e0f0c67aea456ad81d23b321c37627b73d2a4174"
+      "bytes": 5605,
+      "sha256": "5e52f6380718583fde8640bff4ce507c017af06a8bf9353c37cfe68ed4f5fac4"
     },
     {
       "path": "vendor/THREE-LICENSE.txt",
