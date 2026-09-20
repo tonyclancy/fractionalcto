@@ -730,7 +730,8 @@ function drawOrbCharge(){if(!weaponOrb.owned)return;const p=orbPosition(),charge
 
 
 function passEase(t){t=clamp(t,0,1);return t*t*t*(t*(t*6-15)+10);}
-function chargeLaneHalfHeight(){const d=bossDesign(),s=Math.sin(.52);return d?Math.max(105,...d.bodyVolumes.map(v=>(Math.abs(v.center[0])*s+Math.hypot(v.center[1],v.center[2])+Math.hypot(v.radii[0]*s,Math.max(v.radii[1],v.radii[2]))+18)*d.scale+24)):105;}
+// Collision padding is in screen pixels; only the anatomical dimensions scale.
+function chargeLaneHalfHeight(){const d=bossDesign(),s=Math.sin(.52);return d?Math.max(105,...d.bodyVolumes.map(v=>(Math.abs(v.center[0])*s+Math.hypot(v.center[1],v.center[2])+Math.hypot(v.radii[0]*s,Math.max(v.radii[1],v.radii[2])))*d.scale+18+24)):105;}
 const bossPassProfiles={
  0:{first:7,wait:10,dash:1.9,turn:1.15,rear:3.3,left:225,curve:42},
  2:{first:20,wait:22,dash:2.35,turn:1.4,rear:3.6,left:235,curve:-48},
@@ -739,15 +740,23 @@ const bossPassProfiles={
 };
 function updateBossPass(b,dt){const profile=bossPassProfiles[bossIndex()];if(!profile)return false;
  b.passClock=(b.passClock??profile.first)-dt;
- if(!b.pass&&!b.breath&&!b.eyeAttack&&b.passClock<=0&&b.charge<=0&&!(b.vacuum>0)&&!(b.barrage>0)&&!hazards.length&&!b.rackShots&&!b.salvoWindup&&!b.recovery&&!b.pressureFollowup&&!b.sporePods?.length&&!acidClouds.some(h=>h.bossTrap)&&!b.broodWatch&&(!b.comboSteps?.length||b.comboPassPending)){const halfHeight=chargeLaneHalfHeight()+Math.abs(profile.curve);b.pass={stage:'warn',age:0,halfHeight,y:clamp(ship.y,halfHeight+40,H-halfHeight-40),fromX:b.x,fromY:b.y,vx0:b.navVX||0,vy0:b.navVY||0};b.attack=null;b.fireHeading=null;b.rush=0;announce('HOSTILE CHARGE','EVADE ITS CHARGE · SPACE FLIPS YOUR SHIP');}
+ if(!b.pass&&!b.breath&&!b.eyeAttack&&b.passClock<=0&&b.charge<=0&&!(b.vacuum>0)&&!(b.barrage>0)&&!hazards.length&&!b.rackShots&&!b.salvoWindup&&!b.recovery&&!b.pressureFollowup&&!b.sporePods?.length&&!acidClouds.some(h=>h.bossTrap)&&!b.broodWatch&&(!b.comboSteps?.length||b.comboPassPending)){
+  const clearance=80,bodyHalf=chargeLaneHalfHeight(),room=H/2-clearance-bodyHalf;
+  // Preserve the creature's size. Only reduce its path's curve to fit the arena;
+  // future oversized designs keep patrolling/firing instead of sealing both exits.
+  if(room<0){b.passClock=profile.wait;return false;}
+  const curve=Math.sign(profile.curve)*Math.min(Math.abs(profile.curve),room),halfHeight=bodyHalf+Math.abs(curve);
+  b.pass={stage:'warn',age:0,halfHeight,clearance,curve,y:clamp(ship.y,halfHeight+clearance,H-halfHeight-clearance),fromX:b.x,fromY:b.y,vx0:b.navVX||0,vy0:b.navVY||0};
+  b.attack=null;b.fireHeading=null;b.rush=0;announce('HOSTILE CHARGE','EVADE ITS CHARGE · SPACE FLIPS YOUR SHIP');
+ }
  const p=b.pass;if(!p)return false;p.age+=dt;
  const next=stage=>{if(stage==='dash'||stage==='return')window.flightAudio?.bossAttack?.('lunge',bossIndex(),b.x);p.stage=stage;p.age=0;p.fromX=b.x;p.fromY=b.y;};
  if(p.stage==='warn'){const u=clamp(p.age/1.55,0,1),brake=u-6*u*u*u+8*u*u*u*u-3*u*u*u*u*u;b.x=p.fromX+(p.vx0||0)*1.55*brake;b.y=p.fromY+(p.y-p.fromY)*passEase(u)+(p.vy0||0)*1.55*brake;if(p.age>=1.55)next('dash');}
- else if(p.stage==='dash'){const t=clamp(p.age/profile.dash,0,1),ease=passEase(t);b.x=p.fromX+(profile.left-p.fromX)*ease;b.y=p.y+profile.curve*Math.pow(Math.sin(Math.PI*t),2);if(t===1)next('turn');}
+ else if(p.stage==='dash'){const t=clamp(p.age/profile.dash,0,1),ease=passEase(t);b.x=p.fromX+(profile.left-p.fromX)*ease;b.y=p.y+(p.curve??profile.curve)*Math.pow(Math.sin(Math.PI*t),2);if(t===1)next('turn');}
  else if(p.stage==='turn'){b.turnYaw=Math.PI*passEase(p.age/profile.turn);if(p.age>=profile.turn){b.facing=1;b.shoot=0;b.special=1.1;b.recovery=0;next('rear');announce('HOSTILE BEHIND','FLIP · ATTACK THE HOSTILE BEHIND');}}
- else if(p.stage==='rear'){const t=clamp(p.age/profile.rear,0,1);b.x=p.fromX+70*Math.pow(Math.sin(Math.PI*t),2);b.y=p.fromY+Math.sin(t*Math.PI*2)*32*Math.pow(Math.sin(t*Math.PI),2);if(p.age>=profile.rear&&!bossPatternBusy(b)){p.y=clamp(ship.y,p.halfHeight+40,H-p.halfHeight-40);next('returnWarn');}}
+ else if(p.stage==='rear'){const t=clamp(p.age/profile.rear,0,1);b.x=p.fromX+70*Math.pow(Math.sin(Math.PI*t),2);b.y=p.fromY+Math.sin(t*Math.PI*2)*32*Math.pow(Math.sin(t*Math.PI),2);if(p.age>=profile.rear&&!bossPatternBusy(b)){p.y=clamp(ship.y,p.halfHeight+(p.clearance??80),H-p.halfHeight-(p.clearance??80));next('returnWarn');}}
  else if(p.stage==='returnWarn'){b.y=p.fromY+(p.y-p.fromY)*passEase(p.age/1.55);if(p.age>=1.55)next('return');}
- else if(p.stage==='return'){const t=clamp(p.age/profile.dash,0,1);b.x=p.fromX+(1090-p.fromX)*passEase(t);b.y=p.y-profile.curve*Math.pow(Math.sin(Math.PI*t),2);if(t===1)next('resetTurn');}
+ else if(p.stage==='return'){const t=clamp(p.age/profile.dash,0,1);b.x=p.fromX+(1090-p.fromX)*passEase(t);b.y=p.y-(p.curve??profile.curve)*Math.pow(Math.sin(Math.PI*t),2);if(t===1)next('resetTurn');}
  else if(p.stage==='resetTurn'){b.turnYaw=Math.PI*(1-passEase(p.age/profile.turn));if(p.age>=profile.turn){b.turnYaw=0;b.facing=-1;b.pass=null;b.passClock=profile.wait-bossCombatPhase(b)*1.5;b.special=3.5;b.shoot=1.6;b.navVX=b.navVY=0;}}
  return true;
 }

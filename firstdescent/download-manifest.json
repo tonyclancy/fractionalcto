@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 29395509,
+  "bytes": 29396986,
   "assets": [
     {
       "path": "art.js",
-      "bytes": 200015,
-      "sha256": "483e0bb10ce83875c9f76d77aa59c0a18c7011918587868479921074fe73c277"
+      "bytes": 200537,
+      "sha256": "819fe13d6f52f35974b78d4cbd5a9a7914b31d58987067d9bcd51ab39f3d347f"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -406,13 +406,13 @@
     },
     {
       "path": "index.html",
-      "bytes": 6388,
-      "sha256": "0cbfa0cecaba6338ae724d2eae512cbed78269f6faf6a4dd69082a7df2e5de40"
+      "bytes": 6379,
+      "sha256": "87c2e5659c9d4b2606502f1a07ff9b5e7b22af73e758e1161d178050245d2e79"
     },
     {
       "path": "levels.js",
       "bytes": 98431,
-      "sha256": "b2467f9b56efc0f98f30f53f5031e2c2d414622a66f5ae8d5aad49264af5c9d0"
+      "sha256": "e17351b403bc1c9cb0d67daf8c9dfc84251bff723253cb268e9c874dd65a84c7"
     },
     {
       "path": "manifest.webmanifest",
@@ -426,13 +426,13 @@
     },
     {
       "path": "models.js",
-      "bytes": 122830,
-      "sha256": "ffdf641ac2046b1b618214bea3ed446ec68a4ae2c21461df8d35e546c12d0d52"
+      "bytes": 123700,
+      "sha256": "33b1f51a2fccc8958d84681ef4fc30ccb4beae3972ba814560dd3a8f4f1207fa"
     },
     {
       "path": "renderer3d.js",
-      "bytes": 26772,
-      "sha256": "4d090e9fa63d73a54916f8874b51a7861e1e058e61e22d0a831c1eb5b19c7ebe"
+      "bytes": 26866,
+      "sha256": "52a4f7524813fad13386fe0361971d70612bba38d616f123a8d1e423d4c2cf91"
     },
     {
       "path": "runs.js",

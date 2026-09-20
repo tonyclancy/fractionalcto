@@ -54,7 +54,7 @@ if(renderer){
   else if(j.w>3.5&&j.w<4.5){axis=2;a=sin(t*6.0-max(0.0,v.x)*.045)*min(1.0,max(0.0,v.x)/85.0)*.27;}
   else if(j.w>4.5&&j.w<5.5){float pulse=pow((1.0+cos(t*4.8))*.5,4.0),f=min(1.0,abs(v.x)/45.0);return j.xyz+vec3(v.x+3.0*pulse*f,v.yz*(1.0-.14*pulse*f));}
   else if(j.w>5.5&&j.w<6.5)a=.08+pow((1.0+sin(t*3.0))*.5,3.0)*.32;
-  else if(j.w>6.5){axis=2;a=sin(t*9.0-w*3.0+j.x*.09+j.z*.07)*w*.34;}
+  else if(j.w>6.5){axis=2;float u=clamp((length(v)-12.0)/23.0,0.0,1.0),bend=u*u*(3.0-2.0*u);if(bend==0.0)return p;a=sin(t*9.0-bend*3.0+j.x*.09+j.z*.07)*bend*.34;}
   else a=sin(t*9.0+j.x*.09+j.z*.07)*w*.28;
   mat2 turn=mat2(cos(a),sin(a),-sin(a),cos(a));
   if(axis==1)v.yz=turn*v.yz;else if(axis==2)v.xz=turn*v.xz;else v.xy=turn*v.xy;return j.xyz+v;
