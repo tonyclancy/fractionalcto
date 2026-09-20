@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 29411509,
+  "bytes": 29413909,
   "assets": [
     {
       "path": "art.js",
-      "bytes": 203366,
-      "sha256": "6c132ebe4bdca1dbccb4fedeb26960f7539b56010d36e2752a0323e7a80cc0ae"
+      "bytes": 203835,
+      "sha256": "3fa15eb88517ee28a1582bdc99f7f14409b71fd21e25701d0bc2e19b8f54444d"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -396,8 +396,8 @@
     },
     {
       "path": "capital-ship.js",
-      "bytes": 44702,
-      "sha256": "1e52b8122bfbafb725476c8d80f11b4b53eba3f0440d8fc165b65c895a019b1b"
+      "bytes": 45313,
+      "sha256": "9f6d25559caad37d0aecf146c7d4186f849471b582c74c628a355c2fb80ffff2"
     },
     {
       "path": "game.js",
@@ -407,7 +407,7 @@
     {
       "path": "index.html",
       "bytes": 6397,
-      "sha256": "b6c3469a7771e7b21d61627ff206865840ea5387b5dd3c08d0bfd7834b078b76"
+      "sha256": "15f9e433fbc3aaeb4e1a8957548eecb1ae741fe3fe7dec88ffa4277d3d2a32d8"
     },
     {
       "path": "levels.js",
@@ -431,8 +431,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 27075,
-      "sha256": "5bc50fbf57a94915aee8123c61a44b281cd40e914e2ee190c64c80fbc6abac84"
+      "bytes": 28395,
+      "sha256": "15d67dad51d0a2c11d48ddf0ee020257101c62917ed8473095986cbdc53805c9"
     },
     {
       "path": "runs.js",

@@ -1193,12 +1193,19 @@ function drawDreamAtmosphere(){if(sectors[level].gravityWell)return;const c=['#7
 
 function bossBodyHit(b,x,y,padding=0){
  const d=bossDesign();if(!d)return Math.hypot(b.x-x,b.y-y)<b.r+padding;
- const pose=bossFlightPose(b),scale=d.scale,key=[b.age,b.propulsionTime,b.propulsion,b.flightBank,b.actionLoad,b.attackDrive,pose.yaw,pose.roll,pose.pitch,padding].join(':');
- if(b.bodyHitKey!==key){b.bodyHitKey=key;b.bodyHitVolumes=d.bodyVolumes.map(({center:c,radii:r})=>{
+ const pose=bossFlightPose(b),scale=d.scale,key=[b.age,b.propulsionTime,b.propulsion,b.flightBank,b.actionLoad,b.attackDrive,pose.yaw,pose.roll,pose.pitch,scale].join(':');
+ // Mixed weapon radii share the pose without repeatedly rebuilding all volumes.
+ // Keep this cache on the actor, bounded even if future weapons vary their size.
+ let cache=b.bodyProjectionCache;
+ if(!cache||cache.design!==d){cache=b.bodyProjectionCache={design:d,key,byPadding:new Map()};}
+ else if(cache.key!==key){cache.key=key;cache.byPadding.clear();}
+ let volumes=cache.byPadding.get(padding);
+ if(!volumes){volumes=d.bodyVolumes.map(({center:c,radii:r})=>{
   const local=bossLocalPoint(b,c),center=rotateVertex(local,pose.yaw,pose.roll,pose.pitch,0,0),axes=r.map((radius,i)=>{
    const lo=c.slice(),hi=c.slice();lo[i]-=.5;hi[i]+=.5;const a=bossLocalPoint(b,lo),z=bossLocalPoint(b,hi),v=z.map((q,j)=>(q-a[j])*(radius*scale+padding));return rotateVertex(v,pose.yaw,pose.roll,pose.pitch,0,0);
   });let xx=0,yy=0,xy=0;for(const a of axes){xx+=a[0]*a[0];yy+=a[1]*a[1];xy+=a[0]*a[1];}return{x:center[0]*scale,y:center[1]*scale,xx,yy,xy,det:xx*yy-xy*xy};
- });}return b.bodyHitVolumes.some(v=>{const dx=x-b.x-v.x,dy=y-b.y-v.y;return(v.yy*dx*dx-2*v.xy*dx*dy+v.xx*dy*dy)<=v.det;});
+ });if(cache.byPadding.size>=8)cache.byPadding.clear();cache.byPadding.set(padding,volumes);}
+ b.bodyHitVolumes=volumes;return volumes.some(v=>{const dx=x-b.x-v.x,dy=y-b.y-v.y;return(v.yy*dx*dx-2*v.xy*dx*dy+v.xx*dy*dy)<=v.det;});
 }
 
 

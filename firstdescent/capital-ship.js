@@ -121,7 +121,7 @@ const capitalSiegeMeshes=(()=>{
  for(let i=0;i<11;i++){const x=-14+i*5;h.box(x,0,41,1.5,21,8,brass,.25);h.box(x,0,46,1.4,14,1,[103,79,57],.15);}
  // Small rigid dorsal sensor tracks the flight direction independently.
  const scanner=h.mesh.length;h.hull([[-25,-5,-31,2,3],[-9,-5,-35,4,5],[5,-5,-34,3,4]],metal,8);h.light(-20,-5,-39,6,1,hot);h.part('recessed targeting scanner',scanner,[-7,-5,-32],'y',.3);
- h.mesh.dynamic=true;h.mesh.capitalHull=true;h.mesh.reverseDetailed=true;out.hull=h.mesh;out.drives=drives;out.guns=guns;
+ h.mesh.dynamic=true;h.mesh.cpuBounds=true;h.mesh.capitalHull=true;h.mesh.reverseDetailed=true;out.hull=h.mesh;out.drives=drives;out.guns=guns;
 
  for(const sign of [-1,1]){
   const id=sign<0?'dorsal':'ventral',y=sign*65,m=build();
@@ -272,8 +272,16 @@ function capitalSiegeHint(b){
  return 'AFT REACTOR · APPROACH FROM '+(direction<0?'RIGHT':'LEFT')+' · '+(shipDirection()===direction?'HOLD FACING':'FLIP TO FIRE '+(direction<0?'LEFT':'RIGHT'));
 }
 function capitalNodeShape(b,n,padding=0){
- const p=capitalNodePosition(b,n),scale=capitalShipDesign(b).scale,pose=bossFlightPose(b),axes=n.radii.map((r,i)=>{const a=[0,0,0];a[i]=r*scale+padding;return rotateVertex(a,pose.yaw,pose.roll,pose.pitch,0,0);});
- let xx=0,xy=0,yy=0;for(const a of axes){xx+=a[0]*a[0];xy+=a[0]*a[1];yy+=a[1]*a[1];}return{x:p.x,y:p.y,xx,xy,yy,det:xx*yy-xy*xy};
+ const scale=capitalShipDesign(b).scale,pose=bossFlightPose(b),local=n.local,radii=n.radii;
+ let c=n.projectionCache;
+ if(!c||c.x!==b.x||c.y!==b.y||c.scale!==scale||c.yaw!==pose.yaw||c.roll!==pose.roll||c.pitch!==pose.pitch||c.lx!==local[0]||c.ly!==local[1]||c.lz!==local[2]||c.rx!==radii[0]||c.ry!==radii[1]||c.rz!==radii[2]){
+  c=n.projectionCache={x:b.x,y:b.y,scale,yaw:pose.yaw,roll:pose.roll,pitch:pose.pitch,lx:local[0],ly:local[1],lz:local[2],rx:radii[0],ry:radii[1],rz:radii[2],position:capitalNodePosition(b,n),shapes:new Map()};
+ }
+ let q=c.shapes.get(padding);if(q)return q;
+ const axes=radii.map((r,i)=>{const a=[0,0,0];a[i]=r*scale+padding;return rotateVertex(a,pose.yaw,pose.roll,pose.pitch,0,0);});
+ let xx=0,xy=0,yy=0;for(const a of axes){xx+=a[0]*a[0];xy+=a[0]*a[1];yy+=a[1]*a[1];}
+ q={x:c.position.x,y:c.position.y,xx,xy,yy,det:xx*yy-xy*xy};
+ if(c.shapes.size>=8)c.shapes.clear();c.shapes.set(padding,q);return q;
 }
 function capitalNodeIntersection(b,n,a,z,padding=0){
  const q=capitalNodeShape(b,n,padding),x=a.x-q.x,y=a.y-q.y,dx=z.x-a.x,dy=z.y-a.y;
