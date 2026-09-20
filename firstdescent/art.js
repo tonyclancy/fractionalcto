@@ -980,9 +980,37 @@ function organicFlightPose(b){return bossFlightPose(b);}
 function bossEyeOrigin(b){if(bossIndex()===0)return wardenMount(b,[-79,-11,-25]);const k=bossIndex(),p=bossFlightPose(b),local=k===2?[-38,-18,-25]:[-57,-24,-22],scale=k===2?2.3:k===3?2.1:2.15,v=rotateVertex(local,p.yaw,p.roll,p.pitch,0,0);return{x:b.x+v[0]*scale*p.depth,y:b.y+v[1]*scale*p.depth};}
 function updateEyeAttack(b,dt){b.eyeAttack=null;}
 
-function shotTerrainHit(x,y,s){let first=2;const dx=s.x-x,dy=s.y-y;
- for(const o of obstacles){for(const r of obstacleSolids(o)){let lo=0,hi=1;for(const [p,v,min,max] of [[x,dx,r.x,r.x+r.w],[y,dy,r.y,r.y+r.h]]){if(Math.abs(v)<1e-8){if(p<min||p>max){lo=2;break;}}else{const a=(min-p)/v,b=(max-p)/v;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));}}if(lo<=hi&&lo<first)first=lo;}
- if(o.rotor){const steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)/5));for(let i=0;i<=steps;i++){const t=i/steps;if(t>=first)break;if(rotorContact(o,x+dx*t,y+dy*t,s.r)){first=t;break;}}}}
+// Reuse the existing collision slices for this simulation pose. The envelope
+// rejects distant shots before the narrow phase; it never replaces the slices.
+function terrainShotBounds(o,solids){
+ const cached=o.shotBounds;if(cached?.solids===solids)return cached;
+ let left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;
+ for(const r of solids){left=Math.min(left,r.x);top=Math.min(top,r.y);right=Math.max(right,r.x+r.w);bottom=Math.max(bottom,r.y+r.h);}
+ return o.shotBounds={solids,left,top,right,bottom};
+}
+function shotTerrainHit(x,y,s){let first=2;const dx=s.x-x,dy=s.y-y,
+ left=Math.min(x,s.x),right=Math.max(x,s.x),top=Math.min(y,s.y),bottom=Math.max(y,s.y);
+ const parallelX=Math.abs(dx)<1e-8,parallelY=Math.abs(dy)<1e-8;
+ for(const o of obstacles){
+  const solids=obstacleSolids(o),bounds=terrainShotBounds(o,solids);
+  if(right>=bounds.left&&left<=bounds.right&&bottom>=bounds.top&&top<=bounds.bottom){
+   for(const r of solids){
+    if(right<r.x||left>r.x+r.w||bottom<r.y||top>r.y+r.h)continue;
+    let lo=0,hi=1;
+    if(parallelX){if(x<r.x||x>r.x+r.w)continue;}
+    else{const a=(r.x-x)/dx,b=(r.x+r.w-x)/dx;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));}
+    if(parallelY){if(y<r.y||y>r.y+r.h)continue;}
+    else{const a=(r.y-y)/dy,b=(r.y+r.h-y)/dy;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));}
+    if(lo<=hi&&lo<first)first=lo;
+   }
+  }
+  // Include the blade corners plus projectile radius, not just its long axis.
+  if(o.rotor){const radius=Math.hypot(155+s.r,14+s.r),cx=o.x+210;
+   if(right<cx-radius||left>cx+radius||bottom<380-radius||top>380+radius)continue;
+   const steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)/5));
+   for(let i=0;i<=steps;i++){const t=i/steps;if(t>=first)break;if(rotorContact(o,x+dx*t,y+dy*t,s.r)){first=t;break;}}
+  }
+ }
  return first<=1?{x:x+dx*first,y:y+dy*first}:null;
 }
 function terrainImpact(x,y,vx,vy){const angle=Math.atan2(-vy,-vx);for(let i=0;i<8;i++){const a=angle+rand(-1.3,1.3),speed=rand(65,210),life=rand(.12,.26);particles.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life,max:life,c:i<2?'#f2ffff':i%2?'#79cee3':'#ffce82',r:i<2?2.6:1.3,spark:true});}if(particles.length>900)particles.splice(0,particles.length-900);}
