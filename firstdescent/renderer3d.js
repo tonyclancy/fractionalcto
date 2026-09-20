@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.min.js';
-import { AuthoredAssets, AUTHORED_ASSETS } from './authored-assets.js';
+import { AuthoredAssets, AUTHORED_ASSETS } from './authored-assets.js?v=20260919-polish67d';
 // One retained GPU renderer, cached indexed meshes, smooth normals and pooled objects.
 const surface=document.createElement('canvas');
 let renderer;
@@ -118,7 +118,7 @@ if(renderer){
   const bounds={geometry:{boundingSphere:{center:authoredCenter,radius:AUTHORED_ASSETS[faces.authoredAsset].radius}}};
   if(!includeDrawBounds(bounds,{},instanceMatrix))return true;
   const item=authored.acquire(faces.authoredAsset,age,context.globalAlpha,hit,batch);
-  item.root.matrix.copy(instanceMatrix);item.root.visible=true;pending++;return true;
+  item.root.matrix.copy(instanceMatrix);authored.submit(item);pending++;return true;
  }
  const authoredCenter=new THREE.Vector3();
  let pixelRatio=1;

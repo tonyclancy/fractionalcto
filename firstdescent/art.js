@@ -492,7 +492,7 @@ function updateBossAttitude(b,dt,vx,vy){
 function bossCombatPhase(b){const ratio=b.max>0?b.hp/b.max:1;return ratio<.28?2:ratio<.62?1:0;}
 function bossPatternBusy(b){return !!(b.venom||(b.pass&&b.pass.stage!=='rear')||b.breath||b.charge>0||b.rush>0||b.vacuum>0||b.barrage>0||b.rackShots>0||b.sporePods?.length||b.salvoWindup||hazards.length||acidClouds.some(h=>h.bossTrap));}
 function holdBossSalvo(b){b.shoot=Math.max(b.shoot||0,.52);b.attack=null;b.fireHeading=null;}
-function bossEncounterHint(b){if(isTideEncounter())return b.exposed>0?'MANTLE OPEN · BONUS DAMAGE':'BREAK TIDE KNOTS · ESCAPE THROUGH THE RING GAPS';const k=bossIndex(),phase=bossCombatPhase(b);if(b.exposed>0)return 'ALIGN WITH THE GLOWING WEAK POINT · BONUS DAMAGE';if(b.pass)return 'DODGE THE CHARGE · FLIP TO FACE THE BOSS';if(k===0)return b.breath?.kind==='wind'?'WINGSTORM · CUT ACROSS THE PRESSURE':'FIRE BREATH · WATCH ITS MOUTH';if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return 'SWEEPING CANNON · FOLLOW THE SAFE SIDE';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → DIVE → VENOM TEMPEST'+(phase===2?' · ENRAGED':'');return '';}
+function bossEncounterHint(b){if(isTideEncounter())return b.exposed>0?'MANTLE OPEN · BONUS DAMAGE':'BREAK TIDE KNOTS · ESCAPE THROUGH THE RING GAPS';const k=bossIndex(),phase=bossCombatPhase(b);if(b.exposed>0)return 'ALIGN WITH THE GLOWING WEAK POINT · BONUS DAMAGE';if(b.pass)return 'DODGE THE CHARGE · FLIP TO FACE THE BOSS';if(k===0)return b.breath?.kind==='wind'?'WINGSTORM · CUT ACROSS THE PRESSURE':b.breath?'FIRE BREATH · WATCH ITS MOUTH':bossTechnique(sectors[level]).response;if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return b.capacitorSalvo?'CAPACITOR LOCK · SIDESTEP THE BURST':'ARMORED · BAIT THE SWEEP THEN AIM AT THE VENT';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → DIVE → VENOM TEMPEST'+(phase===2?' · ENRAGED':'');return '';}
 function updateBossSpecial(b,dt){
  if(isTideEncounter()){updateTideEncounter(b,dt);return;}
  if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){updateCapitalSiege(b,dt);return;}
@@ -829,7 +829,27 @@ function updateExpansionBoss(b,dt){
  // lock at launch: no ordinary round can home in after the player dodges.
  if(kind===4){
   const canFire=!(b.recovery>0)&&(!b.pass||b.pass.stage==='rear')&&!b.charge&&!hazards.some(h=>h.kind==='tech');
-  if(canFire){b.shoot-=dt;if(b.shoot<=0&&b.x>0&&b.x<W){const m=techLaserOrigin(b),speed=700+phase*30,offsets=(b.aimedVolley=(b.aimedVolley||0)+1)%2?[-.12,0,.12]:[-.18,0,.18];for(const offset of offsets){const angle=Math.atan2(ship.y-m.y,ship.x-m.x)+offset;hostile.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:phase===2?8:7,kind:'rocket',bossRound:true,regentShot:true,scale:.85+phase*.05,c:'#ccbaff',launchAngle:angle});}b.shoot=(.7-phase*.07)*COMBAT_BALANCE.salvoRest*(sectors[level].salvoRestScale||1);b.muzzle=.2;window.flightAudio?.shot('missile',m.x,true);}}
+  if(!canFire)b.capacitorSalvo=null;
+  if(canFire){
+   b.shoot-=dt;
+   if(!b.capacitorSalvo&&b.shoot<=0&&b.x>0&&b.x<W){
+    b.capacitorSalvo={age:0,target:{x:ship.x,y:ship.y},fired:0,warning:.65};
+    b.shoot=1.65*(sectors[level].salvoRestScale||1);
+   }
+   const volley=b.capacitorSalvo;
+   if(volley){
+    volley.age+=dt;
+    // Lock the location when the capacitor lights. A short train breaks a
+    // stationary guard, while a deliberate sidestep clears every round.
+    if(volley.age<volley.warning)b.muzzle=.10+.07*Math.sin(volley.age*48)**2;
+    if(volley.age>=volley.warning+volley.fired*.35&&volley.fired<7){
+     const m=techLaserOrigin(b),angle=Math.atan2(volley.target.y-m.y,volley.target.x-m.x),speed=700+phase*30;
+     hostile.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:7,kind:'rocket',bossRound:true,regentShot:true,scale:.85,c:'#ccbaff',launchAngle:angle});
+     volley.fired++;b.muzzle=.2;window.flightAudio?.shot('missile',m.x,true);
+    }
+    if(volley.fired===7)b.capacitorSalvo=null;
+   }
+  }
   return;
  }
  const canFire=!(b.recovery>0)&&(!b.pass||b.pass.stage==='rear')&&!b.charge&&!b.breath&&!b.vacuum&&!b.sporePods?.length&&!b.salvoWindup&&!b.venom;
@@ -1070,7 +1090,7 @@ function bossWeakPoint(b){
  const k=bossIndex(),open=k===1?b.shieldBroken:b.exposed>0;
  if(!open||k===5&&enemies.some(e=>e.guardian&&e.hp>0))return null;
  const d=bossDesign(),p=k===4?(d?bossMount(b,[d.mouth[0]+20,d.mouth[1]-38,d.mouth[2]]):techLaserOrigin(b)):organicMouth(b);
- return {...p,r:28,multiplier:6.5};
+ return {...p,r:k===4?18:28,multiplier:k===4?8:6.5};
 }
 function encounterDamage(b,s){
  if(isTideEncounter())return b.exposed>0?2.2:.65+.15*(b.tide?.pods.filter(p=>p.hp<=0).length||0);
@@ -1079,7 +1099,7 @@ function encounterDamage(b,s){
  // Project the shot's lane through the visible mouth/vent. The outer collision
  // shell can sit a few pixels ahead of that anatomical socket during rotation.
  if(weak&&Math.abs(s.y-weak.y)<weak.r+(s.r||0)&&(weak.x-b.x)*dir<0)return weak.multiplier;
- return .25;
+ return bossIndex()===4?.04:.25;
 }
 function drawBossWeakPoint(b){const p=bossWeakPoint(b);if(!p)return;ctx.save();const c=bossIndex()===4?'#ffe1a0':'#a6ffcd';orb(p.x,p.y,p.r,c,.3);ctx.strokeStyle=c;ctx.lineWidth=2;ctx.globalAlpha=.8;ctx.beginPath();ctx.arc(p.x,p.y,p.r+3,0,TAU);ctx.stroke();ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillStyle=c;ctx.fillText('EXPOSED',p.x,p.y-p.r-8);ctx.restore();}
 function hitEncounterNode(s){if(isTideEncounter())return hitTideNode(s);if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))return hitCapitalSection(s);if(!boss||bossIndex()!==1)return false;for(const n of boss.generators||[]){if(n.hp<=0)continue;const p=encounterSocket(boss,[-18,n.side*57,-40]);if(Math.hypot(s.x-p.x,s.y-p.y)<20+s.r){n.hp-=s.damage;burst(p.x,p.y,n.hp<=0?'#ffba70':'#81dfff',n.hp<=0?12:3);return true;}}return false;}
@@ -1087,6 +1107,7 @@ function hitEncounterNode(s){if(isTideEncounter())return hitTideNode(s);if(typeo
 function drawBossPatternTelegraphs(b){
  ctx.save();
  for(const p of b.sporePods||[])if(p.emitted){orb(p.x,p.y,12*(p.visualScale||1),p.acid?'#bcc965':'#91dfb1',.6);drawModel(meshes.spore,p.x,p.y,p.visualScale||1.4,0,p.age*3,0,p.age);}
+ if(b.capacitorSalvo&&b.capacitorSalvo.age<b.capacitorSalvo.warning){const v=b.capacitorSalvo,m=techLaserOrigin(b),q=clamp(v.age/v.warning,0,1);orb(m.x,m.y,14+q*20,'#d1baff',.35+q*.4);orb(m.x,m.y,4+q*7,'#fff2da',.7);}
  if(b.salvoWindup){const v=b.salvoWindup,m=expansionMouth(b),q=clamp(v.age/v.warning,0,1);orb(m.x,m.y,20+q*25,'#ffad5d',.35+q*.2);}
  if(bossIndex()===3&&b.vacuum>0){const m=expansionMouth(b);ctx.strokeStyle='#a0e6ce';ctx.lineWidth=1.5;for(let i=0;i<20;i++){const t=(b.age*.65+i/20)%1,x=m.x+(Math.cos(bossFlightPose(b).yaw)>0?-1:1)*820*(1-t),spread=(1-t)*178,yy=m.y+Math.sin(i*2.4)*spread;ctx.globalAlpha=Math.sin(t*Math.PI)*.33;ctx.beginPath();ctx.moveTo(x-19,yy);ctx.quadraticCurveTo(x,yy,x+26,yy-Math.sin(i*2.4)*10);ctx.stroke();}}
  ctx.restore();

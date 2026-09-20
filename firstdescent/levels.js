@@ -14,19 +14,31 @@ const ENVIRONMENTS=freezeContent({
  'deep-underground':{label:'DEEP UNDERGROUND',medium:'air',heat:1,clouds:0,water:0},
  'deep-undersea':{augmentation:'pressure',label:'ABYSSAL SEA',medium:'water',heat:0,clouds:0,water:1}
 });
+// Each encounter carries an explicit learnable technique. New worlds reuse
+// a tested combat rule independently of their species, palette and climate.
+const BOSS_TECHNIQUES=freezeContent({
+ 'bait-charge':{cue:'MOUTH AND WINGS CHARGE',response:'DODGE THE CHARGE · TURN AND AIM',reward:'OPEN MOUTH · BONUS DAMAGE'},
+ 'dismantle':{cue:'BATTERY PORTS OPEN',response:'BREAK BATTERIES · FLANK THE REACTOR',reward:'CORE EXPOSED · FOLLOW ITS PULSE GAP'},
+ 'cut-pressure':{cue:'SIPHON FILLS',response:'CROSS THE STREAM · ATTACK BETWEEN BURSTS',reward:'PRESSURE RELEASE · MANTLE EXPOSED'},
+ 'break-knots':{cue:'THREE TIDE KNOTS GROW',response:'BREAK THE KNOTS · FOLLOW THE RING GAPS',reward:'CURRENT STOPS · LONGER DAMAGE WINDOW'},
+ 'escape-maw':{cue:'MAW OPENS OR SPORE PODS GROW',response:'ESCAPE THE PULL · KEEP A CLEAR CORRIDOR',reward:'MAW RECOVERS · ATTACK THE OPENING'},
+ 'bait-capacitor':{cue:'CAPACITOR LIGHTS',response:'SIDESTEP THE BURST · BAIT THE SWEEP',reward:'ARMOR VENT OPENS · AIM PRECISELY'},
+ 'break-brood':{cue:'GUARDIANS EMERGE',response:'BREAK THE BROOD · EVADE THE CLAW COMBO',reward:'SHROUD BREAKS · QUEEN EXPOSED'}
+});
+function bossTechnique(l){return BOSS_TECHNIQUES[l.encounterDirector==='tide-knots'?'break-knots':bossEncounterProfile(l).technique];}
 const BOSS_ENCOUNTERS=freezeContent({
- warden:{anatomy:'Armoured four-winged sky hunter',inspiration:'dragonfly / mantis',habitat:'air',power:'furnace-gale',signature:'FURNACE GALE',cooldown:5.8,phaseStep:.6,warning:1.45},
- cathedral:{anatomy:'Sectional engine guardian',inspiration:'industrial turbine / armoured beetle',habitat:'air',power:'reactor-siege',signature:'REACTOR OVERDRIVE',cooldown:5.6,phaseStep:.5,warning:1.5},
- sovereign:{anatomy:'Wide undulating pressure fins',inspiration:'manta ray / deep-sea shark',habitat:'water',power:'tidal-pressure',signature:'TIDAL PRESSURE',cooldown:5.6,phaseStep:.5,warning:1.65},
- monarch:{anatomy:'Chambered mantle and grasping feeding arms',inspiration:'nautilus / octopus',habitat:'water',power:'abyssal-maw',signature:'ABYSSAL MAW',cooldown:4.6,phaseStep:.4,warning:1.6},
- regent:{anatomy:'Gyroscopic armoured storm machine',inspiration:'gyroscope / storm cell',habitat:'air',power:'ion-sweep',signature:'ION SHEAR',cooldown:3.9,phaseStep:.35,warning:1.9},
- mother:{anatomy:'Compound eyes, six legs, two wings and halteres',inspiration:'horsefly / parasitoid wasp',habitat:'air',power:'brood-tempest',signature:'BROOD TEMPEST',cooldown:5.1,phaseStep:.4,warning:1.85}
+ warden:{technique:'bait-charge',anatomy:'Armoured four-winged sky hunter',inspiration:'dragonfly / mantis',habitat:'air',power:'furnace-gale',signature:'FURNACE GALE',cooldown:5.8,phaseStep:.6,warning:1.45},
+ cathedral:{technique:'dismantle',anatomy:'Sectional engine guardian',inspiration:'industrial turbine / armoured beetle',habitat:'air',power:'reactor-siege',signature:'REACTOR OVERDRIVE',cooldown:5.6,phaseStep:.5,warning:1.5},
+ sovereign:{technique:'cut-pressure',anatomy:'Wide undulating pressure fins',inspiration:'manta ray / deep-sea shark',habitat:'water',power:'tidal-pressure',signature:'TIDAL PRESSURE',cooldown:5.6,phaseStep:.5,warning:1.65},
+ monarch:{technique:'escape-maw',anatomy:'Chambered mantle and grasping feeding arms',inspiration:'nautilus / octopus',habitat:'water',power:'abyssal-maw',signature:'ABYSSAL MAW',cooldown:4.6,phaseStep:.4,warning:1.6},
+ regent:{technique:'bait-capacitor',anatomy:'Gyroscopic armoured storm machine',inspiration:'gyroscope / storm cell',habitat:'air',power:'ion-sweep',signature:'ION SHEAR',cooldown:3.9,phaseStep:.35,warning:1.9},
+ mother:{technique:'break-brood',anatomy:'Compound eyes, six legs, two wings and halteres',inspiration:'horsefly / parasitoid wasp',habitat:'air',power:'brood-tempest',signature:'BROOD TEMPEST',cooldown:5.1,phaseStep:.4,warning:1.85}
 });
 function bossEncounterProfile(l){return l.encounterProfile||BOSS_ENCOUNTERS[l.encounter||l.bossKind];}
 // Shared tuning keeps future encounters within the same learnable combat rhythm.
 const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.25,specialRest:1.15,hitGrace:2.4,shieldGrace:1.5,breathTracking:.55,enemyWindup:.48,enemyShotClearance:180});
 const WATER_HANDLING=freezeContent({pilotSpeed:.9,acceleration:.065,braking:.09,reversal:.05,touchBuffer:.04,enemyMotion:.78,bossMotion:.84});
-const GAME_RULESET='2026-09-engagement-balance-v35';
+const GAME_RULESET='2026-09-boss-techniques-v36';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova','rescue']);
@@ -59,7 +71,7 @@ function validateLevels(definitions){
   if(l.gravityWell&&(!Array.isArray(l.gravityWell.center)||l.gravityWell.center.length!==2||l.gravityWell.center.some(n=>!Number.isFinite(n)||n<=0||n>=1)||!(l.gravityWell.radius>0&&l.gravityWell.radius<.2)||!(l.gravityWell.lensing>=0&&l.gravityWell.lensing<=2)||!(l.gravityWell.tidalPeriod>=8)))fail(l,'invalid gravitational view');
   if(l.flightRoute){const r=l.flightRoute;if(!finite(r.period)||r.period<10||!finite(r.drive)||r.drive<=0||!finite(r.speed)||r.speed<100||r.speed>500||!Array.isArray(r.points)||r.points.length<4||r.points.some(p=>!Array.isArray(p)||p.length!==2||p.some(v=>!finite(v))))fail(l,'invalid boss flight route');}
   if(l.bossPalette&&(!Array.isArray(l.bossPalette)||l.bossPalette.length!==3||l.bossPalette.some(v=>!finite(v)||v<.3||v>1.5)))fail(l,'invalid boss palette');
-  const encounter=bossEncounterProfile(l);if(!encounter||encounter.habitat!==(l.medium||encounter.habitat))fail(l,'encounter habitat mismatch');
+  const encounter=bossEncounterProfile(l);if(!bossTechnique(l))fail(l,'encounter needs a supported player technique');if(!encounter||encounter.habitat!==(l.medium||encounter.habitat))fail(l,'encounter habitat mismatch');
   if(!Object.values(BOSS_ENCOUNTERS).some(e=>e.power===encounter.power)||!finite(encounter.cooldown)||encounter.cooldown<3||!finite(encounter.warning)||encounter.warning<1||!finite(encounter.phaseStep))fail(l,'invalid encounter profile');
   if(l.atmosphere&&['heat','clouds'].some(k=>!finite(l.atmosphere[k])||l.atmosphere[k]<0||l.atmosphere[k]>1))fail(l,'atmosphere heat/clouds must be between 0 and 1');
   if(l.entrySides&&(!Array.isArray(l.entrySides)||!l.entrySides.length||l.entrySides.some(side=>!['right','left','top','bottom'].includes(side))))fail(l,'invalid entry side');
