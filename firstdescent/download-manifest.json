@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 29396986,
+  "bytes": 29400263,
   "assets": [
     {
       "path": "art.js",
@@ -401,18 +401,18 @@
     },
     {
       "path": "game.js",
-      "bytes": 72739,
-      "sha256": "6fab5d62902a034fed87024bd4184e206c73864d3f84db415841ba04446483f7"
+      "bytes": 76007,
+      "sha256": "c7f3563f11284b0e5d2ef61dc7dc909edc1e9db87e3de107c8aa5c7a43dc2985"
     },
     {
       "path": "index.html",
-      "bytes": 6379,
-      "sha256": "87c2e5659c9d4b2606502f1a07ff9b5e7b22af73e758e1161d178050245d2e79"
+      "bytes": 6388,
+      "sha256": "d6a47dfe8beb3b95d8d9448c6a93d8e577b6f7a9fd1dddc92269afb6ccabb970"
     },
     {
       "path": "levels.js",
       "bytes": 98431,
-      "sha256": "e17351b403bc1c9cb0d67daf8c9dfc84251bff723253cb268e9c874dd65a84c7"
+      "sha256": "b29f8f1467ae975ae525e5297e59170f288c9f29adb38ff4fa783f23fa08c078"
     },
     {
       "path": "manifest.webmanifest",

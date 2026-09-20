@@ -74,18 +74,18 @@ function placeCheckpointRecovery(){
  const solids=obstacles.flatMap(obstacleSolids),rotors=obstacles.filter(o=>o.rotor),preferredY=380;
  const clear=(x,y,mx,my)=>solids.every(r=>x+mx<r.x||x-mx>r.x+r.w||y+my<r.y||y-my>r.y+r.h)&&rotors.every(o=>!rotorContact(o,x,y,Math.max(mx,my)));
  const ordered=(origin,min,max,extra=[])=>[...new Set([clamp(origin,min,max),min,max,...extra.filter(v=>v>=min&&v<=max),...Array.from({length:Math.ceil((max-min)/12)},(_,i)=>min+i*12)])].sort((a,b)=>Math.abs(a-origin)-Math.abs(b-origin)||a-b);
- const find=(x,y,mx,my,minX=40,maxX=W-65,from=null)=>{
+ const find=(x,y,mx,my,minX=40,maxX=W-65)=>{
   const xs=ordered(x,minX,maxX,solids.flatMap(r=>[r.x-mx-2,r.x+r.w+mx+2])),ys=ordered(y,42,H-42,solids.flatMap(r=>[r.y-my-2,r.y+r.h+my+2]));
-  for(const px of xs)for(const py of ys){if(!clear(px,py,mx,my))continue;if(from){const steps=Math.max(1,Math.ceil(Math.hypot(px-from.x,py-from.y)/18));let reachable=true;for(let j=0;j<=steps;j++){const t=j/steps;if(!clear(from.x+(px-from.x)*t,from.y+(py-from.y)*t,52,32)){reachable=false;break;}}if(!reachable)continue;}return{x:px,y:py};}
+  for(const px of xs)for(const py of ys)if(clear(px,py,mx,my))return{x:px,y:py};
   return null;
  };
  const spawn=find(210,preferredY,52,32)||find(210,preferredY,24,14);
  if(spawn){ship.x=spawn.x;ship.y=spawn.y;}
- let from={x:ship.x,y:ship.y};
+ // Plan against moving terrain at arrival time, not just the restored snapshot.
  drops=sectors[level].recovery.map((d,i)=>{
-  const minX=Math.min(W-90,ship.x+100),x=clamp(Math.max(d.x,ship.x+170+i*140),minX,W-70),y=clamp(ship.y+d.y-preferredY,42,H-42);
-  const point=find(x,y,27,27,minX,W-65,from)||find(x,y,27,27,minX,W-65)||{x,y};from=point;
-  return makeSupply({...d,...point},'checkpoint');
+  const item=makeSupply({...d,y:clamp(ship.y+d.y-preferredY,60,H-60),recoveryIndex:i},'checkpoint');
+  item.route=planRecoveryRoute(item);if(item.route)item.y=item.route.points[0];
+  return item;
  });
 }
 function retrySection(){
@@ -96,6 +96,15 @@ function retrySection(){
  challengeState.wave=(sectors[level].challenge?.waves||[]).filter(at=>at<time).length;
  waveIndex=waveTimes[level].filter(at=>at<time).length;gateIndex=gatePlans[level].filter(g=>g.at<time).length;supplyIndex=supplyPlans[level].filter(d=>d.at<time).length;
  obstacles=gatePlans[level].slice(0,gateIndex).map((g,id)=>({...g,id,x:W+100-(time-g.at)*SCROLL_SPEED,w:g.width||82+difficulty()*8})).filter(o=>o.x+o.w>-30);
+ // Restore an already-entered midpoint gate before choosing the safe spawn.
+ // Otherwise the first simulation tick can materialize it around the pilot.
+ const c=sectors[level].challenge;
+ challengeState.gate=!!(c&&time>=c.at-4);
+ if(challengeState.gate){const at=c.at-4,x=W+100-(time-at)*SCROLL_SPEED;
+  if(x+420>-30){obstacles.push({at,id:50,x,w:420,width:420,shutters:true});
+   if(c.gate)enemies.push({sentry:true,anchorAt:at,x:x+110,y:125,base:125,type:2,age:0,phase:0,speed:0,r:28,hp:65,max:65,hit:0,shoot:2});
+  }
+ }
  ship={x:210,y:380,vx:0,vy:0,hp:5,inv:3,shield:1,frontShield:0,frontFlash:0};
  flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;shake=flash=0;accumulator=0;companionClock=0;
  // Same two recovery items, in reachable open space, on every retry.
@@ -242,8 +251,68 @@ function supplySlotAvailable(){
 // Familiar power-ups enter visibly from the right, with a steady drift.
 // Checkpoint supplies retain their authored spacing and repeatable order.
 function makeSupply(item,reason='supply'){
- const stagger=reason==='checkpoint'?Math.max(0,750-item.x)*.55:0;
- return {...item,x:W+72+stagger,y:clamp(item.y,60,H-60),r:23,age:0,drift:reason==='checkpoint'?250:(item.drift||160)};
+ const stagger=reason==='checkpoint'?(item.recoveryIndex||0)*180:0;
+ return {...item,x:W+72+stagger,y:clamp(item.y,60,H-60),r:23,age:0,recovery:reason==='checkpoint',drift:reason==='checkpoint'?250:(item.drift||160)};
+}
+// A small time/height grid plans each recovery pickup once per retry. It uses
+// future scenery positions, including vertical passages and the midpoint gate.
+// This runs outside the frame loop and never changes authoritative terrain.
+function recoveryTerrain(at,x){
+ const now=time;time=at;
+ try{
+  const list=gatePlans[level].map((o,id)=>({...o,id,x:W+100-(at-o.at)*SCROLL_SPEED,w:o.width||82+difficulty()*8})).filter(o=>o.at<=at&&o.x+o.w>-100);
+  const c=sectors[level].challenge;
+  if(c&&at>=c.at-4&&W+100-(at-c.at+4)*SCROLL_SPEED+420>-30)list.push({at:c.at-4,id:50,x:W+100-(at-c.at+4)*SCROLL_SPEED,w:420,width:420,shutters:true});
+  return list.flatMap(o=>{
+   // A rotation-invariant asteroid envelope is both cheaper to plan against and
+   // safer than sampling a tumbling silhouette at a handful of future frames.
+   if(themeIndex()===0)return obstacleForms(o).flatMap((r,index)=>{
+    const surface=asteroidSurface(o,r,index),radius=surface.navigationRadius??(surface.navigationRadius=Math.max(...surface.points.map(p=>Math.hypot(...p)))),cx=r.x+r.w/2,cy=r.y+r.h/2;
+    if(Math.abs(x-cx)>radius+64)return [];
+    return [{x:cx-radius,y:cy-radius,w:radius*2,h:radius*2}];
+   });
+   const forms=obstacleForms(o);if(!forms.some(r=>x+64>r.x&&x-64<r.x+r.w)&&!o.rotor)return [];
+   return [...obstacleSolids(o),...(o.rotor?[{x:o.x+35,y:205,w:350,h:350}]:[])];
+  });
+ }finally{time=now;}
+}
+function planRecoveryRoute(item){
+ const step=.12,rows=41,dy=16,count=Math.ceil((item.x+60)/item.drift/step),parents=[],start=time;
+ let previous=null;
+ for(let i=0;i<=count;i++){
+  const x=item.x-item.drift*i*step,solids=recoveryTerrain(start+i*step,x),cost=new Float64Array(rows).fill(Infinity),parent=new Int16Array(rows).fill(-1);
+  for(let r=0;r<rows;r++){
+   const y=60+r*dy;
+   if(solids.some(o=>x+64>o.x&&x-64<o.x+o.w&&y+44>o.y&&y-44<o.y+o.h))continue;
+   const preference=((y-item.y)/H)**2;
+   if(!previous)cost[r]=preference;
+   else for(let q=Math.max(0,r-1);q<=Math.min(rows-1,r+1);q++){
+    const value=previous[q]+preference+(q===r?0:.035);
+    if(value<cost[r]){cost[r]=value;parent[r]=q;}
+   }
+  }
+  parents.push(parent);previous=cost;
+ }
+ let row=Array.from(previous).reduce((best,v,i)=>v<previous[best]?i:best,0);
+ if(!Number.isFinite(previous[row]))return null;
+ const points=new Array(count+1);for(let i=count;i>=0;i--){points[i]=60+row*dy;row=parents[i][row];}
+ return {step,points,startX:item.x};
+}
+function updateSupplyMovement(d,dt){
+ if(d.recovery&&!d.route){
+  d.routeWait=(d.routeWait||0)-dt;if(d.routeWait>0)return;
+  d.route=planRecoveryRoute(d);d.routeWait=.5;if(!d.route)return;
+  d.age=0;d.y=d.route.points[0];
+ }
+ d.age+=dt;
+ if(d.route){
+  const index=Math.min(d.route.points.length-2,Math.floor(d.age/d.route.step)),u=clamp(d.age/d.route.step-index,0,1);
+  d.x=d.route.startX-d.drift*d.age;d.y=d.route.points[index]*(1-u)+d.route.points[index+1]*u;
+ }else d.x-=(d.drift||70)*dt;
+ const distance=Math.hypot(d.x-ship.x,d.y-ship.y);
+ // Recovery follows its safe route; do not pull it through a wall toward the pilot.
+ if(!d.route&&distance<150){d.x+=(ship.x-d.x)*dt*2.8;d.y+=(ship.y-d.y)*dt*2.8;}
+ if(distance<55){collect(d);d.x=-100;}
 }
 function spawnSupplies(){
  const plan=supplyPlans[level],p=levelPacing();
@@ -370,7 +439,7 @@ for(const s of shots){const oldX=s.x,oldY=s.y;moveShot(s,dt);const impact=shotTe
 // Breath volumes and beam hazards are managed separately by their encounter rules.
 for(const b of hostile){const oldX=b.x,oldY=b.y;steerHostile(b,dt);if(b.kind==='seed'&&b.split)continue;b.x+=b.vx*dt;b.y+=b.vy*dt;const impact=shotTerrainHit(oldX,oldY,b);if(impact){terrainImpact(impact.x,impact.y,b.vx,b.vy);b.x=-100;continue}if(blockWithOrb(b,oldX,oldY)||blockWithFrontShield(b,oldX)){b.x=-100;continue}if(Math.hypot(b.x-ship.x,b.y-ship.y)<b.r+14){damage();b.x=-100}}hostile=hostile.filter(b=>b.x>-50&&b.x<W+200&&b.y>-50&&b.y<H+50);
 if(state!=='playing')return;
-for(const d of drops){d.age+=dt;d.x-=(d.drift||70)*dt;const distance=Math.hypot(d.x-ship.x,d.y-ship.y);if(distance<150){d.x+=(ship.x-d.x)*dt*2.8;d.y+=(ship.y-d.y)*dt*2.8}if(distance<55){collect(d);d.x=-100}}drops=drops.filter(d=>d.x>-30);
+for(const d of drops)updateSupplyMovement(d,dt);drops=drops.filter(d=>d.x>-30);
 if(state==='playing'&&boss&&boss.hp<=0){window.flightAudio?.clear();explodeBoss(boss);enemies=[];hazards=[];acidClouds=[];rings.push({x:boss.x,y:boss.y,r:20,life:1.1,c:'#fff'});score+=bossClearReward();boss=null;bossDefeated=true;transition=4;hostile=[];shots=[];flash=.48;shake=20;$('#bossbar').hidden=true;announce('SECTOR CLEARED','DESCENT ROUTE OPEN');tone(55,.9,'triangle',.04,-25)}
 if(state!=='playing')return;if(bossDefeated){transition-=dt;if(transition<=0){if(level===sectors.length-1){end(true)}else{advanceSector()}}}hudClock+=dt;if(hudClock>=.08){hudClock=0;updateHUD()}}
 function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawStructures();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'&&!sectorBlend?.destination){ctx.save();ctx.globalAlpha*=ship.inv>0?.74+Math.sin(ship.inv*28)*.26:1;drawShip(ship.x,ship.y);ctx.restore();drawFrontShield();drawWeaponOrb();drawOrbCharge();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
