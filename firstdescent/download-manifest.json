@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 29407441,
+  "bytes": 29411509,
   "assets": [
     {
       "path": "art.js",
-      "bytes": 203277,
-      "sha256": "ba605ab018d50109eef51189767556550d886055ddeb64ac2efd978ff063f2cc"
+      "bytes": 203366,
+      "sha256": "6c132ebe4bdca1dbccb4fedeb26960f7539b56010d36e2752a0323e7a80cc0ae"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -396,23 +396,23 @@
     },
     {
       "path": "capital-ship.js",
-      "bytes": 42301,
-      "sha256": "d36d1a38d9833891d1c39dee49430fb78821d2485a995fcfd9d63ea675e16152"
+      "bytes": 44702,
+      "sha256": "1e52b8122bfbafb725476c8d80f11b4b53eba3f0440d8fc165b65c895a019b1b"
     },
     {
       "path": "game.js",
-      "bytes": 77332,
-      "sha256": "d8c42fb5f5e4ffd5fb0c23d43788e282382a2130c3d98a0e8c587d20f9b93550"
+      "bytes": 78901,
+      "sha256": "19c5ab0ae2a8284a2ffe7e9d7c8ae16315f2c27b8375a70e7edc26b4853fe4b1"
     },
     {
       "path": "index.html",
-      "bytes": 6391,
-      "sha256": "1c526bfe8f862676194e89e28f540598392dbac4d7a42ca499fe3bf407847875"
+      "bytes": 6397,
+      "sha256": "b6c3469a7771e7b21d61627ff206865840ea5387b5dd3c08d0bfd7834b078b76"
     },
     {
       "path": "levels.js",
-      "bytes": 98505,
-      "sha256": "a67c3bd5542efa9d13faf711d1635a8d6cf3ce3ef82fa326391910810b9a034b"
+      "bytes": 98508,
+      "sha256": "d731a04abdc47b227d281b9740184cfd77ab0872d6b54f83e4d8856dfc0781a2"
     },
     {
       "path": "manifest.webmanifest",

@@ -85,8 +85,8 @@ function placeCheckpointRecovery(){
  const spawn=find(210,preferredY,52,32)||find(210,preferredY,24,14);
  if(spawn){ship.x=spawn.x;ship.y=spawn.y;}
  // Plan against moving terrain at arrival time, not just the restored snapshot.
- drops=sectors[level].recovery.map((d,i)=>{
-  const item=makeSupply({...d,y:clamp(ship.y+d.y-preferredY,60,H-60),recoveryIndex:i},'checkpoint');
+ drops=sectors[level].recovery.map((d,i)=>({...d,recoveryIndex:i})).filter(d=>pickupUseful(d.type)).map(d=>{
+  const item=makeSupply({...d,y:clamp(ship.y+d.y-preferredY,60,H-60)},'checkpoint');
   item.route=planRecoveryRoute(item);if(item.route)item.y=item.route.points[0];
   return item;
  });
@@ -110,10 +110,10 @@ function retrySection(){
  }
  ship={x:210,y:380,vx:0,vy:0,hp:5,inv:3,shield:1,frontShield:0,frontFlash:0};
  flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;shake=flash=0;accumulator=0;companionClock=0;
- // Same two recovery items, in reachable open space, on every retry.
+ // Keep the same recovery slots and routes; omit equipment already at its cap.
  placeCheckpointRecovery();
  state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();
- announce('SECTION '+(saved.section+1)+' / 4','CHECKPOINT RESTORED · POWER + SHIELD AHEAD');updateHUD();
+ announce('SECTION '+(saved.section+1)+' / 4','CHECKPOINT RESTORED · '+(drops.some(d=>d.type==='power')?'POWER + SHIELD AHEAD':'SHIELD AHEAD'));updateHUD();
 }
 function bossDamage(amount){return amount/(sectors[level].bossArmor||1);}
 
@@ -302,6 +302,13 @@ function planRecoveryRoute(item){
  return {step,points,startX:item.x};
 }
 function updateSupplyMovement(d,dt){
+ // If another pickup filled this slot while it was travelling, fade it out
+ // once. Never make a hidden pickup pop back into the middle of the screen.
+ if(d.suppressed||!pickupUseful(d.type)){
+  d.suppressed=true;d.fade=Math.max(0,(d.fade??1)-dt*5);d.age+=dt;
+  if(!d.fade||d.x>W+48)d.x=-100;else d.x-=(d.drift||70)*dt;
+  return;
+ }
  if(d.recovery&&!d.route){
   d.routeWait=(d.routeWait||0)-dt;if(d.routeWait>0)return;
   d.route=planRecoveryRoute(d);d.routeWait=.5;if(!d.route)return;
@@ -324,7 +331,10 @@ function spawnSupplies(){
  if(p.preBossRelief&&!preBossRelief&&time>=sectors[level].duration-14&&ship.hp<=3){queuedSupplies.unshift({type:'repair',y:clamp(ship.y,120,H-120),relief:true});preBossRelief=true;}
  const item=queuedSupplies[0];
  if(!item||time-lastSupplySpawn<p.pickupGap||!supplySlotAvailable())return;
- queuedSupplies.shift();lastSupplySpawn=time;drops.push(makeSupply({x:clamp(Math.max(ship.x+250,p.pickupX||650),220,W-130),y:item.y,type:item.type,drift:item.drift,relief:!!item.relief},item.relief?'rescue':'supply'));
+ queuedSupplies.shift();lastSupplySpawn=time;
+ // Consume the scheduled slot even when unnecessary; don't bring the next
+ // supply forward or reroll it into an unrelated resource.
+ if(pickupUseful(item.type))drops.push(makeSupply({x:clamp(Math.max(ship.x+250,p.pickupX||650),220,W-130),y:item.y,type:item.type,drift:item.drift,relief:!!item.relief},item.relief?'rescue':'supply'));
 }
 function enemyExplosionSize(e){return e.satellite?.65:e.brood?1.8:e.type===2?1.5:1}
 function enemyDefeatReward(e){
@@ -335,7 +345,23 @@ function enemyDefeatReward(e){
 }
 function bossClearReward(){return 3000+Math.round((sectors[level].systemChallenge?.progress||0)*1500);}
 function kill(e){const reward=enemyDefeatReward(e);score+=reward;if(reward)kills++;explode(e.x,e.y,isOrganicEnemy(e)?'#98ffc5':'#ffb26a',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));updateHUD()}
+function pickupUseful(type){
+ if(['spread','beam','helix','wave','missile'].includes(type))return weapon!==type||power<3;
+ switch(type){
+  case 'power':return power<3;
+  case 'speed':return speedLevel<3;
+  case 'companion':return companion<2;
+  case 'frontShield':return (ship.frontShield||0)<8;
+  case 'shield':return ship.shield<3;
+  case 'repair':return ship.hp<5;
+  case 'rescue':return !rescueCharge;
+  case 'nova':return novas<3;
+  case 'orb':return !weaponOrb.owned||(weaponOrb.charge??2)<2||weaponOrb.cooldown>0;
+  default:return false;
+ }
+}
 function collect(d){
+ if(d.suppressed||!pickupUseful(d.type))return false;
  if(['spread','beam','helix','wave','missile'].includes(d.type)){if(weapon===d.type)power=Math.min(3,power+1);else weapon=d.type}
  else if(d.type==='orb'){weaponOrb.owned=true;weaponOrb.charge=2;weaponOrb.cooldown=0;weaponOrb.flash=.25;}
  else if(d.type==='power')power=Math.min(3,power+1);
@@ -348,7 +374,7 @@ function collect(d){
  else if(d.type==='nova')novas=Math.min(3,novas+1);
  score+=50;burst(d.x,d.y,'#a8ffdb',12);window.flightAudio?.pickup(d.x);
  const label={orb:'ORB GUARD · TWO BLOCKS · RECHARGES BETWEEN BURSTS',speed:`ENGINE BOOST ${speedLevel}/3`,companion:'WINGMATE ONLINE',power:'CANNONS UPGRADED',frontShield:'FRONT GUARD ONLINE',shield:'SHIELD RESTORED',repair:'HULL REPAIRED',rescue:'RESCUE READY · SURVIVE ONE FATAL HIT',nova:'NOVA RECHARGED'}[d.type]||weaponNames[d.type]+' ACQUIRED';
- announce(label);annTimer=1.4;updateHUD();
+ announce(label);annTimer=1.4;updateHUD();return true;
 }
 // Capture once at the sector boundary. Blurring a small cached image avoids
 // filtering the full live scene on every frame of the transition.
@@ -445,7 +471,12 @@ if(state!=='playing')return;
 for(const d of drops)updateSupplyMovement(d,dt);drops=drops.filter(d=>d.x>-30);
 if(state==='playing'&&boss&&boss.hp<=0){window.flightAudio?.clear();explodeBoss(boss);enemies=[];hazards=[];acidClouds=[];rings.push({x:boss.x,y:boss.y,r:20,life:1.1,c:'#fff'});score+=bossClearReward();boss=null;bossDefeated=true;transition=4;hostile=[];shots=[];flash=.48;shake=20;$('#bossbar').hidden=true;announce('SECTOR CLEARED','DESCENT ROUTE OPEN');tone(55,.9,'triangle',.04,-25)}
 if(state!=='playing')return;if(bossDefeated){transition-=dt;if(transition<=0){if(level===sectors.length-1){end(true)}else{advanceSector()}}}hudClock+=dt;if(hudClock>=.08){hudClock=0;updateHUD()}}
-function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawStructures();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'&&!sectorBlend?.destination){ctx.save();ctx.globalAlpha*=ship.inv>0?.74+Math.sin(ship.inv*28)*.26:1;drawShip(ship.x,ship.y);ctx.restore();drawFrontShield();drawWeaponOrb();drawOrbCharge();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
+function drawBossBackdropFocus(){
+ if(sectorBlend||!boss&&!bossDefeated)return;
+ const approach=boss?(boss.entry?clamp(boss.entry.age/boss.entry.duration,0,1):1):clamp((transition-3.5)/.5,0,1);
+ ctx.save();ctx.fillStyle='rgba(2,8,16,'+(.18*approach)+')';ctx.fillRect(0,0,W,H);ctx.restore();
+}
+function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawBossBackdropFocus();drawStructures();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'&&!sectorBlend?.destination){ctx.save();ctx.globalAlpha*=ship.inv>0?.74+Math.sin(ship.inv*28)*.26:1;drawShip(ship.x,ship.y);ctx.restore();drawFrontShield();drawWeaponOrb();drawOrbCharge();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
 window.gpuModels?.flush(ctx);drawExplosions(dt);if(!sectorBlend)drawNearField();if(!sectorBlend)drawWaterAtmosphere(true);const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}ctx.restore();window.gpuModels?.flush(ctx)}
 let accumulator=0,frameError=null,musicUiClock=0,sectorArtPrefetched=false;
 const renderQualityLimit=matchMedia('(pointer: coarse)').matches?1:1.5;
@@ -591,7 +622,7 @@ function updateChallenge(){const c=sectors[level].challenge;if(!c)return;
  if(time>=c.at&&!challengeState.warned&&time<c.end){challengeState.warned=true;announce(c.title,themeIndex()===0?'ASTEROID NARROWS · FOLLOW THE OPEN CHANNEL':sectors[level].scrollAxis?'CHANGING SHAFT · FOLLOW THE OPEN CHANNEL':'OFFSET GATES AHEAD · FOLLOW THE OPEN CHANNEL');}
  if(!challengeState.gate&&time>=c.at-4&&time<c.end){challengeState.gate=true;const at=c.at-4,o={at,id:50,x:W+100-(time-at)*SCROLL_SPEED,w:420,width:420,shutters:true,parts:[{x:0,y:0,w:420,h:90,ceiling:true},{x:0,y:670,w:420,h:90,ceiling:false}]};obstacles.push(o);if(c.gate)enemies.push({sentry:true,anchorAt:at,x:o.x+110,y:125,base:125,type:2,age:0,phase:0,speed:0,r:28,hp:65,max:65,hit:0,shoot:2});}
  while(challengeState.wave<c.waves.length&&time>=c.waves[challengeState.wave]){const n=challengeState.wave++,type=c.types[n%c.types.length],count=Math.min(c.count,enemyWaveSlots());for(let i=0;i<count;i++){const y=c.gate?330+i*45:180+((n*137+i*110)%380),hp=([10,13,27,17][type]+difficulty()*3)*(sectors[level].enemyHealthScale||1);const e={x:W+80+i*115,y,base:y,type,age:0,phase:n*.7+i*.25,speed:(210+difficulty()*15)*c.speed,r:type===2?39:31,hp,max:hp,hit:0,shoot:2+i*.5,challenge:true};if(sectors[level].scrollAxis)prepareEnemyEntry(e,n,i);enemies.push(e);}}
- if(time>=c.end&&!challengeState.reward){challengeState.reward=true;drops.push(makeSupply({x:W-210,y:380,type:'repair'},'reward'));}
+ if(time>=c.end&&!challengeState.reward){challengeState.reward=true;if(pickupUseful('repair'))drops.push(makeSupply({x:W-210,y:380,type:'repair'},'reward'));}
 }
 
 // Interpolate presentation between fixed simulation ticks on high-refresh displays.

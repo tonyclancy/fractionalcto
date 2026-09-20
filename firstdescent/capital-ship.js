@@ -258,7 +258,19 @@ function capitalNodeActive(b,n){const siege=initCapitalSiege(b);return n.hp>0&&(
 // Sealed command armor protects the core; it does not disable its prow guns.
 // After one stabilizer is lost, those guns cover the surviving battery and aft approach.
 function capitalNodeArmed(b,n){return n.hp>0&&(capitalNodeActive(b,n)||n.id==='core'&&b.siege.nodes.slice(0,2).some(p=>p.hp<=0));}
-function capitalSiegeHint(b){const s=initCapitalSiege(b);if(s.stagger>0)return 'SECTION RUPTURED · REPOSITION WHILE GUNS REBOOT';const special=s.nodes.find(n=>n.special)?.special;if(special)return special.kind==='purge'?'THRUSTER IGNITION · CLEAR THE EXHAUST':'CAPACITOR DISCHARGE · DODGE THROUGH THE GAP';return s.stage==='batteries'?'STABILIZER PODS · '+s.nodes.slice(0,2).filter(n=>n.hp>0).length+' REMAIN':s.stage==='reactor'?'AFT REACTOR · FLY BEHIND · SPACE: FLIP':'COMMAND CORE EXPOSED · ATTACK THE BOW';}
+function capitalSiegeHint(b){
+ const s=initCapitalSiege(b);
+ if(s.stagger>0)return 'SECTION RUPTURED · REPOSITION WHILE GUNS REBOOT';
+ const special=s.nodes.find(n=>n.special)?.special;
+ if(special)return special.kind==='purge'?'THRUSTER IGNITION · CLEAR THE EXHAUST':'CAPACITOR DISCHARGE · FOLLOW THE DARK GAP';
+ if(s.stage==='batteries')return 'STABILIZER PODS · '+s.nodes.slice(0,2).filter(n=>n.hp>0).length+' REMAIN';
+ if(s.nodes.some(n=>capitalNodeActive(b,n)&&n.recovery>0))return 'MACHINERY OVERHEATED · LAND FOLLOW-UP SHOTS FOR EXTRA DAMAGE';
+ if(s.stage==='core')return 'COMMAND CORE EXPOSED · ATTACK THE BOW';
+ const node=s.nodes[2],p=capitalNodePosition(b,node),tip=bossMount(b,[node.local[0]+20,node.local[1],node.local[2]]),dx=tip.x-p.x,dy=tip.y-p.y;
+ if(Math.abs(dx)<Math.hypot(dx,dy)*.7||['turn','resetTurn'].includes(s.maneuver?.stage))return 'AFT REACTOR · FOLLOW THE STERN AS IT TURNS';
+ const direction=dx>0?-1:1;
+ return 'AFT REACTOR · APPROACH FROM '+(direction<0?'RIGHT':'LEFT')+' · '+(shipDirection()===direction?'HOLD FACING':'FLIP TO FIRE '+(direction<0?'LEFT':'RIGHT'));
+}
 function capitalNodeShape(b,n,padding=0){
  const p=capitalNodePosition(b,n),scale=capitalShipDesign(b).scale,pose=bossFlightPose(b),axes=n.radii.map((r,i)=>{const a=[0,0,0];a[i]=r*scale+padding;return rotateVertex(a,pose.yaw,pose.roll,pose.pitch,0,0);});
  let xx=0,xy=0,yy=0;for(const a of axes){xx+=a[0]*a[0];xy+=a[0]*a[1];yy+=a[1]*a[1];}return{x:p.x,y:p.y,xx,xy,yy,det:xx*yy-xy*xy};
@@ -290,7 +302,7 @@ function capitalAdvanceStage(b){
  if(s.stage==='batteries'&&s.nodes.slice(0,2).every(n=>n.hp<=0)){
   s.stage='reactor';
   // A recovered weapon orb is guaranteed here, even after a checkpoint loss.
-  // The player keeps their weapon and chooses when to move the orb to the rear.
+  // The player keeps their weapon and flips the ship to attack the exposed stern.
   if(!weaponOrb.owned){weaponOrb.owned=true;weaponOrb.flash=.25;s.orbGranted=true;window.flightAudio?.pickup(ship.x);updateHUD();}
   announce('STABILIZER PODS DESTROYED','FLY AROUND THE HULL · SPACE: FLIP · BREAK THE AFT REACTOR');
  }else if(s.stage==='reactor'&&s.nodes[2].hp<=0){s.stage='core';announce('REACTOR BREACHED · COMMAND CORE OPEN','RETURN TO THE BOW · SPACE FLIPS YOUR SHIP');}
@@ -310,39 +322,48 @@ function hitCapitalSection(s){
  let node=null,tNode=Infinity;
  for(const n of b.siege.nodes){if(n.hp<=0)continue;const t=capitalNodeIntersection(b,n,a,z,s.r||0);if(t<tNode){tNode=t;node=n;}}
  if(node&&tNode<=hull+.015){
-  if(capitalNodeActive(b,node)&&capitalShotSideAllowed(b,node,s,a))capitalDamageNode(b,node,bossDamage(s.damage)*1.25);
+  if(capitalNodeActive(b,node)&&capitalShotSideAllowed(b,node,s,a))capitalDamageNode(b,node,bossDamage(s.damage)*1.25*capitalSectionDamageScale(node));
   else terrainImpact(a.x+(z.x-a.x)*tNode,a.y+(z.y-a.y)*tNode,s.vx,s.vy);
   return true;
  }
  if(Number.isFinite(hull)){terrainImpact(a.x+(z.x-a.x)*hull,a.y+(z.y-a.y)*hull,s.vx,s.vy);return true;}return false;
 }
+// Exhaust/discharge leaves the exposed machinery hot. Accurate follow-up fire
+// earns faster progress; total authored health and nova damage stay unchanged.
+function capitalSectionDamageScale(n){return n.recovery>0?1.75:1;}
 function capitalBodyDamage(){return 0;}
 function capitalNovaDamage(b,amount){
  if(!isCapitalSiege(b))return false;initCapitalSiege(b);const targets=b.siege.nodes.filter(n=>capitalNodeActive(b,n));
  // Nova damages only exposed sections and cannot trigger several stages at once.
  for(const n of targets)capitalDamageNode(b,n,amount/Math.max(1,targets.length));return true;
 }
+// The rolling pods sweep almost 300px above/below the centre, including
+// pilot clearance. Reserve a continuous outer route during every attack pose.
+// Horizontal charges and reversals provide mobility without sealing that route.
+function capitalFlightHeight(y){return clamp(y,H*.5-10,H*.5+10);}
 function moveCapitalShip(b,dt){
  const siege=initCapitalSiege(b),oldX=b.x,oldY=b.y,age=b.age||0,phase=siege.stage==='core'?1.6:siege.stage==='reactor'?1.3:1;
  if(!siege.maneuver){const roll=.12+Math.sin(age*1.8)*.06;b.maneuverRoll=(b.maneuverRoll||0)+(roll-(b.maneuverRoll||0))*(1-Math.exp(-dt*7));}b.turnYaw??=0;b.barrelRoll??=0;
  const active=siege.nodes.filter(n=>capitalNodeArmed(b,n)),weaponsBusy=active.some(n=>n.special||n.warning>0||n.burst>0);
  if(!siege.maneuver){
   siege.maneuverClock-=dt*phase;
-  if(siege.maneuverClock<=0&&!(siege.stagger>0)&&!weaponsBusy&&b.x<W-220){siege.maneuver={stage:'warn',age:0,duration:1.1,attackY:clamp(ship.y,290,H-290),fromX:b.x,fromY:b.y,toX:b.x,toY:b.y,fromRoll:b.maneuverRoll,fromBarrel:b.barrelRoll};announce('DREADNOUGHT ATTACK RUN','BREAK ABOVE OR BELOW THE HULL');window.flightAudio?.thrusterBurst?.(.32);}
+  if(siege.maneuverClock<=0&&!(siege.stagger>0)&&!weaponsBusy&&b.x<W-220){siege.maneuver={stage:'warn',age:0,duration:1.1,attackY:capitalFlightHeight(ship.y),fromX:b.x,fromY:b.y,toX:b.x,toY:b.y,fromRoll:b.maneuverRoll,fromBarrel:b.barrelRoll};announce('DREADNOUGHT ATTACK RUN','BREAK ABOVE OR BELOW THE HULL');window.flightAudio?.thrusterBurst?.(.32);}
  }
  const m=siege.maneuver,next=(stage,duration,toX=b.x,toY=b.y)=>{m.stage=stage;m.age=0;m.duration=duration;m.fromX=b.x;m.fromY=b.y;m.toX=toX;m.toY=toY;m.fromRoll=b.maneuverRoll;m.fromBarrel=b.barrelRoll;};
  if(m){
   m.age+=dt;const u=clamp(m.age/m.duration,0,1),ease=u*u*(3-2*u);
   if(m.stage==='warn'){b.navVX*=Math.exp(-dt*5);b.navVY*=Math.exp(-dt*5);b.x+=b.navVX*dt;b.y+=b.navVY*dt;b.actionLoad=Math.max(b.actionLoad||0,u);if(u>=1)next('lunge',1.05,520,m.attackY);}
   else if(m.stage==='lunge'){b.x=m.fromX+(m.toX-m.fromX)*ease;b.y=m.fromY+(m.toY-m.fromY)*ease;b.attackDrive=1;b.propulsion=1;if(u>=1)next('turn',1.05,b.x,b.y);}
-  else if(m.stage==='turn'){b.turnYaw=Math.PI*ease;b.barrelRoll=m.fromBarrel;if(u>=1){next('rear',1.75,b.x,m.attackY);for(const n of active){n.target={x:ship.x,y:ship.y};n.warning=Math.min(n.warning||Infinity,.32);n.burst=0;}}}
-  else if(m.stage==='rear'){b.y=m.fromY+(m.toY-m.fromY)*ease;b.turnYaw=Math.PI;b.barrelRoll=m.fromBarrel+TAU*ease;b.propulsion=.7;if(u>=1)next('return',1.18,900,H*.5);}
+  else if(m.stage==='turn'){b.turnYaw=Math.PI*ease;b.barrelRoll=m.fromBarrel;if(u>=1){next('rear',siege.stage==='batteries'?3.5:6.25,b.x,m.attackY);for(const n of active){n.target={x:ship.x,y:ship.y};n.warning=Math.min(n.warning||Infinity,.32);n.burst=0;}}}
+  // Complete the roll, then hold the heading while firing: even a stock
+  // pilot has time to traverse the hull and attack before another reversal.
+  else if(m.stage==='rear'){b.y=m.fromY+(m.toY-m.fromY)*ease;b.turnYaw=Math.PI;const rollU=clamp(m.age/1.75,0,1);b.barrelRoll=m.fromBarrel+TAU*rollU*rollU*(3-2*rollU);b.propulsion=.7;if(u>=1)next('return',1.18,900,H*.5);}
   else if(m.stage==='return'){b.x=m.fromX+(m.toX-m.fromX)*ease;b.y=m.fromY+(m.toY-m.fromY)*ease;b.turnYaw=Math.PI;b.attackDrive=1;b.propulsion=1;if(u>=1)next('resetTurn',1.25,b.x,b.y);}
-  else if(m.stage==='resetTurn'){b.turnYaw=Math.PI*(1-ease);b.barrelRoll=m.fromBarrel;if(u>=1){b.turnYaw=0;siege.maneuver=null;siege.maneuverClock=6.1-phase*.6;}}
+  else if(m.stage==='resetTurn'){b.turnYaw=Math.PI*(1-ease);b.barrelRoll=m.fromBarrel;if(u>=1){b.turnYaw=0;siege.maneuver=null;siege.maneuverClock=(siege.stage==='batteries'?6.5:8.5)*phase;}}
   b.navVX=(b.x-oldX)/dt;b.navVY=(b.y-oldY)/dt;
  }else{
   // Destroyed sections make the patrol tighter and more urgent.
-  const orbit=age*.82*phase,thrust=Math.max(0,Math.sin(age*.9*phase))**6,targetX=805+Math.cos(orbit)*98-thrust*(siege.stage==='core'?110:58),targetY=H*.5+Math.sin(orbit*2)*(siege.stage==='core'?74:siege.stage==='reactor'?60:44);
+  const orbit=age*.82*phase,thrust=Math.max(0,Math.sin(age*.9*phase))**6,targetX=805+Math.cos(orbit)*98-thrust*(siege.stage==='core'?110:58),targetY=capitalFlightHeight(H*.5+Math.sin(orbit*2)*10);
   b.navVX=clamp((b.navVX||0)+((targetX-b.x)*2.35-(b.navVX||0)*3)*dt,-185,120);
   b.navVY=clamp((b.navVY||0)+((targetY-b.y)*2.9-(b.navVY||0)*3.25)*dt,-78,78);b.x+=b.navVX*dt;b.y+=b.navVY*dt;
  }
@@ -370,13 +391,14 @@ function updateCapitalDischarges(b,dt){
  for(const node of siege.nodes){const a=node.special;if(!a||!capitalNodeActive(b,node))continue;const previous=a.age;a.age+=dt;
   if(previous<a.warning&&a.age>=a.warning){const frame=capitalDischargeFrame(b,a.kind);if(a.kind==='purge')window.flightAudio?.thrusterBurst?.(a.duration);else window.flightAudio?.laserBeam(.35);if(a.kind==='pulse')siege.pulses.push({...frame,age:0,r:28,width:18,gap:a.gap,life:1.9});}
   if(a.kind==='purge'&&a.age>=a.warning&&a.age<a.warning+a.duration&&capitalPurgeContact(capitalDischargeFrame(b,a.kind),ship.x,ship.y))damage();
-  if(a.age>=a.warning+a.duration)node.special=null;
+  if(a.age>=a.warning+a.duration){node.special=null;node.recovery=2.4;}
  }
  for(const pulse of siege.pulses){pulse.age+=dt;pulse.r=28+pulse.age*510;if(capitalPulseContact(pulse,ship.x,ship.y))damage();}
  siege.pulses=siege.pulses.filter(p=>p.age<p.life);
 }
 function updateCapitalSiege(b,dt){
  const s=initCapitalSiege(b);s.age+=dt;b.charge=0;b.attack=null;b.special=Infinity;
+ for(const n of s.nodes)n.recovery=Math.max(0,(n.recovery||0)-dt);
  updateCapitalDischarges(b,dt);
  if(s.stagger>0){s.stagger=Math.max(0,s.stagger-dt);b.siegeLoad=0;b.siegeStrike=false;return;}
  if(s.maneuver?.stage==='lunge'){b.siegeLoad=1;b.siegeStrike=false;return;}
@@ -415,7 +437,15 @@ function drawCapitalDischarges(b){
     for(let i=0;i<5;i++){const x=25+i*43,w=(11-i*1.4)*(1+.09*Math.sin(age*55-i));ctx.globalAlpha=fade*(.64-i*.09);ctx.fillStyle='#e9f8ff';ctx.beginPath();ctx.moveTo(x-10,0);ctx.lineTo(x,-w);ctx.lineTo(x+17,0);ctx.lineTo(x,w);ctx.closePath();ctx.fill();}
     orb(0,0,r*.75,'#fff6d4',fade*.9);
    }
-  }else{orb(0,0,12+Math.min(1,a.age/a.warning)*24,'#b9efff',.7);}
+  }else{
+   orb(0,0,12+Math.min(1,a.age/a.warning)*24,'#b9efff',.7);
+   if(charging){
+    // The capacitor's split aperture reveals the opening before discharge.
+    // This is a local hardware cue, not a projected attack trajectory.
+    ctx.strokeStyle='#d6f7ff';ctx.lineWidth=6;ctx.globalAlpha=.5+.5*clamp(a.age/a.warning,0,1);
+    ctx.beginPath();for(const [lo,hi] of [[-.82,a.gap-.22],[a.gap+.22,.82]]){ctx.moveTo(Math.cos(lo)*43,Math.sin(lo)*43);ctx.arc(0,0,43,lo,hi);}ctx.stroke();
+   }
+  }
   ctx.restore();
  }
  for(const pulse of b.siege.pulses){const gap=capitalPulseGap(pulse.r),alpha=Math.min(1,pulse.age/.035,(pulse.life-pulse.age)/.3);ctx.globalAlpha=Math.max(0,alpha);ctx.lineCap='round';for(const [start,end] of [[-.82,Math.max(-.82,pulse.gap-gap)],[Math.min(.82,pulse.gap+gap),.82]]){if(end<=start)continue;for(const [width,color] of [[48,'rgba(105,187,245,.22)'],[25,'rgba(132,220,255,.75)'],[7,'#f2fdff']]){ctx.lineWidth=width;ctx.strokeStyle=color;ctx.beginPath();ctx.arc(pulse.x,pulse.y,pulse.r,pulse.heading+start,pulse.heading+end);ctx.stroke();}}}
@@ -479,7 +509,18 @@ function drawCapitalSiege(b){
  for(const n of s.nodes)drawCapitalDamage(b,n);
  ctx.save();ctx.textAlign='center';ctx.font='bold 10px "DM Sans",sans-serif';
  for(const n of s.nodes){if(n.hp<=0)continue;const p=capitalNodePosition(b,n),active=capitalNodeActive(b,n);
-  if(active){const above=n.id==='dorsal'||n.id==='core',yy=p.y+(above?-1:1)*(n.radius+20),pulse=.65+.35*Math.sin(b.age*8+n.local[1]);healthBar(p.x,yy,76,n.hp,n.max,'#ffc782');ctx.fillStyle='#fff0ca';ctx.fillText(n.id==='dorsal'?'UPPER STABILIZER':n.id==='ventral'?'LOWER STABILIZER':n.id==='reactor'?'AFT REACTOR':'COMMAND CORE',p.x,yy+(above?-7:17));ctx.strokeStyle='#ffd089';ctx.lineWidth=2.5;ctx.globalAlpha=pulse;ctx.setLineDash([8,7]);ctx.beginPath();ctx.arc(p.x,p.y,n.radius+8+b.age%1*4,b.age*.9,b.age*.9+Math.PI*1.45);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;}
+  if(active){
+   const above=n.id==='dorsal'||n.id==='core',yy=clamp(p.y+(above?-1:1)*(n.radius+22),35,H-40),label=n.id==='dorsal'?'UPPER STABILIZER':n.id==='ventral'?'LOWER STABILIZER':n.id==='reactor'?'AFT REACTOR':'COMMAND CORE';
+   const labelY=yy+(above?-9:19),labelX=clamp(p.x,86,W-86);
+   if(n.recovery>0)orb(p.x,p.y,n.radius*.7,'#93ffdd',.28+.1*Math.sin(b.age*14));
+   ctx.fillStyle='rgba(3,15,23,.87)';ctx.fillRect(labelX-81,labelY-13,162,19);
+   ctx.font='bold 12px "DM Sans",sans-serif';ctx.fillStyle='#d4fff0';ctx.fillText(n.recovery>0?'OVERHEATED · FIRE':label,labelX,labelY);
+   healthBar(labelX,yy,92,n.hp,n.max,'#8fffd5');
+   // Short corners mark the physical target without another spinning ring.
+   // Mint means vulnerable; amber muzzle light remains the attack warning.
+   const r=n.radius+9;ctx.strokeStyle='#91ffdb';ctx.lineWidth=2;ctx.globalAlpha=.85;
+   ctx.beginPath();for(const sx of [-1,1])for(const sy of [-1,1]){ctx.moveTo(p.x+sx*(r-11),p.y+sy*r);ctx.lineTo(p.x+sx*r,p.y+sy*r);ctx.lineTo(p.x+sx*r,p.y+sy*(r-11));}ctx.stroke();ctx.globalAlpha=1;
+  }
 
   if(capitalNodeArmed(b,n)&&n.warning>0){for(const gun of capitalGunMounts(b,n))orb(gun.x,gun.y,11+15*(1-n.warning/(n.id==='core'?1:.8)),'#ffb868',.55);}
   if(n.muzzle>0){const gun=capitalGunMounts(b,n)[n.lastGun||0],strength=n.muzzle/.17;ctx.save();ctx.translate(gun.x,gun.y);ctx.rotate(gun.heading);orb(9,0,29,'#ffd399',strength*.85);ctx.globalAlpha=strength;poly([[0,-7],[39,0],[0,7]],'#fff0be');ctx.strokeStyle='#ffe8bb';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(11+(1-strength)*18,0,4,8+(1-strength)*14,0,0,TAU);ctx.stroke();ctx.restore();}
