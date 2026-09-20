@@ -172,7 +172,7 @@ function drawWaterWakes(){
 // Software-projected solid geometry: yaw reveals the nose and side faces.
 function projectHull(v,yaw,roll,pitch){let [x,y,z]=v;let xx=x*Math.cos(yaw)+z*Math.sin(yaw),zz=-x*Math.sin(yaw)+z*Math.cos(yaw);let yy=y*Math.cos(roll)-zz*Math.sin(roll);zz=y*Math.sin(roll)+zz*Math.cos(roll);const f=340/(340+zz);return{x:(xx*Math.cos(pitch)-yy*Math.sin(pitch))*f,y:(xx*Math.sin(pitch)+yy*Math.cos(pitch))*f,z:zz}}
 function drawShip(x,y,scale=1,preview=false){
- const yaw=preview?Math.sin(world*.004)*.5:flightPose.yaw+pilotTurn.angle,roll=preview?-.25+Math.sin(world*.003)*.25:flightPose.roll,pitch=preview?-.06:flightPose.pitch,thrust=preview?.45:flightPose.thrust;
+ const pose=pilotFlightPose(),yaw=preview?Math.sin(world*.004)*.5:pose.yaw,roll=preview?-.25+Math.sin(world*.003)*.25:pose.roll,pitch=preview?-.06:pose.pitch,thrust=preview?.45:flightPose.thrust;
  const project=v=>projectHull(v,yaw,roll,pitch);const tier=preview?2:power;
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
  // Exhaust follows the rotated engine axis; acceleration lengthens the plume.
@@ -187,7 +187,7 @@ function drawShip(x,y,scale=1,preview=false){
  ctx.restore();
 }
 function dronePosition(i){const a=world*.012+i*Math.PI;return{x:ship.x+Math.cos(pilotTurn.angle)*(-50+Math.cos(a)*16),y:ship.y+(i===0?-1:1)*66+Math.sin(a)*12}}
-function drawDrone(i){const p=dronePosition(i),age=world*.012+i*Math.PI,yaw=pilotTurn.angle+Math.sin(age)*.22,pitch=flightPose.pitch*.65,roll=flightPose.roll*.45+Math.sin(age)*.28;orb(p.x-16*Math.cos(pilotTurn.angle),p.y,19,'#9892ff',.22);drawModel(meshes.wingmate,p.x,p.y,1,yaw,roll,pitch,age);}
+function drawDrone(i){const p=dronePosition(i),age=world*.012+i*Math.PI,yaw=pilotTurn.angle+Math.sin(age)*.22,pitch=flightPose.pitch*.65,roll=pilotTurn.angle+flightPose.roll*.45+Math.sin(age)*.28;orb(p.x-16*Math.cos(pilotTurn.angle),p.y,19,'#9892ff',.22);drawModel(meshes.wingmate,p.x,p.y,1,yaw,roll,pitch,age);}
 function healthBar(x,y,w,hp,max,color){ctx.save();ctx.fillStyle='#07101ddd';ctx.fillRect(x-w/2-2,y-2,w+4,8);ctx.fillStyle='#4a394b';ctx.fillRect(x-w/2,y,w,4);ctx.fillStyle=color;ctx.fillRect(x-w/2,y,w*clamp(hp/max,0,1),4);ctx.restore()}
 // Route against authored scenery even before either actor enters the viewport.
 let routeCache=null;
@@ -468,6 +468,8 @@ function moveBoss(b,dt){if(isTideEncounter()){moveTideBoss(b,dt);return;}if(sect
   if(kind===3&&b.vacuum>0){target={x:920,y:clamp(b.lockY??380,180,580)};drive=2.7;speed=190;}
   // Breathing retains gentle flight but cannot make an unannounced sweeping beam.
   if(b.breath)speed=Math.min(speed,165);
+  // Recovering creatures keep flying, but hold a readable counterattack lane.
+  if(b.exposed>0)speed=Math.min(speed,105);
   driveBoss(b,target,dt,drive,speed);
  }
  updateBossAttitude(b,dt,(b.x-oldX)/dt,(b.y-oldY)/dt);

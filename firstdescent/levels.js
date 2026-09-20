@@ -38,7 +38,7 @@ function bossEncounterProfile(l){return l.encounterProfile||BOSS_ENCOUNTERS[l.en
 // Shared tuning keeps future encounters within the same learnable combat rhythm.
 const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.25,specialRest:1.15,hitGrace:2.4,shieldGrace:1.5,breathTracking:.55,enemyWindup:.48,enemyShotClearance:180});
 const WATER_HANDLING=freezeContent({pilotSpeed:.9,acceleration:.065,braking:.09,reversal:.05,touchBuffer:.04,enemyMotion:.78,bossMotion:.84});
-const GAME_RULESET='2026-09-boss-techniques-v38';
+const GAME_RULESET='2026-09-boss-quality-v39';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova','rescue']);
@@ -2172,6 +2172,7 @@ function installPlanetBiosphere(stage,world,system){
  stage.models=ids.slice(0,4);stage.biosphere={id:world.id+'-biosphere',family:system.id,bodyPlan:anatomy[0],machinePlan:machines[mi],names:ids.filter((_,i)=>i===1||i===3).map(id=>planetSpecies.get(id).name),species:ids,boss:{id:world.id+'-sovereign',anatomy:bossAnatomy,caste:'boss',sensory:['antlers','barbels','compound'][(bossSeed>>>9)%3],integument:['quills','pores','ridges'][(bossSeed>>>13)%3],organic:![1,4].includes(BOSS_KINDS[stage.bossKind]),habitat:stage.medium,color:palette[0],accent:palette[1],variant:bossSeed%4,length:1.05,girth:1.1,small:1,span:1,machinePlan:machines[(mi+2)%machines.length],armor:pool.armor,heavy:true}};
  stage.biosphere.boss.genome=developSpeciesGenome(world.id,system.id,stage.medium,6,true,world.climate,stage.worldIdentity.design);
  if(world.id==='caelus'){stage.biosphere.boss.authoredAsset='vesper-reaver';stage.boss='THE VESPER REAVER';}
+ if(world.id==='ferrum'){stage.capitalHull='shipyard';stage.revision++;}
  if(world.id==='nacre'){stage.biosphere.boss.authoredAsset='rift-lantern';stage.encounterDirector='tide-knots';stage.boss='THE RIFT LANTERN';}
  const prior=stage.escortEncounter||{};stage.escortEncounter={...prior,name:planetSpecies.get(ids[4]).name.toUpperCase(),model:ids[4],escort:ids[5],organic:!mechanicalSwarm,rig:'appendages',count:prior.count||4,orbit:prior.orbit||2.6,formation:['screen','figure8','petals'][seed%3],pace:prior.pace||1};stage.revision+=3;
 }

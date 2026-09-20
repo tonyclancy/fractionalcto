@@ -35,7 +35,10 @@ let weaponOrb={owned:false,flash:0};
 let pilotTurn={angle:0,target:0};
 function shipDirection(){return pilotTurn.target===0?1:-1;}
 function shipTurning(){return Math.abs(pilotTurn.target-pilotTurn.angle)>.001;}
-function pilotMount(x,y=0,z=0){const p=projectHull([x,y,z],flightPose.yaw+pilotTurn.angle,flightPose.roll,flightPose.pitch);return{x:ship.x+p.x,y:ship.y+p.y};}
+// Couple the half-turn to a half-roll: yaw alone leaves the underside facing
+// the camera after reversal. All fitted equipment shares this upright pose.
+function pilotFlightPose(){return{yaw:flightPose.yaw+pilotTurn.angle,roll:flightPose.roll+pilotTurn.angle,pitch:flightPose.pitch};}
+function pilotMount(x,y=0,z=0){const pose=pilotFlightPose(),p=projectHull([x,y,z],pose.yaw,pose.roll,pose.pitch);return{x:ship.x+p.x,y:ship.y+p.y};}
 function orbPosition(){return pilotMount(65);}
 
 function refreshHullMeter(){

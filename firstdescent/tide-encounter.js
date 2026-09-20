@@ -36,7 +36,8 @@ function updateTideEncounter(b,dt){
 }
 function moveTideBoss(b,dt){
  const x=b.x,y=b.y,a=b.age*.28,target={x:W*.52+Math.cos(a)*W*.26,y:H*.48+Math.sin(a*1.45)*H*.21};
- driveBoss(b,target,dt,2.5,240);const facing=ship.x>b.x?Math.PI:0;b.turnYaw=(b.turnYaw||0)+clamp(facing-(b.turnYaw||0),-dt*2,dt*2);updateBossAttitude(b,dt,(b.x-x)/dt,(b.y-y)/dt);
+ const recovering=b.tide?.phase==='exposed',casting=b.tide?.phase==='cast';
+ driveBoss(b,target,dt,recovering?1.5:2.5,recovering?85:casting?145:240);const facing=ship.x>b.x?Math.PI:0;b.turnYaw=(b.turnYaw||0)+clamp(facing-(b.turnYaw||0),-dt*2,dt*2);updateBossAttitude(b,dt,(b.x-x)/dt,(b.y-y)/dt);
 }
 function hitTideNode(s){if(!boss?.tide)return false;for(const p of boss.tide.pods){if(p.hp<=0)continue;if(Math.hypot(s.x-p.x,s.y-p.y)<17+s.r){p.hp-=s.damage;burst(p.x,p.y,p.hp<=0?'#e6ffbf':'#99dfcc',p.hp<=0?14:3);return true;}}return false;}
 function drawTideEncounter(b){const t=b.tide;if(!t)return;ctx.save();

@@ -179,6 +179,19 @@ const capitalSiegeMeshes=(()=>{
    m.mesh.damageStage=stage;out[key+'Damage'+stage]=m.mesh;
   }
  }
+ // Destroyed openings retain their housing but lose the sealed center. Bent
+ // ribs, recessed darkness and severed conductors remain visible after smoke clears.
+ for(const id of ['reactor','core']){
+  const m=build(),x=id==='reactor'?103:-94,z=id==='reactor'?-8:-25,dir=id==='reactor'?1:-1;
+  m.annulus(x+dir*5,x-dir*12,0,z,16,11,dark,24);
+  m.tube(x-dir*13,x-dir*21,0,z,10,recess,false,8,20);
+  for(let i=0;i<7;i++){
+   const a=i*Math.PI*2/7,r=13,y=Math.cos(a)*r,zz=z+Math.sin(a)*r;
+   m.rod([x-dir*9,y,zz],[x+dir*(3+i%3*2),y*.8,zz+Math.sin(a)*4],1.1,i%2?metal:brass,6);
+   if(i%2===0)m.light(x,y*.65,zz,1.4,2.2,hot);
+  }
+  out[id+'Wreck']=m.mesh;
+ }
  return out;
 })();
 
@@ -228,6 +241,7 @@ function capitalLineageHull(spec){
 }
 function capitalShipDesign(b){
  if(!b.capitalDesign){const base=machineBossDesigns[1];b.capitalDesign={...base,mesh:capitalSiegeMeshes.hull,drives:capitalSiegeMeshes.drives,guns:capitalSiegeMeshes.guns,mouth:[-116,0,-17],scale:3.4,bodyVolumes:[{center:[0,0,0],radii:[70,35,33]},{center:[74,0,0],radii:[33,28,22]},{center:[-78,0,-20],radii:[28,26,20]},{center:[-7,-61,-23],radii:[34,16,18]},{center:[-7,61,-23],radii:[34,16,18]}]};}
+ if(!b.capitalDesign.lineageApplied&&typeof sectors!=='undefined'&&sectors[level]?.capitalHull==='shipyard'){b.capitalDesign.lineageApplied=true;b.capitalDesign.mesh=capitalSiegeMeshes.hull;}
  if(!b.capitalDesign.lineageApplied){const spec=typeof sectors!=='undefined'?sectors[level]?.biosphere?.boss:null;if(spec){const hull=spec.genome?capitalDevelopmentHull(spec):capitalSiegeMeshes.hull.map(f=>({...f,c:f.c.map((v,i)=>Math.round(v*.65+spec.color[i]*.35))}));if(!spec.genome){Object.assign(hull,{capitalHull:true,capitalSurface:true,dynamic:true,parts:capitalSiegeMeshes.hull.parts});hull.push(...capitalLineageHull(spec));}b.capitalDesign.mesh=hull;}b.capitalDesign.lineageApplied=true;}
  return b.capitalDesign;
 }
@@ -236,7 +250,7 @@ function initCapitalSiege(b){
  const total=b.max||b.hp||1000,node=(id,local,radii,fraction,clock)=>({id,local,radii,radius:Math.max(radii[1],radii[2])*3.4,hp:total*fraction,max:total*fraction,hit:0,clock,warning:0,muzzle:0,heading:Math.PI,cycle:0,special:null});
  b.siege={stage:'batteries',age:0,orbGranted:false,pulses:[],maneuverClock:6.5,maneuver:null,nodes:[node('dorsal',[-12,-65,-28],[50,16,17],.15,2.8),node('ventral',[-12,65,-28],[50,16,17],.15,4.3),node('reactor',[103,0,-8],[13,15,15],.23,2.6),node('core',[-94,0,-25],[15,15,15],.47,2.4)]};
  b.hp=total;b.max=total;b.pass=null;b.charge=0;b.attack=null;b.special=Infinity;
- announce('EXCAVATOR PRIME · ARMOR LOCKED','DESTROY THE UPPER AND LOWER STABILIZER PODS');
+ announce(sectors[level].boss+' · ARMOR LOCKED','DESTROY THE UPPER AND LOWER STABILIZER PODS');
  return b.siege;
 }
 function capitalNodePosition(b,n){return bossMount(b,n.local);}
@@ -283,7 +297,7 @@ function capitalAdvanceStage(b){
 }
 function capitalDamageNode(b,n,amount){
  if(!capitalNodeActive(b,n))return;const lost=Math.min(n.hp,Math.max(0,amount));n.hp-=lost;b.hp=b.siege.nodes.reduce((sum,node)=>sum+node.hp,0);n.hit=.1;const p=capitalNodePosition(b,n);
- if(n.hp<=0){n.warning=0;n.burst=0;n.special=null;explode(p.x,p.y,'#ffc27e',n.id==='core'?2.1:1.55,false);if(n.id==='core')for(const local of [[-45,-20,-10],[20,10,-10],[62,-25,-10]]){const breach=bossMount(b,local);explode(breach.x,breach.y,'#ffb869',1.35,false);}score+=n.id==='dorsal'||n.id==='ventral'?450:700;capitalAdvanceStage(b);}
+ if(n.hp<=0){n.warning=0;n.burst=0;n.muzzle=0;n.special=null;explode(p.x,p.y,'#ffc27e',n.id==='core'?2.1:1.55,false);if(n.id==='core')for(const local of [[-45,-20,-10],[20,10,-10],[62,-25,-10]]){const breach=bossMount(b,local);explode(breach.x,breach.y,'#ffb869',1.35,false);}score+=n.id==='dorsal'||n.id==='ventral'?450:700;capitalAdvanceStage(b);}
  else burst(p.x,p.y,'#ffd799',3);
 }
 function hitCapitalSection(s){
@@ -310,7 +324,7 @@ function moveCapitalShip(b,dt){
  const active=siege.nodes.filter(n=>capitalNodeArmed(b,n)),weaponsBusy=active.some(n=>n.special||n.warning>0||n.burst>0);
  if(!siege.maneuver){
   siege.maneuverClock-=dt*phase;
-  if(siege.maneuverClock<=0&&!weaponsBusy&&b.x<W-220){siege.maneuver={stage:'warn',age:0,duration:1.1,attackY:clamp(ship.y,290,H-290),fromX:b.x,fromY:b.y,toX:b.x,toY:b.y,fromRoll:b.maneuverRoll,fromBarrel:b.barrelRoll};announce('EXCAVATOR ATTACK RUN','BREAK ABOVE OR BELOW THE HULL');window.flightAudio?.thrusterBurst?.(.32);}
+  if(siege.maneuverClock<=0&&!weaponsBusy&&b.x<W-220){siege.maneuver={stage:'warn',age:0,duration:1.1,attackY:clamp(ship.y,290,H-290),fromX:b.x,fromY:b.y,toX:b.x,toY:b.y,fromRoll:b.maneuverRoll,fromBarrel:b.barrelRoll};announce('DREADNOUGHT ATTACK RUN','BREAK ABOVE OR BELOW THE HULL');window.flightAudio?.thrusterBurst?.(.32);}
  }
  const m=siege.maneuver,next=(stage,duration,toX=b.x,toY=b.y)=>{m.stage=stage;m.age=0;m.duration=duration;m.fromX=b.x;m.fromY=b.y;m.toX=toX;m.toY=toY;m.fromRoll=b.maneuverRoll;m.fromBarrel=b.barrelRoll;};
  if(m){
@@ -334,7 +348,7 @@ function capitalGunMounts(b,n){
  const sy=n.id==='dorsal'?-65:65;
  const locals=n.id==='dorsal'||n.id==='ventral'?[[-61,sy-5,-28],[-61,sy+5,-28]]:n.id==='reactor'?[[116,-21,-11],[116,21,-11]]:capitalShipDesign(b).guns;
  const direction=n.id==='reactor'?1:-1;
- return locals.map(p=>{const a=bossMount(b,p),tip=bossMount(b,[p[0]+direction*20,p[1],p[2]]);a.heading=Math.atan2(tip.y-a.y,tip.x-a.x)+(n.aimOffset||0);a.heading=Math.atan2(Math.sin(a.heading),Math.cos(a.heading));a.baseX=a.x;a.baseY=a.y;a.x+=Math.cos(a.heading)*22.4;a.y+=Math.sin(a.heading)*22.4;return a;});
+ return locals.map(p=>{const a=bossMount(b,p),tip=bossMount(b,[p[0]+direction*20,p[1],p[2]]);a.heading=Math.atan2(tip.y-a.y,tip.x-a.x)+(n.aimOffset||0);a.heading=Math.atan2(Math.sin(a.heading),Math.cos(a.heading));const recoil=Math.sin(clamp((n.muzzle||0)/.17,0,1)*Math.PI)*5;a.x-=Math.cos(a.heading)*recoil;a.y-=Math.sin(a.heading)*recoil;a.baseX=a.x;a.baseY=a.y;a.x+=Math.cos(a.heading)*22.4;a.y+=Math.sin(a.heading)*22.4;return a;});
 }
 function capitalDischargeFrame(b,kind){
  const drive=kind==='purge'?capitalShipDesign(b).drives[b.siege?.nodes.find(n=>n.id==='reactor')?.special?.driveIndex||0]:null;
@@ -364,7 +378,7 @@ function updateCapitalSiege(b,dt){
  for(const n of s.nodes){n.hit=Math.max(0,n.hit-dt);n.muzzle=Math.max(0,n.muzzle-dt);if(!capitalNodeArmed(b,n)||(b.x<0||b.x>W)||n.special)continue;const covering=!capitalNodeActive(b,n),lastBattery=s.stage==='batteries'&&s.nodes.slice(0,2).filter(p=>p.hp>0).length===1;
   if(n.target){const gun=capitalGunMounts(b,n)[0],axis=gun.heading-(n.aimOffset||0),desired=Math.atan2(n.target.y-gun.baseY,n.target.x-gun.baseX),offset=clamp(Math.atan2(Math.sin(desired-axis),Math.cos(desired-axis)),-.65,.65);n.aimOffset=(n.aimOffset||0)+clamp(offset-(n.aimOffset||0),-dt*2,dt*2);}
   if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=covering?3:n.id==='core'||lastBattery?6:4;n.burstClock=0;}}
-  if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?920:n.id==='reactor'?820:850,seeking=n.id!=='reactor'&&n.cycle%3===0&&n.burst===1;
+  if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){n.muzzle=.17;const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?920:n.id==='reactor'?820:850,seeking=n.id!=='reactor'&&n.cycle%3===0&&n.burst===1;
     hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?8:7,kind:seeking?'seeker':'rocket',bossRound:true,scale:n.id==='core'?.95:.85,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.12:.14;window.flightAudio?.shot('missile',mount.x,true);
    }}else if(n.warning<=0){if(s.maneuverClock<=0&&!s.maneuver)continue;n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=(covering?1.8:n.id==='core'?.56:lastBattery?.6:.76)*COMBAT_BALANCE.salvoRest*(sectors[level].salvoRestScale||1);n.heading=n.id==='reactor'?0:Math.PI;
     if(n.id==='reactor'&&n.cycle%2===0){n.special={kind:'purge',age:0,warning:1.15,duration:.76,driveIndex:Math.floor(n.cycle/2)%capitalShipDesign(b).drives.length};}
@@ -405,7 +419,7 @@ function drawCapitalDischarges(b){
 function capitalDamageStage(n){return n.hp>=n.max?0:n.hp<=0?3:n.hp/n.max>.65?1:n.hp/n.max>.3?2:3;}
 function capitalSectionMesh(b,n){
  const key=n.id==='dorsal'||n.id==='ventral'?n.id:n.id==='reactor'?(b.siege.stage==='batteries'?'reactorClosed':'reactorOpen'):(b.siege.stage==='core'?'coreOpen':'coreClosed');
- if(n.hp<=0&&(n.id==='dorsal'||n.id==='ventral'))return capitalSiegeMeshes[n.id+'Wreck'];
+ if(n.hp<=0)return capitalSiegeMeshes[n.id+'Wreck'];
  const stage=capitalDamageStage(n);return capitalSiegeMeshes[key+(stage?'Damage'+stage:'')]||capitalSiegeMeshes[key];
 }
 function capitalFireProfile(n){const severity=clamp(1-n.hp/n.max,0,1);return{severity,vents:severity>.65?3:severity>.3?2:1,length:24+severity*70,width:12+severity*24};}

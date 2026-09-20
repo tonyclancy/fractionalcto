@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 29402616,
+  "bytes": 29404173,
   "assets": [
     {
       "path": "art.js",
-      "bytes": 201942,
-      "sha256": "eab2d55e31ffc13f61ed8833a69cb9620421043a9d6fb2c866f03b373b3b641f"
+      "bytes": 202070,
+      "sha256": "6c491979e49441ea285dc6a058d491d22bbd9f5162d0c27b0aa04e34a01034ba"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -396,23 +396,23 @@
     },
     {
       "path": "capital-ship.js",
-      "bytes": 40758,
-      "sha256": "8887964ae7c95e7e3e5cd965700b57cb6daf0f32b9a75a95655d6cf2a049674c"
+      "bytes": 41724,
+      "sha256": "bd137d2855afc9d5be9bd601e39a7f6e892c33af3e2a40e821f8b669097e185f"
     },
     {
       "path": "game.js",
-      "bytes": 76964,
-      "sha256": "fe936447ef64bfd65dba95f27f970b84b25315e1f0ae06486fecb2b1e90f2c62"
+      "bytes": 77240,
+      "sha256": "a77fdf916c161f4ba4ea7f4ee825f5273fc09ca744bf09f7ed3ad728e272aff1"
     },
     {
       "path": "index.html",
       "bytes": 6379,
-      "sha256": "05c64b3d50a0cb61a81f02703fe9f1f9fbd64378c409e370ad48d0f46582dfc0"
+      "sha256": "ff86d6e73baf9c3ab5e813830d8fc3953d745f05e2ed6f8486a7ff1681d3cbb9"
     },
     {
       "path": "levels.js",
-      "bytes": 98431,
-      "sha256": "b29f8f1467ae975ae525e5297e59170f288c9f29adb38ff4fa783f23fa08c078"
+      "bytes": 98501,
+      "sha256": "0e93b6a322b556e4dd8fb398411c2f8d5d61dcd4b2b478df3427d544687fbd88"
     },
     {
       "path": "manifest.webmanifest",
@@ -451,8 +451,8 @@
     },
     {
       "path": "tide-encounter.js",
-      "bytes": 4321,
-      "sha256": "e21684f05d184c45d5bc5e5fd5585011e9fb3ccd19f08709c278293d0a1f9881"
+      "bytes": 4438,
+      "sha256": "d5050ea2392113e0577fc9a1e0f0c67aea456ad81d23b321c37627b73d2a4174"
     },
     {
       "path": "vendor/THREE-LICENSE.txt",
