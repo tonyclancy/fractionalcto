@@ -26,7 +26,7 @@ function bossEncounterProfile(l){return l.encounterProfile||BOSS_ENCOUNTERS[l.en
 // Shared tuning keeps future encounters within the same learnable combat rhythm.
 const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.25,specialRest:1.15,hitGrace:2.4,shieldGrace:1.5,breathTracking:.55,enemyWindup:.48,enemyShotClearance:180});
 const WATER_HANDLING=freezeContent({pilotSpeed:.9,acceleration:.065,braking:.09,reversal:.05,touchBuffer:.04,enemyMotion:.78,bossMotion:.84});
-const GAME_RULESET='2026-09-boss-tempo-v33';
+const GAME_RULESET='2026-09-engagement-balance-v35';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova','rescue']);
@@ -1957,7 +1957,7 @@ const SOLAR_SYSTEM_TEMPLATES=freezeContent(Object.fromEntries([
  ['noctis','the-obsidian-crown','Black glass tidal frontier','black glass / pale bismuth seams',['magma','foundry','trench','orbital'],['vault','shield','chalice','lancet'],['casket','catamaran','arc','delta']],
  ['meridian','the-distant-bloom','Radiant mineral blooms','sunstone petals / sapphire terraces',['desert','foundry','sky','ocean','storm','iceOcean'],['hammer','shield','fork','mantle','crown','ribbon'],['blade','casket','delta','arc','radial','spindle']],
  ['eventide','the-eventide-core','Magnetic stellar archipelago','refractory carbon / plasma filaments',['corona','corona','corona'],['centipede','crown','lancet'],['casket','radial','blade']]
-].map(([id,galaxyId,title,materials,route,organics,machines])=>[id,{id,version:1,galaxyId,title,materials,route,organics,machines,difficultyCurve:'system-arc-v2'}])));
+].map(([id,galaxyId,title,materials,route,organics,machines],expeditionIndex)=>[id,{id,version:2,galaxyId,title,materials,route,organics,machines,expeditionIndex,difficultyCurve:'system-arc-v3'}])));
 function systemTemplate(system){
  const id=system.id.replace(/-system$/,''),template=SOLAR_SYSTEM_TEMPLATES[id];
  if(!template||template.galaxyId!==(system.galaxyId||system.galaxy))throw Error('Supply a matching solar-system template for '+system.id);
@@ -1968,22 +1968,27 @@ function worldTemplate(system,index){
  if(!environment)throw Error('Missing world template at '+system.id+'/'+index);
  return {systemDesign,environmentId,environment};
 }
-function systemChallengeBudget(index,count){
+function systemChallengeBudget(index,count,expeditionIndex=0){
  if(!Number.isInteger(index)||!Number.isInteger(count)||count<1||index<0||index>=count)throw Error('Invalid system challenge position');
- const progress=count===1?0:index/(count-1);
- return {version:2,index,count,progress,difficulty:Number((.75+progress*2.75).toFixed(3)),hp:Math.round(1000+300*progress),enemyHealthScale:1.04+progress*.18,bossArmor:1+progress*.12,maxActiveEnemies:9+Math.round(progress*5),waves:18+Math.round(progress*8),eliteWaveInterval:11-Math.round(progress*4),salvoRestScale:1-progress*.24,specialCooldown:6.1-progress*1.65,warning:1.85-progress*.25};
+ if(!Number.isInteger(expeditionIndex)||expeditionIndex<0)throw Error('Invalid expedition position');
+ const progress=count===1?0:index/(count-1),journey=1-Math.exp(-expeditionIndex/5);
+ return {version:3,expeditionIndex,journey,enemyFireScale:1-journey*.18,index,count,progress,difficulty:Number((.75+progress*2.75).toFixed(3)),hp:Math.round(1000+300*progress),enemyHealthScale:(1.04+progress*.38)*(1+journey*.3),bossArmor:1+progress*.12,maxActiveEnemies:9+Math.round(progress*5),waves:18+Math.round(progress*8),eliteWaveInterval:11-Math.round(progress*4+journey*2),salvoRestScale:(1-progress*.34)*(1-journey*.18),specialCooldown:(6.1-progress*2)*(1-journey*.14),warning:1.85-progress*.25};
 }
-function applySystemChallenge(stage,index,count){
- const b=systemChallengeBudget(index,count);stage.systemChallenge=b;
+function applySystemChallenge(stage,index,count,expeditionIndex){
+ const b=systemChallengeBudget(index,count,expeditionIndex);stage.systemChallenge=b;
  Object.assign(stage,{difficulty:b.difficulty,hp:b.hp,enemyHealthScale:b.enemyHealthScale,bossArmor:b.bossArmor,salvoRestScale:b.salvoRestScale});
  stage.pacing={...stage.pacing,maxActiveEnemies:b.maxActiveEnemies,pickupGap:2.7-b.progress*.4,maxPickups:2,preBossRelief:true};
  // A little room to read the opening; the same authored wave count builds later.
- stage.waves=Array.from({length:b.waves},(_,i)=>Number((3+Math.pow(i/(b.waves-1),.82)*(stage.duration-8.5)).toFixed(3)));
+ stage.waves=Array.from({length:b.waves},(_,i)=>Number((3+Math.pow(i/(b.waves-1),.76)*(stage.duration-8.5)).toFixed(3)));
  // Defense is the first learnable pickup, before the opening obstacle reaches the pilot.
  const guard=stage.supplies.find(d=>d.type==='frontShield'),speed=stage.supplies.find(d=>d.type==='speed');
- if(guard){guard.at=1;guard.y=380;}if(speed)speed.at=3.5;
+ if(guard){guard.at=1;guard.y=380;guard.drift=260;}if(speed)speed.at=3.5;
+ const earlyPower=stage.supplies.find(d=>d.type==='power');if(earlyPower){earlyPower.at=6.2;earlyPower.y=380;earlyPower.drift=230;}
  stage.supplies.sort((a,b)=>a.at-b.at);
  stage.broodWaves=b.progress>=.6?[5,13,Math.min(b.waves-2,21)]:[5,13];
+ // Fixed counter-waves ask the pilot to flip; never depend on current power.
+ const flankInterval=b.progress>=.7?5:b.progress>=.35||b.journey>=.3?7:0;
+ stage.flankWaves=flankInterval?stage.waves.map((_,i)=>i).filter(i=>i>=4&&(i-4)%flankInterval===0&&!stage.broodWaves.includes(i)):[];
  stage.encounterProfile={...bossEncounterProfile(stage),cooldown:b.specialCooldown,warning:b.warning};
  if(stage.challenge){stage.challenge.count=b.progress<.65?2:3;stage.challenge.speed=1+b.progress*.1;}
  if(stage.escortEncounter)stage.escortEncounter={...stage.escortEncounter,count:3+Math.round(b.progress),pace:1+b.progress*.1};
@@ -2135,7 +2140,7 @@ function installPlanetBiosphere(stage,world,system){
  stage.worldIdentity.biome=environmentId;
  stage.worldIdentity.templateVersion=systemDesign.version;
  stage.worldIdentity.design={id:world.id+'-design-v1',systemTemplate:systemDesign.id,geology:systemDesign.materials,landform:environment.landform,adaptation:environment.adaptation,organicArchitecture:systemDesign.organics[worldIndex],machineArchitecture:systemDesign.machines[worldIndex],landscapeAsset:'worlds/'+world.id+'/landscape.webp',orbitalAsset:PLANET_SURFACE_DISKS[world.surfaceDisk]||null,surfaceFamily:world.surfaceFamily||null,artStatus:(!stage.contentSeed||stage.gravityWell)?'existing-authored':'needs-unique-art',encounterStatus:'shared-controller'};
- applySystemChallenge(stage,worldIndex,system.destinations.length);
+ applySystemChallenge(stage,worldIndex,system.destinations.length,systemDesign.expeditionIndex);
  const {pool,anatomy,seed}=planetEvolution(world,system,stage.medium),water=stage.medium==='water';
  const palettes=water?[[[38,125,151],[211,155,83]],[[153,64,96],[106,185,170]],[[75,111,178],[219,167,111]],[[51,141,110],[186,150,203]]]:[[[62,149,102],[221,172,76]],[[159,66,75],[114,178,180]],[[98,92,169],[217,159,87]],[[171,113,51],[99,184,147]]];
  const climatePalettes={hot:[[[136,74,44],[226,159,92]],[[116,58,49],[207,155,105]],[[114,108,76],[232,171,93]]],plasma:[[[126,64,42],[248,188,104]],[[126,98,71],[157,211,226]]],ice:[[[108,155,172],[205,191,156]],[[123,136,174],[168,215,200]],[[148,170,159],[210,153,131]]]};

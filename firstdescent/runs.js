@@ -21,7 +21,7 @@ function showLocalScores(){
  panel('FLIGHT<br><em>RECORDS</em>',description+'<br><small>Saved on this device · Online rankings coming later</small>','BACK',()=>{
   if(oldState==='title'){showTitleScreen();}
   else if(oldState==='playing'||oldState==='paused'){state='paused';panel('FLIGHT<br><em>PAUSED</em>','Ready when you are.','RESUME MISSION',pause);}
-  else panel(oldState==='victory'?'SYSTEM<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',oldState==='victory'?'Campaign complete.':`Resume section ${checkpoint.section+1} of 4.`,oldState==='victory'?'FLY AGAIN':'RETRY SECTION',oldState==='victory'?start:retrySection);
+  else panel(oldState==='victory'?'SYSTEM<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',oldState==='victory'?'Campaign complete.':`Resume section ${checkpoint.section+1} of 4.`,oldState==='victory'?'FLY AGAIN':'CONTINUE DESCENT',oldState==='victory'?start:retrySection);
  });
  $('#overlay').classList.add('records-view');
 }

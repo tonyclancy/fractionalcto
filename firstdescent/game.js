@@ -46,11 +46,16 @@ function refreshHullMeter(){
 }
 if(typeof setInterval==='function')setInterval(refreshHullMeter,80);
 function flipShip(){if(state!=='playing'||sectorBlend)return;pilotTurn.target=pilotTurn.target===0?Math.PI:0;fireClock=0;updateHUD();}
-function updatePilotTurn(dt){const delta=pilotTurn.target-pilotTurn.angle;pilotTurn.angle+=clamp(delta,-Math.PI*dt/.22,Math.PI*dt/.22);weaponOrb.flash=Math.max(0,(weaponOrb.flash||0)-dt);}
+function updateOrbCharge(dt){
+ if(!weaponOrb.owned)return;
+ weaponOrb.charge??=2;weaponOrb.cooldown=Math.max(0,(weaponOrb.cooldown||0)-dt);
+ if(!weaponOrb.cooldown)weaponOrb.charge=Math.min(2,weaponOrb.charge+dt*.25);
+}
+function updatePilotTurn(dt){updateOrbCharge(dt);const delta=pilotTurn.target-pilotTurn.angle;pilotTurn.angle+=clamp(delta,-Math.PI*dt/.22,Math.PI*dt/.22);weaponOrb.flash=Math.max(0,(weaponOrb.flash||0)-dt);}
 // Sweep the bullet segment against the attached orb, so fast missiles cannot
 // tunnel through it. Rear shots and attacks passing above/below remain threats.
 function blockWithOrb(b,oldX,oldY){
- if(!weaponOrb.owned||shipTurning())return false;
+ if(!weaponOrb.owned||shipTurning()||(weaponOrb.charge??2)<1)return false;
  const dir=shipDirection(),p=orbPosition(),r=22+(b.r||0);
  if(b.vx*dir>=0||(oldX-p.x)*dir < -r)return false;
  const dx=b.x-oldX,dy=b.y-oldY,length=dx*dx+dy*dy;
@@ -58,7 +63,7 @@ function blockWithOrb(b,oldX,oldY){
  const x=oldX+dx*t,y=oldY+dy*t;
  if(Math.hypot(x-p.x,y-p.y)>r)return false;
  if(!(weaponOrb.flash>0))window.flightAudio?.shipHit(p.x,true);
- weaponOrb.flash=.14;burst(x,y,'#a5faff',8);return true;
+ weaponOrb.charge=(weaponOrb.charge??2)-1;weaponOrb.cooldown=2;weaponOrb.flash=.14;burst(x,y,'#a5faff',8);return true;
 }
 
 
@@ -91,7 +96,7 @@ function retrySection(){
  challengeState.wave=(sectors[level].challenge?.waves||[]).filter(at=>at<time).length;
  waveIndex=waveTimes[level].filter(at=>at<time).length;gateIndex=gatePlans[level].filter(g=>g.at<time).length;supplyIndex=supplyPlans[level].filter(d=>d.at<time).length;
  obstacles=gatePlans[level].slice(0,gateIndex).map((g,id)=>({...g,id,x:W+100-(time-g.at)*SCROLL_SPEED,w:g.width||82+difficulty()*8})).filter(o=>o.x+o.w>-30);
- ship={x:210,y:380,vx:0,vy:0,hp:5,inv:3,shield:0,frontShield:0,frontFlash:0};
+ ship={x:210,y:380,vx:0,vy:0,hp:5,inv:3,shield:1,frontShield:0,frontFlash:0};
  flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;shake=flash=0;accumulator=0;companionClock=0;
  // Same two recovery items, in reachable open space, on every retry.
  placeCheckpointRecovery();
@@ -126,15 +131,15 @@ function nativeFullscreenElement(){return document.fullscreenElement||document.w
 function ensureGameFullscreen(){if(!nativeFullscreenElement()&&!fullscreenPanel().classList.contains('expanded'))return toggleGameFullscreen();return requestLandscape();}
 // Resume audio before fullscreen consumes the browser user activation.
 function beginDescent(){atlasOpen=false;atlasSystemId=null;$('#overlay').onclick=null;enableAudio();const launch=()=>{start();sectorBlend={arrival:true,systemEntry:true,age:0,duration:15.5/NAVIGATION_SPEED,destination:expedition.locations[sectors[0].id]};$('#announcement').style.opacity=0;annTimer=0;render(0);};if(window.safariImmersion?.request(launch))return;void ensureGameFullscreen();launch();}
-function start(){rescueCharge=0;weaponOrb={owned:false,flash:0};pilotTurn={angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:0,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
+function start(){rescueCharge=0;weaponOrb={owned:false,flash:0};pilotTurn={angle:0,target:0};beginFlightRun();frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:1,frontShield:0,frontFlash:0};resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();announce('SECTOR 01',sectors[0].name);updateHUD()}
 function resetSector(){flash=0;shake=0;if(sectors[level].stellar)requestStellarPhotosphere();resetWaterWakes();trimSectorArt(sectors[level],sectors[level+1]);prepareSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;window.gpuModels?.prepare([bossDesign()?.mesh,...sectors[level].models.map(n=>meshes[n]),meshes.spore,meshes.missile,meshes.siphon,meshes.cannon,meshes.shrapnel,meshes.bone,meshes.rib,meshes.spineChip,meshes.chitinChip,meshes.skull,meshes.orbitalRock].filter(Boolean));challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setEnvironment?.(sectors[level].medium,sectors[level].theme,sectors[level].environment);window.flightAudio?.setSector(sectors[level].music,sectors[level].id,{kind:bossIndex(),organic:bossOrganic(),anatomy:bossDesign()?.mesh.anatomyProgram||sectors[level].biosphere?.boss.anatomy,habitat:sectors[level].medium,seed:sectors[level].biosphere?.boss.genome?.seed,protection:sectors[level].biosphere?.boss.genome?.protection});window.flightAudio?.setBossApproach?.(0);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.edgeBounceX=ship.edgeBounceY=null;ship.inv=3;saveCheckpoint();updateHUD()}
 function panel(title,description,label,action){$('#overlay').classList.remove('hidden','records-view','title-screen');$('#overlay').innerHTML=`<div class="intro"><div class="eyebrow mint">FIRST DESCENT / FLIGHT RECORD</div><h1 class="result-title">${title}</h1><p class="introcopy">${description}</p><button class="primary" id="panelAction">${label}<span>↗</span></button><div class="launch-caption">SCORE ${String(score).padStart(6,'0')} · ${expedition.locations[sectors[level].id].systemName} · SECTOR ${systemStageProgress(expedition.locations[sectors[level].id]).number} / ${systemStageProgress(expedition.locations[sectors[level].id]).total}</div></div>`;$('#panelAction').onclick=action;$('#panelAction').focus()}
 function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause)}else if(state==='paused'){enableAudio();const resume=()=>{state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus();updateHUD();};if(window.safariImmersion?.request(resume))return;void ensureGameFullscreen();resume()}updateHUD()}
 function end(win){if(!win&&flightRun)flightRun.deaths++;recordFlightRun(win);window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();state=win?'victory':'gameover';$('#pause').hidden=true;$('#touchControls').classList.remove('active');$('#bossbar').hidden=true;
- panel(win?'SYSTEMS<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',win?`${contentReleases.flatMap(r=>r.systems).length} systems secured · ${new Set(Object.values(expedition.locations).filter(p=>p.destinationKind==='planet').map(p=>p.destinationId)).size} planets conquered · ${sectors.length} descents cleared.<br>The expedition is secured. New solar systems will arrive in future updates.`:`Restart sector ${level+1}, section ${checkpoint.section+1} of 4.<br>Your checkpoint loadout returns, with power and shield pickups ahead.`,win?'FLY AGAIN':'RETRY SECTION',win?beginDescent:retrySection);updateHUD()}
+ panel(win?'SYSTEMS<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',win?`${contentReleases.flatMap(r=>r.systems).length} systems secured · ${new Set(Object.values(expedition.locations).filter(p=>p.destinationKind==='planet').map(p=>p.destinationId)).size} planets conquered · ${sectors.length} descents cleared.<br>The expedition is secured. New solar systems will arrive in future updates.`:`Continue ${expedition.locations[sectors[level].id].destinationName}, section ${checkpoint.section+1} of 4.<br>Your checkpoint loadout returns, with power and shield pickups ahead.`,win?'FLY AGAIN':'CONTINUE DESCENT',win?beginDescent:retrySection);updateHUD()}
 // Upgrades widen coverage and increase total output without multiplying every barrel.
-const WEAPON_DAMAGE={pulse:3.2,spread:2.6,beam:6,helix:2.8,wave:6,missile:10,drone:2};
-const POWER_OUTPUT=[1,1.35,1.75];
+const WEAPON_DAMAGE={pulse:3.2,spread:1.6,beam:5.4,helix:2.1,wave:6,missile:7,drone:2};
+const POWER_OUTPUT=[1,1.3,1.6];
 function makeShot(x,y,kind,angle=0,side=0){
  const c={pulse:'#92ffe7',spread:'#ffc26b',beam:'#87cfff',helix:'#be93ff',wave:'#6cffe8',missile:'#ffb86c',drone:'#a1eeff'}[kind];
  const speed=kind==='missile'?430:kind==='wave'?660:850;
@@ -153,8 +158,18 @@ function fire(origin=ship,direction=shipDirection(),fromOrb=false){
  for(let i=first;i<shots.length;i++)shots[i].damage*=budget/total;
  if(!fromOrb)muzzleFlash=.07;window.flightAudio?.shot(weapon,ship.x);
 }
+// Piercing has a finite energy budget; wide weapons cannot erase an entire
+// formation at full damage. Ordinary rounds are consumed at their first hit.
+function hitEnemyWithShot(s,e){
+ if(s.spent||e.hp<=0||s.seen.has(e))return false;
+ e.hp-=s.damage;e.hit=.12;s.seen.add(e);burst(e.x,e.y,s.c,3);
+ if(e.hp<=0)kill(e);
+ if(!s.beam||s.seen.size>=3)s.spent=true;
+ else s.damage*=.6;
+ return true;
+}
 function damage(){if(ship.inv>0||state!=='playing')return;if(ship.shield>0){ship.shield--;ship.inv=COMBAT_BALANCE.shieldGrace;window.flightAudio?.shipHit(ship.x,true);burst(ship.x,ship.y,'#8ddfff',15)}else{ship.hp--;ship.inv=COMBAT_BALANCE.hitGrace;shake=10;flash=.12;burst(ship.x,ship.y,'#ffa782',30);window.flightAudio?.shipHit(ship.x);if(ship.hp<=0){if(rescueCharge){rescueCharge=0;ship.hp=3;ship.inv=3.5;hostile=hostile.filter(b=>Math.hypot(b.x-ship.x,b.y-ship.y)>300);if(flightRun)flightRun.rescues=(flightRun.rescues||0)+1;rings.push({x:ship.x,y:ship.y,r:20,life:.9,c:'#fff1a2'});window.flightAudio?.pickup(ship.x);announce('RESCUE ACTIVATED','HULL RESTORED · ALL UPGRADES RETAINED');}else end(false);}}updateHUD()}
-function nova(){if(state!=='playing'||sectorBlend||novas<=0)return;novas--;flash=.55;shake=14;for(const e of enemies){explode(e.x,e.y,isOrganicEnemy(e)?'#87ffd1':'#ffb36b',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));score+=100}enemies=[];hostile=[];if(boss){if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))capitalNovaDamage(boss,95);else{boss.hp-=95;boss.hit=.2}}rings.push({x:ship.x,y:ship.y,r:10,life:1.2,c:'#c0fff0'});window.flightAudio?.explosion(ship.x,3,false);updateHUD()}
+function nova(){if(state!=='playing'||sectorBlend||novas<=0)return;novas--;flash=.55;shake=14;for(const e of enemies){if(e.hp<=0)continue;e.hp=0;kill(e);}enemies=[];hostile=[];if(boss){if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))capitalNovaDamage(boss,95);else{boss.hp-=95;boss.hit=.2}}rings.push({x:ship.x,y:ship.y,r:10,life:1.2,c:'#c0fff0'});window.flightAudio?.explosion(ship.x,3,false);updateHUD()}
 function enemyWaveSlots(){return Math.max(0,levelPacing().maxActiveEnemies-enemies.filter(e=>e.hp>0&&!e.satellite&&!e.sentry).length);}
 function spawn(){
  const slots=enemyWaveSlots();if(!slots)return;
@@ -165,9 +180,9 @@ function spawn(){
   for(let n=0;n<count;n++)enemies.push({satellite:true,mother,escortProfile:profile,orbit:n*TAU/count,type:profile&&!profile.organic?0:1,x:mother.x,y:mother.y,base:380,age:0,phase:n*.3,speed:245,hp:profile?20+difficulty()*2:14,max:profile?20+difficulty()*2:14,hit:0,r:20,shoot:profile?3+n*.65:Infinity});return;
  }
 
- const i=waveIndex,eliteInterval=sectors[level].systemChallenge?.eliteWaveInterval||10,elite=i===11?'hunter':i%eliteInterval===Math.min(7,eliteInterval-1)?(Math.floor(i/eliteInterval)%2?'hunter':'ace'):null,type=elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length],center=sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=Math.min(slots,elite?3:i<2?3:4+(difficulty()>0?1:0));
+ const i=waveIndex,eliteInterval=sectors[level].systemChallenge?.eliteWaveInterval||10,elite=i===11?'hunter':sectors[level].flankWaves?.includes(i)?'ace':i%eliteInterval===Math.min(7,eliteInterval-1)?(Math.floor(i/eliteInterval)%2?'hunter':'ace'):null,type=elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length],center=sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=Math.min(slots,elite?3:i<2?2:4+(difficulty()>0?1:0));
  for(let n=0;n<count;n++){const leader=n===0?elite:null,memberType=elite&&n>0?0:type,offset=i%3===0?(n-(count-1)/2)*52:i%3===1?Math.sin(n*1.15)*75:(n%2?1:-1)*Math.ceil(n/2)*42,y=clamp(center+offset,100,H-100),hp=([7,9,22,13][memberType]+difficulty()*3)*(leader?2.5:1)*(sectors[level].enemyHealthScale||1);
- const enemy={x:W+180+n*96,y,base:y,type:memberType,elite:leader,wave:i,hp,max:hp,hit:0,age:0,phase:i*.45+n*.16,shoot:1.5+n*.38,speed:([220,180,130,205][memberType]+difficulty()*17)*(leader==='ace'?1.55:1)*(1+Math.min(i,20)*.018),r:memberType===2?39:31};prepareEnemyEntry(enemy,i,n);enemies.push(enemy);}
+ const enemy={x:W+180+n*96,y,base:y,type:memberType,elite:leader,wave:i,hp,max:hp,hit:0,age:0,phase:i*.45+n*.16,shoot:(leader?.9:1.5)+n*.38,speed:([220,180,130,205][memberType]+difficulty()*17)*(leader==='ace'?1.55:1)*(1+Math.min(i,20)*.018),r:memberType===2?39:31};prepareEnemyEntry(enemy,i,n);enemies.push(enemy);}
 }
 function updateStructures(dt){
  const plan=gatePlans[level];while(gateIndex<plan.length&&time>=plan[gateIndex].at){const g=plan[gateIndex];obstacles.push({...g,id:gateIndex,x:W+100,w:g.width||82+difficulty()*8});gateIndex++}
@@ -189,11 +204,11 @@ function updateEnemyWeapon(e,dt){
  const rig=firingRig(e),speed=e.elite==='hunter'?(rig.organic?420:640):(rig.organic?520:760)+difficulty()*45;
  // Never release a surprise point-blank shot after an enemy swoops into the pilot.
  if(Math.hypot(rig.muzzleX-ship.x,rig.muzzleY-ship.y)<COMBAT_BALANCE.enemyShotClearance)return;
- const angle=e.elite?Math.atan2(windup.targetY-rig.muzzleY,windup.targetX-rig.muzzleX):(e.direction===1?0:Math.PI);
+ const angle=e.elite?Math.atan2(windup.targetY-rig.muzzleY,windup.targetX-rig.muzzleX):e.verticalTravel?rig.heading:(e.direction===1?0:Math.PI);
  const kind=e.elite==='hunter'?'seeker':rig.organic?organicShotKind(e):'bolt';
  hostile.push({x:rig.muzzleX,y:rig.muzzleY,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:7,c:sectors[level].color,kind,launchAngle:angle});
  e.muzzle=.16;e.shotWindup=null;
- e.shoot=((e.elite==='hunter'?1.65:3.2)-difficulty()*.2)*(enemySpecies(e)?.cadence||1);
+ e.shoot=((e.elite==='hunter'?1.65:3.2)-difficulty()*.2)*(enemySpecies(e)?.cadence||1)*(sectors[level].systemChallenge?.enemyFireScale||1);
  window.flightAudio?.shot(kind,e.x,true);
 }
 function aimed(x,y,speed=520,offset=0,kind='bolt'){const a=Math.atan2(ship.y-y,ship.x-x)+offset;hostile.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:7,c:sectors[level].color,kind,launchAngle:a})}
@@ -212,7 +227,7 @@ function updateBossWeapon(b,dt){
  const offset=bossIndex()===1?-.42+a.index*.105:bossIndex()===2?(a.index%2?-.17:.17):0;
  const origin=firingRig(b,true);a.heading=a.target?Math.atan2(a.target.y-origin.muzzleY,a.target.x-origin.muzzleX):a.heading;b.fireHeading=a.heading+offset;
  if(a.age<a.next)return;
- const r=firingRig(b,true);if(r.organic){const mouth=organicMouth(b);r.muzzleX=mouth.x;r.muzzleY=mouth.y;}else if(!bossDesign()&&bossIndex()===1&&imageReady(art.bossAtlas)){const gun=openingBossMount(b,a.index%2?'lower':'upper');r.muzzleX=gun.x;r.muzzleY=gun.y;}const speed=bossIndex()===0?560:bossIndex()===1?690:620,angle=b.fireHeading;
+ const r=firingRig(b,true);if(r.organic){const mouth=organicMouth(b);r.muzzleX=mouth.x;r.muzzleY=mouth.y;}else if(!bossDesign()&&bossIndex()===1&&imageReady(art.bossAtlas)){const gun=openingBossMount(b,a.index%2?'lower':'upper');r.muzzleX=gun.x;r.muzzleY=gun.y;}const speed=bossIndex()===0?560:bossIndex()===1?690:620,angle=(a.target?Math.atan2(a.target.y-r.muzzleY,a.target.x-r.muzzleX):a.heading)+offset;
  hostile.push({x:r.muzzleX,y:r.muzzleY,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:r.organic?7:8,c:sectors[level].color,kind:r.organic?organicShotKind():'bolt',launchAngle:angle,scale:r.organic?.85:.9,bossShot:true});
  b.muzzle=.16;bossIndex()===1?window.flightAudio?.shot('bolt',b.x,true):window.flightAudio?.bossAttack?.('fire',bossIndex(),b.x);a.index++;a.next+=interval*(r.organic?.85:1);
  if(a.index>=count){b.attack=null;b.fireHeading=null;b.shoot=(b.hp/b.max<.5?.36:.58)*(r.organic?.72:1)*COMBAT_BALANCE.salvoRest*(sectors[level].salvoRestScale||1)}
@@ -228,7 +243,7 @@ function supplySlotAvailable(){
 // Checkpoint supplies retain their authored spacing and repeatable order.
 function makeSupply(item,reason='supply'){
  const stagger=reason==='checkpoint'?Math.max(0,750-item.x)*.55:0;
- return {...item,x:W+72+stagger,y:clamp(item.y,60,H-60),r:23,age:0,drift:160};
+ return {...item,x:W+72+stagger,y:clamp(item.y,60,H-60),r:23,age:0,drift:reason==='checkpoint'?250:(item.drift||160)};
 }
 function spawnSupplies(){
  const plan=supplyPlans[level],p=levelPacing();
@@ -237,13 +252,20 @@ function spawnSupplies(){
  if(p.preBossRelief&&!preBossRelief&&time>=sectors[level].duration-14&&ship.hp<=3){queuedSupplies.unshift({type:'repair',y:clamp(ship.y,120,H-120),relief:true});preBossRelief=true;}
  const item=queuedSupplies[0];
  if(!item||time-lastSupplySpawn<p.pickupGap||!supplySlotAvailable())return;
- queuedSupplies.shift();lastSupplySpawn=time;drops.push(makeSupply({x:clamp(Math.max(ship.x+250,p.pickupX||650),220,W-130),y:item.y,type:item.type,relief:!!item.relief},item.relief?'rescue':'supply'));
+ queuedSupplies.shift();lastSupplySpawn=time;drops.push(makeSupply({x:clamp(Math.max(ship.x+250,p.pickupX||650),220,W-130),y:item.y,type:item.type,drift:item.drift,relief:!!item.relief},item.relief?'rescue':'supply'));
 }
 function enemyExplosionSize(e){return e.satellite?.65:e.brood?1.8:e.type===2?1.5:1}
-function kill(e){score+=e.elite?750:e.type===2?300:150;kills++;explode(e.x,e.y,isOrganicEnemy(e)?'#98ffc5':'#ffb26a',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));updateHUD()}
+function enemyDefeatReward(e){
+ if(e.scoreAwarded)return 0;e.scoreAwarded=true;
+ // Repeated summoned broods cannot be farmed indefinitely.
+ if(e.guardian){if(!boss||(boss.rewardedGuardians||0)>=4)return 0;boss.rewardedGuardians=(boss.rewardedGuardians||0)+1;}
+ return e.elite?750:e.type===2?300:150;
+}
+function bossClearReward(){return 3000+Math.round((sectors[level].systemChallenge?.progress||0)*1500);}
+function kill(e){const reward=enemyDefeatReward(e);score+=reward;if(reward)kills++;explode(e.x,e.y,isOrganicEnemy(e)?'#98ffc5':'#ffb26a',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));updateHUD()}
 function collect(d){
  if(['spread','beam','helix','wave','missile'].includes(d.type)){if(weapon===d.type)power=Math.min(3,power+1);else weapon=d.type}
- else if(d.type==='orb'){weaponOrb.owned=true;weaponOrb.flash=.25;}
+ else if(d.type==='orb'){weaponOrb.owned=true;weaponOrb.charge=2;weaponOrb.cooldown=0;weaponOrb.flash=.25;}
  else if(d.type==='power')power=Math.min(3,power+1);
  else if(d.type==='speed')speedLevel=Math.min(3,speedLevel+1);
  else if(d.type==='companion')companion=Math.min(2,companion+1);
@@ -253,7 +275,7 @@ function collect(d){
  else if(d.type==='rescue')rescueCharge=1;
  else if(d.type==='nova')novas=Math.min(3,novas+1);
  score+=50;burst(d.x,d.y,'#a8ffdb',12);window.flightAudio?.pickup(d.x);
- const label={orb:'ORB GUARD ONLINE · BLOCKS FRONTAL SHOTS',speed:`ENGINE BOOST ${speedLevel}/3`,companion:'WINGMATE ONLINE',power:'CANNONS UPGRADED',frontShield:'FRONT GUARD ONLINE',shield:'SHIELD RESTORED',repair:'HULL REPAIRED',rescue:'RESCUE READY · SURVIVE ONE FATAL HIT',nova:'NOVA RECHARGED'}[d.type]||weaponNames[d.type]+' ACQUIRED';
+ const label={orb:'ORB GUARD · TWO BLOCKS · RECHARGES BETWEEN BURSTS',speed:`ENGINE BOOST ${speedLevel}/3`,companion:'WINGMATE ONLINE',power:'CANNONS UPGRADED',frontShield:'FRONT GUARD ONLINE',shield:'SHIELD RESTORED',repair:'HULL REPAIRED',rescue:'RESCUE READY · SURVIVE ONE FATAL HIT',nova:'NOVA RECHARGED'}[d.type]||weaponNames[d.type]+' ACQUIRED';
  announce(label);annTimer=1.4;updateHUD();
 }
 // Capture once at the sector boundary. Blurring a small cached image avoids
@@ -338,18 +360,20 @@ const accel=Math.hypot(ship.vx-flightPose.vx,ship.vy-flightPose.vy)/dt,thrust=cl
 function update(dt){if(state!=='paused'){world+=dt*SCROLL_SPEED;navigationClock+=dt;}if(state!=='playing')return;if(sectorBlend){updateShipMovement(dt,false);updatePilotTurn(dt);flash=Math.max(0,flash-dt);shake=Math.max(0,shake-dt*30);sectorBlend.age+=dt;if(sectorBlend.age>=sectorBlend.duration)finishSectorTravel();return;}if(flightRun)flightRun.activeTicks+=Math.round(dt*120);time+=dt;if(checkpoint&&currentSection()>checkpoint.section){saveCheckpoint();announce('SECTION '+(checkpoint.section+1)+' / 4','CHECKPOINT SAVED')}ship.inv=Math.max(0,ship.inv-dt);ship.frontFlash=Math.max(0,(ship.frontFlash||0)-dt);fireClock-=dt;spawnClock-=dt;companionClock-=dt;muzzleFlash=Math.max(0,muzzleFlash-dt);if(companion>0&&companionClock<=0&&!bossDefeated&&!shipTurning()){for(let i=0;i<companion;i++){const pos=dronePosition(i);makeShot(pos.x+20*shipDirection(),pos.y,'drone');shots[shots.length-1].vx*=shipDirection();shots[shots.length-1].direction=shipDirection();window.flightAudio?.shot('drone',pos.x,true)}companionClock=.3}spawnSupplies();flash=Math.max(0,flash-dt);shake=Math.max(0,shake-dt*30);if(annTimer>0){annTimer-=dt;if(annTimer<=0)$('#announcement').style.opacity=0}
 updateShipMovement(dt);
 updatePilotTurn(dt);if(fireClock<=0&&!bossDefeated&&!shipTurning()){if(weaponOrb.owned)fire(orbPosition(),shipDirection(),true);else fire();fireClock=weapon==='missile'?.38:weapon==='wave'?.28:weapon==='beam'?.18:.13}
-updateStructures(dt);const flare=stellarFlare();if(flare&&!flare.warning&&(flare.top?ship.y<flare.height:ship.y>H-flare.height))damage();const storm=stormLane();if(storm&&!storm.warning&&Math.abs(ship.x-storm.x)<32)damage();updateAcidClouds(dt);updateChallenge();while(waveIndex<waveTimes[level].length&&time>=waveTimes[level][waveIndex]){spawn();waveIndex++}if(time>sectors[level].duration&&!boss&&!bossDefeated){boss={x:W+180,y:H/2,r:sectors[level].bossRadius,hp:sectors[level].hp,max:sectors[level].hp,age:0,shoot:2,hit:0,special:10,charge:0};enemies=[];announce('WARNING','MASSIVE HOSTILE SIGNATURE');$('#bossbar').hidden=false;$('#bossname').textContent=sectors[level].boss;if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))initCapitalSiege(boss);window.flightAudio?.bossEntrance?.()}
+updateStructures(dt);const flare=stellarFlare();if(flare&&!flare.warning&&(flare.top?ship.y<flare.height:ship.y>H-flare.height))damage();const storm=stormLane();if(storm&&!storm.warning&&Math.abs(ship.x-storm.x)<32)damage();updateAcidClouds(dt);updateChallenge();while(waveIndex<waveTimes[level].length&&time>=waveTimes[level][waveIndex]){spawn();waveIndex++}if(time>sectors[level].duration&&!boss&&!bossDefeated){boss={x:W+180,y:H/2,r:sectors[level].bossRadius,hp:sectors[level].hp,max:sectors[level].hp,age:0,shoot:2,hit:0,special:3.5,charge:0};enemies=[];announce('WARNING','MASSIVE HOSTILE SIGNATURE');$('#bossbar').hidden=false;$('#bossname').textContent=sectors[level].boss;if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))initCapitalSiege(boss);window.flightAudio?.bossEntrance?.()}
 for(const e of enemies){enemyKinematics(e,dt);e.muzzle=Math.max(0,(e.muzzle||0)-dt);e.hit=Math.max(0,e.hit-dt);updateEnemyWeapon(e,dt);if(Math.hypot(e.x-ship.x,e.y-ship.y)<43){damage();if(!e.brood){explode(e.x,e.y,'#ffb48a',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));e.hp=0}}}
 const bossApproach=boss?1:clamp((time-(sectors[level].duration-18))/18,0,1);window.flightAudio?.setBossApproach?.(bossApproach,!!boss);window.flightAudio?.setIntensity(boss?.96:Math.max(Math.min(.75,enemies.length/24),bossApproach*.82));if(boss){const b=boss;b.age+=dt;b.depth=1;b.muzzle=Math.max(0,(b.muzzle||0)-dt);updateBossSpecial(b,dt);updateEncounter(b,dt);updateBossArms(b,dt);moveBoss(b,dt);updateBossWingAudio(b);b.hit=Math.max(0,b.hit-dt);updateBossWeapon(b,dt);if(bossBodyHit(b,ship.x,ship.y,18))damage()}
+if(state!=='playing')return;
 updateWaterWakes(dt);
-for(const s of shots){const oldX=s.x,oldY=s.y;moveShot(s,dt);const impact=shotTerrainHit(oldX,oldY,s);if(impact){terrainImpact(impact.x,impact.y,s.vx,s.vy);s.x=W+100;continue}if(hitEncounterNode(s)){s.x=W+100;continue;}for(const e of enemies){if(e.hp>0&&!s.seen.has(e)&&Math.hypot(e.x-s.x,e.y-s.y)<e.r*(e.depth||1)+s.r+7){e.hp-=s.damage;e.hit=.12;s.seen.add(e);if(!s.beam)s.x=W+100;burst(e.x,e.y,s.c,3);if(e.hp<=0)kill(e)}}if(boss&&!s.seen.has(boss)&&bossBodyHit(boss,s.x,s.y,s.r)){boss.hp-=bossDamage(s.damage)*encounterDamage(boss,s);boss.hit=.1;s.seen.add(boss);burst(s.x,s.y,s.c,2);s.x=W+100}}shots=shots.filter(s=>s.x>-70&&s.x<W+60&&s.y>-30&&s.y<H+30);enemies=enemies.filter(e=>e.hp>0&&(e.entry?e.age<16&&(e.age<4.5||(e.x>-170&&e.x<W+170&&e.y>-100&&e.y<H+100)):e.x>-170));
+for(const s of shots){const oldX=s.x,oldY=s.y;moveShot(s,dt);const impact=shotTerrainHit(oldX,oldY,s);if(impact){terrainImpact(impact.x,impact.y,s.vx,s.vy);s.x=W+100;continue}if(hitEncounterNode(s)){s.x=W+100;continue;}for(const e of enemies){if(e.hp>0&&!s.seen.has(e)&&Math.hypot(e.x-s.x,e.y-s.y)<e.r*(e.depth||1)+s.r+7){hitEnemyWithShot(s,e);if(s.spent)break}}if(!s.spent&&boss&&!s.seen.has(boss)&&bossBodyHit(boss,s.x,s.y,s.r)){boss.hp-=bossDamage(s.damage)*encounterDamage(boss,s);boss.hit=.1;s.seen.add(boss);burst(s.x,s.y,s.c,2);s.x=W+100}}shots=shots.filter(s=>!s.spent&&s.x>-70&&s.x<W+60&&s.y>-30&&s.y<H+30);enemies=enemies.filter(e=>e.hp>0&&(e.entry?e.age<16&&(e.age<4.5||(e.x>-170&&e.x<W+170&&e.y>-100&&e.y<H+100)):e.x>-170));
 // Ordinary hostile rounds obey the same solid scenery as the player's rounds.
 // Breath volumes and beam hazards are managed separately by their encounter rules.
 for(const b of hostile){const oldX=b.x,oldY=b.y;steerHostile(b,dt);if(b.kind==='seed'&&b.split)continue;b.x+=b.vx*dt;b.y+=b.vy*dt;const impact=shotTerrainHit(oldX,oldY,b);if(impact){terrainImpact(impact.x,impact.y,b.vx,b.vy);b.x=-100;continue}if(blockWithOrb(b,oldX,oldY)||blockWithFrontShield(b,oldX)){b.x=-100;continue}if(Math.hypot(b.x-ship.x,b.y-ship.y)<b.r+14){damage();b.x=-100}}hostile=hostile.filter(b=>b.x>-50&&b.x<W+200&&b.y>-50&&b.y<H+50);
+if(state!=='playing')return;
 for(const d of drops){d.age+=dt;d.x-=(d.drift||70)*dt;const distance=Math.hypot(d.x-ship.x,d.y-ship.y);if(distance<150){d.x+=(ship.x-d.x)*dt*2.8;d.y+=(ship.y-d.y)*dt*2.8}if(distance<55){collect(d);d.x=-100}}drops=drops.filter(d=>d.x>-30);
-if(boss&&boss.hp<=0){window.flightAudio?.clear();explodeBoss(boss);enemies=[];hazards=[];acidClouds=[];rings.push({x:boss.x,y:boss.y,r:20,life:1.1,c:'#fff'});score+=3000*(level+1);boss=null;bossDefeated=true;transition=4;hostile=[];shots=[];flash=.48;shake=20;$('#bossbar').hidden=true;announce('SECTOR CLEARED','DESCENT ROUTE OPEN');tone(55,.9,'triangle',.04,-25)}
+if(state==='playing'&&boss&&boss.hp<=0){window.flightAudio?.clear();explodeBoss(boss);enemies=[];hazards=[];acidClouds=[];rings.push({x:boss.x,y:boss.y,r:20,life:1.1,c:'#fff'});score+=bossClearReward();boss=null;bossDefeated=true;transition=4;hostile=[];shots=[];flash=.48;shake=20;$('#bossbar').hidden=true;announce('SECTOR CLEARED','DESCENT ROUTE OPEN');tone(55,.9,'triangle',.04,-25)}
 if(state!=='playing')return;if(bossDefeated){transition-=dt;if(transition<=0){if(level===sectors.length-1){end(true)}else{advanceSector()}}}hudClock+=dt;if(hudClock>=.08){hudClock=0;updateHUD()}}
-function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawStructures();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'&&!sectorBlend?.destination){ctx.save();ctx.globalAlpha*=ship.inv>0?.74+Math.sin(ship.inv*28)*.26:1;drawShip(ship.x,ship.y);ctx.restore();drawFrontShield();drawWeaponOrb();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
+function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawStructures();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'&&!sectorBlend?.destination){ctx.save();ctx.globalAlpha*=ship.inv>0?.74+Math.sin(ship.inv*28)*.26:1;drawShip(ship.x,ship.y);ctx.restore();drawFrontShield();drawWeaponOrb();drawOrbCharge();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
 window.gpuModels?.flush(ctx);drawExplosions(dt);if(!sectorBlend)drawNearField();if(!sectorBlend)drawWaterAtmosphere(true);const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}ctx.restore();window.gpuModels?.flush(ctx)}
 let accumulator=0,frameError=null,musicUiClock=0,sectorArtPrefetched=false;
 let renderScale=1,renderQuality=matchMedia('(pointer: coarse)').matches?1:1.5,surfaceWidth=W,surfaceDirty=true;
