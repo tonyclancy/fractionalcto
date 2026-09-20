@@ -159,9 +159,11 @@ function updateWaterWakes(dt){
 function drawWaterWakes(){
  if(sectors[level].medium!=='water')return;ctx.save();ctx.lineCap='round';
  for(const p of waterWakes){const fade=(1-p.age/p.life)**2,width=p.size*(.4+p.age*(p.pilot?1.05:.9)),length=18+p.effort*42+p.age*(p.pilot?18:30);
+  // A rotation-safe bound skips only turbulence entirely outside the view.
+  const reach=Math.hypot(length,width)+6;if(p.x+reach<0||p.x-reach>W||p.y+reach<0||p.y-reach>H)continue;
   ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);ctx.globalAlpha=fade*(.22+p.effort*.28);ctx.strokeStyle='#b8e5dc';ctx.lineWidth=2.4;
-  // Two broken curling edges spread out behind the body, never a solid cone.
-  for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(3,side*width*.35);ctx.bezierCurveTo(-length*.3,side*width*.85,-length*.65,side*width,-length,side*width*.75);ctx.stroke();}
+  // Disjoint edges share a stroke submission while retaining both curves.
+  ctx.beginPath();for(const side of [-1,1]){ctx.moveTo(3,side*width*.35);ctx.bezierCurveTo(-length*.3,side*width*.85,-length*.65,side*width,-length,side*width*.75);}ctx.stroke();
   ctx.globalAlpha=fade*(.28+p.effort*.27);ctx.strokeStyle='#c9f5ec';ctx.lineWidth=1.3;
   for(let i=0;i<3;i++){const x=-length*(i/3+.1),y=Math.sin(p.seed+i*2.1+p.age*4)*width*.52,r=(1.3+i*.75)*(1+p.age*.5);ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.stroke();}
   ctx.restore();

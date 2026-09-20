@@ -445,7 +445,8 @@ if(state!=='playing')return;if(bossDefeated){transition-=dt;if(transition<=0){if
 function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawStructures();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'&&!sectorBlend?.destination){ctx.save();ctx.globalAlpha*=ship.inv>0?.74+Math.sin(ship.inv*28)*.26:1;drawShip(ship.x,ship.y);ctx.restore();drawFrontShield();drawWeaponOrb();drawOrbCharge();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
 window.gpuModels?.flush(ctx);drawExplosions(dt);if(!sectorBlend)drawNearField();if(!sectorBlend)drawWaterAtmosphere(true);const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}ctx.restore();window.gpuModels?.flush(ctx)}
 let accumulator=0,frameError=null,musicUiClock=0,sectorArtPrefetched=false;
-let renderScale=1,renderQuality=matchMedia('(pointer: coarse)').matches?1:1.5,surfaceWidth=W,surfaceDirty=true;
+const renderQualityLimit=matchMedia('(pointer: coarse)').matches?1:1.5;
+let renderScale=1,renderQuality=renderQualityLimit,surfaceWidth=W,surfaceDirty=true;
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{surfaceDirty=true;}).observe(canvas);
 window.addEventListener('resize',()=>{surfaceDirty=true;});
 function resizeFlightSurface(){if(surfaceDirty){surfaceWidth=canvas.getBoundingClientRect?.().width||W;surfaceDirty=false;}const width=surfaceWidth;const ratio=Math.max(.75,Math.min(renderQuality,width*(window.devicePixelRatio||1)/W));if(Math.abs(renderScale-ratio)>.03||canvas.width!==Math.round(W*ratio)){renderScale=ratio;canvas.width=Math.round(W*ratio);canvas.height=Math.round(H*ratio);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';}window.flightRenderScale=renderScale;window.flightEffectsQuality=renderQuality<=.75?.65:1;}
@@ -620,7 +621,27 @@ function renderSmooth(dt,alpha){
  }
 }
 
-let frameReportTicks=0;const frameSamples=[];function trackFrame(dt){frameSamples.push(dt*1000);if(frameSamples.length>120)frameSamples.shift();if(frameSamples.length===120&&++frameReportTicks%30===0){const sorted=frameSamples.slice().sort((a,b)=>a-b);window.flightPerformance={fps:Math.round(1000/(frameSamples.reduce((a,b)=>a+b,0)/120)),p95:Math.round(sorted[114]),resolution:renderScale};if(window.flightPerformance.fps<53&&renderQuality>.75){renderQuality=Math.max(.75,renderQuality-.25);frameSamples.length=0;}}}
+let frameReportTicks=0,qualityHealthySeconds=0,qualityCooldown=0;const frameSamples=[];
+function trackFrame(dt){
+ qualityCooldown=Math.max(0,qualityCooldown-dt);frameSamples.push(dt*1000);if(frameSamples.length>120)frameSamples.shift();
+ if(frameSamples.length!==120||++frameReportTicks%30!==0)return;
+ const sorted=frameSamples.slice().sort((a,b)=>a-b),mean=frameSamples.reduce((a,b)=>a+b,0)/120;
+ // Discard just the slowest 5% for adaptation, not for reported frame timing.
+ // A texture upload or shader compile should not permanently soften the scene.
+ const sustained=sorted.slice(0,114).reduce((a,b)=>a+b,0)/114;
+ window.flightPerformance={fps:Math.round(1000/mean),p95:Math.round(sorted[114]),resolution:renderScale,quality:renderQuality};
+ if(sustained>1000/53&&sorted[89]>1000/55&&renderQuality>.75){
+  renderQuality=Math.max(.75,renderQuality-.25);qualityCooldown=12;qualityHealthySeconds=0;frameSamples.length=0;return;
+ }
+ const healthy=mean<1000/57&&sorted[107]<1000/54;
+ qualityHealthySeconds=healthy?qualityHealthySeconds+30*mean/1000:0;
+ // A slow climb and a cooldown avoid repeatedly changing resolution near a
+ // device's limit. If the higher quality is too costly, the normal drop wins.
+ if(qualityHealthySeconds>=8&&qualityCooldown===0&&renderQuality<renderQualityLimit){
+  renderQuality=Math.min(renderQualityLimit,renderQuality+.25);qualityHealthySeconds=0;qualityCooldown=12;frameSamples.length=0;
+ }
+}
+
 
 // iPhone browser tabs cannot hide Safari chrome. Home Screen web apps can.
 const homeScreenMode=window.navigator?.standalone||matchMedia('(display-mode: standalone)').matches;
