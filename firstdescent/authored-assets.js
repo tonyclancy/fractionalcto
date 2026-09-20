@@ -1,5 +1,6 @@
 import * as THREE from './vendor/three.module.min.js';
 import { GLTFLoader } from './vendor/addons/GLTFLoader.js';
+import { loadModelBuffer } from './model-download.js?v=20260920-download68';
 
 // Curated assets retain authored proportions and joints. Shared geometry/textures,
 // pooled per-instance animation and materials; never mutate a shared prototype.
@@ -15,7 +16,7 @@ export const AUTHORED_ASSETS=Object.freeze({
 export class AuthoredAssets {
  constructor(scene){this.scene=scene;this.assets=new Map();this.pools=new Map();this.frame=0;this.errors=[];this.batches=new Map();this.batchedActors=0;}
  async load(){const loader=new GLTFLoader();await Promise.all(Object.keys(AUTHORED_ASSETS).map(async id=>{
-  try{const gltf=await loader.loadAsync(new URL(`assets/models/${id}.glb?v=20260919-polish67`,import.meta.url).href);this.assets.set(id,gltf);}
+  try{const url=new URL(`assets/models/${id}.glb?v=20260919-polish67`,import.meta.url);const buffer=await loadModelBuffer(url);const gltf=await loader.parseAsync(buffer,new URL('.',url).href);this.assets.set(id,gltf);}
   catch(error){this.errors.push(id);console.error('Authored model unavailable:',id,error);}
  }));return this;}
  begin(){this.flush();this.frame++;this.batchedActors=0;for(const pool of this.pools.values()){pool.used=0;for(const item of pool.items)item.root.visible=false;}}

@@ -1,0 +1,483 @@
+{
+  "schemaVersion": 1,
+  "quality": "unchanged",
+  "bytes": 29395509,
+  "assets": [
+    {
+      "path": "art.js",
+      "bytes": 200015,
+      "sha256": "483e0bb10ce83875c9f76d77aa59c0a18c7011918587868479921074fe73c277"
+    },
+    {
+      "path": "assets/abyss-panorama-thumb.webp",
+      "bytes": 8562,
+      "sha256": "ffb85822c93b748339ce21061d8dd8e38f8a9aefd25c5c728a4fe55741311b79"
+    },
+    {
+      "path": "assets/abyss-panorama.webp",
+      "bytes": 348040,
+      "sha256": "e582aa4a64ef1d3632deb1ab44aeb485fc3183a9a994cabb9a184aad8b46ef5d"
+    },
+    {
+      "path": "assets/alien-chitin-v3.webp",
+      "bytes": 585976,
+      "sha256": "7e6fc00f968361ab7be6681bf98bf9ca7554f173f87a02f87f4c196a4fb39f83"
+    },
+    {
+      "path": "assets/alien-flesh-v3.webp",
+      "bytes": 572170,
+      "sha256": "1ecce476a69f32b016f9eaba1f8aa3db85fa018343e5c6c22cfef614ba3604b9"
+    },
+    {
+      "path": "assets/asteroid-stone-v2.webp",
+      "bytes": 634812,
+      "sha256": "9367a7a48ad3426522acf773d212e8f146c13877e28bfd9406eef27082b26ce4"
+    },
+    {
+      "path": "assets/barlowcondensed-OFL.txt",
+      "bytes": 4377,
+      "sha256": "186d750eb496a4c17a76385f82be6aea2ac1cf2de074a811d63786cf374ea73f"
+    },
+    {
+      "path": "assets/black-hole-frontier-v1.webp",
+      "bytes": 159076,
+      "sha256": "2a0dc667eb713b179b9d7315e7008c8b72e0755b4be232dcb12f96a4c61d76c7"
+    },
+    {
+      "path": "assets/boss-atlas-v2.png",
+      "bytes": 1290077,
+      "sha256": "0aad1b99388feee1562d0eecf5c8c878af1984d755d1b63dcb947914761f7211"
+    },
+    {
+      "path": "assets/carrier-panorama-thumb.webp",
+      "bytes": 7592,
+      "sha256": "af25a1746bd999c48ff9a80b3586c92c27b21a26e2c254b7145473049617aa3c"
+    },
+    {
+      "path": "assets/carrier-panorama.webp",
+      "bytes": 325724,
+      "sha256": "cbc16cbba235471821af9e7b6d34751b752c6e64e3551e4b01e604c1f2530795"
+    },
+    {
+      "path": "assets/core-panorama-thumb.webp",
+      "bytes": 6486,
+      "sha256": "bae6e7673b9ac1dad65411887f27ab5d83d5b19e1c1e990584134e63de17beb3"
+    },
+    {
+      "path": "assets/core-panorama.webp",
+      "bytes": 289512,
+      "sha256": "96bc0e39c6a8c7d0818cf2e558a4b0301b02a2fba870e73a836509b9c7458126"
+    },
+    {
+      "path": "assets/cosmic-remnant-v1.webp",
+      "bytes": 134872,
+      "sha256": "ab5684bc53e50ffe76952907026d30fa548d3b208096e705b11a4787c4cb29f0"
+    },
+    {
+      "path": "assets/dmsans-OFL.txt",
+      "bytes": 4482,
+      "sha256": "9af36190332437f5ecd09974de43c1f7c77a310a996cdd8ceb25628b458840e1"
+    },
+    {
+      "path": "assets/font-0.woff2",
+      "bytes": 32880,
+      "sha256": "ed507961f2f6a549bf285f83e805add273c1e950ffd96e6c22e9f28aa1d0da7b"
+    },
+    {
+      "path": "assets/font-1.woff2",
+      "bytes": 33088,
+      "sha256": "27cfad2630b12084f0d0cd393c31702eff313c8e8ae2be632e3b9ccd45c4193e"
+    },
+    {
+      "path": "assets/font-2.woff2",
+      "bytes": 33136,
+      "sha256": "167d90a204a2258ff4fa17c8a2f3a4acec63d0778129e7aeeff9e6a98d879267"
+    },
+    {
+      "path": "assets/font-3.woff2",
+      "bytes": 32544,
+      "sha256": "b5b9b920256489c9fc0c06bfd58bcaeaeb6beb8e2d1c40c0072b115c3ec2055a"
+    },
+    {
+      "path": "assets/font-4.woff2",
+      "bytes": 19164,
+      "sha256": "2ea1bf6e4127eebf51f201e62bc23578f715f9581ddebd7f63ae46d275199e40"
+    },
+    {
+      "path": "assets/font-5.woff2",
+      "bytes": 19412,
+      "sha256": "5db7ec8890b78af7db1b70a7a9a0872acc476a8fca50b40ba6c16b8e0fc15117"
+    },
+    {
+      "path": "assets/font-6.woff2",
+      "bytes": 19192,
+      "sha256": "fd6f63245e24082f4f0d9c76840e50c87834769af1711c0caccb7cebd61fc4fc"
+    },
+    {
+      "path": "assets/font-7.woff2",
+      "bytes": 19488,
+      "sha256": "9b1a44756787bbc9fdbfbaeea5b3f6a8fcf1df426c0d6f8456bd5591a08a35a9"
+    },
+    {
+      "path": "assets/galaxy-barred-v1.webp",
+      "bytes": 153510,
+      "sha256": "05124d23a3b6130d53683e4c9dd0756e35d02ae4fb94af1c52f5eb165aa4cd71"
+    },
+    {
+      "path": "assets/galaxy-spiral-v1.webp",
+      "bytes": 201570,
+      "sha256": "a35a9f81d02a35aab581efaba1f04a92939a2db979613e25a9ff280d44473f3e"
+    },
+    {
+      "path": "assets/models/needleling.glb",
+      "bytes": 867480,
+      "sha256": "1575746771ba6d736bbd7b25679fb6bb87ddfad4b6be07e533299b9c3fdc4f7f"
+    },
+    {
+      "path": "assets/models/needleling.glb.gz",
+      "bytes": 670134,
+      "sha256": "34ed35d035c19e2c7dd8d34ff1965c8e4a057b3c31da54d1a61f991b7370eb3b",
+      "encoding": "gzip",
+      "decodedSha256": "1575746771ba6d736bbd7b25679fb6bb87ddfad4b6be07e533299b9c3fdc4f7f",
+      "decodedBytes": 867480
+    },
+    {
+      "path": "assets/models/rift-lantern.glb",
+      "bytes": 1174376,
+      "sha256": "de2e457015dff51008460d9edaba8abd23cd5dc9cae7fdc3ad05d7fc9aad518e"
+    },
+    {
+      "path": "assets/models/rift-lantern.glb.gz",
+      "bytes": 789640,
+      "sha256": "fd3848529333179b225bb2b97457e92028db992e26d12fe8f3d9f99fa0ffb011",
+      "encoding": "gzip",
+      "decodedSha256": "de2e457015dff51008460d9edaba8abd23cd5dc9cae7fdc3ad05d7fc9aad518e",
+      "decodedBytes": 1174376
+    },
+    {
+      "path": "assets/models/shellmaw.glb",
+      "bytes": 1113924,
+      "sha256": "10458c0de849723c2817b51052a319ad426c2f169ab89955ca334be241ef59e4"
+    },
+    {
+      "path": "assets/models/shellmaw.glb.gz",
+      "bytes": 793158,
+      "sha256": "6a40076ab4066ead2e918c4d0cf01837389ea2fe95dd6037cfc59bd0cba6e474",
+      "encoding": "gzip",
+      "decodedSha256": "10458c0de849723c2817b51052a319ad426c2f169ab89955ca334be241ef59e4",
+      "decodedBytes": 1113924
+    },
+    {
+      "path": "assets/models/thorn-skate.glb",
+      "bytes": 866152,
+      "sha256": "49158cd97f08d804e643d7a5de1b8f1d4dc4d545b7c4fdda4244247281672320"
+    },
+    {
+      "path": "assets/models/thorn-skate.glb.gz",
+      "bytes": 669875,
+      "sha256": "ba8019d09701c800719d5e178fe9cb1162094210f851f52d454a01301e614dec",
+      "encoding": "gzip",
+      "decodedSha256": "49158cd97f08d804e643d7a5de1b8f1d4dc4d545b7c4fdda4244247281672320",
+      "decodedBytes": 866152
+    },
+    {
+      "path": "assets/models/vector-bastion.glb",
+      "bytes": 298028,
+      "sha256": "1fbcf985be9805b90404f2b91e467d1d8d86488459b9407c52c3ff436a4d6ee7"
+    },
+    {
+      "path": "assets/models/vector-bastion.glb.gz",
+      "bytes": 117742,
+      "sha256": "7a652519005fc4de24d61a1b046db1c779ae8b2cea38875737319be15935480f",
+      "encoding": "gzip",
+      "decodedSha256": "1fbcf985be9805b90404f2b91e467d1d8d86488459b9407c52c3ff436a4d6ee7",
+      "decodedBytes": 298028
+    },
+    {
+      "path": "assets/models/vesper-brood.glb",
+      "bytes": 948668,
+      "sha256": "deded0611df6c48c69e237ca1dac6375ddb8601fc362c7f2a5c3442c84ab6602"
+    },
+    {
+      "path": "assets/models/vesper-brood.glb.gz",
+      "bytes": 696389,
+      "sha256": "a700bf42570d283b21617db26547672f341b64a876f502a17218a113dbca5535",
+      "encoding": "gzip",
+      "decodedSha256": "deded0611df6c48c69e237ca1dac6375ddb8601fc362c7f2a5c3442c84ab6602",
+      "decodedBytes": 948668
+    },
+    {
+      "path": "assets/models/vesper-reaver.glb",
+      "bytes": 1125060,
+      "sha256": "0c3bc534baedcbbf95d94c13c0468401adca4bed5fb8b9b51deca0408ff4aec2"
+    },
+    {
+      "path": "assets/models/vesper-reaver.glb.gz",
+      "bytes": 810409,
+      "sha256": "e97bc9e5c78615575cdfcec8ac495f2302e8dd1b3098fbe79ef3c663c6a1e63a",
+      "encoding": "gzip",
+      "decodedSha256": "0c3bc534baedcbbf95d94c13c0468401adca4bed5fb8b9b51deca0408ff4aec2",
+      "decodedBytes": 1125060
+    },
+    {
+      "path": "assets/obstacle-carrier.webp",
+      "bytes": 278566,
+      "sha256": "04dd31b6b60a2a56102593a74c2b05a8b44116089ea2bf0bb2deee83bf424a05"
+    },
+    {
+      "path": "assets/obstacle-colony.webp",
+      "bytes": 300960,
+      "sha256": "0987817d9ed5d435a2c3acf53eeada4aa7476509dd95e33685cec374cf2457b7"
+    },
+    {
+      "path": "assets/obstacle-core.webp",
+      "bytes": 411712,
+      "sha256": "bd567f98bb68e258409ca85dcd49857c6061a97750cbf6c6b08231016612f845"
+    },
+    {
+      "path": "assets/obstacle-derelict.webp",
+      "bytes": 347912,
+      "sha256": "cee1a32c9bd7e7fa2c9a91ff46c016ab85df9725f5ae61cd2794601e189e62c5"
+    },
+    {
+      "path": "assets/obstacle-reef.webp",
+      "bytes": 594806,
+      "sha256": "f491aff5e1b3098254318d32b1cd7ed401eed228bee6acdcaddeb94d2508b420"
+    },
+    {
+      "path": "assets/obstacle-storm.webp",
+      "bytes": 309994,
+      "sha256": "1f614541ee9eb46a4fc173a9053e738e19bdf3ff52e0dd217085b5d89a5af3ba"
+    },
+    {
+      "path": "assets/orison-cinder-v1.webp",
+      "bytes": 335762,
+      "sha256": "7f829dbf1baa6c674fb09c9abb935d0c98dbd7be7fe02d37975069058ecd3077"
+    },
+    {
+      "path": "assets/orison-gas-v1.webp",
+      "bytes": 192772,
+      "sha256": "f1ea317afdedb7c53a2a28e21a9235b1994b35ac0da621170e110504cbe15bf7"
+    },
+    {
+      "path": "assets/orison-ice-v1.webp",
+      "bytes": 333474,
+      "sha256": "dba4a14f56d50e1be05d7e8289095a86c2e1fbc597acd39e78fa4611d1104fa8"
+    },
+    {
+      "path": "assets/orison-ocean-v1.webp",
+      "bytes": 285444,
+      "sha256": "8059229ee88d11ccfb0c176702ac2231fcb421bbf3fa9173584110ed90329965"
+    },
+    {
+      "path": "assets/planet-basalt-rifts-v1.webp",
+      "bytes": 456246,
+      "sha256": "47c61d0438b59e6ff07f72367d4587346cf4cd36c9607bb76d549b1239396a80"
+    },
+    {
+      "path": "assets/planet-caelus-v2.webp",
+      "bytes": 535446,
+      "sha256": "5b02558a3bbf3d8ebf3e53fb5796ae2f8add648bccb0acb9dcb1a5f392d5292e"
+    },
+    {
+      "path": "assets/planet-cinder-v2.webp",
+      "bytes": 518736,
+      "sha256": "fcb2facd5c0b3f50077864d7f7d5e808b5d06c1064f351395e4f87fe8b2f6a1f"
+    },
+    {
+      "path": "assets/planet-cobalt-storms-v1.webp",
+      "bytes": 306636,
+      "sha256": "338a74ccc915ae82e88f381c170062396bfbb304f6f060ad78582bae9066e1b1"
+    },
+    {
+      "path": "assets/planet-ferrum-v2.webp",
+      "bytes": 501926,
+      "sha256": "069cc5c95521446bcef65e3e222ce39143c54a2d8b964dac195c3f8da7e793ab"
+    },
+    {
+      "path": "assets/planet-frontier-v1.webp",
+      "bytes": 634752,
+      "sha256": "05cc79df82a76b957ab778ebea32c2dbfaad072c8346d9841e6d5e88b9267d20"
+    },
+    {
+      "path": "assets/planet-magma-archipelago-v1.webp",
+      "bytes": 464000,
+      "sha256": "fcfc921fa273ef156ca02b2cbbc4084b1ec4fbdbfa57f4dd414b0aeb9eed7ed5"
+    },
+    {
+      "path": "assets/planet-nacre-v2.webp",
+      "bytes": 500444,
+      "sha256": "8d485f184e1f7bbc3055f77bc7708b7fecfbb57da6711b9ce4cf0a94a69c67c1"
+    },
+    {
+      "path": "assets/planet-nivara-v2.webp",
+      "bytes": 581892,
+      "sha256": "cd627d0a56fc1e4d6196398487cf5aa956ff39154067df87e67bb158cd92d039"
+    },
+    {
+      "path": "assets/planet-orison-v1.webp",
+      "bytes": 549248,
+      "sha256": "01b2bef49701d73c9a1be3ed6b79ac14eeaaf00382d9f1e873b5d3af23acf6eb"
+    },
+    {
+      "path": "assets/planet-sulfur-calderas-v1.webp",
+      "bytes": 415744,
+      "sha256": "9a44c2f43ea7fe37cf8f69e39dd406a5dca5ae3d5dea989c114ef10b291a795f"
+    },
+    {
+      "path": "assets/planet-surfaces-v1.webp",
+      "bytes": 561106,
+      "sha256": "062ae4860288d1d1f0361bb1d4a893e33ec160ceb41ce1e9e8bcfb965c217f8e"
+    },
+    {
+      "path": "assets/planet-thalassa-v2.webp",
+      "bytes": 521714,
+      "sha256": "a44e8ac463d65ecf48a34b919c064b56310edb8e48d5040c41d27b057c9ae820"
+    },
+    {
+      "path": "assets/planet-veyra-v2.webp",
+      "bytes": 318340,
+      "sha256": "119749bef0ddf235fc8c391251079c6a1d9fccd1de1cbc6370e8b7f084995137"
+    },
+    {
+      "path": "assets/reef-descent-thumb.webp",
+      "bytes": 4478,
+      "sha256": "f70e121a16139abb084148adf4fca55ce364e30d63058e377f842d5943339d74"
+    },
+    {
+      "path": "assets/reef-descent.webp",
+      "bytes": 367340,
+      "sha256": "571a35b0a0c39fc8613d51933441f40356005da613d0203241b59595178b9f62"
+    },
+    {
+      "path": "assets/space-panorama-thumb.webp",
+      "bytes": 8280,
+      "sha256": "f53c4a01a28bca4ff41570af5d41508db67cc85a09e70fcffc9723b16221f72c"
+    },
+    {
+      "path": "assets/space-panorama.webp",
+      "bytes": 338240,
+      "sha256": "09fa8b5d97147793ce34e7dda08a53f2647804d974d4a1b7cdb58205d9133b21"
+    },
+    {
+      "path": "assets/stellar-photosphere-v1.webp",
+      "bytes": 549180,
+      "sha256": "8832039fb045e9d4987d810325b102f3a15d1040fd0aa2c8f4b759ed101d2ddf"
+    },
+    {
+      "path": "assets/storm-ascent-thumb.webp",
+      "bytes": 5628,
+      "sha256": "8b5473a9051a085e92eeb33623edac04556454bacaadc4fdcd5edb0636488401"
+    },
+    {
+      "path": "assets/storm-ascent.webp",
+      "bytes": 383536,
+      "sha256": "609edb98e59688aee735e9da62567c1bd6258d9111bc57d8f4ba68a1f4662e72"
+    },
+    {
+      "path": "audio.js",
+      "bytes": 66448,
+      "sha256": "02a02d38e800f60058b628319c931d4a355c9af0facdec107528ba92661abb39"
+    },
+    {
+      "path": "authored-assets.js",
+      "bytes": 5851,
+      "sha256": "6d6b5410b2f01f10b5ed013b719086ac15349fd517f747a04cbaeabd4f0d7ffc"
+    },
+    {
+      "path": "boss-creatures.js",
+      "bytes": 30694,
+      "sha256": "01fbb6cb8dd79b1a3225bafb5ba7492fac200e0403368a9a68132426bb676cdb"
+    },
+    {
+      "path": "boss-machines.js",
+      "bytes": 20599,
+      "sha256": "f6f6b9bc215cdc972c4bae29ee4c4907151096be94613522d66d1ff587d71360"
+    },
+    {
+      "path": "capital-ship.js",
+      "bytes": 40758,
+      "sha256": "8887964ae7c95e7e3e5cd965700b57cb6daf0f32b9a75a95655d6cf2a049674c"
+    },
+    {
+      "path": "game.js",
+      "bytes": 72739,
+      "sha256": "6fab5d62902a034fed87024bd4184e206c73864d3f84db415841ba04446483f7"
+    },
+    {
+      "path": "index.html",
+      "bytes": 6388,
+      "sha256": "0cbfa0cecaba6338ae724d2eae512cbed78269f6faf6a4dd69082a7df2e5de40"
+    },
+    {
+      "path": "levels.js",
+      "bytes": 98431,
+      "sha256": "b2467f9b56efc0f98f30f53f5031e2c2d414622a66f5ae8d5aad49264af5c9d0"
+    },
+    {
+      "path": "manifest.webmanifest",
+      "bytes": 233,
+      "sha256": "b89f6552d1936cae199b052aaa20bbaee85e6e1798b224c26180aafe5b8bda37"
+    },
+    {
+      "path": "model-download.js",
+      "bytes": 1233,
+      "sha256": "8afaa5674b56865564eed0999d29d12eca4cfeca82bd9349f0852317a7e87cb1"
+    },
+    {
+      "path": "models.js",
+      "bytes": 122830,
+      "sha256": "ffdf641ac2046b1b618214bea3ed446ec68a4ae2c21461df8d35e546c12d0d52"
+    },
+    {
+      "path": "renderer3d.js",
+      "bytes": 26772,
+      "sha256": "4d090e9fa63d73a54916f8874b51a7861e1e058e61e22d0a831c1eb5b19c7ebe"
+    },
+    {
+      "path": "runs.js",
+      "bytes": 3155,
+      "sha256": "6d63ce13aca9ba66c5b5c59038ab465a318f45afba0d07025e3e4886ac6b050c"
+    },
+    {
+      "path": "safari-immersion.js",
+      "bytes": 4544,
+      "sha256": "08b5721ea5d2a3fb6af7b0c31ba6ec6678bb1252c63a3cd12156c95925abd4ae"
+    },
+    {
+      "path": "style.css",
+      "bytes": 27989,
+      "sha256": "61dfb0fb740c1dfc16088b1eeaebb99d1749256e5bb41a4277ca7f1e84a98e87"
+    },
+    {
+      "path": "tide-encounter.js",
+      "bytes": 4321,
+      "sha256": "e21684f05d184c45d5bc5e5fd5585011e9fb3ccd19f08709c278293d0a1f9881"
+    },
+    {
+      "path": "vendor/THREE-LICENSE.txt",
+      "bytes": 1081,
+      "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601"
+    },
+    {
+      "path": "vendor/addons/BufferGeometryUtils.js",
+      "bytes": 35556,
+      "sha256": "8bc775b53574a67c61c94c61ab0951d09612d1cc07a9d405e965263ff0059f12"
+    },
+    {
+      "path": "vendor/addons/GLTFLoader.js",
+      "bytes": 114749,
+      "sha256": "2d04a70511b28451332d0861cf3f48bc073bff5bdcd45711a74acb110db8feac"
+    },
+    {
+      "path": "vendor/three.core.min.js",
+      "bytes": 381124,
+      "sha256": "61ba0df005b05991361d040d8ff670e1aadfd0ce7aeebd1fdb0725957a8957de"
+    },
+    {
+      "path": "vendor/three.module.min.js",
+      "bytes": 338908,
+      "sha256": "e2b5ee6bccd38fd6d8a2428546b83c5f2426d84b152ef82be8055556e3b40eb6"
+    }
+  ]
+}

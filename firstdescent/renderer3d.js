@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.min.js';
-import { AuthoredAssets, AUTHORED_ASSETS } from './authored-assets.js?v=20260919-polish67d';
+import { AuthoredAssets, AUTHORED_ASSETS } from './authored-assets.js?v=20260920-download68';
 // One retained GPU renderer, cached indexed meshes, smooth normals and pooled objects.
 const surface=document.createElement('canvas');
 let renderer;
