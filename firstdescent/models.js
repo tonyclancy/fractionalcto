@@ -1117,7 +1117,9 @@ function buildDevelopedOrganism(spec){
  // Breathing slits are embedded along the flank and follow its curvature.
  for(const side of [-1,1])for(let i=0;i<(boss?5:3);i++){const u=.39+i*.047;const pts=[surface(u,side*1.2,.6),surface(u+.008,side*1.55,.6),surface(u+.018,side*1.9,.6)];tube(pts,.8,dark);}
  // Subtle two-scale pigmentation gives structure without neon checkerboards.
- for(const f of m.faces){if(f.textureWeight===0)continue;const p=f.v[0],q=g.patternScale,v=g.pattern==='bands'?Math.sin(p[0]*q):g.pattern==='freckles'?Math.pow(Math.max(0,Math.sin(p[0]*q)*Math.cos(p[2]*q*1.8)),5)*2-1:g.pattern==='reticulate'?Math.sin(p[0]*q+Math.sin(p[2]*q))*Math.cos(p[1]*q):Math.sin(p[0]*q*.5+Math.sin(p[2]*q)*2),belly=p[1]>4?.07:0;f.c=f.c.map((n,i)=>Math.round(Math.max(0,Math.min(245,n*(.88+v*.18)+light[i]*belly))));}
+ // Sample pigment at shared vertices, never once per polygon. The GPU
+ // interpolates it across the skin without adding geometry or shader work.
+ for(const f of m.faces){if(f.textureWeight===0)continue;f.vertexColors=f.v.map(p=>{const q=g.patternScale,v=g.pattern==='bands'?Math.sin(p[0]*q):g.pattern==='freckles'?Math.pow(Math.max(0,Math.sin(p[0]*q)*Math.cos(p[2]*q*1.8)),5)*2-1:g.pattern==='reticulate'?Math.sin(p[0]*q+Math.sin(p[2]*q))*Math.cos(p[1]*q):Math.sin(p[0]*q*.5+Math.sin(p[2]*q)*2),belly=(1+Math.tanh((p[1]-4)*.16))*.035;return f.c.map((n,i)=>Math.max(0,Math.min(245,n*(.92+v*.10)+light[i]*belly)));});}
  const scale=(spec.small||1)*(boss?1:.88),transform=p=>p.map(v=>v*scale);
  for(const f of m.faces){f.v=f.v.map(transform);if(f.joint)f.joint=[...transform(f.joint.slice(0,3)),f.joint[3]];if(f.blink)f.blink=[f.blink[0]*scale,f.blink[1]];}
  const bodyVolumes=[.25,.5,.73].map(u=>{const p=section(u);return{center:transform([p[0],p[1],0]),radii:transform([18,p[2]*.94,p[3]*.94])};});

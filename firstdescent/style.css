@@ -168,3 +168,55 @@ body.game-expanded{overscroll-behavior:none}
 .title-screen .intro{padding-top:3.5%}.title-screen h1{font-size:clamp(62px,8.1vw,132px);margin:20px 0}.title-screen .introcopy{margin-bottom:18px}.title-screen{background:linear-gradient(90deg,#030a14f5 0%,#030a1490 35%,transparent 72%)}
 @media(max-width:1050px){.title-screen h1{font-size:8.4vw;margin:14px 0}.title-screen .introcopy{margin-bottom:12px}}
 @media(max-width:680px){.title-screen h1{font-size:10vw;margin:9px 0}.title-screen .introcopy{font-size:9px;line-height:1.4;margin-bottom:10px}.title-screen .intro{padding-top:4%}.title-screen .launch-caption{max-width:220px;line-height:1.6}}
+/* Mission collection uses lightweight SVG; no extra 3D scene or asset downloads. */
+.mission-hud{color:#9ee9d5!important;font-size:9px!important;letter-spacing:1px;margin-top:4px}
+.title-screen .mission-button{color:#a1f5d8;border-color:#a1f5d866;display:inline-block;margin-right:8px}
+.title-screen #universe{display:inline-block}
+.origin-log{background:radial-gradient(ellipse at 65% 0,#163947 0,transparent 60%),#060e18!important}
+.origin-summary{display:grid;grid-template-columns:1fr 1.6fr;gap:36px;padding:24px 0 28px;align-items:center}
+.origin-summary strong{display:block;font:600 64px 'Barlow Condensed',sans-serif;color:#aeffe3;margin:4px 0}
+.origin-summary strong small{font:14px 'DM Sans',sans-serif;color:#8eafa9}
+.origin-summary progress{width:100%;height:5px;accent-color:#a1f5d8;border:0;background:#20343e}
+.origin-summary progress::-webkit-progress-bar{background:#20343e}.origin-summary progress::-webkit-progress-value{background:#a1f5d8}
+.origin-summary h3{font:500 26px 'Barlow Condensed',sans-serif;letter-spacing:1px;margin:0 0 8px}
+.origin-summary p{font-size:13px;line-height:1.7;color:#adc4cd;margin:0 0 16px}.origin-summary .primary{font-size:10px;min-width:200px;padding:13px 18px}
+.origin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.origin-system{border:1px solid #24404b;border-radius:8px;padding:18px;background:#0b1924c9}
+.origin-system.resolved{border-color:#72c6b0;background:linear-gradient(155deg,#173a3d,#0b1924)}
+.origin-system-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.origin-system h3{font:500 21px 'Barlow Condensed',sans-serif;letter-spacing:2px;margin:0}.origin-system-title span{font:11px monospace;color:#9cc6c0}
+.origin-system svg{width:100%;height:70px}.origin-system svg path{fill:none;stroke:#365464;stroke-width:1}.origin-system svg circle{fill:#0b1924;stroke:#7295a5}.origin-system svg circle.recovered{fill:#a2f8d8;stroke:#e2fff1}
+.origin-system ul{list-style:none;margin:0;padding:0}.origin-system li{font-size:11px;letter-spacing:.8px;padding:9px 0;border-top:1px solid #243744}.origin-system li small{display:block;font:8px monospace;color:#819fac;padding:4px 0 0 18px;letter-spacing:1px}
+.origin-mark{color:#607680}.origin-mark.recovered{color:#a2f8d8}.origin-discovery{font-size:11px;line-height:1.7;color:#a2bbc4;border-top:1px solid #304651;padding-top:14px;margin-bottom:0}
+@media(max-width:800px){.origin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.origin-summary{gap:20px;padding:12px 0}.origin-summary strong{font-size:44px}.origin-summary h3{font-size:22px}.origin-summary p{font-size:11px}.mission-hud{font-size:7px!important}}
+@media(max-width:480px){.origin-summary{grid-template-columns:1fr}.origin-grid{grid-template-columns:1fr}.origin-summary strong{font-size:38px}.origin-summary .primary{min-width:170px}.origin-system{padding:14px}}
+
+/* Boss memories: readable recovery briefing, with flight controls left active. */
+.origin-recovery{position:absolute;z-index:8;left:50%;bottom:14px;transform:translateX(-50%);width:min(580px,78%);padding:18px 24px;background:linear-gradient(120deg,rgba(4,18,28,.96),rgba(9,34,42,.91));border:1px solid #73c4b768;border-top:2px solid #a5ffe1;border-radius:8px;box-shadow:0 10px 35px #0006;color:#e2f5ef;pointer-events:none;text-align:left}
+.origin-recovery[hidden]{display:none}.origin-recovery>.eyebrow{font-size:10px;letter-spacing:1.4px;color:#9cdfc9}.origin-recovery>strong{display:block;font-size:25px;letter-spacing:2px;margin:6px 0}.origin-recovery p{font-size:13px;line-height:1.45;margin:7px 0;color:#bed4d4}.recovery-progress{display:flex;gap:12px;align-items:center;margin-top:12px}.recovery-progress b{font-size:21px;color:#a5ffe1}.recovery-progress span{font-size:10px;letter-spacing:.6px}.recovery-progress span:last-child{margin-left:auto;color:#a3c5ce}.recovery-track{height:3px;background:#35515b;margin:6px 0 9px}.recovery-track i{display:block;height:100%;background:#a5ffe1}.origin-recovery small{font-size:10px;color:#9bc1ba}.origin-recovery .recovery-purpose{color:#edf4eb}
+@media(max-height:600px),(max-width:700px){.origin-recovery{bottom:8px;padding:10px 15px;width:min(540px,90%)}.origin-recovery>strong{font-size:18px;margin:3px 0}.origin-recovery p{font-size:11px;margin:4px 0}.recovery-progress{margin-top:5px}.recovery-progress b{font-size:17px}.origin-recovery>.eyebrow{font-size:9px}.recovery-progress span{font-size:9px}.origin-recovery small{font-size:9px}}
+@media(max-width:700px){.origin-recovery{padding:8px 12px}.origin-recovery>.eyebrow{line-height:1.2}.origin-recovery>strong{font-size:16px;line-height:1.2;margin:3px 0}.origin-recovery>p:not(.recovery-purpose){display:none}.origin-recovery .recovery-purpose{line-height:1.25}.recovery-progress{gap:8px}.recovery-progress b{line-height:1.2}.recovery-track{margin:4px 0}.origin-recovery small{line-height:1.2}}
+
+/* Short, fixed mission stages put the next reward ahead of the full archive. */
+.origin-milestones{margin:24px 0}.origin-milestones>p{color:#a9c2c6}.milestone-list{display:flex;gap:12px;overflow-x:auto;padding:8px 0 16px;scroll-snap-type:x proximity}.milestone-list article{flex:0 0 235px;scroll-snap-align:start;padding:18px;border:1px solid #344954;border-radius:8px;background:#0a1924}.milestone-list article.earned{border-color:#70bcab;background:#102b30}.milestone-list small,.milestone-list strong,.milestone-list span{display:block}.milestone-list small{font-size:10px;letter-spacing:.12em;color:#91acae}.milestone-list strong{margin:12px 0;color:#c9f8e8}.milestone-list span{font-size:11px;color:#91cdbb}.milestone-list p{font-size:13px;line-height:1.6;color:#b2c5cb}.origin-archive>summary{padding:16px 0;cursor:pointer;color:#a9c2c6;font-size:12px;letter-spacing:.1em}
+
+/* Account UI is outside the frame loop and remains usable in native fullscreen. */
+.collection-dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;background:#0c1c28;color:#d7f4ed;border:1px solid #426c71;border-radius:16px;padding:28px;box-shadow:0 24px 100px #000a;line-height:1.5}
+.collection-dialog::backdrop{background:#030b14cc;backdrop-filter:blur(5px)}
+.collection-dialog h2{font-size:28px;line-height:1.2;margin:16px 0}.collection-dialog p{margin:14px 0}.collection-dialog form{display:grid;gap:10px}.collection-dialog form[hidden],.collection-dialog [hidden]{display:none}
+.collection-dialog input:not([type=checkbox]){width:100%;box-sizing:border-box;font:inherit;font-size:18px;padding:12px;background:#09131e;color:#f3fffc;border:1px solid #57787c;border-radius:6px;user-select:text;-webkit-user-select:text;touch-action:manipulation}
+.collection-dialog button{margin:6px 0;padding:12px;white-space:normal}.collection-dialog .primary{width:100%;justify-content:center}.collection-dialog small{display:block;color:#a3bbc0}.collection-close{position:absolute;right:16px;top:10px;font-size:24px;border:0}.collection-import{display:flex;gap:10px;align-items:center;font-size:13px}.collection-import input{width:18px;height:18px}.collection-open{margin-top:8px}#collectionError{color:#ffbbad}#collectionStatus{color:#9cf5d7}
+
+.collection-dialog button{background:#142b36;border:1px solid #436369;border-radius:5px;color:#ccefe6;font:inherit;cursor:pointer}.collection-dialog button.primary{background:#a0efdb;color:#082522;border-color:#a0efdb;font-weight:700}.collection-dialog .collection-close{background:transparent;border:0}.collection-dialog button:disabled{opacity:.5;cursor:wait}
+
+/* Distinct observation thumbnails; the full travel assets load on demand. */
+.atlas-card{isolation:isolate;overflow:hidden;min-height:230px;padding-top:142px;background:#04101b}
+.atlas-card::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(0deg,#04101b 4%,#04101be6 28%,#04101b20 75%,transparent)}
+.atlas-galaxy{position:absolute;top:0;left:0;width:100%;height:190px;object-fit:contain;z-index:-2;pointer-events:none}
+.atlas-card .atlas-kind{font:9px monospace;color:#a5c9d1;letter-spacing:1px;margin:5px 0 0}
+.atlas-credits{border-top:1px solid #8bd7c52b;margin-top:30px;padding-top:18px;color:#8aa7b3;font:11px/1.6 sans-serif}
+.atlas-credits h3{color:#c8e4e5;letter-spacing:1.5px;font:500 16px 'Barlow Condensed',sans-serif}
+.atlas-credits>p{max-width:950px}.atlas-credit{font:11px/1.6 sans-serif;color:#96b3bd;margin:14px 0}.atlas-credit strong{font-weight:500;color:#c2dadb}.atlas-credit a,.atlas-credits a{color:#a3dcd3;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:680px){.atlas-card{min-height:205px;padding-top:115px}.atlas-galaxy{height:150px}.atlas-kind{font-size:8px}}
+
+.atlas-galaxy{mask-image:radial-gradient(ellipse 58% 61% at 50% 46%,#000 64%,transparent 100%)}

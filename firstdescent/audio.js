@@ -14,6 +14,7 @@ window.flightAudio=(()=>{
  const voices=new Set(),releasing=new Set(),lastCries=new Map();
  // Reserve headroom for readable combat cues; at most 60 voices + four 8ms release tails.
  const voiceLimit=64,activeLimit=60,musicLimit=24,voiceCounters={started:0,stolen:0,dropped:0,peak:0};
+ let signalProgress=0;
  const themeBeat=60/112; // 112 BPM; all sequencer and echo divisions share this clock.
  let musicEnabled=true,titleActive=false,musicTimer=null,musicBus,musicDelay,musicEcho,musicCross,nextBeat=0,musicStep=0,sectorTrack=-1,musicDucker,intensity=0,smoothedIntensity=0,bossApproach=0,smoothedApproach=0,bossEngaged=false,duckUntil=0,duckDepth=1;
  try{musicEnabled=localStorage.getItem('neon-vanguard-title-music')!=='off'}catch{}
@@ -366,6 +367,7 @@ window.flightAudio=(()=>{
  }
  function titleStep(index,offset,beat){
   const variation=titleVariation(index),bar=Math.floor(index/8)%32,step=index%8,section=Math.floor(bar/4),chord=titleChords[titleChanges[bar]],phrase=variation.answer?[[0,chord.voices[1]+12,2],[4,chord.voices[2]+12,1.5]]:titlePhrases[bar],event=phrase.find(n=>n[0]===step),suspended=section===4||variation.ambient,climax=section===6&&!variation.ambient,quiet=section===0||suspended,groove=offset+(step%2?beat*.012:0),phraseEnd=bar%8===7;
+  signalLayer(index,offset,beat,chord.voices);
   arcadeOrchestration(index,offset,beat,[chord.root,...chord.voices],{quiet:suspended,drive:climax,title:true});
   const leadBusy=phrase.some(n=>step>=n[0]&&step<n[0]+n[2]*2),leadGain=quiet?.042:climax?.052:.047;
   if(event){
@@ -428,6 +430,7 @@ window.flightAudio=(()=>{
     // Latch orchestration on the bar line, so combat changes never chop notes.
     if(step===0)arrangement=sectorArrangement(musicStep,smoothedIntensity);
     const form=arrangement,chord=theme.chords[form.chordIndex],offset=Math.max(0,nextBeat-context.currentTime),phrase=Math.floor(bar/4)%4,cadence=bar%4===3&&step>=6,groove=offset+(step%2?beat*arr.swing:0);
+    signalLayer(musicStep,groove,beat,chord);
     arcadeOrchestration(musicStep,groove,beat,chord,{quiet:form.quiet||form.rest,drive:form.drive});
     const refrain=bar%16>=4&&bar%16<=5&&!form.quiet&&!form.rest,hook=refrain?descentHook[bar%2].find(n=>n[0]===step):null,melody=refrain?{pitch:hook?harmonicPitch(chord[0]+24+hook[1],chord,hook[2]>=1.5):-1,duration:Math.min(hook?.[2]||1,(8-step)*.5-.04),busy:true}:sectorMelody(theme,form,bar,step),lead=melody.pitch;
     if(lead>=0&&!cadence)note({frequency:hz(lead),duration:beat*melody.duration*.94,hold:beat*melody.duration*.38,attack:.014,gain:form.quiet?.034:form.drive?.048:.042,instrument:form.quiet?'glass':scoreTimbres[sectorTrack],type:'triangle',cutoff:form.quiet?1800:form.drive?3200:2600,cutoffEnd:1200,vibrato:5,vibratoRate:4.4,pan:form.answer?-.15:.12,offset:groove,space:true,music:true,priority:2});
@@ -640,6 +643,20 @@ window.flightAudio=(()=>{
   noise({priority:5,duration:.18,gain:.065,cutoff:950,end:220,pan,offset:.025,body:true});
   for(let i=0;i<3;i++)noise({priority:5,duration:.024+i*.007,gain:.05-i*.01,cutoff:1900-i*300,end:500,pan,offset:.075+i*.045});
  }
+ function setSignalProgress(value){signalProgress=Math.max(0,Math.min(1,Number(value)||0));}
+ function signalRecovered(progress=0,systemComplete=false){
+  if(!enabled||!context||context.state!=='running')return;
+  const chord=sectorTrack<0?[52,55,59]:currentSectorTheme().chords[0];duckMusic(.4,2.1);
+  const count=systemComplete?4:2+Math.floor(Math.max(0,Math.min(1,progress))*2);
+  for(let i=0;i<count;i++)note({frequency:hz(chord[i%3]+12+(i===3?12:0)),duration:.65,hold:.14,attack:.015,gain:.075,instrument:'glass',cutoff:2800,pan:(i-1.5)*.13,offset:.65+i*.16,cue:true,space:true,priority:5});
+  note({frequency:hz(chord[0]-12),duration:1.1,attack:.03,gain:.06,instrument:'bass',cutoff:250,offset:.65,cue:true,priority:5});
+ }
+ function signalLayer(index,offset,beat,chord){
+  if(signalProgress<=0||Math.floor(index/8)%8!==6)return;
+  const step=index%8,count=1+Math.floor(signalProgress*3),voice=step/2;
+  if(step%2||voice>=count)return;
+  note({frequency:hz(chord[voice%chord.length]+12),duration:beat*.75,attack:.06,gain:.013,instrument:'glass',pan:(voice-1.5)*.18,offset,music:true,space:true,priority:1});
+ }
  function pickup(x=720){
   const pan=(x/1440*2-1)*.35;
   // Cockpit pickup confirmation stays clear even underwater.
@@ -675,5 +692,5 @@ window.flightAudio=(()=>{
   noise({duration:profile.length*.85,hold:.065,gain:.10+force*.02,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
   noise({duration:.30,gain:.028,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
- return{init,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:5,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
+ return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:5,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
 })();
