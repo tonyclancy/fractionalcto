@@ -795,7 +795,43 @@ function updateBossSpecial(b,dt){
 function drawSpecialWarning(b){}
 
 function laserHalfWidth(h,x){return (h.width/2)*(.5+.5*clamp(Math.abs(h.x-x)/180,0,1));}
+let cannonBeamTextures=null;
+function prepareCannonBeam(){
+ if(cannonBeamTextures)return cannonBeamTextures;
+ function texture(head){const canvas=document.createElement('canvas');canvas.width=head?192:8;canvas.height=128;const g=canvas.getContext('2d');
+  for(let x=0;x<canvas.width;x++){const half=64*(head?.5+.5*x/(canvas.width-1):1),light=g.createLinearGradient(0,64-half,0,64+half);
+   for(const [at,color] of [[0,'#498cff00'],[.13,'#498cff08'],[.24,'#599cff55'],[.27,'#74caffaa'],[.36,'#92ecffee'],[.44,'#e7ffff'],[.5,'#ffffff'],[.56,'#e7ffff'],[.64,'#92ecffee'],[.73,'#74caffaa'],[.76,'#599cff55'],[.87,'#498cff08'],[1,'#498cff00']])light.addColorStop(at,color);
+   g.fillStyle=light;g.fillRect(x,0,1,128);
+  }return canvas;
+ }
+ return cannonBeamTextures={head:texture(true),shaft:texture(false)};
+}
+function drawCannonBeam(h){
+ const age=h.age-h.warning,w=h.width,length=Math.hypot(W,H)+300;
+ ctx.save();ctx.translate(h.x,h.startY);ctx.rotate(h.angle??Math.PI);noGlow();
+ if(age<0){
+  // Charge remains at the physical emitter, never a projected attack lane.
+  const q=clamp(h.age/h.warning,0,1);orb(0,0,12+q*32,'#74bfff',.22+q*.36);orb(0,0,3+q*10,'#e7ffff',.5+q*.35);
+  ctx.strokeStyle='#c4f7ff';ctx.lineWidth=1.2;ctx.globalAlpha=.25+q*.5;ctx.beginPath();
+  for(let i=0;i<3;i++){const a=h.age*4+i*TAU/3,r=28*(1-q)+13;ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r);ctx.quadraticCurveTo(Math.cos(a+.6)*r*.5,Math.sin(a+.6)*r*.5,0,0);}ctx.stroke();ctx.restore();return;
+ }
+ const texture=prepareCannonBeam(),pulse=.94+.06*Math.sin(age*13),quality=(window.flightEffectsQuality||1)<1,steps=quality?28:48;
+ // A soft luminous cross-section replaces the flat polygon. The bright shaft
+ // keeps the existing collision width; its faint outer bloom is decorative.
+ ctx.globalAlpha=pulse;ctx.drawImage(texture.head,0,-w,180,w*2);ctx.drawImage(texture.shaft,180,-w,length-180,w*2);
+ ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
+ for(let strand=0;strand<(quality?2:4);strand++){
+  ctx.strokeStyle=strand%2?'#72cfff':'#edffff';ctx.globalAlpha=strand%2?.38:.55;ctx.lineWidth=strand%2?2.4:1.3;ctx.beginPath();
+  let px=0,py=0;for(let i=0;i<=steps;i++){const x=i/steps*length,taper=.5+.5*clamp(x/180,0,1),r=w*taper*.34,y=r*(Math.sin(x*.022-age*11+strand*1.7)*.66+Math.sin(x*.051-age*17+strand)*.17);if(i)ctx.quadraticCurveTo(px,py,(px+x)*.5,(py+y)*.5);else ctx.moveTo(x,y);px=x;py=y;}ctx.lineTo(px,py);ctx.stroke();
+ }
+ // Compression fronts travel away from the muzzle inside the plasma column.
+ ctx.strokeStyle='#c8faff';ctx.lineWidth=1.5;for(let i=0;i<5;i++){const x=((age*960+i*length/5)%length),r=w*(.5+.5*clamp(x/180,0,1))*.39;ctx.globalAlpha=.28*Math.sin(Math.PI*x/length);ctx.beginPath();ctx.ellipse(x,0,6,r,0,0,TAU);ctx.stroke();}
+ orb(0,0,w*.82,'#458eff',.35);orb(9,0,w*.47,'#a4f2ff',.72);orb(3,0,w*.22,'#f4ffff',.96);
+ // Short flared jets emerge from the opening, all on the firing side.
+ ctx.strokeStyle='#e4ffff';ctx.lineWidth=2;ctx.globalAlpha=.7;ctx.beginPath();for(const side of [-1,1]){ctx.moveTo(0,side*5);ctx.bezierCurveTo(14,side*w*.25,33,side*w*.35,62,side*w*.23);}ctx.stroke();ctx.restore();
+}
 function drawHazards(){if(boss){drawBreath(boss);drawArsenalCharge(boss);}for(const h of hazards){if(boss){const p=h.kind==='tech'?techLaserOrigin(boss):bossLaserOrigin(boss);h.x=p.x;h.startY=p.y;h.angle=p.angle??Math.atan2(h.y-p.y,-p.x);}const armed=h.age>=h.warning,c=h.kind==='tech'?'#bdaaff':'#83ffd6';ctx.save();
+ if(h.kind==='tech'){drawCannonBeam(h);ctx.restore();continue;}
  if(armed){const angle=h.angle??Math.atan2(h.y-h.startY,-h.x),length=Math.hypot(W,H)+300;ctx.translate(h.x,h.startY);ctx.rotate(angle);glow(c,24);ctx.globalAlpha=.8;poly([[0,-h.width/4],[180,-h.width/2],[length,-h.width/2],[length,h.width/2],[180,h.width/2],[0,h.width/4]],c);ctx.globalAlpha=.95;ctx.strokeStyle='#edfff9';ctx.lineWidth=h.kind==='tech'?22:13;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(length,0);ctx.stroke();orb(0,0,h.kind==='tech'?39:28,'#eee4ff',.7);if(h.kind==='tech')for(let i=0;i<4;i++){const travel=(h.age*2.6+i*.25)%1;orb(length*travel,0,8+travel*4,'#f1eaff',.38);}}
  ctx.restore();}if(boss){if(!bossDesign()&&!bossOrganic()&&bossIndex()!==4)drawBossChamber(boss);drawSpecialWarning(boss)}}
 function moveShot(s,dt){s.age+=dt;s.trail.push({x:s.x,y:s.y});if(s.trail.length>12)s.trail.shift();
