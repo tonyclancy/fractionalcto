@@ -1810,7 +1810,9 @@ function forgeObstacleProfile(fromRoot,seed){
 }
 function forgeTerrainMesh(r,seed){
  const faces=[],components=[],cross=r.side?r.h:r.w,length=r.side?r.w:r.h,depth=Math.min(cross,length)*.22,kind=forgeObstacleVariant(seed);
- const style=terrainAppearance(),steel=style.metal,edge=steel.map(n=>n+30),dark=steel.map(n=>Math.round(n*.39)),black=[17,23,26],brass=[151,115,70],paint=steel.map(n=>Math.round(n*.76)),warm=[224,157,67],cool=[104,178,191];
+ // Cool painted alloys catch warm furnace light without a rust-brown body.
+ // Variation is world-owned; fittings and worn edges stay readable at distance.
+ const style=terrainAppearance(),alloys=[[111,139,151],[112,143,133],[128,143,150]],steel=alloys[style.seed%alloys.length],edge=steel.map(n=>Math.min(210,n+39)),dark=steel.map(n=>Math.round(n*.40)),black=[19,28,31],brass=[148,136,109],paint=steel.map(n=>Math.round(n*.88)),warm=[224,157,67],cool=[104,178,191];
  const point=(u,v,z)=>r.side?[r.side==='left'?v:length-v,u,z]:[u,r.ceiling?v:length-v,z];
  const face=(v,c,em=0)=>faces.push({v,c,em,flex:0});
  const finish=(name,start)=>components.push({name,start,end:faces.length});

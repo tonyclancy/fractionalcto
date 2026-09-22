@@ -120,6 +120,9 @@ if(renderer){
   vec3 blend=pow(abs(normalize(vTerrainNormal)),vec3(4.0));blend/=max(dot(blend,vec3(1.0)),.0001);
   vec3 p=vSkinPosition/(terrainSurface<1.5?230.0:300.0);
   terrainTexel=texture2D(map,p.yz).rgb*blend.x+texture2D(map,p.xz).rgb*blend.y+texture2D(map,p.xy).rgb*blend.z;
+  // Foundry map supplies weathering; the alloy owns its colour. Otherwise
+  // brown texels, brown pigment and orange light compound into muddy bronze.
+  if(terrainSurface<1.5){float metalValue=dot(terrainTexel,vec3(.2126,.7152,.0722));terrainTexel=mix(vec3(metalValue),terrainTexel,.12);}
   diffuseColor.rgb*=mix(vec3(1.0),clamp(vec3(.42)+terrainTexel*2.5,vec3(.36),vec3(1.45)),vTextureWeight);
  }else{
  #include <map_fragment>
