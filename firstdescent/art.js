@@ -935,7 +935,7 @@ function drawExplosions(dt){for(const e of explosions){if(state!=='paused')e.age
  if(e.bossBlast){for(const d of e.detonations){const age=e.age-d.delay;if(age<0||age>.72)continue;const fade=1-age/.72;ctx.save();ctx.translate(d.x,d.y);ctx.globalAlpha=fade*.75;drawSoftPlume(d,d.r*(.5+age),age*.65,fade*.8);ctx.restore();}}
  if(!e.organic&&e.age<.24)orb(-4,-5,(50+e.age*100)*e.size,'#ffefca',(1-e.age/.24)*.8);ctx.restore();}explosions=explosions.filter(e=>e.age<e.life);
 }
-function drawStructures(){for(const o of obstacles)drawTerrainObstacle(o);}
+function drawStructures(){terrainEmitters.length=0;for(const o of obstacles)drawTerrainObstacle(o);}
 
 function drawSectorEnvironment(){
  const painting=art[sectors[level].background]||(themeIndex()===1?art.carrier:themeIndex()===2?art.abyss:null);
@@ -1016,7 +1016,7 @@ function drawEnvironmentalMachinery(){
 }
 
 // Shared rectangles keep the painted obstruction and physical collision in agreement.
-function obstacleForms(o){const raw=o.shutters?(themeIndex()===0?rigidAsteroidPassage(o):shutterSolids(o)):o.parts?o.parts.map(p=>({...p,x:o.x+p.x})):[{x:o.x,y:0,w:o.w+30,h:o.gap-o.open/2+20,ceiling:true},{x:o.x,y:o.gap+o.open/2,w:o.w+30,h:H-o.gap-o.open/2,ceiling:false}];const axis=sectors[level].scrollAxis;return axis?raw.map(r=>({x:axis==='down'?r.y*W/H:(H-r.y-r.h)*W/H,y:axis==='down'?r.x*H/W:(W-r.x-r.w)*H/W,w:r.h*W/H,h:r.w*H/W,ceiling:r.ceiling,side:axis==='down'?(r.ceiling?'left':'right'):(r.ceiling?'right':'left')})):raw;}
+function obstacleForms(o){const raw=o.shutters?(themeIndex()===0?rigidAsteroidPassage(o):shutterSolids(o)):o.parts?o.parts.map(p=>({...p,x:o.x+p.x})):[{x:o.x,y:0,w:o.w+30,h:o.gap-o.open/2+20,ceiling:true},{x:o.x,y:o.gap+o.open/2,w:o.w+30,h:H-o.gap-o.open/2,ceiling:false}];if(themeIndex()===0&&!o.navigation)for(const [i,r] of raw.entries()){const d=asteroidDrift(o,i);r.x+=d.x;r.y+=d.y;}const axis=sectors[level].scrollAxis;return axis?raw.map(r=>({x:axis==='down'?r.y*W/H:(H-r.y-r.h)*W/H,y:axis==='down'?r.x*H/W:(W-r.x-r.w)*H/W,w:r.h*W/H,h:r.w*H/W,ceiling:r.ceiling,side:axis==='down'?(r.ceiling?'left':'right'):(r.ceiling?'right':'left')})):raw;}
 function terrainProfile(r,t,seed){const k=themeIndex(),fromRoot=r.side?(r.side==='left'?t:1-t):(r.ceiling?t:1-t);if(k===0){const envelope=Math.pow(Math.max(.015,Math.sin(t*Math.PI)),.3+.18*(1+Math.sin(seed*2.7))),u=t*(7+Math.floor((Math.sin(seed)+1)*2)),cell=Math.floor(u),blend=u-cell,hash=n=>{const x=Math.sin(n*127.1+seed*93.7)*43758.5453;return x-Math.floor(x);},jag=.52+.44*(hash(cell)*(1-blend)+hash(cell+1)*blend);return Math.max(.08,envelope*jag);}if(k===1)return forgeObstacleProfile(fromRoot,seed);if(k===4)return stormTerrainProfile(fromRoot,seed);const u=t*7,cell=Math.floor(u),blend=u-cell,hash=n=>{const v=Math.sin(n*127.1+seed*93.7)*43758.5453;return v-Math.floor(v);},strata=hash(cell)*(1-blend)+hash(cell+1)*blend;return Math.max(.13,(.97-(.52+.15*Math.sin(seed))*Math.pow(fromRoot,1.6+.5*Math.cos(seed)))*(.84+strata*.12)*(1-.75*Math.pow(clamp((fromRoot-.78)/.22,0,1),1.2)));}
 
 function terrainCenter(t,seed){if(themeIndex()===1||themeIndex()===4)return .5;return .5+Math.sin(t*9+seed*3)*Math.sin(t*Math.PI)*.10;}
@@ -1524,7 +1524,7 @@ function terrainAppearance(definition=sectors[level]){
  return{kind,base,seed,metal:kind==='basalt'?[106,88,68]:kind==='storm'?[100,116,125]:[91,107,111],accent:world.accent||[184,136,78]};
 }
 function terrainMesh(r,seed){if(themeIndex()===1||themeIndex()===4)return industrialTerrainMesh(r,seed);const faces=[],rows=40,sides=24,style=terrainAppearance(),color=style.base;
- const point=(t,a,offset=0)=>{const width=terrainProfile(r,t,seed),cross=Math.cos(a),depth=Math.sin(a),rough=1-.07*Math.sin(t*13+a*3+seed)*Math.sin(a*2+seed),relief=Math.min(r.h,r.w)*.32*(.72+width*.28)*rough+offset;return r.side?[t*r.w,(terrainCenter(t,seed)+cross*width*.5)*r.h,depth*relief]:[(terrainCenter(t,seed)+cross*width*.5)*r.w,t*r.h,depth*relief];};
+ const point=(t,a,offset=0)=>{const width=terrainProfile(r,t,seed),cross=Math.cos(a),depth=Math.sin(a),rough=1-.07*Math.sin(t*13+a*3+seed+style.seed%17)*Math.sin(a*2+seed),relief=Math.min(r.h,r.w)*.32*(.72+width*.28)*rough+offset;return r.side?[t*r.w,(terrainCenter(t,seed)+cross*width*.5)*r.h,depth*relief]:[(terrainCenter(t,seed)+cross*width*.5)*r.w,t*r.h,depth*relief];};
  const rings=Array.from({length:rows+1},(_,i)=>Array.from({length:sides},(_,j)=>point(i/rows,j/sides*TAU)));
  for(let i=0;i<rows;i++)for(let j=0;j<sides;j++){
   faces.push({v:[rings[i][j],rings[i+1][j],rings[i+1][(j+1)%sides],rings[i][(j+1)%sides]],c:color,em:0,flex:0});
@@ -1537,8 +1537,67 @@ function terrainMesh(r,seed){if(themeIndex()===1||themeIndex()===4)return indust
    faces.push({v:[point(t,a-.006,1),point(next,b-.006,1),point(next,b+.006,1),point(t,a+.006,1)],c:dark,em:style.kind==='basalt'?.28:0,flex:0});
   }
  }
- faces.rock=true;faces.terrainMaterial=style.kind;faces.terrainWorld=style.seed;return faces;}
-function drawTerrainObstacle(o){if(themeIndex()===0){for(const [i,r] of obstacleForms(o).entries()){const a=asteroidSurface(o,r,i),p=asteroidPose(o,i);drawModel(a.mesh,r.x+r.w/2,r.y+r.h/2,1,p.yaw,p.roll,p.pitch,time);}return;}o.terrainMeshes??=[];for(const [index,r] of obstacleForms(o).entries()){if(r.w<=0||r.h<=0)continue;const seed=(o.id||0)*1.7+index*.9,key=r.w.toFixed(1)+':'+r.h.toFixed(1);let saved=o.terrainMeshes[index];if(!saved){const mesh=terrainMesh(r,seed),depth=Math.min(r.h,r.w);saved=o.terrainMeshes[index]={mesh,key,points:[...new Set(mesh.flatMap(f=>f.v))].map(v=>({v,x:v[0]/r.w,y:v[1]/r.h,z:v[2]/depth}))};}else if(saved.key!==key){const depth=Math.min(r.h,r.w);for(const p of saved.points){p.v[0]=p.x*r.w;p.v[1]=p.y*r.h;p.v[2]=p.z*depth;}saved.mesh.dynamic=true;saved.key=key;}drawModel(saved.mesh,r.x,r.y,1,0,0,0,0);}}
+ faces.rock=true;faces.terrainMaterial=style.kind;faces.terrainUV={width:r.w,height:r.h,side:!!r.side,flip:r.side?r.side==='right':!r.ceiling,seed};faces.terrainWorld=style.seed;addTerrainVents(faces,r,seed,[point(.29,Math.PI*1.44,3),point(.66,Math.PI*1.57,3)]);return faces;}
+function drawTerrainObstacle(o){if(themeIndex()===0){for(const [i,r] of obstacleForms(o).entries()){const a=asteroidSurface(o,r,i),p=asteroidPose(o,i);drawModel(a.mesh,r.x+r.w/2,r.y+r.h/2,1,p.yaw,p.roll,p.pitch,time);queueTerrainEmitters(a.mesh,r,p);}return;}o.terrainMeshes??=[];for(const [index,r] of obstacleForms(o).entries()){if(r.w<=0||r.h<=0)continue;const seed=(o.id||0)*1.7+index*.9,key=r.w.toFixed(1)+':'+r.h.toFixed(1);let saved=o.terrainMeshes[index];if(!saved){const mesh=terrainMesh(r,seed),depth=Math.min(r.h,r.w);saved=o.terrainMeshes[index]={mesh,key,points:[...new Set(mesh.flatMap(f=>f.v))].map(v=>({v,x:v[0]/r.w,y:v[1]/r.h,z:v[2]/depth}))};}else if(saved.key!==key){const depth=Math.min(r.h,r.w);for(const p of saved.points){p.v[0]=p.x*r.w;p.v[1]=p.y*r.h;p.v[2]=p.z*depth;}saved.mesh.dynamic=true;saved.key=key;}drawModel(saved.mesh,r.x,r.y,1,0,0,0,0);queueTerrainEmitters(saved.mesh,r);}}
+
+// Scenery activity is attached to retained meshes. Only a bounded list of
+// visible sockets is projected each frame; no simulated particle population.
+const terrainEmitters=[];
+function terrainActivity(definition=sectors[level]){
+ const style=terrainAppearance(definition);
+ return definition.medium==='water'?'bubbles':definition.theme==='forge'?'forge':style.kind==='basalt'||definition.stellar?'vent':style.kind==='ice'?'frost':style.kind==='storm'?'cloud':'dust';
+}
+function addTerrainVents(faces,r,seed,points){
+ const kind=terrainActivity(),cross=r.side?r.h:r.w,rad=Math.max(1.2,Math.min(8,cross*.037,(r.side?r.w:r.h)*.022)),metal=faces.industrial||faces.stormArchitecture;
+ faces.ports=[];
+ for(const [index,anchor] of points.entries()){
+  const start=faces.length,[x,y,z]=anchor,radius=rad*(index?.8:1),rim=metal?[122,109,84]:faces.terrainMaterial==='ice'?[103,156,169]:faces.terrainMaterial==='basalt'?[139,84,49]:[102,138,123];
+  const ring=(rr,zz)=>Array.from({length:8},(_,i)=>{const a=i/8*TAU,irregular=metal?1:1+.09*Math.sin(i*4+seed);return[x+Math.cos(a)*rr*irregular,y+Math.sin(a)*rr*.68*irregular,zz];});
+  const rings=[ring(radius,z+2),ring(radius,z-3),ring(radius*.57,z-3),ring(radius*.57,z+.5)];
+  for(let k=0;k<3;k++)for(let i=0;i<8;i++)faces.push({v:[rings[k][i],rings[k][(i+1)%8],rings[k+1][(i+1)%8],rings[k+1][i]],c:k===1?rim:rim.map(n=>n*.58),em:0,flex:0,textureWeight:0});
+  faces.push({v:rings[0].slice().reverse(),c:rim,em:0,flex:0,textureWeight:0},{v:rings[3].slice(),c:kind==='vent'?[164,67,23]:[23,38,41],em:kind==='vent'?.35:0,flex:0,textureWeight:0});
+  if(faces.components)faces.components.push({start,end:faces.length,name:'closed pressure outlet'});
+  // Mineral accretions grow around natural fissures; storm castings have
+  // small bronze reinforcing bosses. These remain inside the solid envelope.
+  if(!faces.industrial)for(let j=0;j<3;j++){
+   const a=seed+j*2.4,cx=x+Math.cos(a)*radius*1.65,cy=y+Math.sin(a)*radius*1.5,rr=radius*(.25+.07*j),zz=z+3,peak=[cx+rr*.2,cy-rr*.3,z-(kind==='bubbles'?5:3)-j];
+   const ring=[[cx-rr,cy-rr,zz],[cx+rr,cy-rr,zz],[cx+rr,cy+rr,zz],[cx-rr,cy+rr,zz]],c=faces.stormArchitecture?[147,129,94]:faces.terrainMaterial==='ice'?[145,192,208]:kind==='vent'?[96,66,43]:[127,157,121];
+   for(let n=0;n<4;n++)faces.push({v:[ring[n],ring[(n+1)%4],peak],c,em:0,flex:0});faces.push({v:ring.slice().reverse(),c,em:0,flex:0});
+  }
+  faces.ports.push({point:[x,y,z-3],width:r.w,height:r.h,kind,seed:seed*7+index*3.1,excitedUntil:-1});
+ }
+}
+function queueTerrainEmitters(mesh,r,pose){
+ if(r.x+r.w<-130||r.x>W+130||r.y+r.h<-130||r.y>H+130)return;
+ for(const port of mesh.ports||[]){if(terrainEmitters.length>=32)break;
+  if(pose){const p=rotateVertex(port.point,pose.yaw,pose.roll,pose.pitch,0,0);port.x=r.x+r.w/2+p[0];port.y=r.y+r.h/2+p[1];}
+  else{port.x=r.x+port.point[0]*r.w/port.width;port.y=r.y+port.point[1]*r.h/port.height;}
+  if(port.x<-90||port.x>W+90||port.y<-70||port.y>H+130)continue;
+  terrainEmitters.push(port);
+ }
+}
+function reactTerrainImpact(x,y){let nearest=null,distance=82;for(const port of terrainEmitters){const d=Math.hypot(port.x-x,port.y-y);if(d<distance){nearest=port;distance=d;}}if(nearest)nearest.excitedUntil=time+1.15;}
+let terrainBubbleSprite=null;
+function prepareTerrainBubble(){if(terrainBubbleSprite)return terrainBubbleSprite;const sprite=document.createElement('canvas');sprite.width=sprite.height=24;const c=sprite.getContext('2d');c.fillStyle='#163b5328';c.beginPath();c.arc(12,12,7,0,TAU);c.fill();c.strokeStyle='#bce7edcc';c.lineWidth=1.1;c.beginPath();c.arc(12,12,7,.85,4.8);c.stroke();c.strokeStyle='#ebffffe0';c.beginPath();c.arc(10.5,10.5,4.8,3.65,4.8);c.stroke();return terrainBubbleSprite=sprite;}
+function terrainEmitterStrength(port,at=time,pilot=ship){const near=!port.triggerOnly&&Math.hypot(port.x-pilot.x,port.y-pilot.y)<100;return at<port.excitedUntil?1:near?.65:0;}
+function drawTerrainEffects(){
+ const quality=window.flightEffectsQuality||1,limit=quality<.8?14:24;let drawn=0;ctx.save();
+ for(const port of terrainEmitters){if(drawn++>=limit)break;const strength=terrainEmitterStrength(port),t=time+port.seed;if(port.triggerOnly&&!strength)continue;
+  const cycle=(t%5.7+5.7)%5.7,burst=cycle<1.35||strength>0;
+  if(port.kind==='bubbles'){
+   const sprite=prepareTerrainBubble(),count=quality<.8?5:9;
+   for(let i=0;i<count;i++){const age=((t*.28+i/count)%1+1)%1,life=age*3.6,r=(4.3+(i%3)*1.1)*(1+age*.45),x=port.x+Math.sin(life*2.4+i)*life*2.3,y=port.y-life*27;ctx.globalAlpha=Math.sin(age*Math.PI)*(.64+strength*.28);ctx.drawImage(sprite,x-r,y-r,r*2,r*2);}
+  }else if(port.kind==='vent'||port.kind==='forge'||port.kind==='cloud'){
+   const steam=prepareLavaSteam(),count=quality<.8?3:5;
+   for(let i=0;i<count;i++){const age=((t*.22+i/count)%1+1)%1,size=18+age*(port.kind==='cloud'?74:47),rise=age*92,x=port.x+Math.sin(age*4+port.seed)*age*14,y=port.y-rise;ctx.globalAlpha=Math.min(.95,Math.sin(age*Math.PI)*(port.kind==='cloud'?.75:1.2)*(1+strength*.4));ctx.drawImage(steam,x-size/2,y-size*.7,size,size);}
+   if(port.kind==='forge'&&burst){ctx.strokeStyle='#ffd397';ctx.lineWidth=1.1;for(let i=0;i<5;i++){const age=((t*1.2+i*.17)%1+1)%1,a=port.seed+i*2.4,v=22+(i%3)*12,x=port.x+Math.cos(a)*age*v,y=port.y-Math.abs(Math.sin(a))*age*v+age*age*36;ctx.globalAlpha=(1-age)*.85;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-Math.cos(a)*3,y+2);ctx.stroke();}}
+   if(port.kind==='vent'&&burst){ctx.fillStyle='#ffc07a';for(let i=0;i<3;i++){const age=((t*.7+i/3)%1+1)%1;ctx.globalAlpha=(1-age)*.75;ctx.fillRect(port.x+Math.sin(i*3+age*2)*age*14,port.y-age*52,1.4,1.4);}}
+  }else{
+   ctx.fillStyle=port.kind==='frost'?'#c5e3e9':'#c4b092';for(let i=0;i<(quality<.8?3:6);i++){const age=((t*.34+i/6)%1+1)%1;ctx.globalAlpha=Math.sin(age*Math.PI)*(.27+strength*.3);ctx.fillRect(port.x+Math.sin(i*2.4)*age*30-age*12,port.y+age*(port.kind==='frost'?32:18),1.3+i%2,1.3);}
+  }
+ }
+ ctx.restore();
+}
 
 function organicFlightPose(b){return bossFlightPose(b);}
 function bossEyeOrigin(b){if(bossIndex()===0)return wardenMount(b,[-79,-11,-25]);const k=bossIndex(),p=bossFlightPose(b),local=k===2?[-38,-18,-25]:[-57,-24,-22],scale=k===2?2.3:k===3?2.1:2.15,v=rotateVertex(local,p.yaw,p.roll,p.pitch,0,0);return{x:b.x+v[0]*scale*p.depth,y:b.y+v[1]*scale*p.depth};}
@@ -1673,7 +1732,7 @@ function forgeTerrainMesh(r,seed){
  // Small inset hazard tabs identify the collision tip without a neon outline.
  for(let i=0;i<4;i++)box(cross*(.34+i*.10),length*.985,cross*.042,Math.max(1.5,length*.012),i%2?dark:warm,-depth-4,2,.3);
  for(const f of faces){f.textureWeight=.16;const center=f.v.reduce((a,p)=>a+p[r.side?0:1],0)/f.v.length/(r.side?r.w:r.h),wear=.93+.06*Math.sin(center*19+style.seed%53);if(!f.em)f.c=f.c.map(n=>Math.round(n*wear));}
- faces.industrial=true;faces.terrainMaterial='foundry';faces.terrainWorld=style.seed;faces.forgeVariant=kind;faces.components=components;return faces;
+ faces.industrial=true;faces.terrainMaterial='foundry';faces.terrainWorld=style.seed;faces.forgeVariant=kind;faces.components=components;addTerrainVents(faces,r,seed,[point(cross*.51,length*.85,-depth-12)]);return faces;
 }
 
 // Storm ruins share the background's carved flying-buttress language. Their
@@ -1709,13 +1768,18 @@ function industrialTerrainMesh(r,seed){
   const a=Math.PI*1.43,b=Math.PI*1.46;
   faces.push({v:[surface(t,a,2),surface(t+.014,a,2),surface(t+.014,b,2),surface(t,b,2)],c:solar?[242,134,47]:[227,188,114],em:.24,flex:0});
  }
- faces.rock=true;faces.terrainMaterial=solar?'basalt':'storm';faces.terrainWorld=style.seed;faces.stormArchitecture=true;return faces;
+ faces.rock=true;faces.terrainMaterial=solar?'basalt':'storm';faces.terrainWorld=style.seed;faces.stormArchitecture=true;addTerrainVents(faces,r,seed,[surface(.36,Math.PI*1.43,5),surface(.65,Math.PI*1.57,5)]);return faces;
 }
 
 const asteroidSurfaces=new Map();
-function asteroidSurface(o,r,index){const seed=(o.id||0)*1.7+index*.9,key=[seed,r.w,r.h,r.ceiling].join(':');let surface=asteroidSurfaces.get(key);if(!surface){const mesh=crateredAsteroid(r,seed),points=[...new Set(mesh.flatMap(f=>f.v))],ids=new Map(points.map((p,i)=>[p,i]));surface={mesh,points,faces:mesh.map(f=>f.v.map(v=>ids.get(v)))};asteroidSurfaces.set(key,surface);}return surface;}
-function asteroidPose(o,index){const t=time-o.at,seed=(o.id||0)*.71+index*1.3;return{yaw:t*.23+seed,roll:t*.19+seed*.6,pitch:Math.sin(t*.31+seed)*.24};}
-function asteroidSolids(o){const result=[];for(const [index,r] of obstacleForms(o).entries()){if(r.w<=0||r.h<=0)continue;const surface=asteroidSurface(o,r,index),stamp=Math.floor((time-o.at)*30);if(surface.collisionStamp===stamp){for(const q of surface.collision)result.push({...q,x:q.x+r.x,y:q.y+r.y});continue;}const first=result.length,p=asteroidPose(o,index),cy=Math.cos(p.yaw),sy=Math.sin(p.yaw),cr=Math.cos(p.roll),sr=Math.sin(p.roll),cp=Math.cos(p.pitch),sp=Math.sin(p.pitch),cx=r.w/2,yy=r.h/2;
+function asteroidSurface(o,r,index){const worldStyle=asteroidWorld(),seed=(o.id||0)*1.7+index*.9+worldStyle.seed*.031,key=[seed,r.w,r.h,r.ceiling,sectors[level].worldIdentity?.seed||0].join(':');let surface=asteroidSurfaces.get(key);if(!surface){const mesh=crateredAsteroid(r,seed);const front=mesh.reduce((a,b)=>a.v[0][2]<b.v[0][2]?a:b),p=front.v[0].slice();mesh.ports=[{point:p,width:r.w,height:r.h,kind:'dust',seed,triggerOnly:true,excitedUntil:-1}];const points=[...new Set(mesh.flatMap(f=>f.v))],ids=new Map(points.map((p,i)=>[p,i]));surface={mesh,points,faces:mesh.map(f=>f.v.map(v=>ids.get(v)))};asteroidSurfaces.set(key,surface);}return surface;}
+// Stable world geology and individual motion; generated once per world, no downloaded variants.
+const asteroidWorlds=new Map();
+function asteroidWorld(){const id=sectors[level].worldIdentity?.seed||level+1;if(asteroidWorlds.has(id))return asteroidWorlds.get(id);const n=speciesHash(String(id)),kind=n%4,colors=[[171,166,154],[143,155,163],[174,133,102],[183,203,211]],profile={seed:n%997,kind,color:colors[kind],craters:[12,5,8,4][kind],relief:[.12,.075,.17,.055][kind],stretch:.72+(n%31)/100,textureScale:1.5+(n%5)*.45,roughness:[.98,.66,.91,.72][kind]};asteroidWorlds.set(id,profile);return profile;}
+function asteroidMotion(o,index){const seed=(o.id||0)*.71+index*1.3+asteroidWorld().seed*.017,fraction=n=>{const v=Math.sin(seed*9.73+n*37.1)*43758.5453;return v-Math.floor(v);};return{seed,spin:.07+fraction(1)*.63,drift:.18+fraction(2)*.55,amplitude:5+fraction(3)*15,sign:fraction(4)<.5?-1:1};}
+function asteroidDrift(o,index){const m=asteroidMotion(o,index),t=Math.max(0,time-(o.at||0));return{x:Math.sin(t*m.drift+m.seed)*m.amplitude,y:Math.sin(t*m.drift*.71+m.seed*2)*m.amplitude*.45};}
+function asteroidPose(o,index){const t=time-(o.at||0),m=asteroidMotion(o,index);return{yaw:t*m.spin*m.sign+m.seed,roll:t*m.spin*.71+m.seed*.6,pitch:Math.sin(t*m.spin*.83+m.seed)*.24};}
+function asteroidSolids(o){const result=[];for(const [index,r] of obstacleForms(o).entries()){if(r.w<=0||r.h<=0)continue;const surface=asteroidSurface(o,r,index),stamp=Math.floor((time-(o.at||0))*60);if(surface.collisionStamp===stamp){for(const q of surface.collision)result.push({...q,x:q.x+r.x,y:q.y+r.y});continue;}const first=result.length,p=asteroidPose(o,index),cy=Math.cos(p.yaw),sy=Math.sin(p.yaw),cr=Math.cos(p.roll),sr=Math.sin(p.roll),cp=Math.cos(p.pitch),sp=Math.sin(p.pitch),cx=r.w/2,yy=r.h/2;
  const points=surface.points.map(v=>{const x=v[0]*cy+v[2]*sy,z=-v[0]*sy+v[2]*cy,y=v[1]*cr-z*sr;return[x*cp-y*sp+cx,x*sp+y*cp+yy];});let minY=Infinity,maxY=-Infinity;for(const v of points){minY=Math.min(minY,v[1]);maxY=Math.max(maxY,v[1]);}const step=(maxY-minY)/48,lo=new Float64Array(48).fill(Infinity),hi=new Float64Array(48).fill(-Infinity);
  for(const face of surface.faces){let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;for(const id of face){const v=points[id];x0=Math.min(x0,v[0]);x1=Math.max(x1,v[0]);y0=Math.min(y0,v[1]);y1=Math.max(y1,v[1]);}for(let row=Math.max(0,Math.floor((y0-minY)/step));row<=Math.min(47,Math.floor((y1-minY)/step));row++){lo[row]=Math.min(lo[row],x0);hi[row]=Math.max(hi[row],x1);}}
  for(let i=0;i<48;i++)if(hi[i]>lo[i])result.push({x:lo[i],y:minY+i*step,w:hi[i]-lo[i],h:step,ceiling:r.ceiling});surface.collisionStamp=stamp;surface.collision=result.slice(first);for(let i=first;i<result.length;i++)result[i]={...result[i],x:result[i].x+r.x,y:result[i].y+r.y};}return result;}
@@ -1767,12 +1831,14 @@ function stormLane(){
 }
 function drawSectorRule(){const wind=sectorCurrent();if(Math.abs(wind)>12){ctx.save();ctx.strokeStyle='#b4d5e5';ctx.globalAlpha=.14;ctx.lineWidth=1;for(let i=0;i<12;i++){const x=120+i*105,y=(i*137+world*.45)%H;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+Math.sign(wind)*30);ctx.stroke();}ctx.restore();}const lane=stormLane();if(lane){ctx.save();ctx.strokeStyle=lane.warning?'#c5a7e7':'#e8dfff';ctx.globalAlpha=lane.warning?.45:.85;ctx.lineWidth=lane.warning?2:7;ctx.setLineDash(lane.warning?[9,12]:[]);for(const side of lane.warning?[-1,1]:[0]){ctx.beginPath();for(let i=0;i<=20;i++){const x=lane.x+side*28+(lane.warning?0:Math.sin(i*7+time*35)*12),y=i*H/20;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();}ctx.font='bold 11px sans-serif';ctx.fillStyle='#eee2ff';ctx.textAlign='center';ctx.fillText(lane.warning?'LIGHTNING BUILDING':'DISCHARGE',lane.x,60);ctx.restore();}}
 
-function crateredAsteroid(r,seed){const faces=[],segments=40,rows=26,rx=r.w*.52,ry=Math.min(r.h*.5,r.w*.73),rz=Math.min(rx,ry)*(.74+.1*Math.sin(seed)),craters=[];
- for(let i=0;i<9;i++){const a=i*2.399+seed*1.7,z=-.82+i*.205,l=Math.sqrt(1-z*z);craters.push({x:Math.cos(a)*l,y:z,z:Math.sin(a)*l,size:.17+.065*(1+Math.sin(i*7+seed)),depth:.14+.08*(1+Math.cos(i*3+seed))});}
- const rings=Array.from({length:rows+1},(_,j)=>Array.from({length:segments},(_,i)=>{const lat=j/rows*Math.PI,lon=i/segments*TAU,x=j===0||j===rows?0:Math.sin(lat)*Math.cos(lon),y=Math.cos(lat),z=j===0||j===rows?0:Math.sin(lat)*Math.sin(lon);let radius=1+.10*Math.sin(x*5.1+y*3.7+seed)*Math.cos(z*4.3-y*2.9)+.045*Math.sin(x*13+z*9+seed)*Math.cos(y*11-z*5);
+function crateredAsteroid(r,seed){const style=asteroidWorld(),faces=[],segments=40,rows=26,rx=r.w*.52,ry=Math.min(r.h*.5,r.w*.73)*style.stretch,rz=Math.min(rx,ry)*(.64+.18*Math.sin(seed)),craters=[];
+ for(let i=0;i<style.craters;i++){const a=i*2.399+seed*1.7,z=-.82+i*1.64/(style.craters-1),l=Math.sqrt(1-z*z);craters.push({x:Math.cos(a)*l,y:z,z:Math.sin(a)*l,size:.17+.065*(1+Math.sin(i*7+seed)),depth:.14+.08*(1+Math.cos(i*3+seed))});}
+ const rings=Array.from({length:rows+1},(_,j)=>Array.from({length:segments},(_,i)=>{const lat=j/rows*Math.PI,lon=i/segments*TAU,x=j===0||j===rows?0:Math.sin(lat)*Math.cos(lon),y=Math.cos(lat),z=j===0||j===rows?0:Math.sin(lat)*Math.sin(lon);let radius=1+style.relief*Math.sin(x*5.1+y*3.7+seed)*Math.cos(z*4.3-y*2.9)+.045*Math.sin(x*13+z*9+seed)*Math.cos(y*11-z*5);
  for(const c of craters){const d=Math.sqrt(Math.max(0,2-2*(x*c.x+y*c.y+z*c.z)))/c.size;if(d<1.65){radius-=c.depth*Math.exp(-d*d*2.5);radius+=.055*Math.exp(-Math.pow((d-1)/.2,2));}}
  return[x*rx*radius,y*ry*radius,z*rz*radius];}));
- for(let j=0;j<rows;j++)for(let i=0;i<segments;i++){const next=(i+1)%segments;faces.push({v:[rings[j][i],rings[j+1][i],rings[j+1][next],rings[j][next]],uv:[[i/segments*3,j/rows*2],[i/segments*3,(j+1)/rows*2],[(i+1)/segments*3,(j+1)/rows*2],[(i+1)/segments*3,j/rows*2]],c:[188,190,184],em:0,flex:0});}faces.rock=true;return faces;}
+ const pigment=v=>{const x=v[0]/rx,y=v[1]/ry,z=v[2]/rz,vein=Math.pow(Math.max(0,Math.cos(x*11+y*9+Math.sin(z*7))),12),layer=.5+.5*Math.sin(y*16+x*4+style.seed),shade=.82+.15*Math.sin(x*4+y*5+z*3+seed),deposit=style.kind===1?vein*.32:style.kind===3?layer*.16:vein*.12;return style.color.map((c,i)=>Math.min(245,c*shade+deposit*(i===2&&style.kind===2?20:75)));};
+ for(let j=0;j<rows;j++)for(let i=0;i<segments;i++){const next=(i+1)%segments,v=[rings[j][i],rings[j+1][i],rings[j+1][next],rings[j][next]],scale=style.textureScale;faces.push({v,uv:[[i/segments*scale,j/rows*scale],[i/segments*scale,(j+1)/rows*scale],[(i+1)/segments*scale,(j+1)/rows*scale],[(i+1)/segments*scale,j/rows*scale]],c:style.color,vertexColors:v.map(pigment),em:0,flex:0});}faces.rock=true;faces.asteroidFinish=style;return faces;}
+
 
 function rigidAsteroidPassage(o){const parts=[],t=time-o.at;for(let i=0;i<2;i++){const center=380+(i===0?-1:1)*(45+Math.sin(t*.65+i*.8)*20),gap=330+Math.sin(t*.9+i)*12;parts.push({x:o.x+i*250,y:center-gap/2-190,w:180,h:190,ceiling:true},{x:o.x+i*250,y:center+gap/2,w:180,h:190,ceiling:false});}return parts;}
 
