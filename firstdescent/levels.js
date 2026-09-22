@@ -2196,6 +2196,35 @@ function installPlanetBiosphere(stage,world,system){
  const prior=stage.escortEncounter||{};stage.escortEncounter={...prior,name:planetSpecies.get(ids[4]).name.toUpperCase(),model:ids[4],escort:ids[5],organic:!mechanicalSwarm,rig:'appendages',count:prior.count||4,orbit:prior.orbit||2.6,formation:['screen','figure8','petals'][seed%3],pace:prior.pace||1};stage.revision+=3;
 }
 for(const release of contentReleases)for(const system of release.systems)for(const world of system.destinations)for(const stageId of world.stages){const stage=levelDefinitions.find(l=>l.id===stageId);installPlanetBiosphere(stage,world,system);}
+// Replace the inherited three-prong wall template, not handcrafted formations.
+// Authored once per world: geometry, collision, recovery and previews all share it.
+function varyVerticalWallFormations(stage){
+ if(!stage.scrollAxis||stage.obstacleAttachment!=='boundary')return;
+ let priorCount=0,changed=false;
+ stage.obstacles=stage.obstacles.map((o,index)=>{
+  const parts=o.parts;
+  if(o.layout||parts.length!==3||!parts.every(p=>p.ceiling===parts[0].ceiling&&p.w===120)||parts[1].x-parts[0].x!==105||parts[2].x-parts[1].x!==105)return o;
+  const unit=salt=>{let n=speciesHash('wall-layout-v126/'+stage.id+'/'+index+'/'+salt);n=Math.imul(n^(n>>>16),0x21f0aaad);n=Math.imul(n^(n>>>15),0x735a2d97);return ((n^(n>>>15))>>>0)/4294967296;};
+  const choices=[1,2,4];let pick=Math.floor(unit('count')*choices.length);
+  if(choices[pick]===priorCount)pick=(pick+1+(unit('alternate')>.5?1:0))%choices.length;
+  const count=choices[pick],ceiling=parts[0].ceiling,maxDepth=Math.max(...parts.map(p=>p.h)),dominant=Math.floor(unit('dominant')*count);
+  priorCount=count;let x=0;
+  const varied=Array.from({length:count},(_,i)=>{
+   const w=Math.round(count===1?190+unit('width'+i)*85:count===2?(i===dominant?150:90)+unit('width'+i)*40:(i===dominant?108:60)+unit('width'+i)*(i===dominant?24:32));
+   let h=Math.round(maxDepth*(i===dominant?.9+unit('depth'+i)*.1:.40+unit('depth'+i)*.34));
+   // Expanded clusters can overlap the challenge passage. Reserve its opposite
+   // wall clearance in course coordinates (100 units/second scrolling).
+   const gateStart=(stage.challenge?.at-4)*100,partStart=o.at*100+x;
+   if(partStart+w>=gateStart&&partStart<=gateStart+400)h=Math.min(h,240);
+   const part={x,y:ceiling?0:760-h,w,h,ceiling};
+   x+=w+Math.round(38+unit('spacing'+i)*87);return part;
+  });
+  changed=true;
+  return {...o,layout:'varied-wall-v126',width:varied.at(-1).x+varied.at(-1).w,parts:varied};
+ });
+ if(changed)stage.revision++;
+}
+levelDefinitions.forEach(varyVerticalWallFormations);
 const expedition=buildExpedition(contentReleases,levelDefinitions);
 freezeContent(expedition.locations);
 const campaign=freezeContent(validateLevels(expedition.stages));
