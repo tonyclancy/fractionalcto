@@ -7,7 +7,7 @@ window.flightAudio=(()=>{
  const instrumentWaves={},roomBuffers=new Map();
  const acoustics={
   air:{cutoff:14000,room:.18,wet:.045,damping:.025,spread:.75},
-  water:{cutoff:2100,room:.38,wet:.13,damping:.008,spread:.36},
+  water:{cutoff:3200,room:.38,wet:.10,damping:.008,spread:.36},
   hangar:{cutoff:10500,room:.74,wet:.10,damping:.02,spread:.65},
   cavern:{cutoff:7200,room:1.15,wet:.15,damping:.012,spread:.55}
  };
@@ -25,7 +25,7 @@ window.flightAudio=(()=>{
   if(!context){
    const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return false;
    context=new Audio();master=context.createGain();master.gain.value=enabled?.8:0;
-   compressor=context.createDynamicsCompressor();compressor.threshold.value=-10;compressor.knee.value=12;compressor.ratio.value=3;if(compressor.attack)compressor.attack.value=.006;if(compressor.release)compressor.release.value=.20;
+   compressor=context.createDynamicsCompressor();compressor.threshold.value=-3;compressor.knee.value=3;compressor.ratio.value=8;if(compressor.attack)compressor.attack.value=.003;if(compressor.release)compressor.release.value=.20;
    // Add warmth before the limiter; trim the brittle upper register.
    const bass=context.createBiquadFilter(),air=context.createBiquadFilter();
    bass.type='lowshelf';bass.frequency.value=130;bass.gain.value=2.5;
@@ -33,12 +33,16 @@ window.flightAudio=(()=>{
    const subsonic=context.createBiquadFilter();subsonic.type='highpass';subsonic.frequency.value=25;subsonic.Q.value=.5;
    master.connect(bass);bass.connect(air);air.connect(subsonic);subsonic.connect(compressor);compressor.connect(context.destination);
    worldBus=context.createGain();worldBus.gain.value=1;worldFilter=context.createBiquadFilter();worldFilter.type='lowpass';worldFilter.Q.value=.5;
-   worldDucker=context.createGain();worldDucker.gain.value=1;worldBus.connect(worldFilter);worldFilter.connect(worldDucker);worldDucker.connect(master);
+   // Control battle peaks before they reach the shared output. Repeated blasts
+   // must not push the whole score down through a single shared compressor.
+   const effectsCompressor=context.createDynamicsCompressor();effectsCompressor.threshold.value=-14;effectsCompressor.knee.value=9;effectsCompressor.ratio.value=3;effectsCompressor.attack.value=.012;effectsCompressor.release.value=.16;
+   worldDucker=context.createGain();worldDucker.gain.value=1;worldBus.connect(effectsCompressor);effectsCompressor.connect(worldFilter);worldFilter.connect(worldDucker);worldDucker.connect(master);
    cueMusicBus=context.createGain();cueMusicBus.gain.value=.62;cueMusicBus.connect(bass);
    if(context.createConvolver){room=context.createConvolver();roomSend=context.createGain();roomReturn=context.createGain();roomReturn.gain.value=.24;worldFilter.connect(roomSend);roomSend.connect(room);room.connect(roomReturn);roomReturn.connect(worldDucker);}
    musicBus=context.createGain();musicBus.gain.value=1.45;musicDucker=context.createGain();musicDucker.gain.value=1;
    const musicBody=context.createBiquadFilter();musicBody.type='peaking';musicBody.frequency.value=250;musicBody.Q.value=.8;musicBody.gain.value=-2;
-   musicBus.connect(musicBody);musicBody.connect(musicDucker);musicDucker.connect(bass);
+   const musicPresence=context.createBiquadFilter();musicPresence.type='peaking';musicPresence.frequency.value=2200;musicPresence.Q.value=.7;musicPresence.gain.value=-2;
+   musicBus.connect(musicBody);musicBody.connect(musicPresence);musicPresence.connect(musicDucker);musicDucker.connect(bass);
    musicDelay=context.createDelay(1);musicDelay.delayTime.value=themeBeat*.75;musicEcho=context.createGain();musicEcho.gain.value=.14;
    const echoLow=context.createBiquadFilter(),echoHigh=context.createBiquadFilter();echoLow.type='lowpass';echoLow.frequency.value=1900;echoHigh.type='highpass';echoHigh.frequency.value=280;
    musicDelay.connect(echoLow);echoLow.connect(echoHigh);echoHigh.connect(musicEcho);musicEcho.connect(musicDelay);
@@ -89,7 +93,7 @@ window.flightAudio=(()=>{
   // Never sacrifice a critical cue for a shot or background voice. Within music,
   // preserve the lead/rhythm before its quiet ornaments and sustained pads.
   const candidates=crowdedMusic?sameMusic:[...voices];
-  const victim=candidates.filter(v=>v.priority<priority||(crowdedMusic&&v.priority===priority))
+  const victim=candidates.filter(v=>(music||priority>=5||!v.music||v.priority<2)&&(v.priority<priority||(crowdedMusic&&v.priority===priority)))
    .sort((a,b)=>a.priority-b.priority||a.endAt-b.endAt)[0];
   if(!victim){voiceCounters.dropped++;return false;}
   releaseVoice(victim);voiceCounters.stolen++;return true;
@@ -416,7 +420,7 @@ window.flightAudio=(()=>{
  }
  function startTitleLoop(){
   if(!titleActive||!musicEnabled||!context||context.state!=='running'||musicTimer!==null)return;
-  musicBus.gain.cancelScheduledValues(context.currentTime);musicBus.gain.setTargetAtTime(sectorTrack<0?1.45:1.38,context.currentTime,.12);
+  musicBus.gain.cancelScheduledValues(context.currentTime);musicBus.gain.setTargetAtTime(sectorTrack<0?1.45:1.12,context.currentTime,.12);
   const theme=sectorTrack<0?null:currentSectorTheme(),arr=theme?arrangements[sectorTrack]:arrangements[0],beat=theme?60/(theme.bpm*(bossApproach>.04?1.18:1)):themeBeat;
   musicDelay.delayTime.value=beat*.75;musicCross.delayTime.value=beat*.25;
   nextBeat=context.currentTime+.04;let arrangement=sectorArrangement(musicStep,smoothedIntensity);
@@ -504,7 +508,7 @@ window.flightAudio=(()=>{
   if(!enabled||!context||context.state!=='running'||x< -100||x>1540)return;
   const v=bossVoice,pan=Math.max(-.8,Math.min(.8,(x/1440-.5)*1.5)),large=['lunge','roar'].includes(action),length=large?(action==='roar'?1.25:.88):.22;
   const pitch=v.pitch*(1+Math.sin(++bossActionSerial*2.399+v.seed%31)*.025),family=v.family;
-  duckMusic(large?.55:.84,large?length:.16);
+  if(large)duckMusic(.55,length);
   const n=(o)=>note({priority:5,pan,...o}),h=(o)=>noise({priority:5,pan,...o});
   // Short projectile cues remain compact; movement gestures have distinct syntax.
   h({duration:length*.85,gain:large?.19:.055,cutoff:family==='ion'?210:160,end:45,body:true,pressure:true});
@@ -544,7 +548,7 @@ window.flightAudio=(()=>{
  }
  function shot(kind='pulse',x=720,enemy=false){
   if(!enabled||!context||context.state!=='running'||x< -100||x>1540)return;
-  if(!enemy)duckMusic(.68,.12);
+  // Sustained automatic fire keeps a steady musical bed; only major cues duck it.
   const presets={pulse:[245,85,.045,'triangle'],spread:[210,70,.055,'sawtooth'],beam:[340,120,.22,'triangle'],helix:[240,100,.18,'triangle'],wave:[190,55,.23,'sawtooth'],missile:[120,35,.24,'sawtooth'],drone:[280,120,.045,'triangle'],spore:[220,65,.16,'triangle'],bolt:[295,95,.04,'triangle'],seeker:[150,40,.2,'sawtooth']};
   const cannon=['pulse','spread','bolt','drone'].includes(kind);
   const [frequency,end,duration,type]=presets[kind]||presets.pulse,pan=(x/1440*2-1)*.65,priority=enemy?2:3;
@@ -600,9 +604,9 @@ window.flightAudio=(()=>{
  function explosion(x=720,size=1,organic=false){
   if(!enabled||!context||context.state!=='running'||x< -100||x>1540)return;
   if(size<2&&context.currentTime-lastBlast<.035)return;
-  lastBlast=context.currentTime;duckMusic(size>2?.64:.84,size>2?.45:.14);
+  lastBlast=context.currentTime;if(size>2)duckMusic(.8,.3);
   const water=environment==='water',weight=Math.max(.35,Math.min(3.8,size)),length=.38+Math.sqrt(weight)*.53,overlap=[...voices].filter(v=>v.priority===4&&!v.music).length;
-  const volume=(.35+Math.sqrt(weight)*.38)/Math.sqrt(1+overlap/12),pan=(x/1440*2-1)*.65,variation=1+Math.sin(noiseSerial*2.37)*.06;
+  const volume=(.35+Math.sqrt(weight)*.38)/Math.sqrt(1+overlap/6),pan=(x/1440*2-1)*.65,variation=1+Math.sin(noiseSerial*2.37)*.06;
   // Broadband onset, a separately shaped pressure body and material debris.
   // A blast is never a pitched oscillator or ringing bandpass resonance.
   noise({duration:(water?.10:.055)*length,gain:(water?.12:organic?.28:.36)*volume,cutoff:(water?1700:organic?3900:6500)*variation,end:water?420:1100,highpass:water?0:450,pan,priority:4});
@@ -692,5 +696,5 @@ window.flightAudio=(()=>{
   noise({duration:profile.length*.85,hold:.065,gain:.10+force*.02,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
   noise({duration:.30,gain:.028,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
- return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:5,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
+ return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:6,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
 })();

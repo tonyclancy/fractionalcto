@@ -1234,6 +1234,7 @@ function panoramaLayout(img){
 // inspected for visible surface water opts in; underwater, lava and cloud-only
 // scenes must never inherit ripples merely because they share an encounter.
 const SCENIC_WATER=freezeContent({
+ 'world:saffron-stillwater':{color:'#c9dbe5',pools:[[[.34,.579],[.53,.578],[.67,.602],[.63,.626],[.41,.626]],[[.60,.636],[.77,.641],[.86,.668],[.74,.682],[.61,.660]]],falls:[]},
  'world:caelus':{color:'#c4dcdb',pools:[[[.575,.469],[.624,.468],[.656,.498],[.669,.530],[.62,.534],[.582,.513]],[[.492,.668],[.545,.684],[.582,.711],[.565,.736],[.523,.716],[.495,.694]],[[.758,.577],[.798,.592],[.820,.630],[.773,.614]]],falls:[{path:[[.076,.354,.003],[.082,.386,.005],[.088,.421,.007],[.094,.458,.010],[.099,.489,.012]]},{path:[[.371,.545,.004],[.373,.570,.005],[.376,.597,.007],[.381,.626,.010]]},{path:[[.861,.624,.003],[.863,.661,.004],[.857,.702,.006],[.850,.730,.009]]}]},
  'world:lyra-aster':{color:'#eadcc3',pools:[[[.398,.431],[.601,.438],[.678,.471],[.551,.5],[.4,.486]],[[.457,.535],[.629,.523],[.668,.574],[.541,.598],[.48,.59]],[[.656,.754],[.707,.743],[.807,.768],[.791,.81],[.693,.794]]],falls:[]},
  'world:solenne-zephyr':{color:'#dfd7bd',pools:[[[.223,.505],[.344,.49],[.501,.483],[.54,.51],[.465,.535],[.315,.536]],[[.469,.636],[.517,.637],[.529,.66],[.493,.695],[.444,.702],[.438,.678]]],falls:[{path:[[.426,.800,.0025],[.426,.829,.003],[.420,.849,.004],[.418,.866,.005]]},{path:[[.512,.807,.003],[.514,.833,.004],[.518,.851,.005],[.527,.877,.005],[.530,.909,.008]]},{path:[[.632,.715,.002],[.627,.747,.003],[.620,.783,.005],[.616,.804,.007]]}]}
@@ -1444,14 +1445,75 @@ function drawScenicLavaTile(lava,t,x,y,p,vertical){
  ctx.restore();
 }
 
+// Vents are authored against the painting, from chimney mouth to dispersal.
+// Reuse real plume detail from that painting, with soft edges baked once.
+const SCENIC_PLUMES=freezeContent({
+ 'world:selen-saphir':[
+  {path:[[.400,.331,.002],[.395,.258,.006],[.387,.180,.011],[.395,.091,.017]],sample:[.382,.17,.020,.090],period:8.4},
+  {path:[[.738,.526,.002],[.739,.438,.005],[.733,.349,.009],[.737,.263,.013]],sample:[.725,.334,.022,.095],period:10.2},
+  {path:[[.224,.145,.003],[.226,.094,.009],[.215,.015,.021]],sample:[.214,.015,.031,.085],period:7.8}],
+ 'world:umbra-morrow':[
+  {path:[[.157,.255,.003],[.155,.184,.010],[.150,.111,.020],[.148,.018,.030]],sample:[.129,.025,.041,.085],period:8.1},
+  {path:[[.423,.766,.003],[.423,.656,.012],[.417,.556,.019],[.421,.466,.026]],sample:[.401,.54,.036,.098],period:9},
+  {path:[[.266,.418,.002],[.262,.324,.008],[.267,.243,.013],[.257,.128,.019]],sample:[.250,.172,.025,.092],period:10.8},
+  {path:[[.785,.901,.003],[.791,.789,.012],[.797,.679,.018],[.785,.590,.023]],sample:[.782,.665,.029,.088],period:11.2}],
+ 'world:noctis-fathom':[
+  {path:[[.256,.229,.004],[.248,.173,.013],[.247,.092,.021],[.250,.008,.028]],sample:[.234,.061,.036,.090],period:10.6},
+  {path:[[.117,.276,.003],[.113,.201,.008],[.108,.119,.014],[.106,.021,.019]],sample:[.101,.09,.025,.088],period:11.3},
+  {path:[[.838,.349,.002],[.833,.296,.007],[.843,.230,.012],[.851,.160,.017]],sample:[.832,.231,.021,.063],period:8.8},
+  {path:[[.478,.430,.002],[.478,.395,.004],[.481,.347,.008],[.482,.304,.010]],sample:[.470,.335,.021,.062],period:7.4},
+  {path:[[.363,.509,.002],[.363,.465,.005],[.358,.406,.009],[.362,.355,.014]],sample:[.349,.413,.025,.064],period:8.5},
+  {path:[[.710,.537,.002],[.709,.488,.005],[.706,.441,.009],[.701,.384,.013]],sample:[.700,.446,.019,.060],period:9.7}]
+});
+let scenicPlumeCache=null;
+function prepareScenicPlumes(key,img){
+ const definitions=SCENIC_PLUMES[key];if(!definitions||!imageReady(img))return null;
+ if(scenicPlumeCache?.key===key&&scenicPlumeCache.image===img)return scenicPlumeCache;
+ const clouds=definitions.map(definition=>{
+  const sprite=document.createElement('canvas');sprite.width=64;sprite.height=128;const g=sprite.getContext('2d'),s=definition.sample;
+  g.drawImage(img,s[0]*img.naturalWidth,s[1]*img.naturalHeight,s[2]*img.naturalWidth,s[3]*img.naturalHeight,0,0,64,128);
+  g.globalCompositeOperation='destination-in';g.save();g.scale(1,2);const mask=g.createRadialGradient(32,32,2,32,32,32);mask.addColorStop(0,'#fff');mask.addColorStop(.42,'#ffffffc0');mask.addColorStop(1,'#ffffff00');g.fillStyle=mask;g.fillRect(0,0,64,64);g.restore();
+  return{...definition,sprite};
+ });
+ return scenicPlumeCache={key,image:img,clouds};
+}
+function drawScenicPlumeTile(plumes,t,x,y,p,vertical){
+ const count=(window.flightEffectsQuality||1)<1?9:15;
+ ctx.save();ctx.translate(x,y);
+ for(let j=0;j<plumes.clouds.length;j++){
+  const cloud=plumes.clouds[j],root=cloud.path[0],top=cloud.path.at(-1);
+  if(x+(root[0]+.07)*p.iw<0||x+(root[0]-.07)*p.iw>W||y+root[1]*p.ih<0||y+top[1]*p.ih>H)continue;
+  ctx.save();ctx.beginPath();
+  for(let i=0;i<cloud.path.length;i++){const q=cloud.path[i];i?ctx.lineTo((q[0]-q[2]*2)*p.iw,q[1]*p.ih):ctx.moveTo((q[0]-q[2]*2)*p.iw,q[1]*p.ih);}
+  for(let i=cloud.path.length-1;i>=0;i--){const q=cloud.path[i];ctx.lineTo((q[0]+q[2]*2)*p.iw,q[1]*p.ih);}ctx.closePath();ctx.clip();
+  for(let i=0;i<count;i++){
+   const u=((t/cloud.period+i/count+j*.217)%1+1)%1;
+   scenicCascadePoint(cloud,u,cascadePoint);
+   const q=cascadePoint,sway=Math.sin(u*11-t*.37+j*2)*q[2]*.38*u,xx=(q[0]+sway)*p.iw,yy=q[1]*p.ih;
+   const edge=clamp((vertical?yy:xx)/p.overlap,0,1),life=Math.min(1,u*12)*Math.min(1,(1-u)*5),width=q[2]*p.iw*2.8,height=Math.abs(root[1]-top[1])*p.ih*.28;
+   ctx.globalAlpha=life*edge*edge*(3-2*edge)*.48*(15/count);
+   ctx.drawImage(cloud.sprite,xx-width*.5,yy-height*.5,width,height);
+  }
+  // Tiny mineral flecks rise in the current, rather than screen-wide bubbles.
+  ctx.fillStyle='#c1deda';ctx.beginPath();
+  for(let i=0;i<6;i++){
+   const u=((t/(cloud.period*.76)+i/6+j*.13)%1+1)%1;
+   scenicCascadePoint(cloud,u,cascadePoint);const q=cascadePoint,xx=(q[0]+Math.sin(i*2.4+u*9)*q[2]*1.3)*p.iw,yy=q[1]*p.ih;
+   const edge=clamp((vertical?yy:xx)/p.overlap,0,1);ctx.globalAlpha=Math.sin(u*Math.PI)*edge*.15;
+   ctx.fillRect(xx,yy,.8,.8);
+  }
+  ctx.restore();
+ }
+ ctx.restore();
+}
 function drawPanorama(img){
  const vertical=sectors[level].scrollAxis,p=panoramaGeometry(img,!!vertical),travel=panoramaOffset(p.span,!!vertical),offset=vertical==='up'?p.ih-H-travel:p.overlap+travel,extent=vertical?H:W,first=Math.floor(offset/p.step)-1,last=Math.floor((offset+extent)/p.step),x=-(p.iw-W)*.5-viewY,y=-(p.ih-H)*.5-viewY;
  // Adjacent upright panoramas overlap. The incoming feather reveals the prior
  // image underneath, so long encounters never produce inverted architecture.
  // This hot path creates no arrays, canvases, gradients or image filters.
  const stage=sectors[level],event=backgroundEventKind(stage)==='lightning'?backgroundEventAt(stage,sectorSceneTime()):null,lightning=event?.active&&stage.background==='orisonGas'?prepareCloudLightning():null;
- const water=prepareScenicWater(stage.background),lava=prepareScenicLava(stage.background,img),waterTime=sectorSceneTime();
- for(let i=first;i<=last;i++){const position=i*p.step-offset;if(position>extent||position+p.span<0)continue;const px=vertical?x:position,py=vertical?position:y;ctx.drawImage(p.surface,px,py,p.iw,p.ih);if(water)drawScenicWaterTile(water,waterTime,px,py,p,!!vertical);if(lava)drawScenicLavaTile(lava,waterTime,px,py,p,!!vertical);if(lightning)drawCloudLightningTile(lightning,event,i,px,py,p);else if(event?.active)drawWorldLightningTile(event,i,px,py,p);}
+ const water=prepareScenicWater(stage.background),lava=prepareScenicLava(stage.background,img),plumes=prepareScenicPlumes(stage.background,img),waterTime=sectorSceneTime();
+ for(let i=first;i<=last;i++){const position=i*p.step-offset;if(position>extent||position+p.span<0)continue;const px=vertical?x:position,py=vertical?position:y;ctx.drawImage(p.surface,px,py,p.iw,p.ih);if(water)drawScenicWaterTile(water,waterTime,px,py,p,!!vertical);if(lava)drawScenicLavaTile(lava,waterTime,px,py,p,!!vertical);if(plumes)drawScenicPlumeTile(plumes,waterTime,px,py,p,!!vertical);if(lightning)drawCloudLightningTile(lightning,event,i,px,py,p);else if(event?.active)drawWorldLightningTile(event,i,px,py,p);}
 }
 
 function drawNewAtmosphere(){const k=themeIndex(),c=sectors[level].color;ctx.save();for(let layer=0;layer<2;layer++){const speed=layer===0?.14:.32;for(let i=0;i<12;i++){const x=((i*177-world*speed)%(W+220)+W+220)%(W+220)-110,y=i%2?H-20-(i*39)%75:20+(i*23)%70;ctx.globalAlpha=layer===0?.17:.25;if(k===4){ctx.strokeStyle='#9da5bc';ctx.lineWidth=layer?5:2;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+25,90);ctx.stroke();}else{orb(x,y,layer?12:5,c,.2);ctx.strokeStyle=c;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,y);ctx.bezierCurveTo(x+10,y-18,x-12,y-34,x+4,y-52);ctx.stroke();}}}ctx.restore();}
