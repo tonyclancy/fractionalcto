@@ -1288,6 +1288,7 @@ function drawScenicCascade(fall,t,x,y,p,vertical,stride){
 // Authored lava channels in source-image coordinates. Width is relative to the
 // image width, so both rivers and falling lava follow the painted rock channels.
 const SCENIC_LAVA=freezeContent({
+ 'world:ferrum':[[[.612,.176,.018],[.612,.221,.019],[.612,.276,.021]],[[.578,.187,.004],[.578,.273,.005]],[[.646,.187,.004],[.646,.274,.005]],[[.230,.510,.004],[.230,.575,.004],[.230,.641,.005]],[[.354,.498,.003],[.354,.568,.003],[.354,.635,.005]],[[.542,.677,.004],[.542,.724,.005],[.542,.764,.006]],[[.920,.726,.006],[.918,.776,.008],[.916,.839,.012]]],
  'world:cinder':[[[.709,.294,.012],[.711,.344,.014],[.713,.386,.014],[.715,.427,.017]],[[.727,.464,.006],[.730,.49,.006],[.731,.516,.01]],[[.725,.198,.002],[.724,.237,.002],[.724,.273,.003]]],
  'world:lyra-scoria':[[[.432,.845,.007],[.432,.908,.009],[.434,.980,.010]],[[.792,.594,.006],[.793,.647,.008],[.792,.695,.009]]],
  'world:umbra-caldera':[[[.842,.709,.019],[.835,.79,.022],[.836,.869,.021],[.830,.922,.024]],[[.376,.69,.007],[.374,.747,.008],[.373,.798,.01]]],
@@ -1299,7 +1300,26 @@ const SCENIC_LAVA=freezeContent({
  'world:virent-carmine':[[[.802,.905,.007],[.804,.944,.009],[.804,.996,.011]],[[.716,.394,.004],[.715,.466,.005],[.714,.515,.006]]],
  'world:noctis-fumarole':[[[.624,.864,.009],[.627,.902,.013],[.625,.947,.016]],[[.925,.737,.012],[.916,.781,.013],[.906,.813,.013]]]
 });
-let scenicLavaCache=null,scenicLavaSteam=null,scenicLavaDrop=null;
+// Authored furnace vents: x, foot y, width and height in painting coordinates.
+// They belong to the scenery, never to the player's collision/particle layer.
+const SCENIC_LAVA_FIRES=freezeContent({
+ 'world:ferrum':[[.460,.594,.011,.027],[.562,.611,.010,.026],[.630,.622,.013,.035],[.650,.828,.020,.065],[.701,.828,.013,.040],[.730,.800,.015,.048]]
+});
+let scenicLavaCache=null,scenicLavaSteam=null,scenicLavaDrop=null,scenicLavaFire=null;
+function prepareLavaFire(){
+ if(scenicLavaFire)return scenicLavaFire;
+ const sprite=document.createElement('canvas');sprite.width=64;sprite.height=96*12;
+ const c=sprite.getContext('2d');
+ for(let frame=0;frame<12;frame++){
+  c.save();c.translate(0,frame*96);const phase=frame/12*TAU;
+  for(let tongue=0;tongue<3;tongue++){
+   const base=16+tongue*16,top=(tongue===1?14:32)+Math.sin(phase+tongue*2)*9,tip=base+Math.sin(phase+tongue*2.3)*7;
+   const g=c.createLinearGradient(0,94,0,top);g.addColorStop(0,'#ff651bc0');g.addColorStop(.3,'#ffc85afa');g.addColorStop(.67,'#ffe6aacc');g.addColorStop(1,'#ffb63800');
+   c.fillStyle=g;c.beginPath();c.moveTo(base-11,94);c.bezierCurveTo(base-18,65,tip-5,top+32,tip,top);c.bezierCurveTo(tip+4,top+32,base+17,66,base+11,94);c.closePath();c.fill();
+  }c.restore();
+ }
+ return scenicLavaFire=sprite;
+}
 function prepareLavaDrop(){
  if(scenicLavaDrop)return scenicLavaDrop;
  const sprite=document.createElement('canvas');sprite.width=24;sprite.height=64;
@@ -1325,7 +1345,7 @@ function prepareScenicLava(key,img){
   const left=[],right=[];for(let i=0;i<path.length;i++){const a=path[Math.max(0,i-1)],b=path[Math.min(path.length-1,i+1)],p=path[i],dx=b[0]-a[0],dy=(b[1]-a[1])*aspect,len=Math.hypot(dx,dy)||1,nx=-dy/len,ny=dx/len/aspect;left.push([p[0]+nx*p[2],p[1]+ny*p[2]]);right.push([p[0]-nx*p[2],p[1]-ny*p[2]]);}
   const channel={path,dripPoint:{},polygon:left.concat(right.reverse()).map(p=>p.map(v=>clamp(v,0,1)))};
   prepareLavaTexture(channel,img);return channel;
- });return scenicLavaCache={key,channels,aspect,steam:prepareLavaSteam(),drop:prepareLavaDrop()};
+ });const fires=SCENIC_LAVA_FIRES[key]||[];return scenicLavaCache={key,channels,aspect,steam:prepareLavaSteam(),drop:prepareLavaDrop(),fires,fireSprite:fires.length?prepareLavaFire():null};
 }
 function prepareLavaTexture(channel,img){
  const nw=img.naturalWidth,nh=img.naturalHeight,path=channel.path;
@@ -1405,6 +1425,15 @@ function drawScenicLavaTile(lava,t,x,y,p,vertical){
    const size=width*(.65+age*.85),height=size*1.25;
    ctx.globalAlpha=.34*fade*edge*edge*(3-2*edge);
    ctx.drawImage(lava.steam,end[0]*p.iw+drift-size*.5,end[1]*p.ih-age*width*.9-height*.75,size,height);
+  }
+ }
+ if(lava.fireSprite){
+  ctx.globalCompositeOperation='screen';
+  for(let i=0;i<lava.fires.length;i+=layers===1?2:1){
+   const vent=lava.fires[i],edge=clamp((vertical?vent[1]*p.ih:vent[0]*p.iw)/p.overlap,0,1),phase=t*9+i*2.37,frame=((Math.floor(phase)%12)+12)%12;
+   const intensity=.68+.22*Math.sin(t*1.6+i*2)**2,width=vent[2]*p.iw,height=vent[3]*p.ih;
+   ctx.globalAlpha=intensity*edge*edge*(3-2*edge);
+   ctx.drawImage(lava.fireSprite,0,frame*96,64,96,vent[0]*p.iw-width*.5,vent[1]*p.ih-height,width,height);
   }
  }
  ctx.restore();
@@ -1912,12 +1941,12 @@ function drawNavigationChart(){
 }
 
 let navigationStars=null;
-function navigationStarCamera(){
- if(!sectorBlend?.destination)return{x:0,y:0,zoom:1};const u=sectorBlend.age/sectorBlend.duration,origin=sectorBlend.origin,destination=sectorBlend.destination;
+function navigationStarCamera(blend=sectorBlend){
+ if(!blend?.destination)return{x:0,y:0,zoom:1};const u=blend.age/blend.duration,origin=blend.origin,destination=blend.destination;
  // Galaxy magnification is the reference scale. Depth attenuates each star's
  // parallax; its apparent point size is independent of the camera magnification.
  if(!origin){const p=navigationEase((u-.14)/.34),system=expeditionSystem(destination),offset=galaxySystemOffset(system,1000);return{x:offset.x*p*.65,y:offset.y*p*.65,zoom:Math.exp(p*Math.log(14))};}
- if(origin.galaxyId!==destination.galaxyId){const p=navigationEase((u-.18)/.57),outbound=1-navigationEase((u-.18)/.14),inbound=navigationEase((u-.58)/.17),heading=galaxyFlightHeading(destination);return{x:heading.x*W*.95*p,y:heading.y*H*p,zoom:Math.exp((outbound+inbound)*Math.log(14))};}
+ if(origin.galaxyId!==destination.galaxyId){const p=navigationEase((u-.18)/.57),outbound=1-navigationEase((u-.18)/.14),inbound=navigationEase((u-.58)/.17),heading=galaxyFlightHeading(destination),flight=galaxyCrossingPose(destination,(u-.32)/.26);return{x:heading.x*W*.95*p,y:heading.y*H*p,zoom:Math.exp((outbound+inbound)*Math.log(14)),flight};}
  const p=navigationEase(u);return{x:W*.15*p,y:H*.025*p,zoom:14};
 }
 function navigationStarLayers(){
@@ -1929,21 +1958,61 @@ function navigationStarLayers(){
   return{depth,groups};
  });return navigationStars;
 }
-function navigationStarProjection(star,depth,camera){
+// Artwork, resolved galaxy stars and flight stars share this route. The
+// vanishing point follows the arriving galaxy rather than an unrelated wobble.
+function galaxyCrossingPose(destination,progress){
+ const p=clamp(progress,0,1),heading=galaxyFlightHeading(destination),exit=navigationEase(p/.32),entry=navigationEase((p-.43)/.57);
+ const outgoing={gx:W*.5-heading.x*W*.3*exit,gy:H*.52-heading.y*H*.3*exit,width:1000*Math.exp(-exit*2.6),alpha:1-exit};
+ const incoming={gx:W*.5+heading.x*W*.34*(1-entry),gy:H*.52+heading.y*H*.34*(1-entry),width:24*Math.exp(entry*Math.log(1000/24)),alpha:entry};
+ const up=.24,down=.64,speed=navigationEase(p/up)*(1-navigationEase((p-down)/(1-down)));
+ const integral=t=>{t=clamp(t,0,1);return t*t*t*t*(2.5+t*(-3+t));};
+ const distance=8*(up*integral(p/up)+Math.max(0,p-up)-(1-down)*integral((p-down)/(1-down)));
+ const turn=navigationEase(p/.43);
+ return{p,speed,distance,outgoing,incoming,x:W*.5+(incoming.gx-W*.5)*turn,y:H*.52+(incoming.gy-H*.52)*turn,label:p<up?'ACCELERATING':p<down?'LIGHT-SPEED TRANSIT':'DECELERATING'};
+}
+function navigationStarProjection(star,depth,camera,out={}){
  const scale=1/(1-depth*(1-1/camera.zoom)),width=W*scale,height=H*scale,margin=6;
- // Wrapping happens outside the viewport, never across its visible interior.
- return{x:((star.x*scale-camera.x*depth*scale-(width-W)/2+margin)%width+width)%width-margin,y:((star.y*scale-camera.y*depth*scale-(height-H)/2+margin)%height+height)%height-margin,r:Math.min(1.35,star.r*(1+Math.log(scale)*.10))};
+ let x=((star.x*scale-camera.x*depth*scale-(width-W)/2+margin)%width+width)%width-margin,y=((star.y*scale-camera.y*depth*scale-(height-H)/2+margin)%height+height)%height-margin;
+ out.alpha=1;out.cycle=0;
+ if(camera.flight){
+  const f=camera.flight,z0=.8+((star.x*.017+star.y*.031+depth*7)%1)*3,raw=z0-f.distance*(.55+depth),z=.16+((raw-.16)%4+4)%4;
+  out.cycle=Math.floor((raw-.16)/4);
+  // The exact same points accelerate out of their departure positions. Keep
+  // accumulated depth after braking so arrival never swaps back to old stars.
+  const magnification=z0/z,edge=Math.min(x+margin,width-margin-x,y+margin,height-margin-y);
+  x=f.x+(x-f.x)*magnification;y=f.y+(y-f.y)*magnification;
+  out.alpha=navigationEase((z-.16)/.30)*(out.cycle<0?navigationEase((4.16-z)/.35):1);
+  // Recycled, distant points can expose a wrapped tile edge inside the view.
+  // Hide that seam locally instead of crossfading an entire replacement field.
+  if(magnification<1)out.alpha*=1-(1-navigationEase(edge/32))*navigationEase((1-magnification)/.2);
+ }
+ out.x=x;out.y=y;out.r=Math.min(1.35,star.r*(1+Math.log(scale)*.10));return out;
+}
+function navigationWarpState(blend=sectorBlend){
+ if(!blend?.origin||!blend.destination||blend.origin.galaxyId===blend.destination.galaxyId)return null;
+ const p=(blend.age/blend.duration-.32)/.26;if(p<=1e-9||p>=1-1e-9)return null;
+ return galaxyCrossingPose(blend.destination,p);
+}
+function navigationWarpProjection(star,depth,warp,out={},camera=navigationStarCamera(),previous=null,tail={}){
+ navigationStarProjection(star,depth,camera,out);
+ navigationStarProjection(star,depth,previous||{...camera,flight:{...camera.flight,distance:Math.max(0,warp.distance-warp.speed*.14)}},tail);
+ const dx=tail.x-out.x,dy=tail.y-out.y,limit=out.cycle===tail.cycle?Math.min(1,180/Math.max(1,Math.hypot(dx,dy))):0;
+ out.tx=out.x+dx*limit;out.ty=out.y+dy*limit;return out;
 }
 function drawNavigationStars(){
- const camera=navigationStarCamera();
- // Retained points and 18 batched paths: no enlarged bitmap, per-frame textures,
- // animated opacity, or star streaks. Far points stay small throughout the dive.
+ const camera=navigationStarCamera(),warp=navigationWarpState(),previous=warp?navigationStarCamera({...sectorBlend,age:Math.max(0,sectorBlend.age-.065*warp.speed)}):null,p={},tail={};ctx.save();ctx.lineCap='round';
+ // A single retained field throughout the journey. Motion-blur tails sample
+ // the same projection at an earlier camera time, including the course turn.
  for(const layer of navigationStarLayers())for(const group of layer.groups){
-  ctx.fillStyle=group.color;ctx.beginPath();
-  for(const star of group.points){const p=navigationStarProjection(star,layer.depth,camera);if(p.x>W+3||p.y>H+3)continue;ctx.moveTo(p.x+p.r,p.y);ctx.arc(p.x,p.y,p.r,0,TAU);}
-  ctx.fill();
+  ctx.fillStyle=group.color;ctx.strokeStyle=group.color;ctx.lineWidth=.7+layer.depth;
+  if(warp){ctx.beginPath();for(const star of group.points){
+   navigationWarpProjection(star,layer.depth,warp,p,camera,previous,tail);
+   if(p.alpha<.08||p.x<-190||p.x>W+190||p.y<-190||p.y>H+190)continue;
+   ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+(p.tx-p.x)*p.alpha,p.y+(p.ty-p.y)*p.alpha);
+  }ctx.stroke();}
+  ctx.beginPath();for(const star of group.points){navigationStarProjection(star,layer.depth,camera,p);if(p.x<-3||p.x>W+3||p.y<-3||p.y>H+3)continue;const r=p.r*p.alpha;ctx.moveTo(p.x+r,p.y);ctx.arc(p.x,p.y,r,0,TAU);}ctx.fill();
  }
- drawNavigationGalacticField();
+ ctx.restore();drawNavigationGalacticField();
 }
 // A morphology-aware distribution is used both while artwork loads and when
 // the camera resolves the distant glow into individual stars. It is seeded,
@@ -1977,7 +2046,7 @@ function drawNavigationGalacticField(){
  if(!origin){const p=galaxyApproachPose(expeditionSystem(destination),Math.max(0,(u-.14)/.34)),settle=navigationEase(u/.14);ctx.save();ctx.translate(W*.215*(1-settle),-H*.12*(1-settle));ctx.translate(W*.5,H*.52);ctx.scale(.77+.23*settle,.77+.23*settle);ctx.translate(-W*.5,-H*.52);drawResolvedGalaxyStars(destination,p);ctx.restore();return;}
  if(origin.galaxyId===destination.galaxyId){drawResolvedGalaxyStars(destination,galaxyApproachPose(expeditionSystem(destination),1));return;}
  if(u<.32){drawResolvedGalaxyStars(origin,galaxyApproachPose(expeditionSystem(origin),u<.18?1:1-(u-.18)/.14));return;}
- if(u<.58){const p=(u-.32)/.26,exit=navigationEase(p/.32),entry=navigationEase((p-.43)/.57),h=galaxyFlightHeading(destination);drawResolvedGalaxyStars(origin,{gx:W*.5-h.x*W*.3*exit,gy:H*.52-h.y*H*.3*exit,width:1000*Math.exp(-exit*2.6)},1-exit);drawResolvedGalaxyStars(destination,{gx:W*.5+h.x*W*.34*(1-entry),gy:H*.52+h.y*H*.34*(1-entry),width:24*Math.exp(entry*Math.log(1000/24))},entry);return;}
+ if(u<.58){const route=galaxyCrossingPose(destination,(u-.32)/.26);drawResolvedGalaxyStars(origin,route.outgoing,route.outgoing.alpha);drawResolvedGalaxyStars(destination,route.incoming,route.incoming.alpha);return;}
  drawResolvedGalaxyStars(destination,galaxyApproachPose(expeditionSystem(destination),Math.min(1,(u-.58)/.17)));
 }
 // One reversible camera: chart position → complete globe → curved horizon →
@@ -2131,16 +2200,13 @@ function drawGalaxyTransit(origin,destination,u){
  if(phase==='departure'){
   drawGalaxySystemApproach(origin,1-(u-.18)/.14);
  }else if(phase==='crossing'){
-  const p=(u-.32)/.26,t=smooth(p),exit=smooth(p/.32),entry=smooth((p-.43)/.57),heading=galaxyFlightHeading(destination);
-  // One continuous camera drives the entire star field. No stationary
-  // secondary star layer fades over it during the intergalactic crossing.
-  galaxy(from,1000*Math.exp(-exit*2.6),1-exit,cx-heading.x*W*.3*exit,cy-heading.y*H*.3*exit);
-  const size=24*Math.exp(entry*Math.log(1000/24));galaxy(to,size,entry,cx+heading.x*W*.34*(1-entry),cy+heading.y*H*.34*(1-entry));
+  const route=galaxyCrossingPose(destination,(u-.32)/.26);
+  for(const [g,pose] of [[from,route.outgoing],[to,route.incoming]])galaxy(g,pose.width,pose.alpha,pose.gx,pose.gy);
 
  }else{
   drawGalaxySystemApproach(destination,(u-.58)/.17);
  }
- ctx.fillStyle='#e1fff2';ctx.font='bold 27px monospace';ctx.fillText(phase==='departure'?'LEAVING '+from.name:phase==='crossing'?'INTERGALACTIC FLIGHT':'ENTERING '+to.name,64,74);ctx.fillStyle='#afc2d5';ctx.font='14px monospace';ctx.fillText(phase==='departure'?origin.systemName+' SYSTEM → INTERGALACTIC SPACE':phase==='crossing'?galaxyFlightHeading(destination).label+' · '+from.name+' → '+to.name:systemFocus(system).name+' · '+systemFocus(system).type+' · '+systemCensusLabel(system),65,105);
+ ctx.fillStyle='#e1fff2';ctx.font='bold 27px monospace';ctx.fillText(phase==='departure'?'LEAVING '+from.name:phase==='crossing'?(navigationWarpState()?.label||'INTERGALACTIC FLIGHT'):'ENTERING '+to.name,64,74);ctx.fillStyle='#afc2d5';ctx.font='14px monospace';ctx.fillText(phase==='departure'?origin.systemName+' SYSTEM → INTERGALACTIC SPACE':phase==='crossing'?galaxyFlightHeading(destination).label+' · '+from.name+' → '+to.name:systemFocus(system).name+' · '+systemFocus(system).type+' · '+systemCensusLabel(system),65,105);
  ctx.restore();
 }
 

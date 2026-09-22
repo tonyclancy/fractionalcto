@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 69424362,
+  "bytes": 69429340,
   "assets": [
     {
       "path": "art.js",
-      "bytes": 244164,
-      "sha256": "9bb6071ca80fbfded76df382cccc53836c3990b95df2a6a03db2d03d7f98e79b"
+      "bytes": 249136,
+      "sha256": "c6ca37f4089423be490c2479e80698b4fe8c70ada75ea9651789a4fea0d82ff4"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1571,8 +1571,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 6826,
-      "sha256": "fd9666ae092dd59da04aa2e17c09b492bd831d3b118a1ed606caef4c75f5054d"
+      "bytes": 6832,
+      "sha256": "202fba1d472cd686fab914a9c8cbd35d6c925a3a4bf4a0a907367cadb24176a7"
     },
     {
       "path": "levels.js",
