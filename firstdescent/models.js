@@ -1163,10 +1163,10 @@ function buildDevelopedOrganism(spec){
  Object.assign(m.faces,{skin:true,fauna:true,organicRig:'anatomical',alienMaterial:soft?'flesh':'chitin',nativeAnatomy:true,anatomy:plan,development:g,anatomyProgram:plan,muzzle:transform(muzzle),ports:ports.map(transform),bodyVolumes,bodyFaceCount,armAttachments:armAttachments.map(a=>({pivot:transform(a.pivot),mode:a.mode,tip:transform(a.tip),skinPoint:transform(a.skinPoint),rootRing:a.rootRing.map(transform)})),anatomyMetrics:{limbPairs:plan==='crab'?4:plan==='mantis'?3:plan==='beetle'||plan==='moth'?3:2,integratedSkull:true}});return m.faces;
 }
 function buildDevelopedMachine(spec){
- const g=spec.genome,m=meshBuilder(),c=spec.color,accent=spec.accent,steel=[130,151,164],dark=[24,33,43],ports=[],scale=spec.small||1;
+ const g=spec.genome,m=meshBuilder(),c=spec.color,accent=spec.accent,steel=[130,151,164],dark=[24,33,43],ports=[],hullVolumes=[],scale=spec.small||1;
  const tube=(p,r,col=steel)=>m.tube(p,r,col,0,0,7,2);
- function pod(p,length,width,height,color=c){const sections=[[-1,.12],[-.68,.65],[-.28,1],[.62,.91],[1,.6]],rings=sections.map(([u,w])=>Array.from({length:8},(_,i)=>[p[0]+length*u,p[1]+Math.cos(i*Math.PI/4)*width*w,p[2]+Math.sin(i*Math.PI/4)*height*w]));
-  for(let j=0;j<4;j++)for(let i=0;i<8;i++)m.faces.push({v:[rings[j][i],rings[j][(i+1)%8],rings[j+1][(i+1)%8],rings[j+1][i]],c:color.map(v=>Math.round(v*(.75+.07*(i%4)))),em:0,flex:0});m.faces.push({v:rings[0].slice().reverse(),c:dark,em:0,flex:0},{v:rings.at(-1),c:dark,em:0,flex:0});
+ function pod(p,length,width,height,color=c){height=Math.max(height,width*(length>12?.72:.3));hullVolumes.push({center:p.slice(),radii:[length,width,height],structural:length>12});const sides=12,sections=[[-1,.12],[-.68,.65],[-.28,1],[.62,.91],[1,.6]],rings=sections.map(([u,w])=>Array.from({length:sides},(_,i)=>[p[0]+length*u,p[1]+Math.cos(i*Math.PI*2/sides)*width*w,p[2]+Math.sin(i*Math.PI*2/sides)*height*w]));
+  for(let j=0;j<4;j++)for(let i=0;i<sides;i++)m.faces.push({v:[rings[j][i],rings[j][(i+1)%sides],rings[j+1][(i+1)%sides],rings[j+1][i]],c:color,em:0,flex:0});m.faces.push({v:rings[0].slice().reverse(),c:color,em:0,flex:0},{v:rings.at(-1),c:color,em:0,flex:0});
   for(const side of [-1,1])tube([[p[0]-length*.6,p[1]+side*width*.56,p[2]+height*.6],[p[0],p[1]+side*width*.9,p[2]+height*.7],[p[0]+length*.7,p[1]+side*width*.8,p[2]+height*.55]],.55,steel);
  }
  function engine(p,r){tube([[p[0]-12,p[1],p[2]],p,[p[0]+8,p[1],p[2]]],r,dark);const port=[p[0]+9,p[1],p[2]];ports.push(port);m.ellipsoid(...port,1,r*.7,r*.7,accent,.65,10,6);const start=m.faces.length;for(let i=0;i<4;i++){const a=i*Math.PI/2;m.wedge([port[0]+1,port[1],port[2]],[port[0]+2,port[1]+Math.cos(a)*r,port[2]+Math.sin(a)*r],[port[0]+2,port[1]+Math.cos(a+.4)*r,port[2]+Math.sin(a+.4)*r],.7,steel);}for(let i=start;i<m.faces.length;i++)m.faces[i].joint=[...port,8];}
@@ -1175,18 +1175,24 @@ function buildDevelopedMachine(spec){
  if(frame==='radial'||frame==='arc'){
   const count=frame==='arc'?n+2:n+1;
   for(let i=0;i<count;i++){const a=(frame==='arc'?.6:0)+i/(frame==='arc'?count-1:count)*(frame==='arc'?Math.PI*1.6:Math.PI*2),p=[g.moduleSweep+Math.sin(a)*10,Math.cos(a)*spread,Math.sin(a)*spread];tube([[-15,0,0],p,[p[0]+18,p[1],p[2]]],2.2);pod(p,15,5,6);engine([p[0]+17,p[1],p[2]],4.5);}
-  pod([-8,0,0],g.nose,8,11);
+  pod([-8,0,0],g.nose,11,15);
  }else if(frame==='catamaran'||frame==='fork'){
-  for(const side of [-1,1]){const p=[g.moduleSweep,side*spread,side*3];tube([[-g.nose*.3,0,0],[10,side*spread,0]],3);pod(p,g.nose*(frame==='fork'?1.2:.8),8+g.modules,7);engine([p[0]+g.nose,p[1],p[2]],6);}
-  pod([frame==='fork'?-18:-8,0,0],g.nose*(frame==='fork'?1.35:.68),frame==='fork'?6:8,9);
+  for(const side of [-1,1]){const p=[g.moduleSweep,side*spread,side*spread*.30];
+   // Boxed spars enter the solid nacelles at two points, in different depth
+   // planes. Their separation stays visible while the carrier yaws or banks.
+   for(const x of [-9,12]){tube([[x,0,0],[x+4,side*spread*.55,p[2]*.55],[p[0]+x*.45,p[1],p[2]]],3.4);}
+   pod(p,g.nose*(frame==='fork'?1.2:.8),8+g.modules,11);engine([p[0]+g.nose,p[1],p[2]],6);}
+  pod([frame==='fork'?-18:-8,0,0],g.nose*(frame==='fork'?1.35:.68),frame==='fork'?11:12,16);
   if(frame==='fork'){engine([g.nose*.9,0,0],5);muzzle=[-18-g.nose*1.35,0,3];}
  }else if(frame==='delta'||frame==='blade'){
-  pod([-10,0,0],g.nose+12,9,7);for(const side of [-1,1]){m.wedge([-g.nose*.4,side*4,1],[frame==='blade'?-g.nose: g.moduleSweep,side*(spread+16),-4],[frame==='blade'?4:g.nose,side*9,6],frame==='blade'?3:7,c);pod([18,side*spread*.6,-4],18,5,5);engine([35,side*spread*.6,-4],5);}
+  pod([-10,0,0],g.nose+12,11,14);for(const side of [-1,1]){m.wedge([-g.nose*.4,side*4,1],[frame==='blade'?-g.nose: g.moduleSweep,side*(spread+16),-4],[frame==='blade'?4:g.nose,side*9,6],frame==='blade'?3:7,c);pod([18,side*spread*.6,-4],18,5,5);engine([35,side*spread*.6,-4],5);}
  }else if(frame==='casket'){
   pod([0,0,0],g.nose*.8,spread*.78,11);for(let i=0;i<n;i++)pod([-8+i*9,(i%2?1:-1)*spread*.65,8],14,9,7);for(const side of [-1,1])engine([g.nose*.8,side*spread*.6,0],7);
  }else{
-  pod([-4,0,0],g.nose+9,7,9);for(let i=0;i<n;i++){const x=-g.nose*.4+i*14;for(const side of [-1,1]){pod([x,side*(9+i*2),0],11,6+i,5);m.wedge([x,side*5,0],[x+4,side*spread,-7],[x+16,side*5,0],2,c);}}engine([g.nose+5,0,0],9);
+  pod([-4,0,0],g.nose+9,10,14);for(let i=0;i<n;i++){const x=-g.nose*.4+i*14;for(const side of [-1,1]){pod([x,side*(9+i*2),0],11,6+i,5);m.wedge([x,side*5,0],[x+4,side*spread,-7],[x+16,side*5,0],2,c);}}engine([g.nose+5,0,0],9);
  }
+ pod([0,-5,-10],g.nose*.38,6,8,dark);
+ for(const side of [-1,1]){pod([-8,-6,side*8],5,2.5,2.5,accent);tube([[3,-10,-7],[14,-10,-7],[20,-5,-6]],1,steel);}
  // Sensor arrays, multi-stage barrels and cooling furniture are physical parts.
  tube([[-12,0,3],[muzzle[0]+12,0,3],muzzle],2.4,dark);for(let i=0;i<3;i++)pod([muzzle[0]+4+i*5,0,3],1.5,3.4,3.4,steel);
  for(let i=0;i<g.modules;i++){const x=-12+i*9;pod([x,-4,11],3,4,2,accent);}
@@ -1199,8 +1205,8 @@ function buildDevelopedMachine(spec){
   if(thermal==='cryo')tube([[x-5,y,15],[x,y+side*5,16],[x+5,y,15]],.8,accent);
  }
  if(thermal==='stellar'){for(const side of [-1,1]){m.wedge([muzzle[0]+5,side*3,7],[-g.nose*.55,side*(spread*.7+9),11],[-g.nose*.4,side*4,17],6,armorColor);tube([[5,side*14,-3],[20,side*(spread+10),-5],[35,side*18,-3]],2,steel);}}
- for(const f of m.faces){f.v=f.v.map(p=>p.map(v=>v*scale));if(f.joint)f.joint=[...f.joint.slice(0,3).map(n=>n*scale),f.joint[3]];}
- Object.assign(m.faces,{industrial:true,nativeAnatomy:true,anatomy:frame,development:g,muzzle:muzzle.map(v=>v*scale),ports:ports.map(p=>p.map(v=>v*scale)),bodyVolumes:[{center:[0,0,0],radii:[(g.nose+10)*scale,(spread*.8+10)*scale,20*scale]}]});return m.faces;
+ for(const f of m.faces){f.textureWeight=.22;f.v=f.v.map(p=>p.map(v=>v*scale));if(f.joint)f.joint=[...f.joint.slice(0,3).map(n=>n*scale),f.joint[3]];}
+ Object.assign(m.faces,{industrial:true,nativeAnatomy:true,anatomy:frame,development:g,hullVolumes:hullVolumes.map(v=>({structural:v.structural,center:v.center.map(n=>n*scale),radii:v.radii.map(n=>n*scale)})),muzzle:muzzle.map(v=>v*scale),ports:ports.map(p=>p.map(v=>v*scale)),bodyVolumes:[{center:[0,0,0],radii:[(g.nose+10)*scale,(spread*.8+10)*scale,20*scale]}]});return m.faces;
 }
 
 // Compact rigid boss ordnance: ceramic nose, plated motor, recessed nozzle and

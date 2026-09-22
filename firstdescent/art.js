@@ -451,7 +451,7 @@ function enemyKinematics(e,dt){
   e.y=enemyRouteY(e,from[1]+(to[1]-from[1])*ease-hover*18);
   e.broodRoll=entry?0:(leg-1+ease)*TAU;
   e.travelPitch=clamp(-Math.atan2((e.y-oldY)/dt,Math.max(180,Math.abs(e.x-oldX)/dt))*.45,-.4,.4);
-  e.travelYaw=Math.sin(e.age*.8)*.12;e.depth=1;if(sectors[level].scrollAxis)steerVerticalEnemyFacing(e,to[0]-from[0],to[1]-from[1],dt);
+  e.depth=1;steerVerticalEnemyFacing(e,to[0]-from[0],to[1]-from[1],dt);
   if(routeAge>=14.2)e.x=-180-(routeAge-14.2)*240;
   return;
  }
@@ -470,8 +470,10 @@ function speciesFlightPose(e){
  const organic=isOrganicEnemy(e),age=e.age+(e.phase||0),activity=organic?organicSpin(age):null;
  const pitch=(e.travelPitch||0)+(activity?.pitch||0);
  if(!e.satellite&&(e.brood||e.elite))return{
-  age:age*(enemySpecies(e)?.genome?.appendageRate||1),yaw:e.travelYaw||0,
-  pitch:clamp(pitch,-.46,.46),roll:clamp(-(e.headingSpeed||0)*.055+Math.sin(age*2.2)*.035,-.17,.17),scale:e.brood?1.4:1
+  // A shallow three-quarter attitude reveals the hull's depth. Banking follows
+  // the actual turn/climb; upright elites never accumulate a belly-up roll.
+  age:age*(enemySpecies(e)?.genome?.appendageRate||1),yaw:(e.travelYaw||0)+Math.cos(e.travelYaw||0)*.20,
+  pitch:clamp(pitch,-.4,.4),roll:clamp((organic?.12:.18)-(e.headingSpeed||0)*.075+(e.travelPitch||0)*.22+Math.sin(age*2.2)*.035,-.30,.30),scale:e.brood?1.4:1
  };
  return{age:age*(enemySpecies(e)?.genome?.appendageRate||1),yaw:e.travelYaw||0,pitch,roll:e.satellite?e.age*TAU/.75+(e.orbit||0):e.brood?(e.broodRoll||0):organic?activity.roll+clamp(-pitch*.45,-.18,.18):mechanicalFlightRoll(e)-(e.travelHeading==null?pitch*.65:0),scale:e.brood?1.4:e.satellite?.5:1};
 }
@@ -1015,7 +1017,7 @@ function drawEnvironmentalMachinery(){
 
 // Shared rectangles keep the painted obstruction and physical collision in agreement.
 function obstacleForms(o){const raw=o.shutters?(themeIndex()===0?rigidAsteroidPassage(o):shutterSolids(o)):o.parts?o.parts.map(p=>({...p,x:o.x+p.x})):[{x:o.x,y:0,w:o.w+30,h:o.gap-o.open/2+20,ceiling:true},{x:o.x,y:o.gap+o.open/2,w:o.w+30,h:H-o.gap-o.open/2,ceiling:false}];const axis=sectors[level].scrollAxis;return axis?raw.map(r=>({x:axis==='down'?r.y*W/H:(H-r.y-r.h)*W/H,y:axis==='down'?r.x*H/W:(W-r.x-r.w)*H/W,w:r.h*W/H,h:r.w*H/W,ceiling:r.ceiling,side:axis==='down'?(r.ceiling?'left':'right'):(r.ceiling?'right':'left')})):raw;}
-function terrainProfile(r,t,seed){const k=themeIndex(),fromRoot=r.side?(r.side==='left'?t:1-t):(r.ceiling?t:1-t);if(k===0){const envelope=Math.pow(Math.max(.015,Math.sin(t*Math.PI)),.3+.18*(1+Math.sin(seed*2.7))),u=t*(7+Math.floor((Math.sin(seed)+1)*2)),cell=Math.floor(u),blend=u-cell,hash=n=>{const x=Math.sin(n*127.1+seed*93.7)*43758.5453;return x-Math.floor(x);},jag=.52+.44*(hash(cell)*(1-blend)+hash(cell+1)*blend);return Math.max(.08,envelope*jag);}if(k===1)return forgeObstacleProfile(fromRoot,seed);if(k===4)return .96-(.08+.05*Math.sin(seed))*Math.floor(fromRoot*(3+Math.floor(seed%3)))/3;const jag=k===2?.12:k===3?.055:.07;return Math.max(.13,(.97-(.52+.15*Math.sin(seed))*Math.pow(fromRoot,1.6+.5*Math.cos(seed)))*(.84+jag*Math.sin(t*(k===2?35:17)+seed*3)+.055*Math.sin(t*57+seed)));}
+function terrainProfile(r,t,seed){const k=themeIndex(),fromRoot=r.side?(r.side==='left'?t:1-t):(r.ceiling?t:1-t);if(k===0){const envelope=Math.pow(Math.max(.015,Math.sin(t*Math.PI)),.3+.18*(1+Math.sin(seed*2.7))),u=t*(7+Math.floor((Math.sin(seed)+1)*2)),cell=Math.floor(u),blend=u-cell,hash=n=>{const x=Math.sin(n*127.1+seed*93.7)*43758.5453;return x-Math.floor(x);},jag=.52+.44*(hash(cell)*(1-blend)+hash(cell+1)*blend);return Math.max(.08,envelope*jag);}if(k===1)return forgeObstacleProfile(fromRoot,seed);if(k===4)return stormTerrainProfile(fromRoot,seed);const u=t*7,cell=Math.floor(u),blend=u-cell,hash=n=>{const v=Math.sin(n*127.1+seed*93.7)*43758.5453;return v-Math.floor(v);},strata=hash(cell)*(1-blend)+hash(cell+1)*blend;return Math.max(.13,(.97-(.52+.15*Math.sin(seed))*Math.pow(fromRoot,1.6+.5*Math.cos(seed)))*(.84+strata*.12)*(1-.75*Math.pow(clamp((fromRoot-.78)/.22,0,1),1.2)));}
 
 function terrainCenter(t,seed){if(themeIndex()===1||themeIndex()===4)return .5;return .5+Math.sin(t*9+seed*3)*Math.sin(t*Math.PI)*.10;}
 function obstacleSolids(o){const key=time+':'+o.x+':'+level;if(o.solidCache?.key===key)return o.solidCache.value;const value=themeIndex()===0&&!o.navigation?asteroidSolids(o):obstacleForms(o).flatMap((r,index)=>Array.from({length:24},(_,i)=>{const t=(i+.5)/24,seed=(o.id||0)*1.7+index*.9,f=terrainProfile(r,t,seed),center=terrainCenter(t,seed);return r.side?{...r,x:r.x+i*r.w/24,y:r.y+r.h*(center-f/2),w:r.w/24,h:r.h*f}:{...r,x:r.x+r.w*(center-f/2),y:r.y+i*r.h/24,w:r.w*f,h:r.h/24};}));o.solidCache={key,value};return value;}
@@ -1514,10 +1516,28 @@ function updateTechLaser(b,dt){
 }
 
 
-function terrainMesh(r,seed){if(themeIndex()===1||themeIndex()===4)return industrialTerrainMesh(r,seed);const faces=[],rows=24,sides=32,k=themeIndex(),color=k===0?[166,170,172]:k===1?[66,70,74]:k===2?[148,157,178]:k===3?[107,171,153]:k===4?[73,70,65]:[184,106,119];
- const point=(t,a)=>{const width=terrainProfile(r,t,seed),cross=Math.cos(a),depth=Math.sin(a),rough=1-.06*Math.sin(t*47+a*7+seed)*Math.sin(a*3+seed);return r.side?[t*r.w,(terrainCenter(t,seed)+cross*width*.5)*r.h,depth*Math.min(r.h,r.w)*.32*rough]:[(terrainCenter(t,seed)+cross*width*.5)*r.w,t*r.h,depth*Math.min(r.h,r.w)*.32*rough];};
+function terrainAppearance(definition=sectors[level]){
+ const world=definition.worldIdentity||{},biome=world.biome||definition.environment||'',seed=world.seed||0;
+ const kind=/ice|glacier/i.test(biome)?'ice':definition.medium==='water'?'reef':/magma|solar|core/.test(biome)||world.habitat==='hot'?'basalt':/storm/.test(biome)?'storm':'stone';
+ const colors={ice:[195,216,221],reef:[160,187,169],basalt:[175,145,125],storm:[113,126,135],stone:[185,174,152]};
+ const base=colors[kind].map((n,i)=>Math.round(n*(.90+((seed>>>(i*5))&15)/100)));
+ return{kind,base,seed,metal:kind==='basalt'?[106,88,68]:kind==='storm'?[100,116,125]:[91,107,111],accent:world.accent||[184,136,78]};
+}
+function terrainMesh(r,seed){if(themeIndex()===1||themeIndex()===4)return industrialTerrainMesh(r,seed);const faces=[],rows=40,sides=24,style=terrainAppearance(),color=style.base;
+ const point=(t,a,offset=0)=>{const width=terrainProfile(r,t,seed),cross=Math.cos(a),depth=Math.sin(a),rough=1-.07*Math.sin(t*13+a*3+seed)*Math.sin(a*2+seed),relief=Math.min(r.h,r.w)*.32*(.72+width*.28)*rough+offset;return r.side?[t*r.w,(terrainCenter(t,seed)+cross*width*.5)*r.h,depth*relief]:[(terrainCenter(t,seed)+cross*width*.5)*r.w,t*r.h,depth*relief];};
  const rings=Array.from({length:rows+1},(_,i)=>Array.from({length:sides},(_,j)=>point(i/rows,j/sides*TAU)));
- for(let i=0;i<rows;i++)for(let j=0;j<sides;j++)faces.push({v:[rings[i][j],rings[i+1][j],rings[i+1][(j+1)%sides],rings[i][(j+1)%sides]],c:color,em:0,flex:0});faces.push({v:rings[0].slice().reverse(),c:color,em:0,flex:0},{v:rings[rows].slice(),c:color,em:0,flex:0});faces.rock=k!==1&&k!==4;return faces;}
+ for(let i=0;i<rows;i++)for(let j=0;j<sides;j++){
+  faces.push({v:[rings[i][j],rings[i+1][j],rings[i+1][(j+1)%sides],rings[i][(j+1)%sides]],c:color,em:0,flex:0});
+ }faces.push({v:rings[0].slice().reverse(),c:color,em:0,flex:0},{v:rings[rows].slice(),c:color,em:0,flex:0});
+ // Surface fractures follow the solid, rather than detached spikes or a tiled
+ // rock pattern. Small mineral seams change with the world's geology.
+ for(let k=0;k<(style.kind==='ice'?0:5);k++){
+  const start=.04+k*.13,angle=Math.PI*(1.12+((k*7+style.seed%13)%11)/14),dark=style.kind==='ice'?[88,122,137]:style.kind==='basalt'?[192,83,33]:color.map(n=>Math.round(n*.65));
+  for(let j=0;j<8;j++){const t=start+j*.035,next=t+.035,a=angle+Math.sin(j*1.3+k)*.11,b=angle+Math.sin((j+1)*1.3+k)*.11;
+   faces.push({v:[point(t,a-.006,1),point(next,b-.006,1),point(next,b+.006,1),point(t,a+.006,1)],c:dark,em:style.kind==='basalt'?.28:0,flex:0});
+  }
+ }
+ faces.rock=true;faces.terrainMaterial=style.kind;faces.terrainWorld=style.seed;return faces;}
 function drawTerrainObstacle(o){if(themeIndex()===0){for(const [i,r] of obstacleForms(o).entries()){const a=asteroidSurface(o,r,i),p=asteroidPose(o,i);drawModel(a.mesh,r.x+r.w/2,r.y+r.h/2,1,p.yaw,p.roll,p.pitch,time);}return;}o.terrainMeshes??=[];for(const [index,r] of obstacleForms(o).entries()){if(r.w<=0||r.h<=0)continue;const seed=(o.id||0)*1.7+index*.9,key=r.w.toFixed(1)+':'+r.h.toFixed(1);let saved=o.terrainMeshes[index];if(!saved){const mesh=terrainMesh(r,seed),depth=Math.min(r.h,r.w);saved=o.terrainMeshes[index]={mesh,key,points:[...new Set(mesh.flatMap(f=>f.v))].map(v=>({v,x:v[0]/r.w,y:v[1]/r.h,z:v[2]/depth}))};}else if(saved.key!==key){const depth=Math.min(r.h,r.w);for(const p of saved.points){p.v[0]=p.x*r.w;p.v[1]=p.y*r.h;p.v[2]=p.z*depth;}saved.mesh.dynamic=true;saved.key=key;}drawModel(saved.mesh,r.x,r.y,1,0,0,0,0);}}
 
 function organicFlightPose(b){return bossFlightPose(b);}
@@ -1572,7 +1592,7 @@ function forgeObstacleVariant(seed){return Math.floor(Math.abs(seed)/.9+.001)%3;
 function forgeObstacleProfile(fromRoot,seed){const q=Math.min(23,Math.floor(clamp(fromRoot,0,1)*24)),kind=forgeObstacleVariant(seed);if(kind===0)return q<4?.96:q<15?.86:q<21?.70:.58;if(kind===1)return q<4?.96:q<14?.58:q<21?.84:.66;return q<5?.96:q<12?.78:q<20?.92:q<23?.76:.60;}
 function forgeTerrainMesh(r,seed){
  const faces=[],components=[],cross=r.side?r.h:r.w,length=r.side?r.w:r.h,depth=Math.min(cross,length)*.22,kind=forgeObstacleVariant(seed);
- const steel=[74,86,90],edge=[102,113,112],dark=[28,42,48],black=[12,24,29],brass=[132,101,58],paint=[58,73,80],warm=[212,143,59],cool=[87,190,195];
+ const style=terrainAppearance(),steel=style.metal,edge=steel.map(n=>n+30),dark=steel.map(n=>Math.round(n*.39)),black=[17,23,26],brass=[151,115,70],paint=steel.map(n=>Math.round(n*.76)),warm=[224,157,67],cool=[104,178,191];
  const point=(u,v,z)=>r.side?[r.side==='left'?v:length-v,u,z]:[u,r.ceiling?v:length-v,z];
  const face=(v,c,em=0)=>faces.push({v,c,em,flex:0});
  const finish=(name,start)=>components.push({name,start,end:faces.length});
@@ -1591,7 +1611,7 @@ function forgeTerrainMesh(r,seed){
  function light(u,v,w,h,c){const start=faces.length;box(u,v,w,h,c,-depth-7,1,.4);for(let i=start;i<faces.length;i++)faces[i].em=.5;}
  // A continuous eight-sided armored shell, not a pile of independent boxes.
  const rows=[];let previous=null;
- const row=(v,width)=>{const l=(cross-width)/2,rr=(cross+width)/2,b=Math.min(4,width*.05,depth*.24);return[[l+b,-depth],[rr-b,-depth],[rr,-depth+b],[rr,depth-b],[rr-b,depth],[l+b,depth],[l,depth-b],[l,-depth+b]].map(p=>point(p[0],v,p[1]));};
+ const row=(v,width)=>{const l=(cross-width)/2,rr=(cross+width)/2,b=Math.min(11,width*.09,depth*.48);return[[l+b,-depth],[rr-b,-depth],[rr,-depth+b],[rr,depth-b],[rr-b,depth],[l+b,depth],[l,depth-b],[l,-depth+b]].map(p=>point(p[0],v,p[1]));};
  for(let i=0;i<24;i++){
   const width=cross*forgeObstacleProfile((i+.5)/24,seed),v=i*length/24;
   if(previous===null)rows.push(row(v,width));else if(width!==previous){rows.push(row(v,previous));rows.push(row(v,width));}
@@ -1634,20 +1654,63 @@ function forgeTerrainMesh(r,seed){
   }
   tube([[cross*.35,length*.86,-depth-5],[cross*.35,length*.94,-depth-5],[cross*.65,length*.94,-depth-5],[cross*.65,length*.86,-depth-5]],cross*.032,brass,10);
  }
+ // Riveted service plates and raised edge rails provide physical relief. Keep
+ // every fitting inset from the collision envelope, including stepped bands.
+ for(let i=0;i<4;i++){
+  const t=.19+i*.18,v=t*length,half=length*.018,width=cross*Math.min(forgeObstacleProfile(t-.025,seed),forgeObstacleProfile(t+.025,seed));
+  for(const side of [-1,1]){
+   const u=cross*.5+side*width*.38;
+   box(u,v,width*.095,half*2,dark,-depth-3,3,1);
+   box(u,v,width*.055,half*1.6,edge,-depth-6,3,1);
+   for(const dy of [-1,1])box(u,v+dy*half*.62,Math.max(1.5,width*.023),Math.max(1.5,width*.023),brass,-depth-9,2,1);
+  }
+ }
+ // Heat-exchanger foot: layered cap and recessed cooling passages, backed by
+ // opaque steel so the readable solid edge never suggests a fly-through gap.
+ const tipWidth=cross*Math.min(forgeObstacleProfile(.93,seed),forgeObstacleProfile(.98,seed))*.85;
+ box(cross*.5,length*.956,tipWidth,length*.033,dark,-depth-3,5,3);
+ for(let i=0;i<7;i++)box(cross*.5+(i-3)*tipWidth*.11,length*.956,tipWidth*.065,length*.025,steel,-depth-6,3,.8);
  // Small inset hazard tabs identify the collision tip without a neon outline.
  for(let i=0;i<4;i++)box(cross*(.34+i*.10),length*.985,cross*.042,Math.max(1.5,length*.012),i%2?dark:warm,-depth-4,2,.3);
- faces.industrial=true;faces.forgeVariant=kind;faces.components=components;return faces;
+ for(const f of faces){f.textureWeight=.16;const center=f.v.reduce((a,p)=>a+p[r.side?0:1],0)/f.v.length/(r.side?r.w:r.h),wear=.93+.06*Math.sin(center*19+style.seed%53);if(!f.em)f.c=f.c.map(n=>Math.round(n*wear));}
+ faces.industrial=true;faces.terrainMaterial='foundry';faces.terrainWorld=style.seed;faces.forgeVariant=kind;faces.components=components;return faces;
 }
 
-function industrialTerrainMesh(r,seed){if(themeIndex()===1)return forgeTerrainMesh(r,seed);const faces=[],w=r.w,h=r.h,depth=Math.min(w,h)*.22;
- function box(x,y,z,bw,bh,bd,c,em=0){const v=[[x,y,z],[x+bw,y,z],[x+bw,y+bh,z],[x,y+bh,z],[x,y,z+bd],[x+bw,y,z+bd],[x+bw,y+bh,z+bd],[x,y+bh,z+bd]];for(const ids of [[0,3,2,1],[4,5,6,7],[0,1,5,4],[3,7,6,2],[0,4,7,3],[1,2,6,5]])faces.push({v:ids.map(i=>v[i]),c,em,flex:0});}
- // Layered equipment cabinets follow the same authored collision profile.
- for(let i=0;i<24;i++){const t=(i+.5)/24,f=terrainProfile(r,t,seed),shade=i%6===0?[115,119,112]:[77,85,86];if(r.side)box(i*w/24,h*(.5-f/2),-depth,w/24,h*f,depth*2,shade);else box(w*(.5-f/2),i*h/24,-depth,w*f,h/24,depth*2,shade);}
- for(let i=0;i<8;i++){const t=(i+.5)/8,f=terrainProfile(r,t,seed),x=r.side?t*w:w*.5,y=r.side?h*.5:t*h,span=(r.side?h:w)*f*.72;
- if(r.side){box(x-w*.04,y-span/2,-depth*1.04,w*.075,span,depth*.06,[37,47,50]);for(let j=0;j<4;j++)box(x-w*.033,y-span*.4+j*span*.24,-depth*1.08,w*.06,h*.006,depth*.06,[126,129,117]);box(x-w*.036,y-span*.46,-depth*1.10,w*.012,span*.12,depth*.04,[229,167,69],.35);}
- else{box(x-span/2,y-h*.04,-depth*1.04,span,h*.075,depth*.06,[37,47,50]);for(let j=0;j<4;j++)box(x-span*.4,y-h*.033+j*h*.018,-depth*1.08,span*.8,h*.006,depth*.06,[126,129,117]);box(x-span*.46,y-h*.036,-depth*1.10,span*.12,h*.012,depth*.04,[229,167,69],.35);}}
- if(r.y>0&&r.y+r.h<H&&!r.side){for(const f of [.32,.68]){box(w*f-w*.065,h*.82,-depth*1.12,w*.13,h*.12,depth*.18,[28,39,44]);box(w*f-w*.045,h*.89,-depth*1.15,w*.09,h*.025,depth*.04,[98,220,235],.8);}}
- faces.industrial=true;return faces;}
+// Storm ruins share the background's carved flying-buttress language. Their
+// taper is also the collision envelope: the empty corners are truly empty.
+function stormTerrainProfile(t,seed){
+ const variants=[[.96,.90,.74,.63,.64,.42,.12],[.96,.86,.82,.69,.47,.32,.10],[.96,.94,.76,.78,.61,.30,.08]],v=variants[forgeObstacleVariant(seed)],u=clamp(t,0,1)*6,i=Math.min(5,Math.floor(u));return v[i]+(v[i+1]-v[i])*(u-i);
+}
+function industrialTerrainMesh(r,seed){
+ if(themeIndex()===1)return forgeTerrainMesh(r,seed);
+ const faces=[],cross=r.side?r.h:r.w,length=r.side?r.w:r.h,depth=Math.min(cross,length)*.36,style=terrainAppearance(),solar=!!sectors[level].stellar,rows=24,sides=16;
+ const color=solar?[130,100,74]:[151,139,117],bronze=solar?[154,110,61]:[132,115,83];
+ const point=(u,t,z)=>r.side?[r.side==='left'?t*length:(1-t)*length,u,z]:[u,r.ceiling?t*length:(1-t)*length,z];
+ function surface(t,a,out=0){const width=stormTerrainProfile(t,seed),flute=1-.40*Math.pow(Math.sin(a*3+seed*.23),2),d=depth*(.35+width*.65)*flute+out;return point(cross*(.5+Math.cos(a)*width*.5),t,Math.sin(a)*d);}
+ const rings=Array.from({length:rows+1},(_,i)=>Array.from({length:sides},(_,j)=>surface(i/rows,j/sides*TAU)));
+ for(let i=0;i<rows;i++)for(let j=0;j<sides;j++)faces.push({v:[rings[i][j],rings[i+1][j],rings[i+1][(j+1)%sides],rings[i][(j+1)%sides]],c:color,em:0,flex:0});
+ faces.push({v:rings[0].slice().reverse(),c:color,em:0,flex:0},{v:rings.at(-1).slice(),c:bronze,em:0,flex:0});
+ // Raised longitudinal ribs follow the mass in depth. They converge into the
+ // narrow nose instead of decorating a flat front with repeated vent symbols.
+ for(const angle of [Math.PI*1.20,Math.PI*1.50,Math.PI*1.80]){
+  for(let i=1;i<23;i++){const t=i/24,next=(i+1)/24,half=.075+(1-t)*.025;
+   const a=surface(t,angle-half,1),b=surface(next,angle-half,1),c=surface(next,angle+half,1),d=surface(t,angle+half,1),e=surface(t,angle,depth*.18),f=surface(next,angle,depth*.18);
+   faces.push({v:[a,b,f,e],c:bronze,em:0,flex:0},{v:[e,f,c,d],c:bronze.map(n=>n*.72),em:0,flex:0});
+  }
+ }
+ // A few narrow collar seams divide the load-bearing stone, with variation
+ // between structures; no repeated disks, screens or rectangular cabinets.
+ for(const t of [.12,.82])for(let j=8;j<16;j++){
+  const a=j/sides*TAU,b=(j+1)/sides*TAU;
+  faces.push({v:[surface(t-.010+Math.sin(a*2)*.03,a,2),surface(t+.010+Math.sin(a*2)*.03,a,2),surface(t+.010+Math.sin(b*2)*.03,b,2),surface(t-.010+Math.sin(b*2)*.03,b,2)],c:bronze.map(n=>n*.54),em:0,flex:0});
+ }
+ // Small sheltered amber apertures, recessed beneath the central rib.
+ for(const t of [.24,.27,.30]){
+  const a=Math.PI*1.43,b=Math.PI*1.46;
+  faces.push({v:[surface(t,a,2),surface(t+.014,a,2),surface(t+.014,b,2),surface(t,b,2)],c:solar?[242,134,47]:[227,188,114],em:.24,flex:0});
+ }
+ faces.rock=true;faces.terrainMaterial=solar?'basalt':'storm';faces.terrainWorld=style.seed;faces.stormArchitecture=true;return faces;
+}
 
 const asteroidSurfaces=new Map();
 function asteroidSurface(o,r,index){const seed=(o.id||0)*1.7+index*.9,key=[seed,r.w,r.h,r.ceiling].join(':');let surface=asteroidSurfaces.get(key);if(!surface){const mesh=crateredAsteroid(r,seed),points=[...new Set(mesh.flatMap(f=>f.v))],ids=new Map(points.map((p,i)=>[p,i]));surface={mesh,points,faces:mesh.map(f=>f.v.map(v=>ids.get(v)))};asteroidSurfaces.set(key,surface);}return surface;}

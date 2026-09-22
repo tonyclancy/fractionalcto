@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 69429340,
+  "bytes": 69819811,
   "assets": [
     {
       "path": "art.js",
-      "bytes": 249136,
-      "sha256": "c6ca37f4089423be490c2479e80698b4fe8c70ada75ea9651789a4fea0d82ff4"
+      "bytes": 253434,
+      "sha256": "3022e6c6888c9e847e1e1164af0f042a3352fe2600ad44388f880e424905a840"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -588,6 +588,11 @@
       "path": "assets/storm-ascent.webp",
       "bytes": 383536,
       "sha256": "609edb98e59688aee735e9da62567c1bd6258d9111bc57d8f4ba68a1f4662e72"
+    },
+    {
+      "path": "assets/terrain-glacier-v1.webp",
+      "bytes": 384230,
+      "sha256": "226b6ef2c1fb2c5a53b64ef5c72744de7c9f841308eda3dd15f24d158b980495"
     },
     {
       "path": "assets/world-aether-aerial-landscape-v1.webp",
@@ -1572,7 +1577,7 @@
     {
       "path": "index.html",
       "bytes": 6832,
-      "sha256": "202fba1d472cd686fab914a9c8cbd35d6c925a3a4bf4a0a907367cadb24176a7"
+      "sha256": "9c52650e4f4a567161f0ca1612100074d28d12321fdeea9eec341e3866c74b76"
     },
     {
       "path": "levels.js",
@@ -1591,13 +1596,13 @@
     },
     {
       "path": "models.js",
-      "bytes": 126745,
-      "sha256": "04f8cb62f84521fc4d3638b5800fa423542816a467510cd414ae3c565bbe754f"
+      "bytes": 127426,
+      "sha256": "777b8df8dd089f2d84290bb5da3bf18888aaaa077f4321b0962eb7e5a39934e0"
     },
     {
       "path": "renderer3d.js",
-      "bytes": 29364,
-      "sha256": "fce88ed9f1383d80c728b3df1c8f573bb7aa8d8d12f6c82d03e88e34a80e31dc"
+      "bytes": 30626,
+      "sha256": "70174d902b120030e0024948e2c9e7482535ea3305163292ffe8ae9480d70ac5"
     },
     {
       "path": "runs.js",
