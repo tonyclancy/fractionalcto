@@ -340,6 +340,19 @@ function enemyRouteY(e,naturalY){if(sectors[level].scrollAxis)return clamp(natur
  return clamp(y,80,H-80);
 }
 function steerEnemyY(e,target,dt){if(e.routeY==null){e.routeY=target;e.routeVY=0;}const a=1-Math.exp(-dt*8);const desired=clamp((target-e.routeY)*7,-320,320);e.routeVY+=(desired-e.routeVY)*a;e.routeY+=e.routeVY*dt;return e.routeY;}
+// Formation targets may change abruptly as moving terrain enters/leaves the
+// route. Integrate velocity instead of assigning the corrected target position.
+function steerFormationEnemy(e,x,y,dt){
+ const speed=e.brood?900:1050,acceleration=e.brood?2800:3600;
+ let vx=(x-e.x)*9,vy=(y-e.y)*9;
+ const magnitude=Math.hypot(vx,vy);if(magnitude>speed){vx*=speed/magnitude;vy*=speed/magnitude;}
+ const oldVX=e.formationVX||0,oldVY=e.formationVY||0,dx=vx-oldVX,dy=vy-oldVY;
+ const change=Math.hypot(dx,dy),blend=change?Math.min(1,acceleration*dt/change):0;
+ e.formationVX=oldVX+dx*blend;e.formationVY=oldVY+dy*blend;
+ e.x+=e.formationVX*dt;e.y+=e.formationVY*dt;
+ // Preserve continuity when an escort loses its mother and flies independently.
+ e.routeY=e.y;e.routeVY=e.formationVY;
+}
 function prepareEnemyEntry(e,wave,n){
  const advanced=sectors[level].entrySides||['right'],flanking=sectors[level].flankWaves?.includes(wave);e.entry=flanking?'left':advanced[wave%advanced.length];e.direction=e.entry==='left'?1:-1;
  if(sectors[level].scrollAxis){e.entry=(flanking||wave%5===4)?(sectors[level].scrollAxis==='down'?'top':'bottom'):(sectors[level].scrollAxis==='down'?'bottom':'top');e.verticalTravel=true;e.verticalDirection=e.entry==='top'?1:-1;e.baseX=clamp(W*.5+Math.sin(wave*1.7)*240+(n-2)*60,200,W-200);e.y=e.entry==='top'?-180-n*96:H+180+n*96;e.x=enemyRouteX(e,e.baseX);e.routeX=e.x;e.direction=e.x<W/2?1:-1;return;}
@@ -429,8 +442,9 @@ function enemyKinematics(e,dt){
   else{
    e.age+=dt;const angle=e.age*(e.escortProfile?.orbit||2.1)+e.orbit,spread=1+.16*Math.sin(e.age*1.3),oldY=e.y;
    const formation=e.escortProfile?.formation;
-   e.x=e.mother.x+(formation==='screen'?-100+Math.cos(angle)*50:Math.cos(angle)*145*spread);
-   e.y=enemyRouteY(e,clamp(e.mother.y+(formation==='figure8'?Math.sin(angle*2):Math.sin(angle))*(formation==='petals'?135:108)*spread,70,H-70));
+   const targetX=e.mother.x+(formation==='screen'?-100+Math.cos(angle)*50:Math.cos(angle)*145*spread);
+   const targetY=enemyRouteY(e,clamp(e.mother.y+(formation==='figure8'?Math.sin(angle*2):Math.sin(angle))*(formation==='petals'?135:108)*spread,70,H-70));
+   steerFormationEnemy(e,targetX,targetY,dt);
    e.travelYaw=Math.sin(angle)*.18;e.travelPitch=clamp(-(e.y-oldY)/dt/700,-.35,.35);e.depth=1;
    return;
   }
@@ -442,16 +456,16 @@ function enemyKinematics(e,dt){
  if(e.brood){
   e.entryX??=e.x;
   const route=[[e.entryX,380],[W*.75,H*.28],[W*.43,H*.70],[W*.79,H*.40],[W*.39,H*.23],[W*.64,H*.68],[-180,380]];
-  const routeAge=e.age*(e.escortProfile?.pace||1),entry=routeAge<2.2,leg=entry?0:Math.min(5,1+Math.floor((routeAge-2.2)/2.4)),local=entry?routeAge:(routeAge-2.2)%2.4;
+  const routeAge=e.age*(e.escortProfile?.pace||1),entry=routeAge<2.2,leg=entry?0:Math.min(5,1+Math.floor((routeAge-2.2)/2.4)),local=entry?routeAge:Math.min(2.4,routeAge-2.2-(leg-1)*2.4);
   const from=route[leg],to=route[leg+1],t=clamp(entry?local/2.2:(local-1.55)/.85,0,1),ease=t*t*(3-2*t),oldX=e.x,oldY=e.y;
   // Brief readable wind-up, then a fast committed dash into the next position.
   const hover=!entry&&local<1.55?Math.sin(local/1.55*Math.PI):0;
-  e.x=from[0]+(to[0]-from[0])*ease+hover*14;
-  e.y=enemyRouteY(e,from[1]+(to[1]-from[1])*ease-hover*18);
+  const targetX=routeAge>=14.2?-180-(routeAge-14.2)*240:from[0]+(to[0]-from[0])*ease+hover*14;
+  const targetY=enemyRouteY(e,from[1]+(to[1]-from[1])*ease-hover*18);
+  steerFormationEnemy(e,targetX,targetY,dt);
   e.broodRoll=entry?0:(leg-1+ease)*TAU;
   e.travelPitch=clamp(-Math.atan2((e.y-oldY)/dt,Math.max(180,Math.abs(e.x-oldX)/dt))*.45,-.4,.4);
   e.depth=1;steerVerticalEnemyFacing(e,to[0]-from[0],to[1]-from[1],dt);
-  if(routeAge>=14.2)e.x=-180-(routeAge-14.2)*240;
   return;
  }
  const thrust=species?.organic?(['glide','undulate','row'].includes(species.gait)?.94+stroke*.28:species.gait==='dart'?.62+stroke*1.4:species.gait==='flutter'?.9+.16*Math.sin(cycle*2):species.gait==='hover'?.82+stroke*.48:species.gait==='swoop'?.86+stroke*.65:.66+stroke*1.12):themeIndex()===1?(e.type===0?1+.5*Math.pow(Math.max(0,Math.sin(e.age*2+e.phase)),4):.8):themeIndex()===2?(e.type===1?1.05+.12*Math.cos((e.age+e.phase)*3.2):1.1+.22*Math.pow(Math.max(0,Math.sin((e.age+e.phase)*9)),2)):organic?.52+stroke*1.48:1;
@@ -1015,7 +1029,7 @@ function drawEnvironmentalMachinery(){
 
 // Shared rectangles keep the painted obstruction and physical collision in agreement.
 function obstacleBaseForms(o){return o.shutters?(themeIndex()===0?rigidAsteroidPassage(o):shutterSolids(o)):o.parts?o.parts.map(p=>({...p,x:o.x+p.x})):[{x:o.x,y:0,w:o.w+30,h:o.gap-o.open/2+20,ceiling:true},{x:o.x,y:o.gap+o.open/2,w:o.w+30,h:H-o.gap-o.open/2,ceiling:false}];}
-function obstacleForms(o){const raw=obstacleBaseForms(o);if(themeIndex()===0&&!o.navigation)for(const [i,r] of raw.entries()){const d=asteroidDrift(o,i);r.x+=d.x;r.y+=d.y;}const axis=sectors[level].scrollAxis;return axis?raw.map(r=>({x:axis==='down'?r.y*W/H:(H-r.y-r.h)*W/H,y:axis==='down'?r.x*H/W:(W-r.x-r.w)*H/W,w:r.h*W/H,h:r.w*H/W,ceiling:r.ceiling,side:axis==='down'?(r.ceiling?'left':'right'):(r.ceiling?'right':'left')})):raw;}
+function obstacleForms(o){const raw=obstacleBaseForms(o);if(themeIndex()===0)for(const [i,r] of raw.entries()){const d=asteroidDrift(o,i);r.x+=d.x;r.y+=d.y;}const axis=sectors[level].scrollAxis;return axis?raw.map(r=>({x:axis==='down'?r.y*W/H:(H-r.y-r.h)*W/H,y:axis==='down'?r.x*H/W:(W-r.x-r.w)*H/W,w:r.h*W/H,h:r.w*H/W,ceiling:r.ceiling,side:axis==='down'?(r.ceiling?'left':'right'):(r.ceiling?'right':'left')})):raw;}
 function terrainProfile(r,t,seed){const k=themeIndex(),fromRoot=r.side?(r.side==='left'?t:1-t):(r.ceiling?t:1-t);if(k===0){const envelope=Math.pow(Math.max(.015,Math.sin(t*Math.PI)),.3+.18*(1+Math.sin(seed*2.7))),u=t*(7+Math.floor((Math.sin(seed)+1)*2)),cell=Math.floor(u),blend=u-cell,hash=n=>{const x=Math.sin(n*127.1+seed*93.7)*43758.5453;return x-Math.floor(x);},jag=.52+.44*(hash(cell)*(1-blend)+hash(cell+1)*blend);return Math.max(.08,envelope*jag);}if(k===1)return forgeObstacleProfile(fromRoot,seed);if(k===4)return stormTerrainProfile(fromRoot,seed);const u=t*7,cell=Math.floor(u),blend=u-cell,hash=n=>{const v=Math.sin(n*127.1+seed*93.7)*43758.5453;return v-Math.floor(v);},strata=hash(cell)*(1-blend)+hash(cell+1)*blend;return Math.max(.13,(.97-(.52+.15*Math.sin(seed))*Math.pow(fromRoot,1.6+.5*Math.cos(seed)))*(.84+strata*.12)*(1-.75*Math.pow(clamp((fromRoot-.78)/.22,0,1),1.2)));}
 
 function terrainCenter(t,seed){if(themeIndex()===1||themeIndex()===4)return .5;return .5+Math.sin(t*9+seed*3)*Math.sin(t*Math.PI)*.10;}
