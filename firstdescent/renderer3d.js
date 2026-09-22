@@ -56,6 +56,14 @@ if(renderer){
  shader.vertexShader=`
  vec3 speciesJoint(vec3 p,vec4 j,float t){
   if(j.w<.5)return p;vec3 v=p-j.xyz;float side=j.z<0.0?-1.0:1.0;float w=min(1.0,length(v)/35.0),a=0.0;int axis=0;
+  if(j.w>8.5){
+   float along=max(0.0,(v.x-12.0)/55.0),u=min(1.0,along),bend=u*u*(3.0-2.0*u);if(bend==0.0)return p;
+   float phase=t*6.8+atan(j.z,j.y)*1.7+j.x*.07,lag=phase-along*5.2;
+   float cycle=mod(t,3.6),tuck=smoothstep(.35,.60,cycle)*(1.0-smoothstep(1.35,1.80,cycle));
+   float jet=pow((1.0+cos(t*4.8))*.5,4.0),gather=bend*(.26*jet+.58*tuck),free=1.0-.78*tuck;
+   float twist=bend*sin(lag*.73)*.75,c=cos(twist),sn=sin(twist),amplitude=bend*(11.0+5.0*u)*free;
+   return j.xyz+vec3(v.x-bend*(3.0+3.0*sin(lag)),v.y*c-v.z*sn-p.y*gather+amplitude*sin(lag),v.y*sn+v.z*c-p.z*gather+amplitude*cos(lag*.91+.8));
+  }
   if(j.w<1.5||(j.w>2.5&&j.w<3.5)||j.w>7.5){axis=1;a=j.w>7.5?t*18.0:side*sin(t*(j.w<1.5?14.0:5.0)+j.x*.03)*(j.w<1.5?.62:.38);}
   else if(j.w>3.5&&j.w<4.5){axis=2;a=sin(t*6.0-max(0.0,v.x)*.045)*min(1.0,max(0.0,v.x)/85.0)*.27;}
   else if(j.w>4.5&&j.w<5.5){float pulse=pow((1.0+cos(t*4.8))*.5,4.0),f=min(1.0,abs(v.x)/45.0);return j.xyz+vec3(v.x+3.0*pulse*f,v.yz*(1.0-.14*pulse*f));}

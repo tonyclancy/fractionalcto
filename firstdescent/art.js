@@ -1288,10 +1288,10 @@ function drawScenicCascade(fall,t,x,y,p,vertical,stride){
 // Authored lava channels in source-image coordinates. Width is relative to the
 // image width, so both rivers and falling lava follow the painted rock channels.
 const SCENIC_LAVA=freezeContent({
- 'world:cinder':[[[.713,.294,.007],[.718,.344,.007],[.721,.386,.008],[.725,.427,.013]],[[.727,.464,.006],[.730,.49,.006],[.731,.516,.01]]],
+ 'world:cinder':[[[.709,.294,.012],[.711,.344,.014],[.713,.386,.014],[.715,.427,.017]],[[.727,.464,.006],[.730,.49,.006],[.731,.516,.01]],[[.725,.198,.002],[.724,.237,.002],[.724,.273,.003]]],
  'world:lyra-scoria':[[[.432,.845,.007],[.432,.908,.009],[.434,.980,.010]],[[.792,.594,.006],[.793,.647,.008],[.792,.695,.009]]],
  'world:umbra-caldera':[[[.842,.709,.019],[.835,.79,.022],[.836,.869,.021],[.830,.922,.024]],[[.376,.69,.007],[.374,.747,.008],[.373,.798,.01]]],
- 'world:halcyon-kiln':[[[.141,.11,.009],[.142,.221,.011],[.141,.34,.014],[.146,.436,.013]],[[.835,.647,.009],[.834,.75,.011],[.835,.82,.012]]],
+ 'world:halcyon-kiln':[[[.141,.11,.009],[.142,.221,.011],[.141,.34,.014],[.146,.436,.013]],[[.835,.647,.009],[.834,.75,.011],[.835,.82,.012]],[[.939,.158,.006],[.938,.31,.007],[.937,.445,.008],[.936,.544,.012]],[[.219,.276,.003],[.219,.36,.003],[.220,.466,.004]]],
  'world:elysian-vulcanis':[[[.922,.315,.010],[.924,.414,.011],[.923,.523,.01],[.921,.607,.012]],[[.511,.772,.012],[.513,.83,.013],[.51,.908,.015]]],
  'world:rubra-furnace':[[[.821,.538,.008],[.819,.597,.01],[.818,.66,.013]],[[.293,.940,.009],[.326,.965,.013],[.348,.996,.014]]],
  'world:aether-cresset':[[[.789,.691,.006],[.789,.745,.009],[.789,.805,.011],[.779,.852,.012]],[[.773,.127,.006],[.774,.204,.007],[.774,.266,.008]]],
@@ -1299,15 +1299,33 @@ const SCENIC_LAVA=freezeContent({
  'world:virent-carmine':[[[.802,.905,.007],[.804,.944,.009],[.804,.996,.011]],[[.716,.394,.004],[.715,.466,.005],[.714,.515,.006]]],
  'world:noctis-fumarole':[[[.624,.864,.009],[.627,.902,.013],[.625,.947,.016]],[[.925,.737,.012],[.916,.781,.013],[.906,.813,.013]]]
 });
-let scenicLavaCache=null;
+let scenicLavaCache=null,scenicLavaSteam=null,scenicLavaDrop=null;
+function prepareLavaDrop(){
+ if(scenicLavaDrop)return scenicLavaDrop;
+ const sprite=document.createElement('canvas');sprite.width=24;sprite.height=64;
+ const c=sprite.getContext('2d'),g=c.createRadialGradient(12,45,0,12,40,23);
+ g.addColorStop(0,'#fff4bf');g.addColorStop(.23,'#ffd263e0');g.addColorStop(.5,'#ff801c65');g.addColorStop(1,'#ee500000');
+ c.fillStyle=g;c.beginPath();c.moveTo(12,2);c.bezierCurveTo(11,30,1,34,3,47);c.bezierCurveTo(5,64,22,60,21,46);c.bezierCurveTo(20,35,13,28,12,2);c.fill();
+ return scenicLavaDrop=sprite;
+}
+function prepareLavaSteam(){
+ if(scenicLavaSteam)return scenicLavaSteam;
+ const sprite=document.createElement('canvas');sprite.width=96;sprite.height=96;
+ const brush=sprite.getContext('2d');
+ // Overlapping wisps, prepared once; no hard circular outlines or live blur.
+ for(const [x,y,r] of [[40,66,23],[52,50,25],[36,31,24],[59,26,19]]){
+  const g=brush.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'#d4c7b650');g.addColorStop(.45,'#c5b9a92e');g.addColorStop(1,'#b7aea000');brush.fillStyle=g;brush.fillRect(0,0,96,96);
+ }
+ return scenicLavaSteam=sprite;
+}
 function prepareScenicLava(key,img){
  const paths=SCENIC_LAVA[key];if(!paths||!imageReady(img))return null;
  if(scenicLavaCache?.key===key)return scenicLavaCache;
  const aspect=img.naturalHeight/img.naturalWidth,channels=paths.map(path=>{
   const left=[],right=[];for(let i=0;i<path.length;i++){const a=path[Math.max(0,i-1)],b=path[Math.min(path.length-1,i+1)],p=path[i],dx=b[0]-a[0],dy=(b[1]-a[1])*aspect,len=Math.hypot(dx,dy)||1,nx=-dy/len,ny=dx/len/aspect;left.push([p[0]+nx*p[2],p[1]+ny*p[2]]);right.push([p[0]-nx*p[2],p[1]-ny*p[2]]);}
-  const channel={path,polygon:left.concat(right.reverse()).map(p=>p.map(v=>clamp(v,0,1)))};
+  const channel={path,dripPoint:{},polygon:left.concat(right.reverse()).map(p=>p.map(v=>clamp(v,0,1)))};
   prepareLavaTexture(channel,img);return channel;
- });return scenicLavaCache={key,channels,aspect};
+ });return scenicLavaCache={key,channels,aspect,steam:prepareLavaSteam(),drop:prepareLavaDrop()};
 }
 function prepareLavaTexture(channel,img){
  const nw=img.naturalWidth,nh=img.naturalHeight,path=channel.path;
@@ -1319,22 +1337,77 @@ function prepareLavaTexture(channel,img){
  for(let y=0;y<sprite.height;y++)for(let x=0;x<sprite.width;x++){
   const px=x+minX,py=y+minY,k=(y*sprite.width+x)*4;let strength=0;
   for(let i=1;i<path.length;i++){const a=path[i-1],b=path[i],dx=(b[0]-a[0])*nw,dy=(b[1]-a[1])*nh,u=clamp(((px-a[0]*nw)*dx+(py-a[1]*nh)*dy)/(dx*dx+dy*dy||1),0,1),distance=Math.hypot(px-a[0]*nw-dx*u,py-a[1]*nh-dy*u),width=(a[2]+(b[2]-a[2])*u)*nw;strength=Math.max(strength,navigationEase((1-distance/width)/.65));}
-  const warm=clamp((data[k]-data[k+2]-18)/65,0,1)*clamp((data[k]-95)/95,0,1),ends=navigationEase(Math.min(y,sprite.height-1-y)/Math.max(2,sprite.height*.13));data[k+3]=Math.round(data[k+3]*warm*strength*ends);
+  const warm=clamp((data[k]-data[k+2]-18)/65,0,1)*clamp((data[k]-165)/75,0,1),ends=navigationEase(Math.min(y,sprite.height-1-y)/Math.max(2,sprite.height*.13));data[k+3]=Math.round(data[k+3]*warm*strength*ends);
  }
  c.putImageData(pixels,0,0);channel.sprite=sprite;channel.box=[minX/nw,minY/nh,sprite.width/nw,sprite.height/nh];channel.sourceHeight=nh;
+ // Bake flowing light/dark ripples into the real molten texture. Previously
+ // the whole crop drifted only 0.3 source pixels/second: effectively still.
+ // Fixed spatial masks keep the banks still; only the light travels downhill.
+ const frameCount=16,atlas=document.createElement('canvas');atlas.width=sprite.width;atlas.height=sprite.height*frameCount;
+ const brush=atlas.getContext('2d'),frame=brush.createImageData(sprite.width,sprite.height),waves=new Float32Array(data.length);
+ for(let yy=0;yy<sprite.height;yy++)for(let xx=0;xx<sprite.width;xx++){
+  const k=(yy*sprite.width+xx)*4;if(!data[k+3])continue;
+  const grain=Math.sin(xx*.73+yy*.065)*.55+Math.sin(xx*.23-yy*.041)*.3,phase=yy*.105+grain,fine=yy*.21+xx*.31;
+  waves[k]=Math.sin(phase);waves[k+1]=Math.cos(phase);waves[k+2]=Math.sin(fine);waves[k+3]=Math.cos(fine);
+ }
+ for(let f=0;f<frameCount;f++){
+  const phase=f/frameCount*TAU,sn=Math.sin(phase),cs=Math.cos(phase),sn2=Math.sin(phase*2),cs2=Math.cos(phase*2);
+  for(let k=0;k<data.length;k+=4){
+   if(!data[k+3])continue;
+   const wave=waves[k]*cs-waves[k+1]*sn,fine=waves[k+2]*cs2-waves[k+3]*sn2;
+   const brightness=.99+wave*.16+fine*.03;
+   frame.data[k]=Math.min(255,data[k]*brightness+Math.max(0,wave)*22);
+   frame.data[k+1]=Math.min(255,data[k+1]*brightness+Math.max(0,wave)*12);
+   frame.data[k+2]=Math.min(255,data[k+2]*brightness);
+   frame.data[k+3]=data[k+3];
+  }
+  brush.putImageData(frame,0,f*sprite.height);
+ }
+ channel.flowAtlas=atlas;channel.flowFrames=frameCount;
+}
+function lavaDripPoint(path,progress,out={}){
+ // Gravity accelerates a bead from the actual lip down the painted channel.
+ const first=path[0],last=path.at(-1),yy=first[1]+(last[1]-first[1])*progress**1.55;
+ let i=1;while(i<path.length-1&&path[i][1]<yy)i++;
+ const a=path[i-1],b=path[i],u=clamp((yy-a[1])/(b[1]-a[1]||1),0,1);
+ out.x=a[0]+(b[0]-a[0])*u;out.y=yy;out.width=a[2]+(b[2]-a[2])*u;return out;
 }
 function drawScenicLavaTile(lava,t,x,y,p,vertical){
  const layers=(window.flightEffectsQuality||1)<1?1:2;
- ctx.save();ctx.translate(x,y);ctx.globalCompositeOperation='screen';
+ ctx.save();ctx.translate(x,y);ctx.globalCompositeOperation='source-over';
  for(const channel of lava.channels){
   if(!channel.sprite)continue;const first=channel.path[0],box=channel.box,edge=clamp((vertical?first[1]*p.ih:first[0]*p.iw)/p.overlap,0,1),feather=edge*edge*(3-2*edge);
   ctx.save();ctx.beginPath();for(let i=0;i<channel.polygon.length;i++){const q=channel.polygon[i];i?ctx.lineTo(q[0]*p.iw,q[1]*p.ih):ctx.moveTo(q[0]*p.iw,q[1]*p.ih);}ctx.closePath();ctx.clip();
+  const clock=((t/2.8)%1+1)%1*channel.flowFrames,frame=Math.floor(clock),mix=clock-frame;
   for(let layer=0;layer<layers;layer++){
-   const age=(t*.16+layer/layers)%1,drift=(age-.5)*10*p.ih/channel.sourceHeight;
-   ctx.globalAlpha=(layers===1?.34:.25)*Math.sin(Math.PI*age)**2*feather;
-   ctx.drawImage(channel.sprite,box[0]*p.iw,box[1]*p.ih+drift,box[2]*p.iw,box[3]*p.ih);
+   ctx.globalAlpha=.82*(layers===1?1:layer?mix:1-mix)*feather;
+   ctx.drawImage(channel.flowAtlas,0,((frame+layer)%channel.flowFrames)*channel.sprite.height,channel.sprite.width,channel.sprite.height,box[0]*p.iw,box[1]*p.ih,box[2]*p.iw,box[3]*p.ih);
+  }
+  // Sparse beads shed from the lip, never rain from above it. Shallow rivers
+  // retain the flowing texture but do not acquire falling droplets.
+  const last=channel.path.at(-1);
+  if(last[1]-first[1]>Math.abs(last[0]-first[0])/lava.aspect*2){
+   ctx.globalCompositeOperation='screen';
+   for(let drip=0;drip<layers;drip++){
+    const age=((t/2.4+first[0]*7+drip*.5)%1+1)%1,q=lavaDripPoint(channel.path,age,channel.dripPoint),width=Math.max(.8,q.width*p.iw*.21),height=width*(2.5+age*3);
+    ctx.globalAlpha=.85*Math.sin(Math.PI*age)**.5*feather;
+    ctx.drawImage(lava.drop,(q.x+q.width*(drip?.55:-.45))*p.iw-width*.5,Math.max(first[1]*p.ih,q.y*p.ih-height),width,height);
+   }
   }ctx.restore();
- }ctx.restore();
+ }
+ // Steam rises from each mapped flow's landing, behind the encounter. Its
+ // source and drift share the painting's transform, including vertical scroll.
+ ctx.globalCompositeOperation='source-over';
+ for(let i=0;i<lava.channels.length;i++){
+  const end=lava.channels[i].path.at(-1),edge=clamp((vertical?end[1]*p.ih:end[0]*p.iw)/p.overlap,0,1),width=clamp(end[2]*3,.018,.05)*p.iw;
+  for(let puff=0;puff<layers;puff++){
+   const age=((t*.06+i*.37+puff/layers)%1+1)%1,fade=Math.sin(Math.PI*age)**2,drift=Math.sin(age*2.4+i)*width*.23;
+   const size=width*(.65+age*.85),height=size*1.25;
+   ctx.globalAlpha=.34*fade*edge*edge*(3-2*edge);
+   ctx.drawImage(lava.steam,end[0]*p.iw+drift-size*.5,end[1]*p.ih-age*width*.9-height*.75,size,height);
+  }
+ }
+ ctx.restore();
 }
 
 function drawPanorama(img){
