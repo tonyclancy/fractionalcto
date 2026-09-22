@@ -151,7 +151,7 @@ function retrySection(){
  ({score,kills,weapon,power,speedLevel,companion,novas}=saved);novas=Math.max(1,novas);
  challengeState.wave=(sectors[level].challenge?.waves||[]).filter(at=>at<time).length;
  waveIndex=waveTimes[level].filter(at=>at<time).length;gateIndex=gatePlans[level].filter(g=>g.at<time).length;supplyIndex=supplyPlans[level].filter(d=>d.at<time).length;
- obstacles=gatePlans[level].slice(0,gateIndex).map((g,id)=>({...g,id,x:W+100-(time-g.at)*SCROLL_SPEED,w:g.width||82+difficulty()*8})).filter(o=>o.x+o.w>-30);
+ obstacles=gatePlans[level].slice(0,gateIndex).map((g,id)=>({...g,id,x:W+100-(time-g.at)*SCROLL_SPEED,w:g.width||82+difficulty()*8})).filter(o=>{updateAsteroidDynamics(o);return obstacleStillVisible(o)});
  // Restore an already-entered midpoint gate before choosing the safe spawn.
  // Otherwise the first simulation tick can materialize it around the pilot.
  const c=sectors[level].challenge;
@@ -264,8 +264,8 @@ function spawn(){
 }
 function updateStructures(dt){
  const plan=gatePlans[level];while(gateIndex<plan.length&&time>=plan[gateIndex].at){const g=plan[gateIndex];obstacles.push({...g,id:gateIndex,x:W+100,w:g.width||82+difficulty()*8});gateIndex++}
- for(const o of obstacles){o.x=W+100-(time-o.at)*SCROLL_SPEED;if(o.rotor&&rotorContact(o,ship.x,ship.y,18))damage();if(obstacleSolids(o).some(r=>ship.x+24>r.x&&ship.x-24<r.x+r.w&&ship.y+14>r.y&&ship.y-14<r.y+r.h))damage()}
- obstacles=obstacles.filter(o=>o.x+o.w>-30);
+ for(const o of obstacles){o.x=W+100-(time-o.at)*SCROLL_SPEED;updateAsteroidDynamics(o);if(o.rotor&&rotorContact(o,ship.x,ship.y,18))damage();if(obstacleSolids(o).some(r=>ship.x+24>r.x&&ship.x-24<r.x+r.w&&ship.y+14>r.y&&ship.y-14<r.y+r.h))damage()}
+ obstacles=obstacles.filter(obstacleStillVisible);
 }
 // A visible emitter charge precedes every ordinary/elite shot. Aimed rounds
 // commit to the pilot's position at the warning, rewarding a deliberate dodge.

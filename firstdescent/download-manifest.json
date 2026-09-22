@@ -1,12 +1,17 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 69829137,
+  "bytes": 70457056,
   "assets": [
     {
+      "path": "ASTEROID-CREDITS.txt",
+      "bytes": 471,
+      "sha256": "948e3ee4e351d09c29cbb093c817dad632391e6ac7ca5e7690d381a3819b90cb"
+    },
+    {
       "path": "art.js",
-      "bytes": 262200,
-      "sha256": "33f8d139b77a31b616c0619e05ded48d0194a8ede8b4975cd4824fae861bee04"
+      "bytes": 378430,
+      "sha256": "ae0c430098b665d0ed2988d6133445de6b623ee2cf7c40c97995849bc636466b"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -27,6 +32,21 @@
       "path": "assets/alien-flesh-v3.webp",
       "bytes": 572170,
       "sha256": "1ecce476a69f32b016f9eaba1f8aa3db85fa018343e5c6c22cfef614ba3604b9"
+    },
+    {
+      "path": "assets/asteroid-bennu-color-v1.webp",
+      "bytes": 232438,
+      "sha256": "e50ca8807869319d98ecd767e03d20342b59267a5e15b1f2cb057b778c5c58f7"
+    },
+    {
+      "path": "assets/asteroid-eros-color-v1.webp",
+      "bytes": 194554,
+      "sha256": "31ab5ac1191d6acad3272e44cca77ea1578123108dd980754c36561a3a35f1f2"
+    },
+    {
+      "path": "assets/asteroid-eros-normal-v1.webp",
+      "bytes": 83126,
+      "sha256": "3e99cffd0eb88879d7d4eb80fbd4260cc92cf3171037ed24e95cac5e9be7d41a"
     },
     {
       "path": "assets/asteroid-stone-v2.webp",
@@ -1571,13 +1591,13 @@
     },
     {
       "path": "game.js",
-      "bytes": 92613,
-      "sha256": "4d6b24b4347ad67d0f50dfcb40880d351fb3b8bb14ffc932fc57b66d2ddded7e"
+      "bytes": 92692,
+      "sha256": "4e6e1215ac184bf6754d1ef9019b3bf7b88bb24992a56138280e3ede64f09f69"
     },
     {
       "path": "index.html",
-      "bytes": 6829,
-      "sha256": "46e6410aa7a8f57c92352d3ea0fc8d67a3381e879d97ddbb91d45593a7e76b46"
+      "bytes": 6841,
+      "sha256": "1a7aed07f46c5a420b74afcfb2b8b16b1448edfbcdba7b099621a6c06ac97f7c"
     },
     {
       "path": "levels.js",
@@ -1601,8 +1621,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 31076,
-      "sha256": "0bd09ea69c4e5e6000cc4b677ec64710bf81b7d38cd2214adb973cb1e7634908"
+      "bytes": 32085,
+      "sha256": "c8b9d50b7184c92246bb95fc6ec69efbb80de9d5f9bd527c3d83d60d8a2f7c49"
     },
     {
       "path": "runs.js",

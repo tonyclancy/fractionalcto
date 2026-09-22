@@ -1,0 +1,4 @@
+Asteroid reference models and surface maps: NASA Visualization Technology Applications and Development (VTAD).
+Eros: https://science.nasa.gov/resource/eros-3d-model/
+Bennu: https://science.nasa.gov/resource/bennu-3d-model/
+Adapted for First Descent: quantized geometry, compressed texture encoding, small silhouette variations, material tint and game animation. NASA does not endorse this game. These visualization models are not presented as scientific reconstructions.
