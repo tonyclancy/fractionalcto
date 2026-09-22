@@ -379,7 +379,6 @@ function rayVertex(p,age){const span=Math.max(0,Math.abs(p[1])-12),wave=age*3.2-
 {
  for(const name of ['hiveHead','voidLeviathan']){const m=meshBuilder(),large=name==='voidLeviathan';for(let i=0;i<14;i++){const x=-12+i*(large?6:3),y=Math.sin(i*2.4)*18,z=-Math.sqrt(Math.max(20,(large?31:27)**2-y*y));m.tube([[x-4,y-3,z],[x,y,z-2],[x+5,y+4,z+1]],.8,[38,42,52]);m.ellipsoid(x,y,z-1,2.4,1.7,1.1,[155,139,120],0,12,8);}for(const side of [-1,1])m.tube([[-15,side*21,-17],[-28,side*30,-21],[-44,side*29,-23],[-51,side*18,-25]],3.8,[191,188,155]);meshes[name]=meshes[name].concat(m.faces);meshes[name].skin=true;}
  const m=meshBuilder();for(let i=0;i<9;i++){const x=-28+i*9;for(const side of [-1,1]){m.tube([[x,side*16,-30],[x+2,side*25,-26]],1.5,[51,57,61]);m.ellipsoid(x,side*22,-31,1.5,1.5,1,[172,146,108],0,10,6);}}for(const side of [-1,1])m.wedge([-35,side*20,-18],[-64,side*47,-8],[9,side*35,-17],5,[89,96,101]);meshes.cathedral=meshes.cathedral.concat(m.faces);
- const gun=meshBuilder();gun.ellipsoid(0,0,0,34,24,22,[82,93,104],0,24,16);for(const side of [-1,1])gun.tube([[10,side*12,-12],[-20,side*12,-12],[-45,side*12,-12]],5,[159,151,123]);gun.ellipsoid(-12,-7,-22,8,4,3,[255,129,79],.65,16,10);meshes.sentry=gun.faces;
 }
 // Continuous ray membranes connect the ribs; the flight rig carries a wave to each tip.
 {
