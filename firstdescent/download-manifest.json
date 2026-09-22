@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 32753522,
+  "bytes": 69409741,
   "assets": [
     {
       "path": "art.js",
-      "bytes": 216880,
-      "sha256": "804d495259850d2444383fdaaa9551a37861143d6ebc7d67b7a43ba247ff523d"
+      "bytes": 231389,
+      "sha256": "8cca63730ec60e7df444888e83982b48f760914ca5e78525b4a081cecd0d3e77"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -57,6 +57,11 @@
       "path": "assets/carrier-panorama.webp",
       "bytes": 325724,
       "sha256": "cbc16cbba235471821af9e7b6d34751b752c6e64e3551e4b01e604c1f2530795"
+    },
+    {
+      "path": "assets/cloud-discharge-v1.webp",
+      "bytes": 46926,
+      "sha256": "bc834f1c98994976980a8e99e6cac800c1ad395f8473a693d3cadf6e8e04eac5"
     },
     {
       "path": "assets/core-panorama-thumb.webp",
@@ -585,6 +590,941 @@
       "sha256": "609edb98e59688aee735e9da62567c1bd6258d9111bc57d8f4ba68a1f4662e72"
     },
     {
+      "path": "assets/world-aether-aerial-landscape-v1.webp",
+      "bytes": 216414,
+      "sha256": "0e4ac00b1e61f7d7f790d208e315a134610d57c79d6941ae7f6931d610f5b6d1"
+    },
+    {
+      "path": "assets/world-aether-aerial-orbit-v1.webp",
+      "bytes": 117952,
+      "sha256": "e43e49e451767dae5ef55210da8fe9f655fa0c1230d9f0669a7a33c25712946b"
+    },
+    {
+      "path": "assets/world-aether-aurelia-landscape-v1.webp",
+      "bytes": 202262,
+      "sha256": "387a360c1ac369cce0ba336304875685c39b1ff2099e4a0ae1a2c7e9294bf682"
+    },
+    {
+      "path": "assets/world-aether-aurelia-orbit-v1.webp",
+      "bytes": 110464,
+      "sha256": "f3fff3f647221503b3723a540b7a0c519f2d740ccded31dd866af8cefc8cbdc0"
+    },
+    {
+      "path": "assets/world-aether-cresset-landscape-v1.webp",
+      "bytes": 266560,
+      "sha256": "0b4c6938169ea9c157f888d583e33ae2b70ef195c6eb3ae05155d28ffff4a7c3"
+    },
+    {
+      "path": "assets/world-aether-cresset-orbit-v1.webp",
+      "bytes": 121632,
+      "sha256": "997b366c6ed43e6c4472d14b15c2a4032fd13365dff974db4b76ea4deaca4547"
+    },
+    {
+      "path": "assets/world-aether-hoarfrost-landscape-v1.webp",
+      "bytes": 304232,
+      "sha256": "4fc6760874bf0d0b4ca3db04d60b4f8aac86d617bfa523d4ea53efff971659dc"
+    },
+    {
+      "path": "assets/world-aether-hoarfrost-orbit-v1.webp",
+      "bytes": 119538,
+      "sha256": "4fe20db4b64d43d41547cf63fa337a31110ba5b86dc77bef7ced7421d036f550"
+    },
+    {
+      "path": "assets/world-aether-nympha-landscape-v1.webp",
+      "bytes": 268922,
+      "sha256": "982b7c3e7f1722a1914fef66245a0f8723804aafb0426ab36d0e601bea708f78"
+    },
+    {
+      "path": "assets/world-aether-nympha-orbit-v1.webp",
+      "bytes": 105098,
+      "sha256": "db9f233a61beb28d12e2e713a749992a77400a6415f497d088ee6922bad33550"
+    },
+    {
+      "path": "assets/world-argent-glacier-landscape-v1.webp",
+      "bytes": 339742,
+      "sha256": "b1513340012be08fb9dc02e2f060bd5a6304184f232be1bb7b1ee3cc9c9e51b0"
+    },
+    {
+      "path": "assets/world-argent-glacier-orbit-v1.webp",
+      "bytes": 155816,
+      "sha256": "30e8437edfa2b632c473b2d5b428fc0ce32db7e0555f5d7aa99c3ed06e1fe788"
+    },
+    {
+      "path": "assets/world-argent-littoral-landscape-v1.webp",
+      "bytes": 268548,
+      "sha256": "37a139aa0f8f9c2bef7eb738cea01cc8f19286e478cf1fc200b20b9b955db1c3"
+    },
+    {
+      "path": "assets/world-argent-littoral-orbit-v1.webp",
+      "bytes": 121472,
+      "sha256": "fd71ada11e31d9bb7e3a74bf3af361c16b9ec28b478fb4c38ae5c95544249c4a"
+    },
+    {
+      "path": "assets/world-argent-pallor-landscape-v1.webp",
+      "bytes": 239192,
+      "sha256": "39825a545b96f1e7a27cf9a138784512b6921c58f801fda9cdac05cf0c75d959"
+    },
+    {
+      "path": "assets/world-argent-pallor-orbit-v1.webp",
+      "bytes": 114268,
+      "sha256": "b54f17209a2a0a98209dde8cfe0a394c0e9a6a681544b24b5fa873d437b5bc00"
+    },
+    {
+      "path": "assets/world-argent-peregrine-landscape-v1.webp",
+      "bytes": 289862,
+      "sha256": "a0c75284b98f774faeef756460e4c4389529b79d4697a939fff6e64e3ec32902"
+    },
+    {
+      "path": "assets/world-argent-peregrine-orbit-v1.webp",
+      "bytes": 127100,
+      "sha256": "5c09f54a9c67bd4bab0327d0a1e2b10baafacce408eb52317f69a3054e94e022"
+    },
+    {
+      "path": "assets/world-argent-smelt-landscape-v1.webp",
+      "bytes": 360900,
+      "sha256": "269de68902d292fec075b18b96307476d876bc2d7f9cdab653057a74530dacce"
+    },
+    {
+      "path": "assets/world-argent-smelt-orbit-v1.webp",
+      "bytes": 126738,
+      "sha256": "946c4b95bac818164933f6cf59e5e3b41706f74c5150668cd7b333423f1980f3"
+    },
+    {
+      "path": "assets/world-argent-tempera-landscape-v1.webp",
+      "bytes": 343872,
+      "sha256": "dee21c7a9d96061e62d3eb8e06c6e9bf6b9146d15ac9d3ba9f610498f25a0291"
+    },
+    {
+      "path": "assets/world-argent-tempera-orbit-v1.webp",
+      "bytes": 127134,
+      "sha256": "7cd5ef9ec720903990fd446fce93503d096ee8b66b5650a64948d5696f9885a7"
+    },
+    {
+      "path": "assets/world-auric-floe-landscape-v1.webp",
+      "bytes": 273566,
+      "sha256": "09bfdafc7053bd6403b875253e40e360a96b97c75122738c55a820f3c06dcd23"
+    },
+    {
+      "path": "assets/world-auric-floe-orbit-v1.webp",
+      "bytes": 139658,
+      "sha256": "7adda60a4be17ea6a20c5b4d2cd539a53777ab9438f9ef405b8caa38c464fbe0"
+    },
+    {
+      "path": "assets/world-auric-gilt-landscape-v1.webp",
+      "bytes": 268470,
+      "sha256": "489d664493cc2ac0ed9c2c4809cd0655a8ecc24ef34caba9274369bdc410263c"
+    },
+    {
+      "path": "assets/world-auric-gilt-orbit-v1.webp",
+      "bytes": 124160,
+      "sha256": "7297616927713bc39773487b931cda1554564c6672ac8d74940bdf3f4dca2048"
+    },
+    {
+      "path": "assets/world-auric-hesper-landscape-v1.webp",
+      "bytes": 194734,
+      "sha256": "2c8b149f43189194718d7e0142b642b731d962f023c1faf839080731986e4741"
+    },
+    {
+      "path": "assets/world-auric-hesper-orbit-v1.webp",
+      "bytes": 96752,
+      "sha256": "8abee4e3ae838ee525f99ad146f14f02fb525c490d6c8b969dbdf0f5e34aee1b"
+    },
+    {
+      "path": "assets/world-caelus-landscape-v1-thumb.webp",
+      "bytes": 24392,
+      "sha256": "cb487053a943b110fd86ab542b02f2c6fa9c0837372c92be21de4904df8673a3"
+    },
+    {
+      "path": "assets/world-caelus-landscape-v1.webp",
+      "bytes": 279856,
+      "sha256": "51d26305ddce931ceef7360c5545ccc3b872bfb90c470c7cb317ca2870b44d79"
+    },
+    {
+      "path": "assets/world-caelus-orbit-v1.webp",
+      "bytes": 138894,
+      "sha256": "9b0ec27ff2de69445e3f50c3dd702fa4ea10d2e002412cb9c593d934f38083a9"
+    },
+    {
+      "path": "assets/world-cervus-fallow-landscape-v1.webp",
+      "bytes": 254198,
+      "sha256": "21acc0f45f9278a41654955629119d95b173eba9d1143a93749da10123624880"
+    },
+    {
+      "path": "assets/world-cervus-fallow-orbit-v1.webp",
+      "bytes": 108446,
+      "sha256": "1e1d3a9765c12afbce5837f75f0a081c1d06e3509bc76f96ce63f0905fee1276"
+    },
+    {
+      "path": "assets/world-cervus-marina-landscape-v1.webp",
+      "bytes": 356784,
+      "sha256": "104f06d1d1234cac3299ff42aa57def55164439cf84b65f400fbe13f4f873850"
+    },
+    {
+      "path": "assets/world-cervus-marina-orbit-v1.webp",
+      "bytes": 128928,
+      "sha256": "925b8c8c744d724f22692448c7d551b2b18ea0259b4bc6efb90929d729e15a72"
+    },
+    {
+      "path": "assets/world-cervus-verdigris-landscape-v1.webp",
+      "bytes": 361492,
+      "sha256": "2763c70ccfb079a6f949f0b2eb906d42b18fee3fa2252cbce03d37614261b0da"
+    },
+    {
+      "path": "assets/world-cervus-verdigris-orbit-v1.webp",
+      "bytes": 138724,
+      "sha256": "f0b5d0d17a1440085f8d016465f0040d61bba88ace1f51ebd13e4126bd4a097b"
+    },
+    {
+      "path": "assets/world-cervus-wintermere-landscape-v1.webp",
+      "bytes": 281960,
+      "sha256": "1480bfbe644d2c50eaa7711037652a7e07a572a5f09fe0c833ea36e22d262651"
+    },
+    {
+      "path": "assets/world-cervus-wintermere-orbit-v1.webp",
+      "bytes": 121096,
+      "sha256": "fc1050488696988db880479fd55b9ab8af4698e5465e1cc36c2263d81d5fe4c0"
+    },
+    {
+      "path": "assets/world-cinder-landscape-v1.webp",
+      "bytes": 282938,
+      "sha256": "699d5f02dd0a7875aeac8eefa0e42d5802fda9bc0bf747d0e761bd0f6a8e7070"
+    },
+    {
+      "path": "assets/world-cinder-orbit-v1.webp",
+      "bytes": 123722,
+      "sha256": "a52d64508cc554a5a87d18452500dac483de3c6d5721e7cfe2e5d1ea48520b28"
+    },
+    {
+      "path": "assets/world-elysian-crucible-landscape-v1.webp",
+      "bytes": 351290,
+      "sha256": "bfbb1592c73b51a7e75d15cc53afba7f8203e7fd958bf4edeece5aa1d98aef83"
+    },
+    {
+      "path": "assets/world-elysian-crucible-orbit-v1.webp",
+      "bytes": 127792,
+      "sha256": "caadf1c04e2c55f02d584aacd29736725433025ffe1f796d2d319bc958a7c6f5"
+    },
+    {
+      "path": "assets/world-elysian-opaline-landscape-v1.webp",
+      "bytes": 351220,
+      "sha256": "a3537151e5fba1171ea6ef6bde11f90cc76ff38eb07e9701c38ba8a23f62e6e9"
+    },
+    {
+      "path": "assets/world-elysian-opaline-orbit-v1.webp",
+      "bytes": 115418,
+      "sha256": "b75b10e8bca788611701a9dad9f8e958b2acdac4331cab9d8a7752dcbdb5e08e"
+    },
+    {
+      "path": "assets/world-elysian-serein-landscape-v1.webp",
+      "bytes": 211690,
+      "sha256": "57e854e168f88b0fb1f2af4fbb719c9e7a85bcdfe18bcdf4e07e14f76aee72db"
+    },
+    {
+      "path": "assets/world-elysian-serein-orbit-v1.webp",
+      "bytes": 134022,
+      "sha256": "077b9c0925c85af1c0ec847dc51450483d8fb3f40a0b3724967adc4533e812be"
+    },
+    {
+      "path": "assets/world-elysian-terminus-landscape-v1.webp",
+      "bytes": 298026,
+      "sha256": "9b1c26d2fc73c973327c5110a6c1f3423287b218fbc256ca0f4a54af4c7d203d"
+    },
+    {
+      "path": "assets/world-elysian-terminus-orbit-v1.webp",
+      "bytes": 138714,
+      "sha256": "413790bd820eb6fc69bedf49139051ed69d7f60c47961fa93e923cac18652db6"
+    },
+    {
+      "path": "assets/world-elysian-vespera-landscape-v1.webp",
+      "bytes": 194662,
+      "sha256": "8065b4384731d1baac97854e231f6d17051e58af7f98f3a5e9621aff6116f62a"
+    },
+    {
+      "path": "assets/world-elysian-vespera-orbit-v1.webp",
+      "bytes": 84594,
+      "sha256": "99de17cc99a013ac307d3f1484b5c990047ff2d184e87beadca9bde732290ec3"
+    },
+    {
+      "path": "assets/world-elysian-vulcanis-landscape-v1.webp",
+      "bytes": 314464,
+      "sha256": "74a2d443260a83db9981da9d7b56679078c1ee84459592349d552cad0d1e98bc"
+    },
+    {
+      "path": "assets/world-elysian-vulcanis-orbit-v1.webp",
+      "bytes": 123424,
+      "sha256": "d39ff6e974e3652752c9a472416b4b8463b4b899e07e2271465210e7d675ae58"
+    },
+    {
+      "path": "assets/world-eventide-aureus-landscape-v1.webp",
+      "bytes": 193670,
+      "sha256": "22019fa3757a835dc9047bcf2a290f35f2aceb1e8abc63001dbd6e84e4620e43"
+    },
+    {
+      "path": "assets/world-eventide-aureus-orbit-v1.webp",
+      "bytes": 140932,
+      "sha256": "0a8a6a9d37531682fe12362f49d39bbea80d249a50c7ea5e98804a003b12e3a8"
+    },
+    {
+      "path": "assets/world-eventide-carmine-landscape-v1.webp",
+      "bytes": 240082,
+      "sha256": "d21f199c0e863c60f5f859de7e12b45b571d78d0e0ff48aa08479b9b33eacd85"
+    },
+    {
+      "path": "assets/world-eventide-carmine-orbit-v1.webp",
+      "bytes": 135842,
+      "sha256": "e517f76273790f16fc4f149e1c0d5ef68dd9ed9954486eab32e2f51cba731bd2"
+    },
+    {
+      "path": "assets/world-eventide-fulgur-landscape-v1.webp",
+      "bytes": 229070,
+      "sha256": "fc56e46d4b0e2fd84e4b193e3b01737faeabeef98bbb0e78ca01717d70837488"
+    },
+    {
+      "path": "assets/world-eventide-fulgur-orbit-v1.webp",
+      "bytes": 141378,
+      "sha256": "897e04a911aa2a98612171a98b3a23beb5c56fc5af271da6db40e5cb5d5ebe3d"
+    },
+    {
+      "path": "assets/world-ferrum-landscape-v1-thumb.webp",
+      "bytes": 20040,
+      "sha256": "221c946fe0a808c62a437c8f680199f8cc3f8f95427d810f942d053dc3a3c33a"
+    },
+    {
+      "path": "assets/world-ferrum-landscape-v1.webp",
+      "bytes": 292678,
+      "sha256": "ee8ae1d1949ef9a86b0a5d2192c302f254771883211468b0c6d1bb2ddccdef19"
+    },
+    {
+      "path": "assets/world-ferrum-orbit-v1.webp",
+      "bytes": 131392,
+      "sha256": "e6b4c32037ef8c78defca835711e2b515b271775c2b515423232e7782ac332c8"
+    },
+    {
+      "path": "assets/world-halcyon-cirrus-landscape-v1.webp",
+      "bytes": 326308,
+      "sha256": "b4822d5797468d260674ee8b9094aaaf38e9eb2dc91db398bdb356b1e55093ae"
+    },
+    {
+      "path": "assets/world-halcyon-cirrus-orbit-v1.webp",
+      "bytes": 112322,
+      "sha256": "b1a1f3dcf4babd4417681a5e3e29dbc82374861f44da7f4eecadda9847725a2a"
+    },
+    {
+      "path": "assets/world-halcyon-kiln-landscape-v1.webp",
+      "bytes": 300748,
+      "sha256": "0c4a4d3bca325ae5f005fd8e23da6f7c8f606de37dc9dfa8e4df82fcf30ab335"
+    },
+    {
+      "path": "assets/world-halcyon-kiln-orbit-v1.webp",
+      "bytes": 116382,
+      "sha256": "fca6019aa54e91c3df22c1d5109d604346c602aae55d36b595f3b572226b5273"
+    },
+    {
+      "path": "assets/world-halcyon-lacuna-landscape-v1.webp",
+      "bytes": 274922,
+      "sha256": "b989f5d954c8941e057cc1fb8d0192b60ff215a8511bfdf7dda5757921c68a18"
+    },
+    {
+      "path": "assets/world-halcyon-lacuna-orbit-v1.webp",
+      "bytes": 107148,
+      "sha256": "19ee76fbdfbf20d479d516368f16b64bae83346fcb5a98762feb2250a3356561"
+    },
+    {
+      "path": "assets/world-halcyon-nimbus-landscape-v1.webp",
+      "bytes": 191416,
+      "sha256": "a287fb98b78c0e7ce75947a336c2e305eae44fc55bf1ce689a9586807602c7ab"
+    },
+    {
+      "path": "assets/world-halcyon-nimbus-orbit-v1.webp",
+      "bytes": 88686,
+      "sha256": "641076ca8ce85c99312f599337e322a9348b34786fa0a0e45c1fff20bc87db6e"
+    },
+    {
+      "path": "assets/world-halcyon-silex-landscape-v1.webp",
+      "bytes": 254316,
+      "sha256": "0c6b317db2b56c4a6be3eb2705f01a68dca05d9acc3d06ea4476a010e3cd59bb"
+    },
+    {
+      "path": "assets/world-halcyon-silex-orbit-v1.webp",
+      "bytes": 127640,
+      "sha256": "25b5e70fa54a821c97fe99c01d1ea750a0b73d6df42d06fe7397b218e85a93bc"
+    },
+    {
+      "path": "assets/world-lyra-aster-landscape-v1.webp",
+      "bytes": 221492,
+      "sha256": "8573d624b41c024170f0312031c023d4f6f0b80d7339a914fff806d294883be7"
+    },
+    {
+      "path": "assets/world-lyra-aster-orbit-v1.webp",
+      "bytes": 112952,
+      "sha256": "76eb1534d84302fbb6aa1662779845acc25ae8e198433fcab0b7e3049d10788a"
+    },
+    {
+      "path": "assets/world-lyra-pelagos-landscape-v1.webp",
+      "bytes": 248118,
+      "sha256": "bb64bdb79f46580559d35801de328496b58ff8323ee1289bd3b7fca95eea8360"
+    },
+    {
+      "path": "assets/world-lyra-pelagos-orbit-v1.webp",
+      "bytes": 123410,
+      "sha256": "2d610413acda3ce5e1978b91572394a38c12368f4754d8e8130ec6bb03dca374"
+    },
+    {
+      "path": "assets/world-lyra-scoria-landscape-v1.webp",
+      "bytes": 285060,
+      "sha256": "5cf3e6a49652a5198729ce8e0c11e7ab8d7e1a523f266069a5e6898079cb9097"
+    },
+    {
+      "path": "assets/world-lyra-scoria-orbit-v1.webp",
+      "bytes": 113602,
+      "sha256": "16867d8ad18eb12a3430d9d4b1eeb2392a90717f7336ac465a969b67f1730390"
+    },
+    {
+      "path": "assets/world-meridian-aegis-landscape-v1.webp",
+      "bytes": 278574,
+      "sha256": "7879c375936b32799bb4619b698beeabcb32dd992e55d245a98dca72c8f8d3f7"
+    },
+    {
+      "path": "assets/world-meridian-aegis-orbit-v1.webp",
+      "bytes": 117254,
+      "sha256": "d5b99f1ca103bc73eddf5f0e4864aae7ce3e92151b8b00d37f7649552f619fc9"
+    },
+    {
+      "path": "assets/world-meridian-aquilon-landscape-v1.webp",
+      "bytes": 339912,
+      "sha256": "eebf9a087c6cd689569c1071c9f4cbf2f50f35f6dbb7879238df0fcff1c9e8df"
+    },
+    {
+      "path": "assets/world-meridian-aquilon-orbit-v1.webp",
+      "bytes": 135308,
+      "sha256": "d1302168fdea873ceb84343d4a3f12476cf805edf2d9c0c411a105b1347296ef"
+    },
+    {
+      "path": "assets/world-meridian-dawnfire-landscape-v1.webp",
+      "bytes": 329636,
+      "sha256": "d4b11397731f827bd9a01ca2eadedcca4babed403e4d58d0c34f4989e3cc28ef"
+    },
+    {
+      "path": "assets/world-meridian-dawnfire-orbit-v1.webp",
+      "bytes": 120194,
+      "sha256": "17d15d583c2bff7925e9b3e507918486ee9a4c5c08aa0837c519f368e7421064"
+    },
+    {
+      "path": "assets/world-meridian-evernight-landscape-v1.webp",
+      "bytes": 278142,
+      "sha256": "da1987297e2d7e8d5f8882464a297d92bc15b27a65470d0d5b7efcc30ffd229e"
+    },
+    {
+      "path": "assets/world-meridian-evernight-orbit-v1.webp",
+      "bytes": 135938,
+      "sha256": "7b60a4ca788ad19e94bab860cfcd78979c1019535aa0b7f8459bd51c63dfa010"
+    },
+    {
+      "path": "assets/world-meridian-lucent-landscape-v1.webp",
+      "bytes": 225446,
+      "sha256": "05d56c05973a12322f1b37e3f5ee146743b368293fa083168cd099bfc11f8fb3"
+    },
+    {
+      "path": "assets/world-meridian-lucent-orbit-v1.webp",
+      "bytes": 122898,
+      "sha256": "b748fed90337e87bb32535b9face21d01b3692c65b6dd86b7f7e676eface3613"
+    },
+    {
+      "path": "assets/world-meridian-ophir-landscape-v1.webp",
+      "bytes": 197876,
+      "sha256": "1f6d81810814adf682321b950b291518f615971c93ed6d85816c804c1f27e297"
+    },
+    {
+      "path": "assets/world-meridian-ophir-orbit-v1.webp",
+      "bytes": 94592,
+      "sha256": "33e880a6f9b6bdaae28651bf7a96136510d8c52518f67ee732d14b3152583958"
+    },
+    {
+      "path": "assets/world-nacre-landscape-v1-thumb.webp",
+      "bytes": 16564,
+      "sha256": "b5c59f473147f0b73856b0a935e56df6a943092b321f3dba6b077905c31ff6db"
+    },
+    {
+      "path": "assets/world-nacre-landscape-v1.webp",
+      "bytes": 258022,
+      "sha256": "3ad966922e00a96ab7b42d3114c48e8a1cbeb185ea45a4deda25dbf16e11ad74"
+    },
+    {
+      "path": "assets/world-nacre-orbit-v1.webp",
+      "bytes": 134236,
+      "sha256": "ada5bf669a79760e5974486d065a7bbdccfe06bf09bad9c6e7e39eb8ce1450bd"
+    },
+    {
+      "path": "assets/world-nereid-brine-landscape-v1.webp",
+      "bytes": 269536,
+      "sha256": "d32046990cde65ae0e70eb99b574fdf224a5550f9ac4bcb99f3c2a04d588738c"
+    },
+    {
+      "path": "assets/world-nereid-brine-orbit-v1.webp",
+      "bytes": 127196,
+      "sha256": "ab9a9ad793f693fad123402e318426d1780b873177fe5a7291e5eb846e67785e"
+    },
+    {
+      "path": "assets/world-nereid-mistral-landscape-v1.webp",
+      "bytes": 243840,
+      "sha256": "2fe150d36c2e7afa60e0b43d90ad80a30d69d1ed7576730b726f8cee5b829fa0"
+    },
+    {
+      "path": "assets/world-nereid-mistral-orbit-v1.webp",
+      "bytes": 126122,
+      "sha256": "a38cd8d1f1bac601dfe8828434c83ec7170dda7382ca6e205a6e58406f5b36e5"
+    },
+    {
+      "path": "assets/world-nereid-sere-landscape-v1.webp",
+      "bytes": 290018,
+      "sha256": "80bd651abfc53dc76c8249928e9184773b6c52c3bc5b946705108833ed1926aa"
+    },
+    {
+      "path": "assets/world-nereid-sere-orbit-v1.webp",
+      "bytes": 139916,
+      "sha256": "5e285fb60c9218f1edf9e9e32f1ed3f450a545a635652932a3bc59d4710db2d6"
+    },
+    {
+      "path": "assets/world-nereid-thren-landscape-v1.webp",
+      "bytes": 268868,
+      "sha256": "8c81f53dd51943d75263405c35c850190704f6afb345665b0ca7c03b1d918071"
+    },
+    {
+      "path": "assets/world-nereid-thren-orbit-v1.webp",
+      "bytes": 101386,
+      "sha256": "b49637a3e98e5a8f780f3cb705992f4967235c710542b8c3ac9a304c27bf75e5"
+    },
+    {
+      "path": "assets/world-nivara-landscape-v1.webp",
+      "bytes": 267864,
+      "sha256": "412352f88b3b6ab1d21232c3d6f9fb53cb051692900dc34a621f595309549e8e"
+    },
+    {
+      "path": "assets/world-nivara-orbit-v1.webp",
+      "bytes": 132628,
+      "sha256": "e0a17e2434973ae06bd1ab73434ff274596ff54983215e8dbe7b83e5fbd21129"
+    },
+    {
+      "path": "assets/world-noctis-fathom-landscape-v1.webp",
+      "bytes": 265432,
+      "sha256": "33d8e1ab380961a114b173bddfe7025503502b852f6f5d11184ac5901d573b53"
+    },
+    {
+      "path": "assets/world-noctis-fathom-orbit-v1.webp",
+      "bytes": 111422,
+      "sha256": "4123d870a17c93f1c6677adf67e5f980bfbd8dd61fa7282232b36a74e23ddd68"
+    },
+    {
+      "path": "assets/world-noctis-fumarole-landscape-v1.webp",
+      "bytes": 236338,
+      "sha256": "d7acf99781a5b7971960490d3c09dedaa3a7ca31b6c7d1d3bb04231538f8ff7a"
+    },
+    {
+      "path": "assets/world-noctis-fumarole-orbit-v1.webp",
+      "bytes": 111916,
+      "sha256": "444782f2774fb17c469e8ff8966a564f5520efd45cad91eb4535da6addd133c3"
+    },
+    {
+      "path": "assets/world-noctis-rook-landscape-v1.webp",
+      "bytes": 238514,
+      "sha256": "7ca2e377f8f51991489d8a38821c79aad23b64c878c30ead6004b439c6098d83"
+    },
+    {
+      "path": "assets/world-noctis-rook-orbit-v1.webp",
+      "bytes": 144600,
+      "sha256": "0698455d6d9b2710dcef07ad3f4ae8412cfa7d242fc174c2438ba74b72d8b01f"
+    },
+    {
+      "path": "assets/world-noctis-sable-landscape-v1.webp",
+      "bytes": 291580,
+      "sha256": "1ac41b6b543c8abcdba48023697494553461a4078d6f3bb6535c3deae4c47cfb"
+    },
+    {
+      "path": "assets/world-noctis-sable-orbit-v1.webp",
+      "bytes": 105844,
+      "sha256": "34783e94fb5f3c870ea59f19f44c1fb5cff3c16597848cb4d5b1f6f4982cf898"
+    },
+    {
+      "path": "assets/world-pyrrha-aureole-landscape-v1.webp",
+      "bytes": 209216,
+      "sha256": "877e8ab77332463c5a7ddda2420ef2a4107a18a2d0789f57c9f18303589bafe3"
+    },
+    {
+      "path": "assets/world-pyrrha-aureole-orbit-v1.webp",
+      "bytes": 114352,
+      "sha256": "2835326421456326f529d1bc063e500ad3499f63f37ac29f810e9f3c7cb52add"
+    },
+    {
+      "path": "assets/world-pyrrha-nerine-landscape-v1.webp",
+      "bytes": 260128,
+      "sha256": "2b4c7d8d6e587ccfbae3a8f799442c78fd6563d8ca67451ed7717f509f88b860"
+    },
+    {
+      "path": "assets/world-pyrrha-nerine-orbit-v1.webp",
+      "bytes": 122532,
+      "sha256": "bf49a653669b9191451ea79f5bc14dcc53071404b5f39e14e755dfab3f3aebb6"
+    },
+    {
+      "path": "assets/world-pyrrha-obscura-landscape-v1.webp",
+      "bytes": 280730,
+      "sha256": "cd3ef92cc971562e63358dd41caff1c9841243dbdafaef081be7e27766de60e3"
+    },
+    {
+      "path": "assets/world-pyrrha-obscura-orbit-v1.webp",
+      "bytes": 130016,
+      "sha256": "433d85119edda9f6b05441c669cc05914b3c9d830eba462c24b1043c51cfec89"
+    },
+    {
+      "path": "assets/world-pyrrha-sinter-landscape-v1.webp",
+      "bytes": 301470,
+      "sha256": "a37856cc8a6535f9254d9b80297cc270015a01784349e9a5976d4ee28ae535f5"
+    },
+    {
+      "path": "assets/world-pyrrha-sinter-orbit-v1.webp",
+      "bytes": 118924,
+      "sha256": "a41b669bd2fb673e166c196be96218ac311464424bfc1b2e194cf38d2e6c9d85"
+    },
+    {
+      "path": "assets/world-rubra-asterion-landscape-v1.webp",
+      "bytes": 234598,
+      "sha256": "f074317a83f44c01b5da03b6d452d84e4ef84e017bbe96b7e2b71dcf2da9099c"
+    },
+    {
+      "path": "assets/world-rubra-asterion-orbit-v1.webp",
+      "bytes": 113942,
+      "sha256": "faa2ce465d7ce3eee894045f9cb4a018cc53d8544479cef56011c969ad3b8f73"
+    },
+    {
+      "path": "assets/world-rubra-furnace-landscape-v1.webp",
+      "bytes": 270344,
+      "sha256": "d255f99b9351bd51e8bd576f48edfd381a44e577e47202726fc6b9688b611318"
+    },
+    {
+      "path": "assets/world-rubra-furnace-orbit-v1.webp",
+      "bytes": 110766,
+      "sha256": "9dcf1584b679101dba096a60e7f01cd6d9e582668907e7acb6d2babca7ef1941"
+    },
+    {
+      "path": "assets/world-rubra-sirocco-landscape-v1.webp",
+      "bytes": 201944,
+      "sha256": "ad7c1d06f922defab59c6a65b345dcb82e1585b74da9d6b1e27ca4166a5e4b59"
+    },
+    {
+      "path": "assets/world-rubra-sirocco-orbit-v1.webp",
+      "bytes": 101258,
+      "sha256": "d6c54eb41a362d6273eb19fa798899d6ed84cae1261d4519e633e104b95e7463"
+    },
+    {
+      "path": "assets/world-saffron-emberfall-landscape-v1.webp",
+      "bytes": 245880,
+      "sha256": "530bbabc2914acd2ed8c10f2535240d60dd09c976e55e5dee8459ad40118dd88"
+    },
+    {
+      "path": "assets/world-saffron-emberfall-orbit-v1.webp",
+      "bytes": 117170,
+      "sha256": "51d4ed95f4ea309b32856c54b1b94a1ff056bb76affa85421e87df296e85022b"
+    },
+    {
+      "path": "assets/world-saffron-nimbusreach-landscape-v1.webp",
+      "bytes": 191334,
+      "sha256": "08bc77936a0015ea4f82c327053a0b09684d61099d6fa9bf909999da268c9859"
+    },
+    {
+      "path": "assets/world-saffron-nimbusreach-orbit-v1.webp",
+      "bytes": 84644,
+      "sha256": "54c54f7a215f6956c4a95f09926a634d3dc6531fdecfd407df71ceec7910f543"
+    },
+    {
+      "path": "assets/world-saffron-stillwater-landscape-v1.webp",
+      "bytes": 368972,
+      "sha256": "cde85a12c42cba108942c00ad4948ad5640020b0f277f7e2eda22dd9bdb939b5"
+    },
+    {
+      "path": "assets/world-saffron-stillwater-orbit-v1.webp",
+      "bytes": 118688,
+      "sha256": "45c89844963fdb28b513c75d27be1a69aee8c5343199531b399befc58af65fcb"
+    },
+    {
+      "path": "assets/world-selen-eidolon-landscape-v1.webp",
+      "bytes": 335802,
+      "sha256": "17d2016fe1afa3497fee410e4a68c9cdc2ad9ba862e6b2dd87a1862e76583188"
+    },
+    {
+      "path": "assets/world-selen-eidolon-orbit-v1.webp",
+      "bytes": 122196,
+      "sha256": "7c386cc1c684dbbe048598df2603433dcf51a129119e5114f1b08fefbe5d95f3"
+    },
+    {
+      "path": "assets/world-selen-flint-landscape-v1.webp",
+      "bytes": 319884,
+      "sha256": "64a0ff1cb205439b7fbc5d73b72421d783d3d03e873fb7ce07a4debaab2f1486"
+    },
+    {
+      "path": "assets/world-selen-flint-orbit-v1.webp",
+      "bytes": 126902,
+      "sha256": "1a062c97c1de117f0f21e17201b496b7679889157fe038d6a3f7931008609bd0"
+    },
+    {
+      "path": "assets/world-selen-hail-landscape-v1.webp",
+      "bytes": 318266,
+      "sha256": "db06fe196c15df993a64cb34a93887b49193f40ce3767025d62d6cc9d108f331"
+    },
+    {
+      "path": "assets/world-selen-hail-orbit-v1.webp",
+      "bytes": 133222,
+      "sha256": "bf8bb4217a8746d43e63cdf464384434abe3e801f991a25000938eff86580144"
+    },
+    {
+      "path": "assets/world-selen-saphir-landscape-v1.webp",
+      "bytes": 285908,
+      "sha256": "c583ccf2b25b33657e9b5e9e15bb72a63570ed89ad848a80c7e51a7d63ba6456"
+    },
+    {
+      "path": "assets/world-selen-saphir-orbit-v1.webp",
+      "bytes": 116564,
+      "sha256": "e97b3a2122f00c09faa13423d7ee6975610e41b1b17a159bccff279db2231dd2"
+    },
+    {
+      "path": "assets/world-solenne-brass-landscape-v1.webp",
+      "bytes": 287212,
+      "sha256": "8eb8adaeb4df9f3d9186619d6a1b5863fbfecfa1164841bff49daf24db62b170"
+    },
+    {
+      "path": "assets/world-solenne-brass-orbit-v1.webp",
+      "bytes": 113206,
+      "sha256": "10dcaa5602e1ed5b5faaeb7d2db80575dbb238e555be63211b5e2d33495d8b91"
+    },
+    {
+      "path": "assets/world-solenne-isolde-landscape-v1.webp",
+      "bytes": 286616,
+      "sha256": "134b3ec4e2649fe1516d03e13b73d5a5437b335df1d6ff6b3e588c4c40c96c06"
+    },
+    {
+      "path": "assets/world-solenne-isolde-orbit-v1.webp",
+      "bytes": 129316,
+      "sha256": "0b155cee10566de17951244aafe855569d8b836d299fd5b5ed17c82bb5077614"
+    },
+    {
+      "path": "assets/world-solenne-oriel-landscape-v1.webp",
+      "bytes": 181708,
+      "sha256": "51feac6334bfb90b2b17118d427ff446ef28bae7645bc5fee62ed723e2382c66"
+    },
+    {
+      "path": "assets/world-solenne-oriel-orbit-v1.webp",
+      "bytes": 85826,
+      "sha256": "a12b5d7ce359aba5c3babde525f22c4daa1a0d861b9f09e442d167cc58638418"
+    },
+    {
+      "path": "assets/world-solenne-rime-landscape-v1.webp",
+      "bytes": 377992,
+      "sha256": "cedae7bf38d3c73ebc2cee130dacceff79c3f625fe2d2a5d1546c50852c77bd0"
+    },
+    {
+      "path": "assets/world-solenne-rime-orbit-v1.webp",
+      "bytes": 152816,
+      "sha256": "de2648a24b9c16189e9a1d656458667fbed9ca9a37de47069fc0b775695f7331"
+    },
+    {
+      "path": "assets/world-solenne-zephyr-landscape-v1.webp",
+      "bytes": 333652,
+      "sha256": "bf18fa275f0e07e59c10420a4b404f5a43b4337e4032ab6cffab0d2065f24524"
+    },
+    {
+      "path": "assets/world-solenne-zephyr-orbit-v1.webp",
+      "bytes": 132598,
+      "sha256": "7ceb53a5fd0e05d91c0a3a2372ad2218b6b4c3b7d82afb526afa2b6f9891ffa7"
+    },
+    {
+      "path": "assets/world-talos-alloy-landscape-v1.webp",
+      "bytes": 306572,
+      "sha256": "126de75440e9a70c4ac88bae3def7d964dedb76cf8f1d6160e7edc305ad3e4cc"
+    },
+    {
+      "path": "assets/world-talos-alloy-orbit-v1.webp",
+      "bytes": 124458,
+      "sha256": "5dfffbb6b917898b3051b21924b84f4730e7683f9d6d7f08907900d5f0d5b580"
+    },
+    {
+      "path": "assets/world-talos-beryl-landscape-v1.webp",
+      "bytes": 383644,
+      "sha256": "9377141a0c6c2be3c5a0d5994aec0cbd095243d6d1b962a2532d4dc90fec7740"
+    },
+    {
+      "path": "assets/world-talos-beryl-orbit-v1.webp",
+      "bytes": 134688,
+      "sha256": "eca58f042938a25c2a4b74acf9f5f9002646afbdfdc2409d81b5dc5af43352fe"
+    },
+    {
+      "path": "assets/world-talos-fervor-landscape-v1.webp",
+      "bytes": 283732,
+      "sha256": "1d8c232eefa2ce4343e11d661cf6a84fff68633f1d6502f71a90b4a8580bc2e1"
+    },
+    {
+      "path": "assets/world-talos-fervor-orbit-v1.webp",
+      "bytes": 107084,
+      "sha256": "aca5adc9125e3aa077066f3dca269bd472c07d68fe6387a705b25ba303924f71"
+    },
+    {
+      "path": "assets/world-talos-shard-landscape-v1.webp",
+      "bytes": 370908,
+      "sha256": "41494b53db33241b4d391e4d40e90d16df8bf0bcd9f3507ffc77c16216290438"
+    },
+    {
+      "path": "assets/world-talos-shard-orbit-v1.webp",
+      "bytes": 142432,
+      "sha256": "6a5c00c22aeaea6fb46e6e4ec4e557e09d86d47157c3369dc48e5c4639bb7fe9"
+    },
+    {
+      "path": "assets/world-talos-tethys-landscape-v1.webp",
+      "bytes": 282514,
+      "sha256": "d50a194db7bd3d88347334de82df693b62afbc3b19305d0632bf7281e71d72f2"
+    },
+    {
+      "path": "assets/world-talos-tethys-orbit-v1.webp",
+      "bytes": 111748,
+      "sha256": "3858c577976a0f34664ccd4c932d5eed11585c7049eaeb6d641a68522483f2f1"
+    },
+    {
+      "path": "assets/world-talos-vortex-landscape-v1.webp",
+      "bytes": 210170,
+      "sha256": "4d0670eb29cb0d6a7cb11a0d22b6514a0b00a2591d009c935438c475c9d0fd10"
+    },
+    {
+      "path": "assets/world-talos-vortex-orbit-v1.webp",
+      "bytes": 114494,
+      "sha256": "2b14691b1df7b9c79696d46733ffdd8c1b46917f2ee73e7f9f0476fef4deb2cc"
+    },
+    {
+      "path": "assets/world-thalassa-landscape-v1.webp",
+      "bytes": 254994,
+      "sha256": "239733b3e0fd64d894b145f8bcd721bc015d0989643d0dd5abd3e962f4ba6ef9"
+    },
+    {
+      "path": "assets/world-thalassa-orbit-v1.webp",
+      "bytes": 115018,
+      "sha256": "6994e37af21bf691dc75789136f9491f215e761af1c85eb7ec2b57c84b6a44eb"
+    },
+    {
+      "path": "assets/world-umbra-boreas-landscape-v1.webp",
+      "bytes": 207900,
+      "sha256": "7252eecc6bb8f864ef50626f7f9de4e95bfc9055898311d2fa2705274a21bbca"
+    },
+    {
+      "path": "assets/world-umbra-boreas-orbit-v1.webp",
+      "bytes": 77238,
+      "sha256": "350824d886ed080083d7aa7e7101b5442f850232e0ff41a45476eaabaa4c3605"
+    },
+    {
+      "path": "assets/world-umbra-caldera-landscape-v1.webp",
+      "bytes": 270558,
+      "sha256": "5ffe01e94ee2fb1800965a4ce8a338f96ec1ad97a5e2e592bc6c9d63e1602a56"
+    },
+    {
+      "path": "assets/world-umbra-caldera-orbit-v1.webp",
+      "bytes": 109180,
+      "sha256": "d17205c7bb9d20c726b4a286668de451371d720aa760d7b1060de12d484e17a5"
+    },
+    {
+      "path": "assets/world-umbra-cauter-landscape-v1.webp",
+      "bytes": 313200,
+      "sha256": "016181360911db1bdd6d000a5955b51cd08ffb304671b4d8187765afbe24c91e"
+    },
+    {
+      "path": "assets/world-umbra-cauter-orbit-v1.webp",
+      "bytes": 122784,
+      "sha256": "7b13abb8c24949e044cfe4cf165ebd5355a0683a21a568bdf2aa2bdef9eef0cb"
+    },
+    {
+      "path": "assets/world-umbra-hush-landscape-v1.webp",
+      "bytes": 288058,
+      "sha256": "0c1dfe579547f5dde0e66b60e89ea626aaff518a9440331d7843225285c3c76c"
+    },
+    {
+      "path": "assets/world-umbra-hush-orbit-v1.webp",
+      "bytes": 126774,
+      "sha256": "99bc4dad3c7a27727093ab5f69c004a4f0016fc5386a255ba90b975b674f5bbf"
+    },
+    {
+      "path": "assets/world-umbra-morrow-landscape-v1.webp",
+      "bytes": 207798,
+      "sha256": "a6e0e66613252d5ba55497ba30783ac53787615eaa59be9f8138381f58ee637e"
+    },
+    {
+      "path": "assets/world-umbra-morrow-orbit-v1.webp",
+      "bytes": 112374,
+      "sha256": "8191c386bb2729e306cf14f065ddd97e3ab14202844f500e2121cb1c2c337dd8"
+    },
+    {
+      "path": "assets/world-umbra-viridia-landscape-v1.webp",
+      "bytes": 383504,
+      "sha256": "45170cc1867a01a6a28d9eed0e00546f0ec0f1f4b60154f3b96a07800c596aef"
+    },
+    {
+      "path": "assets/world-umbra-viridia-orbit-v1.webp",
+      "bytes": 118800,
+      "sha256": "98a20e143d940c4cc5ca068fc001ffad89f3174fd7b8a1b77374e023ff1f1cac"
+    },
+    {
+      "path": "assets/world-veyra-landscape-v1.webp",
+      "bytes": 171548,
+      "sha256": "61a6eee310412bf13d1824894a4057acf534b54643ba4f08431845d4a98822c2"
+    },
+    {
+      "path": "assets/world-veyra-orbit-v1.webp",
+      "bytes": 91698,
+      "sha256": "46103116b9da3adfdf5b3f74ce4d7128b1235fb794353241d2f7caacbeb0e779"
+    },
+    {
+      "path": "assets/world-virent-carmine-landscape-v1.webp",
+      "bytes": 263468,
+      "sha256": "bbae4214829b1fdfdc522d23886978466b0e10ba34be1223a1d4dbeb4ad933d5"
+    },
+    {
+      "path": "assets/world-virent-carmine-orbit-v1.webp",
+      "bytes": 102368,
+      "sha256": "68ff330adaeac247cd5252cfa1bb0a8d26ae84f4217ed4fddd55b008f7a32667"
+    },
+    {
+      "path": "assets/world-virent-cerulean-landscape-v1.webp",
+      "bytes": 338990,
+      "sha256": "ea15ccbe8fec7f45adfcd632432db6ec5adeedd72697bd9c7fe8b79c75238df7"
+    },
+    {
+      "path": "assets/world-virent-cerulean-orbit-v1.webp",
+      "bytes": 133760,
+      "sha256": "ce0db72bef5a4ef112cfa9f826f8db0c7fd97d4b75a7061142bd26d900630684"
+    },
+    {
+      "path": "assets/world-virent-halation-landscape-v1.webp",
+      "bytes": 233596,
+      "sha256": "546cd565a03423c628101608b80f4332b64db35da7ec9f91d3c4cc0f2285c106"
+    },
+    {
+      "path": "assets/world-virent-halation-orbit-v1.webp",
+      "bytes": 115896,
+      "sha256": "42a4a98d58cef62558abca198f341ba43f05930acfa18566bf3f0b03c185018a"
+    },
+    {
+      "path": "assets/world-virent-lichen-landscape-v1.webp",
+      "bytes": 382520,
+      "sha256": "5214b7cc04b93ee3142da5c2c1ebf408dcec476ae6081489d869a99b6abc51c7"
+    },
+    {
+      "path": "assets/world-virent-lichen-orbit-v1.webp",
+      "bytes": 124014,
+      "sha256": "df07ca49796d5cc7cfe0727dce0188155ef3ea39fb64fb7a2fd9a8fcc04736ba"
+    },
+    {
+      "path": "assets/world-virent-permafrost-landscape-v1.webp",
+      "bytes": 306420,
+      "sha256": "945285e781eb73a899529da7ba31f1384bf866bc89c2a9f8fd926b62a67a69fa"
+    },
+    {
+      "path": "assets/world-virent-permafrost-orbit-v1.webp",
+      "bytes": 128326,
+      "sha256": "c942ae480ec7e8f94601cfdcdb8d4fa15bbe29331e6c18218ed238d114927cfc"
+    },
+    {
       "path": "audio.js",
       "bytes": 67715,
       "sha256": "fa76f9d3241d359cc62d134d1598f85b3f988144cf2874c2c07fff1d33d94ffd"
@@ -626,18 +1566,18 @@
     },
     {
       "path": "game.js",
-      "bytes": 92212,
-      "sha256": "a8aa8ce35aa0cae25301ed1c6fd26a60b03c4084870bca03e87e3869dd9b677f"
+      "bytes": 92459,
+      "sha256": "e746011a5510083d44de0f36c635a6a2a5705f290cf030f0e05e6be863c27cde"
     },
     {
       "path": "index.html",
-      "bytes": 6717,
-      "sha256": "8449aa0416edce17cc51b0fd539995d302630e61acb653ca551d10f4dd26fc5b"
+      "bytes": 6744,
+      "sha256": "30dfe201e1d1fbd2e40271f323a120fe755c1938d551822bbfdffc180ff6d6bc"
     },
     {
       "path": "levels.js",
-      "bytes": 105040,
-      "sha256": "5e12f57bc8b22f29b771ea14a111f272148cd15ab8282d11407e8eae3ffbe95e"
+      "bytes": 108607,
+      "sha256": "4f42e4313460b794ad2ff720e21f8ab18d1047dfaa3320b78125486c0f37f0c3"
     },
     {
       "path": "manifest.webmanifest",
@@ -651,13 +1591,13 @@
     },
     {
       "path": "models.js",
-      "bytes": 123879,
-      "sha256": "1245e66234f1a63791f39f8e4cfc24ed1bb76dd1c4010a2177abcf6da59537bd"
+      "bytes": 125741,
+      "sha256": "1d4e5274ace4dc670ea2002c635353b28853145899567b57cdeff197994429fb"
     },
     {
       "path": "renderer3d.js",
-      "bytes": 28513,
-      "sha256": "0e1de8bc5a3085a138cb5852ff25a19b78cf7ddd6c7c3880b3d0a3e1a35996e6"
+      "bytes": 28750,
+      "sha256": "73de3466406608b28b7477e17be296f32086f8ee2864120880c2009a5cd79eb3"
     },
     {
       "path": "runs.js",

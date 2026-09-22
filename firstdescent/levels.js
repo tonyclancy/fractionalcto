@@ -35,10 +35,21 @@ const BOSS_ENCOUNTERS=freezeContent({
  mother:{technique:'break-brood',anatomy:'Compound eyes, six legs, two wings and halteres',inspiration:'horsefly / parasitoid wasp',habitat:'air',power:'brood-tempest',signature:'BROOD TEMPEST',cooldown:5.1,phaseStep:.4,warning:1.85}
 });
 function bossEncounterProfile(l){return l.encounterProfile||BOSS_ENCOUNTERS[l.encounter||l.bossKind];}
+// Reusable attack programs are independent of the boss mesh and its palette.
+// A level may select an arsenal explicitly; otherwise its ecology selects one.
+const BOSS_ARSENALS=freezeContent({
+ 'furnace-gale':{id:'scythe',name:'WING SCYTHES',hint:'LET THE BLADES PASS · CROSS BEHIND THEM',color:'#ffd59b',warning:1.2,count:3,interval:.36,speed:450,radius:10},
+ 'tidal-pressure':{id:'pearl',name:'PRESSURE PODS',hint:'PODS COMPRESS, THEN ACCELERATE · SIDESTEP',color:'#96e8ff',warning:1.4,count:3,interval:.5,speed:210,radius:12},
+ 'abyssal-maw':{id:'mine',name:'URCHIN NEST',hint:'PODS BURST AFTER THEY SETTLE · FIND THE GAP',color:'#bb9cf5',warning:1.5,count:3,interval:.4,speed:320,radius:12},
+ 'ion-sweep':{id:'ion',name:'REFRACTING IONS',hint:'SHOTS REBOUND ONCE · WATCH THE RETURN',color:'#9badff',warning:1.3,count:4,interval:.38,speed:580,radius:8},
+ 'brood-tempest':{id:'chitin',name:'RETURNING TALONS',hint:'DODGE OUTWARD AND RETURNING BLADES',color:'#f5b67d',warning:1.35,count:2,interval:.55,speed:380,radius:10}
+});
+function bossArsenal(definition){return BOSS_ARSENALS[definition.arsenal||bossEncounterProfile(definition).power]||null;}
+
 // Shared tuning keeps future encounters within the same learnable combat rhythm.
 const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.25,specialRest:1.15,hitGrace:2.4,shieldGrace:1.5,breathTracking:.55,enemyWindup:.48,enemyShotClearance:180});
 const WATER_HANDLING=freezeContent({pilotSpeed:.9,acceleration:.065,braking:.09,reversal:.05,touchBuffer:.04,enemyMotion:.78,bossMotion:.84});
-const GAME_RULESET='2026-09-capital-counterplay-v42';
+const GAME_RULESET='2026-09-habitat-hazards-v94';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova','rescue']);
@@ -71,7 +82,7 @@ function validateLevels(definitions){
   if(l.gravityWell&&(!Array.isArray(l.gravityWell.center)||l.gravityWell.center.length!==2||l.gravityWell.center.some(n=>!Number.isFinite(n)||n<=0||n>=1)||!(l.gravityWell.radius>0&&l.gravityWell.radius<.2)||!(l.gravityWell.lensing>=0&&l.gravityWell.lensing<=2)||!(l.gravityWell.tidalPeriod>=8)))fail(l,'invalid gravitational view');
   if(l.flightRoute){const r=l.flightRoute;if(!finite(r.period)||r.period<10||!finite(r.drive)||r.drive<=0||!finite(r.speed)||r.speed<100||r.speed>500||!Array.isArray(r.points)||r.points.length<4||r.points.some(p=>!Array.isArray(p)||p.length!==2||p.some(v=>!finite(v))))fail(l,'invalid boss flight route');}
   if(l.bossPalette&&(!Array.isArray(l.bossPalette)||l.bossPalette.length!==3||l.bossPalette.some(v=>!finite(v)||v<.3||v>1.5)))fail(l,'invalid boss palette');
-  const encounter=bossEncounterProfile(l);if(!bossTechnique(l))fail(l,'encounter needs a supported player technique');if(!encounter||encounter.habitat!==(l.medium||encounter.habitat))fail(l,'encounter habitat mismatch');
+  const encounter=bossEncounterProfile(l);if(l.arsenal&&!BOSS_ARSENALS[l.arsenal])fail(l,'unknown boss arsenal');if(!bossTechnique(l))fail(l,'encounter needs a supported player technique');if(!encounter||encounter.habitat!==(l.medium||encounter.habitat))fail(l,'encounter habitat mismatch');
   if(!Object.values(BOSS_ENCOUNTERS).some(e=>e.power===encounter.power)||!finite(encounter.cooldown)||encounter.cooldown<3||!finite(encounter.warning)||encounter.warning<1||!finite(encounter.phaseStep))fail(l,'invalid encounter profile');
   if(l.atmosphere&&['heat','clouds'].some(k=>!finite(l.atmosphere[k])||l.atmosphere[k]<0||l.atmosphere[k]>1))fail(l,'atmosphere heat/clouds must be between 0 and 1');
   if(l.entrySides&&(!Array.isArray(l.entrySides)||!l.entrySides.length||l.entrySides.some(side=>!['right','left','top','bottom'].includes(side))))fail(l,'invalid entry side');
@@ -1836,7 +1847,9 @@ const GALAXIES=freezeContent({
  'the-distant-bloom':{id:'the-distant-bloom',name:'THE DISTANT BLOOM',arms:5,twist:3.4,tint:[217,156,119],seed:569,"artwork":"galaxy-distant-bloom-v2.webp","thumbnail":"galaxy-distant-bloom-v2-thumb.webp","morphology":"tidal","reference":"UGC 10214 / Tadpole","source":"https://esahubble.org/images/heic0206a/","credit":"NASA, Holland Ford (JHU), the ACS Science Team and ESA","observation":true,"contentBounds":[181,0,918,800]}
 });
 const GALAXY=GALAXIES['the-pale-spiral'];
-const PLANET_SURFACE_DISKS=freezeContent({...Object.fromEntries(['caelus','ferrum','nacre','thalassa','veyra','cinder','nivara'].map(id=>[id,'planet-'+id+'-v2.webp'])),...Object.fromEntries(['basalt-rifts','magma-archipelago','sulfur-calderas','cobalt-storms'].map(id=>[id,'planet-'+id+'-v1.webp']))});
+// Explicit paired artwork: adding a world requires its own orbital surface and landscape.
+const WORLD_ART=freezeContent(Object.fromEntries(["caelus","ferrum","nacre","thalassa","veyra","cinder","nivara","lyra-aster","lyra-scoria","lyra-pelagos","solenne-brass","solenne-zephyr","solenne-oriel","solenne-isolde","solenne-rime","nereid-thren","nereid-mistral","nereid-sere","nereid-brine","umbra-cauter","umbra-caldera","umbra-viridia","umbra-morrow","umbra-boreas","umbra-hush","auric-gilt","auric-hesper","auric-floe","halcyon-kiln","halcyon-lacuna","halcyon-cirrus","halcyon-nimbus","halcyon-silex","pyrrha-sinter","pyrrha-aureole","pyrrha-nerine","pyrrha-obscura","elysian-vulcanis","elysian-crucible","elysian-serein","elysian-opaline","elysian-vespera","elysian-terminus","selen-eidolon","selen-flint","selen-saphir","selen-hail","rubra-furnace","rubra-sirocco","rubra-asterion","talos-alloy","talos-fervor","talos-beryl","talos-tethys","talos-vortex","talos-shard","aether-cresset","aether-aerial","aether-nympha","aether-aurelia","aether-hoarfrost","cervus-fallow","cervus-verdigris","cervus-marina","cervus-wintermere","argent-smelt","argent-tempera","argent-peregrine","argent-littoral","argent-pallor","argent-glacier","saffron-emberfall","saffron-nimbusreach","saffron-stillwater","virent-carmine","virent-lichen","virent-cerulean","virent-halation","virent-permafrost","noctis-fumarole","noctis-sable","noctis-fathom","noctis-rook","meridian-dawnfire","meridian-aegis","meridian-lucent","meridian-aquilon","meridian-ophir","meridian-evernight","eventide-carmine","eventide-fulgur","eventide-aureus"].map(id=>[id,{orbital:"world-"+id+"-orbit-v1.webp",landscape:"world-"+id+"-landscape-v1.webp",background:"world:"+id,coverage:.475}])));
+const PLANET_SURFACE_DISKS=freezeContent({...Object.fromEntries(Object.entries(WORLD_ART).map(([id,a])=>["world:"+id,a.orbital])),...Object.fromEntries(['caelus','ferrum','nacre','thalassa','veyra','cinder','nivara'].map(id=>[id,'planet-'+id+'-v2.webp'])),...Object.fromEntries(['basalt-rifts','magma-archipelago','sulfur-calderas','cobalt-storms'].map(id=>[id,'planet-'+id+'-v1.webp']))});
 const PLANET_SURFACE_FAMILIES=freezeContent({
  hot:['basalt-rifts','magma-archipelago','sulfur-calderas','ferrum','cinder'],
  temperate:['caelus','thalassa'],ice:['nacre','nivara'],gas:['veyra','cobalt-storms']
@@ -1854,7 +1867,7 @@ function assignPlanetSurfaceFamilies(releases){
    if(pinned&&(!pool.includes(pinned)||used.has(pinned)))throw Error('Invalid or repeated surface family: '+d.id);
    if(!pinned&&!available.length)throw Error('Expand '+d.climate+' texture library before adding '+d.id);
    const family=pinned||available[seed%available.length];used.add(family);
-   assignments.set(d.id,{...d,surfaceDisk:family,surfaceFamily:family,surfaceRotation:originals.has(d.id)?0:(seed%6283)/1000,surfaceCoverage:['basalt-rifts','magma-archipelago','sulfur-calderas','cobalt-storms'].includes(family)?.48:.5});
+   assignments.set(d.id,{...d,surfaceDisk:WORLD_ART[d.id]?'world:'+d.id:family,surfaceFamily:family,surfaceRotation:WORLD_ART[d.id]||originals.has(d.id)?0:(seed%6283)/1000,surfaceTint:WORLD_ART[d.id]?[1,1,1]:(d.surfaceTint||[1,1,1]),surfaceCoverage:WORLD_ART[d.id]?.coverage??(['basalt-rifts','magma-archipelago','sulfur-calderas','cobalt-storms'].includes(family)?.48:.5)});
   }
   return{...system,destinations:system.destinations.map(d=>assignments.get(d.id)||d)};
  })}));
@@ -2152,6 +2165,12 @@ function installPlanetBiosphere(stage,world,system){
  stage.worldIdentity.biome=environmentId;
  stage.worldIdentity.templateVersion=systemDesign.version;
  stage.worldIdentity.design={id:world.id+'-design-v1',systemTemplate:systemDesign.id,geology:systemDesign.materials,landform:environment.landform,adaptation:environment.adaptation,organicArchitecture:systemDesign.organics[worldIndex],machineArchitecture:systemDesign.machines[worldIndex],landscapeAsset:'worlds/'+world.id+'/landscape.webp',orbitalAsset:PLANET_SURFACE_DISKS[world.surfaceDisk]||null,surfaceFamily:world.surfaceFamily||null,artStatus:(!stage.contentSeed||stage.gravityWell)?'existing-authored':'needs-unique-art',encounterStatus:'shared-controller'};
+ const worldArt=WORLD_ART[world.id];
+ if(worldArt){
+  stage.background=worldArt.background;stage.sceneTint=null;
+  if(stage.gravityWell)stage.gravityWell={...stage.gravityWell,artCenter:[.644,.101],artRadius:.020};
+  Object.assign(stage.worldIdentity.design,{landscapeAsset:worldArt.landscape,orbitalAsset:worldArt.orbital,artStatus:'paired-world-art',artVersion:1});
+ }
  applySystemChallenge(stage,worldIndex,system.destinations.length,systemDesign.expeditionIndex);
  const {pool,anatomy,seed}=planetEvolution(world,system,stage.medium),water=stage.medium==='water';
  const palettes=water?[[[38,125,151],[211,155,83]],[[153,64,96],[106,185,170]],[[75,111,178],[219,167,111]],[[51,141,110],[186,150,203]]]:[[[62,149,102],[221,172,76]],[[159,66,75],[114,178,180]],[[98,92,169],[217,159,87]],[[171,113,51],[99,184,147]]];

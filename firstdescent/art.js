@@ -1,6 +1,8 @@
 function isTideEncounter(){return typeof updateTideEncounter==='function'&&sectors[level]?.encounterDirector==='tide-knots';}
 /* Painted scenery and sprite artwork, with procedural animation and combat effects. */
 const art={},artFiles={"blackHole":"black-hole-frontier-v1.webp","orisonOcean":"orison-ocean-v1.webp","orisonGas":"orison-gas-quiet-v2.webp","orisonLightning":"orison-gas-lightning-v1.webp","orisonCinder":"orison-cinder-v1.webp","orisonIce":"orison-ice-v1.webp","reefObstacle":"obstacle-reef.webp","stormObstacle":"obstacle-storm.webp","coreObstacle":"obstacle-core.webp","colonyObstacle":"obstacle-colony.webp","carrierObstacle":"obstacle-carrier.webp","derelictObstacle":"obstacle-derelict.webp","space":"space-panorama.webp","carrier":"carrier-panorama.webp","abyss":"abyss-panorama.webp","reef":"reef-descent.webp","storm":"storm-ascent.webp","core":"core-panorama.webp"};
+for(const a of Object.values(WORLD_ART))artFiles[a.background]=a.landscape;
+artFiles.cloudDischarge='cloud-discharge-v1.webp';
 const artCrops={"reefObstacle":{"x":62,"y":24,"w":920,"h":1485},"stormObstacle":{"x":141,"y":14,"w":748,"h":1502},"coreObstacle":{"x":51,"y":6,"w":964,"h":1519},"colonyObstacle":{"x":260,"y":5,"w":509,"h":1525},"carrierObstacle":{"x":230,"y":2,"w":559,"h":1526},"derelictObstacle":{"x":255,"y":4,"w":530,"h":1527}};
 function loadArt(key){
  if(art[key]||!artFiles[key])return art[key];
@@ -9,16 +11,18 @@ function loadArt(key){
 function trimSectorArt(current,next){
  const keep=new Set();for(const d of [current,next])if(d){keep.add(d.background||({verdant:'space',forge:'carrier',abyss:'abyss'}[d.theme]||d.theme));keep.add(d.obstacleArt||({verdant:'colonyObstacle',forge:'carrierObstacle',abyss:'derelictObstacle'}[d.theme]||d.theme+'Obstacle'));}
  if(keep.has('orisonGas'))keep.add('orisonLightning');else cloudLightningCache=null;
+ if([current,next].some(d=>d&&backgroundEventKind(d)==='lightning'))keep.add('cloudDischarge');
  for(const key of Object.keys(art))if(!keep.has(key)){panoramaSurfaces.delete(art[key]);delete art[key];}
 }
 function prepareSectorArt(definition){
  const location=expedition.locations[definition.id];if(location){preparePlanetCloseup(location);galaxyArtwork(expeditionGalaxy(location));requestSpaceImage('cosmic-remnant-v1.webp');}
  const theme={verdant:'space',forge:'carrier',abyss:'abyss',reef:'reef',storm:'storm',core:'core'};
  loadArt(definition.background||theme[definition.theme]||'space');
+ if(backgroundEventKind(definition)==='lightning')loadArt('cloudDischarge');
  loadArt(definition.obstacleArt||({verdant:'colonyObstacle',forge:'carrierObstacle',abyss:'derelictObstacle'}[definition.theme]||definition.theme+'Obstacle'));
 }
 // Warm the opening sector while the deep-space title is displayed.
-loadArt('space');
+loadArt(campaign[0].background||'space');
 let muzzleFlash=0,viewY=0;
 let flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};
 const lootColors={rescue:'#ffe2a0',orb:'#9cf6ff',speed:'#67dfff',companion:'#c8a1ff',power:'#ffcf78',helix:'#c899ff',wave:'#6effd9',missile:'#ffab66',beam:'#7cbdff',spread:'#ffd17a',frontShield:'#80fff1',shield:'#79dfff',repair:'#8dffa3',nova:'#fff1a2'};
@@ -56,7 +60,7 @@ function drawGravityBackdrop(definition){
  const image=art[definition.background],well=definition.gravityWell,t=sectorSceneTime(),pulse=.5+.5*Math.sin(t*TAU/well.tidalPeriod);
  ctx.fillStyle='#02050e';ctx.fillRect(0,0,W,H);
  let width=W*1.05,height=H*1.05;if(imageReady(image)){const scale=Math.max(W/image.naturalWidth,H/image.naturalHeight)*1.05;width=image.naturalWidth*scale;height=image.naturalHeight*scale;}
- const x=(W-width)/2+Math.sin(t*.035)*12,y=(H-height)/2+Math.sin(t*.027)*7,cx=x+width*well.center[0],cy=y+height*well.center[1],radius=width*well.radius;
+ const x=(W-width)/2+Math.sin(t*.035)*12,y=(H-height)/2+Math.sin(t*.027)*7,cx=x+width*(well.artCenter||well.center)[0],cy=y+height*(well.artCenter||well.center)[1],radius=width*(well.artRadius||well.radius);
  if(imageReady(image)){
   // Subtle, broad tidal refraction affects distant scenery only. Retained
   // image strips stay GPU-backed; no per-frame pixel readback or allocation.
@@ -113,6 +117,21 @@ function drawCloudLightningTile(cache,event,tile,x,y,p){
   const dx=x+cell.x*sx,dy=y+cell.y*sy,dw=cell.w*sx,dh=cell.h*sy;
   if(dx>W||dy>H||dx+dw<0||dy+dh<0)continue;
   ctx.globalAlpha=alpha;ctx.drawImage(cell.surface,dx,dy,dw,dh);
+ }
+ ctx.restore();
+}
+function drawWorldLightningTile(event,tile,x,y,p){
+ const image=art.cloudDischarge;if(!imageReady(image))return;
+ // A photographic discharge is lit inside the distant cloud layer. Coordinates
+ // follow each scrolling panorama tile, rather than hovering over the action.
+ const seed=sectors[level].worldIdentity.seed;
+ ctx.save();ctx.globalCompositeOperation='lighter';
+ for(let cell=0;cell<3;cell++){
+  const alpha=cloudLightningIntensity(event,cell,tile);if(alpha<.005)continue;
+  const u=[.17,.53,.82][cell],v=.28+((seed>>>(cell*5))&7)*.055;
+  const w=p.iw*(.36+(cell%2)*.06),h=w*.5,dx=x+p.iw*u-w*.5,dy=y+p.ih*v-h*.5;
+  if(dx>W||dy>H||dx+w<0||dy+h<0)continue;
+  ctx.globalAlpha=alpha*(boss?.7:1);ctx.drawImage(image,dx,dy,w,h);
  }
  ctx.restore();
 }
@@ -284,20 +303,31 @@ function drawWaterWakes(){
 }
 // Software-projected solid geometry: yaw reveals the nose and side faces.
 function projectHull(v,yaw,roll,pitch){let [x,y,z]=v;let xx=x*Math.cos(yaw)+z*Math.sin(yaw),zz=-x*Math.sin(yaw)+z*Math.cos(yaw);let yy=y*Math.cos(roll)-zz*Math.sin(roll);zz=y*Math.sin(roll)+zz*Math.cos(roll);const f=340/(340+zz);return{x:(xx*Math.cos(pitch)-yy*Math.sin(pitch))*f,y:(xx*Math.sin(pitch)+yy*Math.cos(pitch))*f,z:zz}}
+function projectPilotHull(v,yaw,roll,pitch){const p=rotateVertex(v,yaw,roll,pitch,0,0),f=window.gpuModels?1:460/(460+p[2]);return{x:p[0]*f,y:p[1]*f,z:p[2]};}
 function drawShip(x,y,scale=1,preview=false){
- const pose=pilotFlightPose(),yaw=preview?Math.sin(world*.004)*.5:pose.yaw,roll=preview?-.25+Math.sin(world*.003)*.25:pose.roll,pitch=preview?-.06:pose.pitch,thrust=preview?.45:flightPose.thrust;
- const project=v=>projectHull(v,yaw,roll,pitch);const tier=preview?2:power;
+ const pose=pilotFlightPose(),yaw=preview?Math.sin(world*.004)*.12:pose.yaw,roll=preview?PILOT_SIDE_ROLL+Math.sin(world*.003)*.08:pose.roll,pitch=preview?-.06:pose.pitch,thrust=preview?.45:flightPose.thrust;
+ const project=v=>projectPilotHull(v,yaw,roll,pitch);const tier=preview?2:power;
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
- // Exhaust follows the rotated engine axis; acceleration lengthens the plume.
- const engine=project([-34,0,0]),tip=project([-74-thrust*105-speedLevel*9,0,0]);const angle=Math.atan2(tip.y-engine.y,tip.x-engine.x),length=Math.hypot(tip.x-engine.x,tip.y-engine.y);
- ctx.save();ctx.translate(engine.x,engine.y);ctx.rotate(angle);ctx.globalCompositeOperation='lighter';orb(0,0,25+thrust*24,'#3bccff',.32+thrust*.3);
- const plume=ctx.createLinearGradient(0,0,length,0);plume.addColorStop(0,'#e7ffff');plume.addColorStop(.16,'#7dfaff');plume.addColorStop(.6,'#289de9aa');plume.addColorStop(1,'#1674e000');
- ctx.fillStyle=plume;ctx.beginPath();ctx.moveTo(0,-6-thrust*3);ctx.bezierCurveTo(length*.4,-10-thrust*6,length*.8,-3,length,0);ctx.bezierCurveTo(length*.8,3,length*.4,10+thrust*6,0,6+thrust*3);ctx.closePath();ctx.fill();
- for(let i=1;i<5;i++){ctx.globalAlpha=(1-i/5)*(.25+thrust*.55);ctx.strokeStyle='#d8ffff';ctx.lineWidth=1.4;ctx.beginPath();ctx.ellipse(i*length/6,0,2,4+thrust*2,0,0,TAU);ctx.stroke()}ctx.restore();
+ // Twin plumes originate inside the modeled nozzle recesses. Their brightness
+ // stays steady; thrust changes their length smoothly instead of flashing.
+ for(const side of [-1,1]){
+  const engine=project([-42.3,side*19,0]),tip=project([-76-thrust*58-speedLevel*4,side*19,0]);
+  const angle=Math.atan2(tip.y-engine.y,tip.x-engine.x),length=Math.hypot(tip.x-engine.x,tip.y-engine.y);
+  ctx.save();ctx.translate(engine.x,engine.y);ctx.rotate(angle);ctx.globalCompositeOperation='lighter';
+  const plume=ctx.createLinearGradient(0,0,length,0);plume.addColorStop(0,'#d7fbff');plume.addColorStop(.16,'#7bddffb8');plume.addColorStop(.58,'#258bcc55');plume.addColorStop(1,'#1674e000');
+  ctx.fillStyle=plume;const width=3.1+thrust*1.5;ctx.beginPath();ctx.moveTo(0,-width);ctx.bezierCurveTo(length*.3,-width*.8,length*.7,-1,length,0);ctx.bezierCurveTo(length*.7,1,length*.3,width*.8,0,width);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#cdfbff66';ctx.lineWidth=.8;for(let i=1;i<4;i++){const d=i*length*.17;ctx.beginPath();ctx.moveTo(d-2,0);ctx.lineTo(d,1.8);ctx.lineTo(d+2,0);ctx.lineTo(d,-1.8);ctx.closePath();ctx.stroke();}ctx.restore();
+ }
  drawModel(meshes[tier===3?'player3':tier===2?'player2':'player'],0,0,1,yaw,roll,pitch,world*.01);
- for(const side of [-1,1]){const p=project([-22,side*23,-5]);glow('#7bffed',7);ctx.fillStyle='#a8fff4';ctx.fillRect(p.x-6,p.y-1,12,2);noGlow()}
- if(muzzleFlash>0){const p=project([tier>1?42:48,0,0]);orb(p.x,p.y,18,'#bffff3',.75)}
+ if(muzzleFlash>0&&!preview){const ports=tier===3?[[52,0,-2]]:[...[ -1,1].map(side=>[tier===2?45:44,side*(tier===2?27:8),-2])];for(const v of ports){const p=project(v);orb(p.x,p.y,5,'#bffff3',clamp(muzzleFlash/.07,0,1)*.38)}}
  ctx.restore();
+}
+// Protection is a slow field shimmer, never hull transparency: opaque depth
+// keeps the model readable and prevents overlapping surfaces showing through.
+function drawPilotProtection(){
+ if(!(ship.inv>0))return;
+ ctx.save();ctx.globalAlpha=clamp(ship.inv/.35,0,1)*(.20+.05*Math.sin(time*5));ctx.strokeStyle='#c0f3ff';ctx.lineWidth=1.4;
+ ctx.beginPath();ctx.ellipse(ship.x,ship.y,57,45,0,0,TAU);ctx.stroke();ctx.restore();
 }
 function dronePosition(i){const a=world*.012+i*Math.PI;return{x:ship.x+Math.cos(pilotTurn.angle)*(-50+Math.cos(a)*16),y:ship.y+(i===0?-1:1)*66+Math.sin(a)*12}}
 function drawDrone(i){const p=dronePosition(i),age=world*.012+i*Math.PI,yaw=pilotTurn.angle+Math.sin(age)*.22,pitch=flightPose.pitch*.65,roll=pilotTurn.angle+flightPose.roll*.45+Math.sin(age)*.28;orb(p.x-16*Math.cos(pilotTurn.angle),p.y,19,'#9892ff',.22);drawModel(meshes.wingmate,p.x,p.y,1,yaw,roll,pitch,age);}
@@ -339,7 +369,16 @@ function steerVerticalEnemyFacing(e,vx,vy,dt){
  e.travelHeading=previous+(step*error>=0&&Math.abs(step)>Math.abs(error)?error:step);
  // Facing bookkeeping has a deadband around a vertical heading.
  const horizontal=Math.cos(e.travelHeading);if(Math.abs(horizontal)>.22)e.direction=horizontal>0?1:-1;
- e.travelYaw=0;e.travelPitch=e.travelHeading-Math.PI;
+ if(e.brood||e.elite){
+  // Keep the dorsal/ventral orientation in world space. A screen-plane half
+  // turn would invert the animal; turn its nose through depth instead.
+  const targetYaw=e.direction===1?Math.PI:0;
+  e.uprightYaw??=targetYaw;
+  const yawError=Math.atan2(Math.sin(targetYaw-e.uprightYaw),Math.cos(targetYaw-e.uprightYaw));
+  e.uprightYaw+=clamp(yawError*(1-Math.exp(-dt*6)),-3.6*dt,3.6*dt);
+  e.travelYaw=e.uprightYaw;
+  e.travelPitch=-Math.sin(e.travelHeading)*Math.cos(e.uprightYaw)*.42;
+ }else{e.travelYaw=0;e.travelPitch=e.travelHeading-Math.PI;}
 }
 
 // Boss arrival clears the arena through visible flight, not an array reset.
@@ -406,7 +445,7 @@ function enemyKinematics(e,dt){
   const route=[[e.entryX,380],[W*.75,H*.28],[W*.43,H*.70],[W*.79,H*.40],[W*.39,H*.23],[W*.64,H*.68],[-180,380]];
   const routeAge=e.age*(e.escortProfile?.pace||1),entry=routeAge<2.2,leg=entry?0:Math.min(5,1+Math.floor((routeAge-2.2)/2.4)),local=entry?routeAge:(routeAge-2.2)%2.4;
   const from=route[leg],to=route[leg+1],t=clamp(entry?local/2.2:(local-1.55)/.85,0,1),ease=t*t*(3-2*t),oldX=e.x,oldY=e.y;
-  // Brief readable wind-up, then a fast full barrel roll into the next position.
+  // Brief readable wind-up, then a fast committed dash into the next position.
   const hover=!entry&&local<1.55?Math.sin(local/1.55*Math.PI):0;
   e.x=from[0]+(to[0]-from[0])*ease+hover*14;
   e.y=enemyRouteY(e,from[1]+(to[1]-from[1])*ease-hover*18);
@@ -430,6 +469,10 @@ function enemyKinematics(e,dt){
 function speciesFlightPose(e){
  const organic=isOrganicEnemy(e),age=e.age+(e.phase||0),activity=organic?organicSpin(age):null;
  const pitch=(e.travelPitch||0)+(activity?.pitch||0);
+ if(!e.satellite&&(e.brood||e.elite))return{
+  age:age*(enemySpecies(e)?.genome?.appendageRate||1),yaw:e.travelYaw||0,
+  pitch:clamp(pitch,-.46,.46),roll:clamp(-(e.headingSpeed||0)*.055+Math.sin(age*2.2)*.035,-.17,.17),scale:e.brood?1.4:1
+ };
  return{age:age*(enemySpecies(e)?.genome?.appendageRate||1),yaw:e.travelYaw||0,pitch,roll:e.satellite?e.age*TAU/.75+(e.orbit||0):e.brood?(e.broodRoll||0):organic?activity.roll+clamp(-pitch*.45,-.18,.18):mechanicalFlightRoll(e)-(e.travelHeading==null?pitch*.65:0),scale:e.brood?1.4:e.satellite?.5:1};
 }
 function nativeSpeciesMesh(e){const s=enemySpecies(e);return !e.sentry&&s?meshes[s.id]:null;}
@@ -498,10 +541,10 @@ function drawEnemy(e){
  if(e.x< -180||e.x>W+180||e.y< -180||e.y>H+180)return;
  if(e.sentry){ctx.save();ctx.strokeStyle='#83939d';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(e.x,e.y-35);ctx.lineTo(e.x,e.y);ctx.stroke();ctx.restore();drawModel(meshes.sentry,e.x,e.y,1,0,0,0,e.age,e.hit);drawEmitter(e);healthBar(e.x,e.y+40,65,e.hp,e.max,'#ffbd78');return;}
  const native=nativeSpeciesMesh(e);if(native?.nativeAnatomy){const p=speciesFlightPose(e);drawNativePropulsion(e,native,p);drawModel(native,e.x,e.y,p.scale,p.yaw,p.roll,p.pitch,p.age,e.hit);drawEmitter(e);if(e.brood||e.elite||e.hp<e.max)healthBar(e.x,e.y-(e.brood?85:e.r+24),e.brood?100:64,e.hp,e.max,isOrganicEnemy(e)?'#9cffc3':'#ffb797');return;}
- if(e.brood){drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,1.4,e.travelYaw||0,organicSpin(e.age+e.phase).roll,(e.travelPitch||0)+organicSpin(e.age+e.phase).pitch,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
+ if(e.brood){const p=speciesFlightPose(e);drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,p.scale,p.yaw,p.roll,p.pitch,p.age,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
  if(e.satellite){const a=e.age*TAU/.75+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes[e.escortProfile?.escort||'swarmlet'],e.x,e.y,e.escortProfile?.5:.82,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'squid');if(e.escortProfile)drawEmitter(e);if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
 
- const organic=isOrganicEnemy(e),activity=organic?organicSpin(e.age+e.phase):null,yaw=e.travelYaw||0,pitch=(e.travelPitch||0)+(activity?.pitch||0),roll=organic?activity.roll+clamp(-pitch*.45,-.18,.18):mechanicalFlightRoll(e)-(e.travelHeading==null?pitch*.65:0);
+ const organic=isOrganicEnemy(e),pose=speciesFlightPose(e),{yaw,pitch,roll}=pose;
  if(!organic)drawMechanicalPropulsion(e,yaw,roll,pitch);
  drawModel(meshes[sectors[level].models[e.type]],e.x,e.y,1,yaw,roll,pitch,e.age+e.phase,e.hit,themeIndex()===0?(e.type===1?'squid':e.type===3?'octopus':null):organic?(e.type===1?'ray':themeIndex()===2?null:'octopus'):null);
  if(organic)drawHabitatEquipment(e,yaw,roll,pitch);
@@ -660,13 +703,71 @@ function updateBossAttitude(b,dt,vx,vy){
  const effort=clamp(Math.hypot(vx,vy)/450,0,1);b.propulsion=(b.propulsion||0)+(effort-(b.propulsion||0))*response;b.propulsionTime=(b.propulsionTime||0)+dt*(1.62+effort*1.08+.32*(1-clamp(b.hp/(b.max||b.hp||1),0,1)));b.depth=1;
 }
 
+function arsenalSocket(b){const d=bossDesign();return d?bossMount(b,d.guns?.[0]||d.mouth):bossOrganic()?organicMouth(b):bossPort(b,-1);}
+function beginBossArsenal(b){
+ const profile=bossArsenal(sectors[level]);if(!profile)return false;
+ b.arsenal={profile,age:0,fired:0,target:{x:ship.x,y:ship.y}};
+ b.arsenalLastCycle=b.specialCount||0;b.special=bossEncounterProfile(sectors[level]).cooldown*COMBAT_BALANCE.specialRest;
+ b.capacitorSalvo=null;holdBossSalvo(b);announce(profile.name,profile.hint);
+ window.flightAudio?.bossAttack?.('charge',bossIndex(),b.x);return true;
+}
+function updateBossArsenal(b,dt){
+ const a=b.arsenal;if(!a)return;const p=a.profile;a.age+=dt;holdBossSalvo(b);
+ if(a.age>=p.warning+a.fired*p.interval&&a.fired<p.count){
+  const m=arsenalSocket(b),aim=Math.atan2(a.target.y-m.y,a.target.x-m.x),side=a.fired%2?1:-1;
+  const offset=p.id==='mine'?(a.fired-1)*.46:p.id==='ion'?side*.32:p.id==='scythe'?side*.27:side*.12,angle=aim+offset;
+  hostile.push({x:m.x,y:m.y,vx:Math.cos(angle)*p.speed,vy:Math.sin(angle)*p.speed,r:p.radius,age:0,kind:'arsenal',arsenal:p.id,c:p.color,launchAngle:angle,side,baseSpeed:p.speed,gap:aim+Math.PI,life:p.id==='mine'?2.8:p.id==='chitin'?3.2:3.6,bossShot:true});
+  a.fired++;b.muzzle=.15;window.flightAudio?.bossAttack?.('fire',bossIndex(),m.x);
+ }
+ if(a.fired===p.count&&a.age>p.warning+(p.count-1)*p.interval+.45){b.arsenal=null;b.recovery=2;b.exposed=Math.max(b.exposed||0,2.8);}
+}
+function steerArsenalRound(b,dt){
+ if(b.age>=b.life){b.expired=true;return;}
+ let angle=Math.atan2(b.vy,b.vx),speed=Math.hypot(b.vx,b.vy);
+ if(b.arsenal==='scythe')angle+=b.side*.55*Math.max(0,1-b.age/1.1)*dt;
+ if(b.arsenal==='pearl')speed=b.baseSpeed+(650-b.baseSpeed)*passEase(clamp((b.age-.65)/.45,0,1));
+ if(b.arsenal==='chitin')angle+=b.side*2.35*passEase(clamp((b.age-.45)/.35,0,1))*dt;
+ if(b.arsenal==='ion'&&!b.bounced&&((b.y<28&&b.vy<0)||(b.y>H-28&&b.vy>0))){angle=-angle;b.bounced=true;}
+ if(b.arsenal==='mine'){
+  speed=b.baseSpeed*Math.exp(-b.age*2.3);
+  if(b.age>=2.15){
+   // Five radial needles leave a wide, fixed escape opening. No late retargeting.
+   for(let i=0;i<8;i++){const a=b.gap+i*TAU/8;if(i===0||i===1||i===7)continue;
+    hostile.push({x:b.x,y:b.y,vx:Math.cos(a)*430,vy:Math.sin(a)*430,r:5,age:0,kind:'arsenal',arsenal:'needle',c:b.c,life:1.8,baseSpeed:430,side:1,bossShot:true});}
+   burst(b.x,b.y,b.c,8);b.expired=true;return;
+  }
+ }
+ b.vx=Math.cos(angle)*speed;b.vy=Math.sin(angle)*speed;
+}
+function drawArsenalRound(b){
+ ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));const t=b.age||0;ctx.strokeStyle=b.c;ctx.fillStyle=b.c;ctx.lineWidth=2;ctx.lineCap='round';
+ if(b.arsenal==='scythe'||b.arsenal==='chitin'){
+  // A solid curved cutting edge, with a darker back, readable at flight scale.
+  ctx.rotate(b.side*t*(b.arsenal==='chitin'?5:2));ctx.beginPath();ctx.moveTo(-12,-13);ctx.quadraticCurveTo(19,-8,10,14);ctx.quadraticCurveTo(5,-2,-12,-13);ctx.fill();ctx.strokeStyle='#fff3d5';ctx.beginPath();ctx.moveTo(-12,-13);ctx.quadraticCurveTo(19,-8,10,14);ctx.stroke();
+ }else if(b.arsenal==='mine'){
+  const charge=clamp((t-1.25)/.9,0,1);orb(0,0,14+charge*4,b.c,.32);ctx.fillStyle='#352644';ctx.beginPath();ctx.arc(0,0,9,0,TAU);ctx.fill();
+  for(let i=0;i<8;i++){const a=i*TAU/8+t*.45;ctx.beginPath();ctx.moveTo(Math.cos(a)*8,Math.sin(a)*8);ctx.lineTo(Math.cos(a)*(14+charge*4),Math.sin(a)*(14+charge*4));ctx.stroke();}orb(0,0,3+charge*4,'#f4e5ff',.5+charge*.4);
+ }else if(b.arsenal==='pearl'){
+  const compress=passEase(clamp((t-.4)/.35,0,1));orb(0,0,17-compress*4,b.c,.45);ctx.beginPath();ctx.ellipse(0,0,12-compress*3,12-compress*3,0,0,TAU);ctx.stroke();orb(-3,-3,4,'#eaffff',.9);
+  if(t>.65){ctx.globalAlpha=.45;ctx.beginPath();ctx.moveTo(-12,-4);ctx.quadraticCurveTo(-36,-9,-50,-2);ctx.moveTo(-12,4);ctx.quadraticCurveTo(-36,9,-50,2);ctx.stroke();}
+ }else{
+  ctx.globalAlpha=.28;ctx.lineWidth=b.arsenal==='ion'?10:5;ctx.beginPath();ctx.moveTo(-30,0);ctx.lineTo(8,0);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=2;ctx.strokeStyle='#ecf5ff';ctx.stroke();
+ }
+ ctx.restore();
+}
+function drawArsenalCharge(b){const a=b.arsenal;if(!a)return;const m=arsenalSocket(b),p=a.profile,q=clamp(a.age/p.warning,0,1);orb(m.x,m.y,12+q*22,p.color,.15+q*.3);ctx.save();ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(m.x,m.y,8+q*9,-Math.PI/2,-Math.PI/2+TAU*q);ctx.stroke();ctx.restore();}
+
 function bossCombatPhase(b){const ratio=b.max>0?b.hp/b.max:1;return ratio<.28?2:ratio<.62?1:0;}
-function bossPatternBusy(b){return !!(bossIndex()===0&&b.exposed>0||b.venom||(b.pass&&b.pass.stage!=='rear')||b.breath||b.charge>0||b.rush>0||b.vacuum>0||b.barrage>0||b.rackShots>0||b.sporePods?.length||b.salvoWindup||hazards.length||acidClouds.some(h=>h.bossTrap));}
+function bossPatternBusy(b){return !!(b.arsenal||bossIndex()===0&&b.exposed>0||b.venom||(b.pass&&b.pass.stage!=='rear')||b.breath||b.charge>0||b.rush>0||b.vacuum>0||b.barrage>0||b.rackShots>0||b.sporePods?.length||b.salvoWindup||hazards.length||acidClouds.some(h=>h.bossTrap));}
 function holdBossSalvo(b){b.shoot=Math.max(b.shoot||0,.52);b.attack=null;b.fireHeading=null;}
-function bossEncounterHint(b){if(isTideEncounter())return b.exposed>0?'MANTLE OPEN · BONUS DAMAGE':'BREAK TIDE KNOTS · ESCAPE THROUGH THE RING GAPS';const k=bossIndex(),phase=bossCombatPhase(b);if(b.exposed>0)return 'ALIGN WITH THE GLOWING WEAK POINT · BONUS DAMAGE';if(b.pass)return 'DODGE THE CHARGE · FLIP TO FACE THE BOSS';if(k===0)return b.breath?.kind==='wind'?'WINGSTORM · CUT ACROSS THE PRESSURE':b.breath?'FIRE BREATH · WATCH ITS MOUTH':bossTechnique(sectors[level]).response;if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return b.capacitorSalvo?'CAPACITOR LOCK · SIDESTEP THE BURST':'ARMORED · BAIT THE SWEEP THEN AIM AT THE VENT';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → DIVE → VENOM TEMPEST'+(phase===2?' · ENRAGED':'');return '';}
+function bossEncounterHint(b){if(isTideEncounter())return b.exposed>0?'MANTLE OPEN · BONUS DAMAGE':'BREAK TIDE KNOTS · ESCAPE THROUGH THE RING GAPS';const k=bossIndex(),phase=bossCombatPhase(b);if(b.arsenal)return b.arsenal.profile.hint;if(b.exposed>0)return 'ALIGN WITH THE GLOWING WEAK POINT · BONUS DAMAGE';if(b.pass)return 'DODGE THE CHARGE · FLIP TO FACE THE BOSS';if(k===0)return b.breath?.kind==='wind'?'WINGSTORM · CUT ACROSS THE PRESSURE':b.breath?'FIRE BREATH · WATCH ITS MOUTH':bossTechnique(sectors[level]).response;if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return b.capacitorSalvo?'CAPACITOR LOCK · SIDESTEP THE BURST':'ARMORED · BAIT THE SWEEP THEN AIM AT THE VENT';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → DIVE → VENOM TEMPEST'+(phase===2?' · ENRAGED':'');return '';}
 function updateBossSpecial(b,dt){
  if(isTideEncounter()){updateTideEncounter(b,dt);return;}
  if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){updateCapitalSiege(b,dt);return;}
+ if(b.arsenal){updateBossArsenal(b,dt);return;}
+ // Intercept the frame in which the ordinary cooldown would expire, before
+ // the legacy director consumes it and starts another elemental sequence.
+ if(b.special<=dt&&b.specialCount>0&&b.arsenalLastCycle!==b.specialCount&&!bossPatternBusy(b)&&!(b.recovery>0)&&!b.pressureFollowup&&!b.broodWatch&&!b.comboSteps?.length&&!b.comboPassPending&&bossArsenal(sectors[level])){beginBossArsenal(b);return;}
  const kind=bossIndex(),profile=bossEncounterProfile(sectors[level]),phase=bossCombatPhase(b),hadBreath=!!b.breath;
  b.recovery=Math.max(0,(b.recovery||0)-dt);updateBreath(b,dt);updateTechLaser(b,dt);updateBossSporePods(b,dt);updateEyeAttack(b,dt);
  if(hadBreath&&!b.breath){b.recovery=2.4;b.exposed=Math.max(b.exposed||0,3);announce('HOSTILE RECOVERING','ATTACK NOW · BONUS DAMAGE');if(kind===0&&b.wardenCombo){b.wardenCombo=false;b.passClock=0;}}
@@ -694,7 +795,7 @@ function updateBossSpecial(b,dt){
 function drawSpecialWarning(b){}
 
 function laserHalfWidth(h,x){return (h.width/2)*(.5+.5*clamp(Math.abs(h.x-x)/180,0,1));}
-function drawHazards(){if(boss)drawBreath(boss);for(const h of hazards){if(boss){const p=h.kind==='tech'?techLaserOrigin(boss):bossLaserOrigin(boss);h.x=p.x;h.startY=p.y;h.angle=p.angle??Math.atan2(h.y-p.y,-p.x);}const armed=h.age>=h.warning,c=h.kind==='tech'?'#bdaaff':'#83ffd6';ctx.save();
+function drawHazards(){if(boss){drawBreath(boss);drawArsenalCharge(boss);}for(const h of hazards){if(boss){const p=h.kind==='tech'?techLaserOrigin(boss):bossLaserOrigin(boss);h.x=p.x;h.startY=p.y;h.angle=p.angle??Math.atan2(h.y-p.y,-p.x);}const armed=h.age>=h.warning,c=h.kind==='tech'?'#bdaaff':'#83ffd6';ctx.save();
  if(armed){const angle=h.angle??Math.atan2(h.y-h.startY,-h.x),length=Math.hypot(W,H)+300;ctx.translate(h.x,h.startY);ctx.rotate(angle);glow(c,24);ctx.globalAlpha=.8;poly([[0,-h.width/4],[180,-h.width/2],[length,-h.width/2],[length,h.width/2],[180,h.width/2],[0,h.width/4]],c);ctx.globalAlpha=.95;ctx.strokeStyle='#edfff9';ctx.lineWidth=h.kind==='tech'?22:13;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(length,0);ctx.stroke();orb(0,0,h.kind==='tech'?39:28,'#eee4ff',.7);if(h.kind==='tech')for(let i=0;i<4;i++){const travel=(h.age*2.6+i*.25)%1;orb(length*travel,0,8+travel*4,'#f1eaff',.38);}}
  ctx.restore();}if(boss){if(!bossDesign()&&!bossOrganic()&&bossIndex()!==4)drawBossChamber(boss);drawSpecialWarning(boss)}}
 function moveShot(s,dt){s.age+=dt;s.trail.push({x:s.x,y:s.y});if(s.trail.length>12)s.trail.shift();
@@ -713,14 +814,19 @@ function drawProjectile(s){ctx.save();const c=s.c;
 function organicShotKind(e){return (e&&enemySpecies(e)?.shot)||(themeIndex()===3?'water':themeIndex()===2?'wind':'fire');}
 function drawBossMissile(b){
  const angle=Math.atan2(b.vy,b.vx),scale=b.scale||.9,age=b.age||0,regent=!!b.regentShot;ctx.save();ctx.translate(b.x,b.y);ctx.rotate(angle);
- // Heavy boss rounds keep a visible metal casing inside the engine glare.
- // Their longer, layered exhaust communicates force without hiding the shot.
- const ignition=clamp(age/.09,.15,1),tail=(18+ignition*30)*scale;const exhaust=ctx.createLinearGradient(-tail,0,-8*scale,0);exhaust.addColorStop(0,regent?'rgba(129,91,255,0)':'rgba(255,129,51,0)');exhaust.addColorStop(.6,regent?'rgba(167,138,255,.72)':'rgba(255,158,79,.72)');exhaust.addColorStop(1,regent?'#e4edff':'#d6ffff');
- poly([[-9*scale,-4*scale],[-tail,0],[-9*scale,4*scale]],exhaust);orb(-17*scale,0,13*scale*ignition,regent?'#b79eff':'#ffad64',.4);orb(-9*scale,0,7*scale,'#d9ffff',.8);
- drawModel(meshes.missile,0,0,scale,0,.14+Math.sin(age*11)*.07,0,age);
- ctx.strokeStyle='#fff0c7';ctx.lineWidth=1.6;ctx.globalAlpha=.65;for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse((-22-i*11)*scale,0,1.5,3.8-i*.65,0,0,TAU);ctx.stroke();}ctx.restore();
+ if(regent){
+  // Capacitor ammunition is an electromagnetic lance, not another rocket.
+  const tail=28+Math.min(1,age*12)*35;ctx.strokeStyle='#ab91ff';ctx.lineCap='round';ctx.globalAlpha=.25;ctx.lineWidth=12*scale;ctx.beginPath();ctx.moveTo(-tail,0);ctx.lineTo(9*scale,0);ctx.stroke();ctx.globalAlpha=1;ctx.strokeStyle='#eef2ff';ctx.lineWidth=3*scale;ctx.beginPath();ctx.moveTo(-17*scale,0);ctx.lineTo(10*scale,0);ctx.stroke();
+  ctx.strokeStyle='#aaafff';ctx.lineWidth=1.3;for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(-tail*.75,side*6*scale);ctx.quadraticCurveTo(-14,side*10*scale,6,side*3*scale);ctx.stroke();}ctx.restore();return;
+ }
+ const ignition=passEase(clamp(age/.12,0,1)),tail=(18+ignition*43)*scale,nozzle=-14.6*scale;
+ const exhaust=ctx.createLinearGradient(-tail,0,nozzle,0);exhaust.addColorStop(0,'#f4692000');exhaust.addColorStop(.46,'#f7994655');exhaust.addColorStop(.82,'#ffd28dbb');exhaust.addColorStop(1,'#eafaff');
+ ctx.fillStyle=exhaust;ctx.beginPath();ctx.moveTo(nozzle,-2*scale);ctx.bezierCurveTo(-30*scale,-4*scale,-tail*.82,-1,-tail,0);ctx.bezierCurveTo(-tail*.82,1,-30*scale,4*scale,nozzle,2*scale);ctx.fill();
+ ctx.strokeStyle='#fff0c7';ctx.lineWidth=.8;ctx.globalAlpha=.7;for(let i=0;i<3;i++){const x=(-21-i*9)*scale,r=(2.4-i*.5)*scale;ctx.beginPath();ctx.moveTo(x-2*scale,0);ctx.lineTo(x,r);ctx.lineTo(x+2*scale,0);ctx.lineTo(x,-r);ctx.closePath();ctx.stroke();}ctx.globalAlpha=1;
+ drawModel(meshes.bossMissile,0,0,scale,0,age*1.8,0,age);
+ ctx.restore();
 }
-function drawHostile(b){if(b.bossRound){drawBossMissile(b);return;}if(['fire','water','wind'].includes(b.kind)){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));if(b.bossShot){const scale=b.scale||.9;ctx.scale(scale,scale);orb(0,0,13,b.kind==='fire'?'#ff752d':'#87ecff',.36);ctx.strokeStyle=b.kind==='fire'?'#ffd09a':'#daffff';ctx.lineWidth=2;for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(-Math.min(28,8+(b.age||0)*280),side*5);ctx.quadraticCurveTo(-23,side*(12+Math.sin((b.age||0)*29)*2),-3,side*8);ctx.stroke();}}if(b.kind==='wind'){ctx.strokeStyle='#cbebeb';ctx.lineWidth=2;for(let i=0;i<3;i++){ctx.globalAlpha=.6-i*.15;ctx.beginPath();ctx.ellipse(-i*9,0,5,9+i*3,0,-1.4,1.4);ctx.stroke();}}else{for(let i=4;i>=0;i--)orb(-i*7,Math.sin((b.age||0)*25+i)*i,Math.max(3,12-i*2),b.kind==='fire'?(i>1?'#e55c2b':'#ffe09b'):'#83dfff',.65-i*.09);}ctx.globalCompositeOperation='lighter';if(b.kind==='wind'){orb(0,0,6,'#ecffff',.75);}else{const hot=b.kind==='fire'?'#fff4ca':'#eaffff';orb(0,0,9,hot,.95);ctx.strokeStyle=hot;ctx.lineWidth=3.2;ctx.beginPath();ctx.moveTo(-19,0);ctx.quadraticCurveTo(-7,-1,5,0);ctx.stroke();}ctx.restore();return;}if(b.kind==='energy'){orb(b.x,b.y,24,b.c,.35);orb(b.x,b.y,12,b.c,.95);orb(b.x-3,b.y-3,5,'#ffffff',.8);return}const angle=Math.atan2(b.vy,b.vx);ctx.save();ctx.translate(b.x,b.y);ctx.rotate(angle);if(b.kind==='spore'||b.kind==='seed'){orb(0,0,15*(b.scale||1),'#65f7ae',.35);drawModel(meshes.spore,0,0,b.scale||1,0,Math.sin(world*.03)*.3,0,world*.01);ctx.globalCompositeOperation='lighter';ctx.strokeStyle='#83ffb8';ctx.lineWidth=2.8;ctx.beginPath();ctx.moveTo(-7,0);ctx.quadraticCurveTo(-20,Math.sin(world*.07+b.x)*6,-36,0);ctx.stroke();ctx.strokeStyle='#e5ffc3';ctx.lineWidth=1.1;ctx.beginPath();ctx.moveTo(-5,0);ctx.lineTo(-18,0);ctx.stroke();orb(5,0,3.5*(b.scale||1),'#f1ffd0',.92);}else{const seeker=b.kind==='seeker',tail=seeker?48:35,plume=ctx.createLinearGradient(-tail,0,-7,0);plume.addColorStop(0,'rgba(255,99,42,0)');plume.addColorStop(.45,'rgba(255,153,73,.55)');plume.addColorStop(1,'#d6ffff');orb(-11,0,seeker?17:13,'#ffb76e',.32);poly([[-8,-2.8],[-tail,0],[-8,2.8]],plume);ctx.strokeStyle='#e4ffff';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(-8,0);ctx.lineTo(-tail*.58,0);ctx.stroke();drawModel(meshes.missile,0,0,seeker?1.25:.8,0,.15,0,world*.01);orb(seeker?12:8,0,seeker?6:4.5,seeker?'#ff7765':'#ffe4b0',.78);if(seeker){ctx.strokeStyle='#ffc38a';ctx.globalAlpha=.6;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-17,-3);ctx.lineTo(-36,-1);ctx.moveTo(-17,3);ctx.lineTo(-36,1);ctx.stroke();}}ctx.restore()}
+function drawHostile(b){if(b.arsenal){drawArsenalRound(b);return;}if(b.bossRound){drawBossMissile(b);return;}if(['fire','water','wind'].includes(b.kind)){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));if(b.bossShot){const scale=b.scale||.9;ctx.scale(scale,scale);orb(0,0,13,b.kind==='fire'?'#ff752d':'#87ecff',.36);ctx.strokeStyle=b.kind==='fire'?'#ffd09a':'#daffff';ctx.lineWidth=2;for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(-Math.min(28,8+(b.age||0)*280),side*5);ctx.quadraticCurveTo(-23,side*(12+Math.sin((b.age||0)*29)*2),-3,side*8);ctx.stroke();}}if(b.kind==='wind'){ctx.strokeStyle='#cbebeb';ctx.lineWidth=2;for(let i=0;i<3;i++){ctx.globalAlpha=.6-i*.15;ctx.beginPath();ctx.ellipse(-i*9,0,5,9+i*3,0,-1.4,1.4);ctx.stroke();}}else{for(let i=4;i>=0;i--)orb(-i*7,Math.sin((b.age||0)*25+i)*i,Math.max(3,12-i*2),b.kind==='fire'?(i>1?'#e55c2b':'#ffe09b'):'#83dfff',.65-i*.09);}ctx.globalCompositeOperation='lighter';if(b.kind==='wind'){orb(0,0,6,'#ecffff',.75);}else{const hot=b.kind==='fire'?'#fff4ca':'#eaffff';orb(0,0,9,hot,.95);ctx.strokeStyle=hot;ctx.lineWidth=3.2;ctx.beginPath();ctx.moveTo(-19,0);ctx.quadraticCurveTo(-7,-1,5,0);ctx.stroke();}ctx.restore();return;}if(b.kind==='energy'){orb(b.x,b.y,24,b.c,.35);orb(b.x,b.y,12,b.c,.95);orb(b.x-3,b.y-3,5,'#ffffff',.8);return}const angle=Math.atan2(b.vy,b.vx);ctx.save();ctx.translate(b.x,b.y);ctx.rotate(angle);if(b.kind==='spore'||b.kind==='seed'){orb(0,0,15*(b.scale||1),'#65f7ae',.35);drawModel(meshes.spore,0,0,b.scale||1,0,Math.sin(world*.03)*.3,0,world*.01);ctx.globalCompositeOperation='lighter';ctx.strokeStyle='#83ffb8';ctx.lineWidth=2.8;ctx.beginPath();ctx.moveTo(-7,0);ctx.quadraticCurveTo(-20,Math.sin(world*.07+b.x)*6,-36,0);ctx.stroke();ctx.strokeStyle='#e5ffc3';ctx.lineWidth=1.1;ctx.beginPath();ctx.moveTo(-5,0);ctx.lineTo(-18,0);ctx.stroke();orb(5,0,3.5*(b.scale||1),'#f1ffd0',.92);}else{const seeker=b.kind==='seeker',tail=seeker?48:35,plume=ctx.createLinearGradient(-tail,0,-7,0);plume.addColorStop(0,'rgba(255,99,42,0)');plume.addColorStop(.45,'rgba(255,153,73,.55)');plume.addColorStop(1,'#d6ffff');orb(-11,0,seeker?17:13,'#ffb76e',.32);poly([[-8,-2.8],[-tail,0],[-8,2.8]],plume);ctx.strokeStyle='#e4ffff';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(-8,0);ctx.lineTo(-tail*.58,0);ctx.stroke();drawModel(meshes.missile,0,0,seeker?1.25:.8,0,.15,0,world*.01);orb(seeker?12:8,0,seeker?6:4.5,seeker?'#ff7765':'#ffe4b0',.78);if(seeker){ctx.strokeStyle='#ffc38a';ctx.globalAlpha=.6;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-17,-3);ctx.lineTo(-36,-1);ctx.moveTo(-17,3);ctx.lineTo(-36,1);ctx.stroke();}}ctx.restore()}
 function drawPickup(d){if(d.fade===0||d.x< -30)return;const c=lootColors[d.type]||'#a0ffdf',fade=d.fade??1;ctx.save();ctx.translate(d.x,d.y+Math.sin(d.age*3)*5);orb(0,0,42,c,.25*fade);ctx.globalAlpha=fade;ctx.strokeStyle=c;ctx.lineWidth=1.6;ctx.save();ctx.rotate(d.age*1.3);for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(0,0,25,i*TAU/3,i*TAU/3+1.3);ctx.stroke()}ctx.restore();ctx.fillStyle='#0b1d30';ctx.beginPath();ctx.arc(0,0,20,0,TAU);ctx.fill();glow(c,10);ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=2.3;
  if(d.type==='orb'){drawModel(meshes.weaponOrb,0,0,.7,.2,d.age,0,d.age);}
  else if(d.type==='speed'){for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(-11+i*8,-8);ctx.lineTo(-5+i*8,0);ctx.lineTo(-11+i*8,8);ctx.stroke()}}
@@ -926,7 +1032,7 @@ const bossPassProfiles={
 };
 function updateBossPass(b,dt){const profile=bossPassProfiles[bossIndex()];if(!profile)return false;
  b.passClock=(b.passClock??profile.first)-dt;
- if(!b.pass&&!b.breath&&!b.eyeAttack&&b.passClock<=0&&b.charge<=0&&!(b.vacuum>0)&&!(b.barrage>0)&&!hazards.length&&!b.rackShots&&!b.salvoWindup&&!b.recovery&&!(bossIndex()===0&&b.exposed>0)&&!b.pressureFollowup&&!b.sporePods?.length&&!acidClouds.some(h=>h.bossTrap)&&!b.broodWatch&&(!b.comboSteps?.length||b.comboPassPending)){
+ if(!b.arsenal&&!b.pass&&!b.breath&&!b.eyeAttack&&b.passClock<=0&&b.charge<=0&&!(b.vacuum>0)&&!(b.barrage>0)&&!hazards.length&&!b.rackShots&&!b.salvoWindup&&!b.recovery&&!(bossIndex()===0&&b.exposed>0)&&!b.pressureFollowup&&!b.sporePods?.length&&!acidClouds.some(h=>h.bossTrap)&&!b.broodWatch&&(!b.comboSteps?.length||b.comboPassPending)){
   const clearance=80,bodyHalf=chargeLaneHalfHeight(),room=H/2-clearance-bodyHalf;
   // Preserve the creature's size. Only reduce its path's curve to fit the arena;
   // future oversized designs keep patrolling/firing instead of sealing both exits.
@@ -1083,13 +1189,74 @@ function panoramaLayout(img){
  for(let i=first;i<=last;i++){const position=i*p.step-offset;if(position>extent||position+p.span<0)continue;tiles.push({index:i,position,mirror:false});}
  return{vertical,iw:p.iw,ih:p.ih,span:p.span,overlap:p.overlap,step:p.step,offset,tiles,x:vertical?-(p.iw-W)*.5-viewY:0,y:vertical?0:-(p.ih-H)*.5-viewY};
 }
+// Authored water regions use normalized painting coordinates. Only artwork
+// inspected for visible surface water opts in; underwater, lava and cloud-only
+// scenes must never inherit ripples merely because they share an encounter.
+const SCENIC_WATER=freezeContent({
+ 'world:caelus':{color:'#c4dcdb',pools:[[[.575,.469],[.624,.468],[.656,.498],[.669,.530],[.62,.534],[.582,.513]],[[.492,.668],[.545,.684],[.582,.711],[.565,.736],[.523,.716],[.495,.694]],[[.758,.577],[.798,.592],[.820,.630],[.773,.614]]],falls:[{path:[[.076,.354,.003],[.082,.386,.005],[.088,.421,.007],[.094,.458,.010],[.099,.489,.012]]},{path:[[.371,.545,.004],[.373,.570,.005],[.376,.597,.007],[.381,.626,.010]]},{path:[[.861,.624,.003],[.863,.661,.004],[.857,.702,.006],[.850,.730,.009]]}]},
+ 'world:lyra-aster':{color:'#eadcc3',pools:[[[.398,.431],[.601,.438],[.678,.471],[.551,.5],[.4,.486]],[[.457,.535],[.629,.523],[.668,.574],[.541,.598],[.48,.59]],[[.656,.754],[.707,.743],[.807,.768],[.791,.81],[.693,.794]]],falls:[]},
+ 'world:solenne-zephyr':{color:'#dfd7bd',pools:[[[.223,.505],[.344,.49],[.501,.483],[.54,.51],[.465,.535],[.315,.536]],[[.469,.636],[.517,.637],[.529,.66],[.493,.695],[.444,.702],[.438,.678]]],falls:[{path:[[.426,.800,.0025],[.426,.829,.003],[.420,.849,.004],[.418,.866,.005]]},{path:[[.512,.807,.003],[.514,.833,.004],[.518,.851,.005],[.527,.877,.005],[.530,.909,.008]]},{path:[[.632,.715,.002],[.627,.747,.003],[.620,.783,.005],[.616,.804,.007]]}]}
+});
+let scenicWaterCache=null,scenicMistSprite=null;
+function scenicWaterContains(polygon,x,y){let inside=false;for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){const a=polygon[i],b=polygon[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;}
+function prepareScenicWater(key){
+ const definition=SCENIC_WATER[key];if(!definition)return null;
+ if(scenicWaterCache?.key===key)return scenicWaterCache;
+ const strokes=[];let seed=931;const unit=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
+ for(const polygon of definition.pools){const xs=polygon.map(p=>p[0]),ys=polygon.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);let count=0;
+  for(let trial=0;trial<180&&count<20;trial++){const x=minX+unit()*(maxX-minX),y=minY+unit()*(maxY-minY),length=.002+unit()*.006;
+   if(!scenicWaterContains(polygon,x-length-.001,y-.002)||!scenicWaterContains(polygon,x+length+.001,y+.002))continue;
+   strokes.push({x,y,length,phase:unit()*TAU,rate:.45+unit()*.55});count++;
+  }
+ }
+ if(definition.falls.length&&!scenicMistSprite){
+  scenicMistSprite=document.createElement('canvas');scenicMistSprite.width=scenicMistSprite.height=64;const g=scenicMistSprite.getContext('2d'),fade=g.createRadialGradient(32,32,0,32,32,32);fade.addColorStop(0,'#e1e8e7');fade.addColorStop(.45,'#dae4e280');fade.addColorStop(1,'#dae4e200');g.fillStyle=fade;g.fillRect(0,0,64,64);
+ }
+ return scenicWaterCache={key,definition,strokes};
+}
+function drawScenicWaterTile(water,t,x,y,p,vertical){
+ ctx.save();ctx.translate(x,y);ctx.strokeStyle=water.definition.color;ctx.lineCap='round';ctx.lineWidth=.7;ctx.globalAlpha=.20;ctx.beginPath();
+ const stride=(window.flightEffectsQuality||1)<1?2:1;
+ for(let i=0;i<water.strokes.length;i+=stride){const s=water.strokes[i],a=t*s.rate+s.phase,xx=(s.x+Math.sin(a*.43)*.0006)*p.iw,yy=(s.y+Math.sin(a)*.0006)*p.ih;
+  const edge=clamp((vertical?yy:xx)/p.overlap,0,1),length=s.length*p.iw*(.25+.75*Math.sin(a*.5)**2)*edge*edge*(3-2*edge);
+  ctx.moveTo(xx-length,yy);ctx.quadraticCurveTo(xx,yy+Math.sin(a)*.35,xx+length,yy);
+ }ctx.stroke();
+ ctx.restore();
+ for(const fall of water.definition.falls)drawScenicCascade(fall,t,x,y,p,vertical,stride);
+}
+// Interpolate an authored channel: x/y center and half-width are all in source
+// image coordinates. The same channel supplies the clip and flowing filaments.
+function scenicCascadePoint(fall,u,out){const n=fall.path.length-1,f=clamp(u,0,1)*n,j=Math.min(n-1,Math.floor(f)),a=fall.path[j],b=fall.path[j+1],v=f-j;for(let k=0;k<3;k++)out[k]=a[k]+(b[k]-a[k])*v;return out;}
+const cascadePoint=[0,0,0];
+function drawScenicCascade(fall,t,x,y,p,vertical,stride){
+ const first=fall.path[0],last=fall.path.at(-1),edge=clamp((vertical?first[1]*p.ih:first[0]*p.iw)/p.overlap,0,1),feather=edge*edge*(3-2*edge);
+ if(y+last[1]*p.ih<0||y+first[1]*p.ih>H)return;
+ ctx.save();ctx.translate(x,y);ctx.beginPath();
+ for(let i=0;i<fall.path.length;i++){const q=fall.path[i],xx=(q[0]-q[2])*p.iw,yy=q[1]*p.ih;i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);}
+ for(let i=fall.path.length-1;i>=0;i--){const q=fall.path[i];ctx.lineTo((q[0]+q[2])*p.iw,q[1]*p.ih);}ctx.closePath();ctx.clip();
+ ctx.lineCap='round';ctx.strokeStyle='#dce9e7';
+ // Long, overlapping ribbons form a continuous current, rather than isolated
+ // rain drops. The closed channel prevents any stroke above the waterfall lip.
+ for(let pass=0;pass<2;pass++){
+  ctx.lineWidth=pass?1.25:3.8;ctx.globalAlpha=(pass?.38:.15)*feather;ctx.beginPath();
+  for(let i=0;i<18;i+=stride){const start=((t*.38+i*.137)%1.3)-.3,length=.23+(i%3)*.035;
+   let begun=false;for(let j=0;j<=8;j++){const u=start+j*length/8;if(u<0||u>1)continue;const q=scenicCascadePoint(fall,u,cascadePoint),lane=Math.sin(i*8.17)*.67+Math.sin(u*13+i*2.3+t*.7)*.09,xx=(q[0]+q[2]*lane)*p.iw,yy=q[1]*p.ih;
+    if(begun)ctx.lineTo(xx,yy);else{ctx.moveTo(xx,yy);begun=true;}
+   }
+  }ctx.stroke();
+ }ctx.restore();
+ // Retained soft spray at the foot; no per-frame canvas or gradient creation.
+ if(scenicMistSprite){ctx.save();for(let i=0;i<3;i++){const age=(t*.24+i/3)%1,r=last[2]*p.iw*(.7+age*.9),xx=x+last[0]*p.iw+Math.sin(i*4.1+t*.5)*r*.45,yy=y+last[1]*p.ih-age*r*.3;ctx.globalAlpha=.14*Math.sin(age*Math.PI)*feather;ctx.drawImage(scenicMistSprite,xx-r,yy-r*.55,r*2,r*1.1);}ctx.restore();}
+}
+
 function drawPanorama(img){
  const vertical=sectors[level].scrollAxis,p=panoramaGeometry(img,!!vertical),travel=panoramaOffset(p.span,!!vertical),offset=vertical==='up'?p.ih-H-travel:p.overlap+travel,extent=vertical?H:W,first=Math.floor(offset/p.step)-1,last=Math.floor((offset+extent)/p.step),x=-(p.iw-W)*.5-viewY,y=-(p.ih-H)*.5-viewY;
  // Adjacent upright panoramas overlap. The incoming feather reveals the prior
  // image underneath, so long encounters never produce inverted architecture.
  // This hot path creates no arrays, canvases, gradients or image filters.
- const event=sectors[level].background==='orisonGas'?backgroundEventAt(sectors[level],sectorSceneTime()):null,lightning=event?.active?prepareCloudLightning():null;
- for(let i=first;i<=last;i++){const position=i*p.step-offset;if(position>extent||position+p.span<0)continue;const px=vertical?x:position,py=vertical?position:y;ctx.drawImage(p.surface,px,py,p.iw,p.ih);if(lightning)drawCloudLightningTile(lightning,event,i,px,py,p);}
+ const stage=sectors[level],event=backgroundEventKind(stage)==='lightning'?backgroundEventAt(stage,sectorSceneTime()):null,lightning=event?.active&&stage.background==='orisonGas'?prepareCloudLightning():null;
+ const water=prepareScenicWater(stage.background),waterTime=sectorSceneTime();
+ for(let i=first;i<=last;i++){const position=i*p.step-offset;if(position>extent||position+p.span<0)continue;const px=vertical?x:position,py=vertical?position:y;ctx.drawImage(p.surface,px,py,p.iw,p.ih);if(water)drawScenicWaterTile(water,waterTime,px,py,p,!!vertical);if(lightning)drawCloudLightningTile(lightning,event,i,px,py,p);else if(event?.active)drawWorldLightningTile(event,i,px,py,p);}
 }
 
 function drawNewAtmosphere(){const k=themeIndex(),c=sectors[level].color;ctx.save();for(let layer=0;layer<2;layer++){const speed=layer===0?.14:.32;for(let i=0;i<12;i++){const x=((i*177-world*speed)%(W+220)+W+220)%(W+220)-110,y=i%2?H-20-(i*39)%75:20+(i*23)%70;ctx.globalAlpha=layer===0?.17:.25;if(k===4){ctx.strokeStyle='#9da5bc';ctx.lineWidth=layer?5:2;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+25,90);ctx.stroke();}else{orb(x,y,layer?12:5,c,.2);ctx.strokeStyle=c;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,y);ctx.bezierCurveTo(x+10,y-18,x-12,y-34,x+4,y-52);ctx.stroke();}}}ctx.restore();}
@@ -1338,7 +1505,13 @@ function drawBossPatternTelegraphs(b){
 }
 function drawEncounterDefenses(b){if(isTideEncounter()){drawTideEncounter(b);return;}if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){drawCapitalSiege(b);return;}const k=bossIndex();drawBossPatternTelegraphs(b);drawBossWeakPoint(b);if(k===1){for(const n of b.generators||[]){const p=encounterSocket(b,[-18,n.side*57,-40]);if(n.hp>0){const pose=bossFlightPose(b);drawModel(meshes.weaponOrb,p.x,p.y,.75,pose.yaw,pose.roll,pose.pitch,b.age);healthBar(p.x,p.y-24,35,n.hp,30,'#98e5ff');}}}if((k===1&&!b.shieldBroken)||(k===5&&enemies.some(e=>e.guardian&&e.hp>0))){ctx.save();ctx.strokeStyle=k===1?'#77bfe8':'#b883c9';ctx.globalAlpha=.3;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(b.x,b.y,b.r*1.15,b.r*.9,0,0,TAU);ctx.stroke();ctx.restore();}}
 function sectorCurrent(){if(sectors[level].stellar?.weather==='wind'&&!boss)return Math.sin(time*Math.PI/7)*24;return themeIndex()===2&&!boss?Math.sin(time*Math.PI/6)*65:0;}
-function stormLane(){const cycle=Math.floor(time/14),phase=time%14;return themeIndex()===4&&time>10&&!boss&&phase<3.2?{x:W*(.28+(cycle%3)*.23),warning:phase<2,phase}:null;}
+function stormLane(){
+ const scene=sectors[level];
+ // A shared art/encounter theme does not imply the same environmental hazard:
+ // stellar magnetic scenes reuse the storm family but have no cloud corridor.
+ if(scene.worldIdentity?.biome!=='storm'||scene.medium!=='air'||scene.stellar||!['up','down'].includes(scene.scrollAxis)||boss||bossDefeated||sectorBlend)return null;
+ const cycle=Math.floor(time/14),phase=time%14;return time>10&&phase<3.2?{x:W*(.28+(cycle%3)*.23),warning:phase<2,phase}:null;
+}
 function drawSectorRule(){const wind=sectorCurrent();if(Math.abs(wind)>12){ctx.save();ctx.strokeStyle='#b4d5e5';ctx.globalAlpha=.14;ctx.lineWidth=1;for(let i=0;i<12;i++){const x=120+i*105,y=(i*137+world*.45)%H;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+Math.sign(wind)*30);ctx.stroke();}ctx.restore();}const lane=stormLane();if(lane){ctx.save();ctx.strokeStyle=lane.warning?'#c5a7e7':'#e8dfff';ctx.globalAlpha=lane.warning?.45:.85;ctx.lineWidth=lane.warning?2:7;ctx.setLineDash(lane.warning?[9,12]:[]);for(const side of lane.warning?[-1,1]:[0]){ctx.beginPath();for(let i=0;i<=20;i++){const x=lane.x+side*28+(lane.warning?0:Math.sin(i*7+time*35)*12),y=i*H/20;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();}ctx.font='bold 11px sans-serif';ctx.fillStyle='#eee2ff';ctx.textAlign='center';ctx.fillText(lane.warning?'LIGHTNING BUILDING':'DISCHARGE',lane.x,60);ctx.restore();}}
 
 function crateredAsteroid(r,seed){const faces=[],segments=40,rows=26,rx=r.w*.52,ry=Math.min(r.h*.5,r.w*.73),rz=Math.min(rx,ry)*(.74+.1*Math.sin(seed)),craters=[];
@@ -1508,9 +1681,10 @@ function stellarFlare(){
 }
 function drawStellarBackdrop(definition){
  const star=definition.stellar,t=sectorSceneTime(),color=star.color.join(',');ctx.fillStyle='#0a070f';ctx.fillRect(0,0,W,H);
- // The distant black hole remains behind the same star throughout the encounter.
- paintNavigationBlackHole(ctx,W*.78,H*.19,36);
- paintStellarDisc(ctx,W*.45,H*2.2,W*.85,star);
+ // The corona fills this view. The central black hole belongs to the distant
+ // system view and is occluded by the stellar atmosphere here; painting it after
+ // the panorama incorrectly puts an opaque disc in front of nearby plasma.
+ const painting=art[definition.background];if(imageReady(painting))drawPanorama(painting);else paintStellarDisc(ctx,W*.45,H*2.2,W*.85,star);
  const haze=ctx.createLinearGradient(0,H*.2,0,H);haze.addColorStop(0,`rgba(${color},0)`);haze.addColorStop(1,`rgba(${color},.20)`);ctx.fillStyle=haze;ctx.fillRect(0,0,W,H);
  ctx.save();ctx.strokeStyle=`rgba(${color},.18)`;ctx.lineWidth=1.2;
  for(let i=0;i<30;i++){const x=((i*119-t*(star.weather==='wind'?155:45))%(W+200)+W+200)%(W+200)-100,y=60+(i*97)%H;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+35,y+Math.sin(t+i)*9,x+65,y-6);ctx.stroke();}ctx.restore();drawHeatHaze();

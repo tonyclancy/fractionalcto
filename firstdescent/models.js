@@ -16,11 +16,54 @@ function meshBuilder(){const faces=[];
  }
  return{faces,ellipsoid,wedge,tube};
 }
+// Authored interceptor: continuous pressure hull, swept ceramic armor and twin
+// recessed drives. All three loadouts share this geometry and stable materials.
+function buildPilotModels(){
+ const m=meshBuilder(),hull=[151,180,190],dark=[25,43,59],armor=[191,209,211],trim=[184,133,76];
+ function loft(sections,cy,cz,color,segments=16,em=0){
+  const rings=sections.map(([x,ry,rz])=>Array.from({length:segments},(_,i)=>{const a=i/segments*Math.PI*2;return[x,cy+Math.cos(a)*ry,cz+Math.sin(a)*rz]}));
+  for(let j=0;j<rings.length-1;j++)for(let i=0;i<segments;i++)m.faces.push({v:[rings[j][i],rings[j][(i+1)%segments],rings[j+1][(i+1)%segments],rings[j+1][i]],c:color,em,flex:0});
+  m.faces.push({v:rings[0].slice().reverse(),c:color,em,flex:0},{v:rings.at(-1),c:color,em,flex:0});
+ }
+ loft([[-36,7,6],[-28,11,9],[-12,13,11],[6,12,10],[23,9,7],[40,4,3],[49,.6,.7]],0,0,hull,24);
+ // Low dark keel and a canopy seated into the upper pressure hull.
+ loft([[-26,4,3],[-9,7,5],[17,5,3],[32,1,1]],0,6,dark);
+ loft([[-19,2,1],[-13,7,3],[0,8,5],[15,5,3],[23,.8,.6]],0,-9,dark,20);
+ loft([[-14,.7,.4],[-9,5.4,2.3],[0,6,3.1],[12,3.4,1.9],[18,.6,.3]],0,-12,[23,91,112],20,.05);
+ m.tube([[-12,0,-14],[0,0,-15.5],[15,0,-13]],.55,[100,186,200],0,.12,6,2);
+ // A raised central ridge and recessed dark wing panels give readable scale.
+ for(const side of [-1,1]){
+  m.wedge([24,side*8,-4],[-32,side*36,0],[-30,side*10,-5],4,armor);
+  m.wedge([7,side*14,-4.6],[-27,side*30,-.8],[-22,side*16,-5],1.1,dark);
+  m.wedge([-5,side*17,-5.4],[-26,side*26,-2.7],[-22,side*22,-4],.6,trim);
+  // Smooth nacelle, armored nozzle collar, black recess and luminous core.
+  loft([[-40,4.8,4.8],[-33,6.5,6.5],[-18,6,6],[1,4,4],[14,1.5,2]],side*19,0,dark);
+  loft([[-41.5,4.9,4.9],[-38,5.7,5.7],[-34,5.7,5.7]],side*19,0,[121,144,151]);
+  loft([[-41.7,4,4],[-41.9,4,4]],side*19,0,[8,18,26]);
+  loft([[-42,2.8,2.8],[-42.2,2.8,2.8]],side*19,0,[75,218,245],12,.65);
+  m.wedge([-15,side*9,-6],[-33,side*15,-17],[-33,side*8,-6],2,[100,128,145]);
+  for(let i=0;i<4;i++)m.tube([[-29+i*4,side*16,-5.3],[-28+i*4,side*21,-6]],.65,[8,24,34],0,0,6,1);
+  m.tube([[-29,side*29,-1.8],[-19,side*25,-3.4]],.7,[88,232,222],0,.35,6,1);
+  // Permanent nose guns; the Mk II cannons sit farther outboard.
+  loft([[16,2,2],[29,2,2],[43,1.3,1.3]],side*8,-2,[49,73,86],10);
+  loft([[43.1,1,1],[44,1,1]],side*8,-2,[108,232,235],8,.3);
+ }
+ meshes.player=m.faces.slice();
+ for(const side of [-1,1]){
+  loft([[-15,3,3],[-4,4.3,4],[18,3,3],[27,2,2],[44,1.8,1.8]],side*27,-1,[108,133,147],12);
+  loft([[34,2.6,2.6],[38,2.6,2.6]],side*27,-1,trim,12);
+  loft([[44.1,1.3,1.3],[45,1.3,1.3]],side*27,-1,[131,255,226],8,.5);
+ }
+ meshes.player2=m.faces.slice();
+ loft([[22,3,3],[31,5,4],[40,4,3],[50,2,2]],0,-2,[82,106,131],16);
+ loft([[48,3,3],[51,3,3]],0,-2,trim,12);
+ loft([[51.1,1.9,1.9],[52,1.9,1.9]],0,-2,[179,212,255],12,.6);
+ meshes.player3=m.faces.slice();
+ for(const name of ['player','player2','player3'])meshes[name].pilotHull=true;
+}
+
 function buildModels(){
- let m=meshBuilder();m.ellipsoid(0,0,0,49,12,11,[132,167,184]);m.ellipsoid(9,-7,-7,21,6,7,[35,117,146]);m.ellipsoid(9,-8,-11,15,3,3,[94,237,240],.55);
- for(const side of [-1,1]){m.wedge([15,side*7,-2],[-40,side*39,1],[-26,side*8,-4],7,[102,137,163]);m.wedge([-22,side*6,-3],[-42,side*18,-19],[-38,side*5,-4],3,[142,174,188]);m.tube([[-35,side*17,0],[-23,side*18,0],[9,side*17,0]],5,[63,86,115]);m.ellipsoid(-36,side*17,0,3,4,4,[85,232,255],.9)}meshes.player=m.faces;
- const guns=meshBuilder();for(const side of [-1,1]){guns.ellipsoid(-1,side*26,0,28,5,5,[129,155,171],0,12,7);guns.tube([[-13,side*26,-3],[18,side*26,-3],[42,side*26,-3]],3,[58,99,121]);guns.ellipsoid(43,side*26,-3,2,3,3,[153,255,230],.9,10,6)}meshes.player2=meshes.player.concat(guns.faces);
- const lance=meshBuilder();lance.ellipsoid(30,0,0,23,7,7,[126,113,173],0,12,7);lance.ellipsoid(52,0,0,3,4,4,[208,165,255],.9,10,6);meshes.player3=meshes.player2.concat(lance.faces);
+ buildPilotModels();let m;
  m=meshBuilder();m.ellipsoid(0,0,0,49,13,13,[144,39,58]);m.ellipsoid(-20,-4,-9,17,6,6,[255,151,65],.6);for(const side of [-1,1]){m.wedge([-37,side*8,0],[28,side*39,6],[23,side*7,-3],8,[126,32,49]);m.wedge([5,side*8,0],[40,side*27,-20],[27,side*5,-3],4,[178,60,71]);m.tube([[30,side*16,0],[48,side*16,0]],7,[58,63,79]);m.ellipsoid(49,side*16,0,3,5,5,[255,111,56],.85)}meshes.fighter=m.faces;
  m=meshBuilder();m.ellipsoid(-9,0,0,34,25,23,[37,129,108]);m.ellipsoid(-22,-8,-17,13,12,9,[131,177,75]);m.ellipsoid(-25,-8,-24,8,8,4,[190,255,93],.65);m.ellipsoid(-26,-8,-27,2,7,1,[14,33,26]);for(let i=0;i<6;i++){const a=i/6*Math.PI*2,y=Math.cos(a),z=Math.sin(a);m.tube([[0,y*19,z*18],[24,y*27,z*26],[46,y*32,z*28],[72,y*22,z*30],[90,y*34,z*17]],5,[44,134+i*6,104],1);m.tube([[-22,y*17,z*17],[0,y*24,z*22],[20,y*18,z*19]],3,[102,176,133]);}meshes.squid=m.faces;
  m=meshBuilder();m.ellipsoid(5,0,0,45,24,21,[139,110,65]);for(const side of [-1,1]){m.ellipsoid(13,side*19,0,34,9,13,[90,88,74]);m.tube([[5,side*20,-13],[-24,side*20,-13],[-55,side*20,-13]],5,[126,145,145]);m.ellipsoid(-56,side*20,-13,2,4,4,[255,191,99],.7);m.ellipsoid(39,side*15,1,6,7,9,[253,142,63],.8)}for(let i=0;i<5;i++)m.tube([[-26+i*12,-21,-12],[-26+i*12,21,-12]],2,[184,159,95]);m.ellipsoid(-12,-4,-23,12,7,4,[242,182,84],.65);meshes.gunship=m.faces;
@@ -98,23 +141,6 @@ function addAnimalAnatomy(){
 }addAnimalAnatomy();
 // Layered armor and exposed machinery make the silhouettes readable at combat scale.
 function detailStarships(){
- const p=meshBuilder();
- p.wedge([51,0,-5],[3,-11,-12],[3,11,-12],5,[185,208,219]);
- p.ellipsoid(4,-5,-14,19,7,5,[18,46,65],0,24,14);
- p.ellipsoid(7,-6,-18,13,4,2,[61,166,202],.18,20,12);
- p.tube([[-12,-8,-17],[0,-11,-18],[19,-8,-15]],1.1,[209,223,225]);
- p.tube([[3,-11,-17],[4,-5,-20],[5,1,-17]],.9,[154,181,194]);
- for(const side of [-1,1]){
-  p.wedge([24,side*10,-7],[-28,side*33,-5],[-35,side*20,-10],4,[172,193,205]);
-  p.wedge([-8,side*17,-11],[-27,side*29,-9],[-30,side*22,-12],1,[35,65,85]);
-  p.tube([[-34,side*17,-5],[-19,side*17,-7],[14,side*13,-7]],1.2,[88,222,240],0,.35);
-  p.ellipsoid(-30,side*18,-5,16,6,6,[62,82,105],0,20,12);
-  p.ellipsoid(-43,side*18,-5,3,5,5,[17,29,44],0,16,10);
-  p.ellipsoid(-45,side*18,-5,1.5,3,3,[107,237,255],.9,12,8);
-  for(let i=0;i<4;i++)p.tube([[-30+i*5,side*19,-11],[-28+i*5,side*24,-9]],.8,[23,39,54]);
-  p.tube([[0,side*10,-8],[20,side*10,-8],[39,side*10,-8]],2,[57,78,98]);
- }
- for(const name of ['player','player2','player3'])meshes[name]=meshes[name].concat(p.faces);
  for(const name of ['fighter','gunship']){
   const m=meshBuilder(),heavy=name==='gunship',armor=heavy?[77,83,92]:[77,34,46];
   for(const side of [-1,1]){
@@ -1165,3 +1191,20 @@ function buildDevelopedMachine(spec){
  for(const f of m.faces){f.v=f.v.map(p=>p.map(v=>v*scale));if(f.joint)f.joint=[...f.joint.slice(0,3).map(n=>n*scale),f.joint[3]];}
  Object.assign(m.faces,{industrial:true,nativeAnatomy:true,anatomy:frame,development:g,muzzle:muzzle.map(v=>v*scale),ports:ports.map(p=>p.map(v=>v*scale)),bodyVolumes:[{center:[0,0,0],radii:[(g.nose+10)*scale,(spread*.8+10)*scale,20*scale]}]});return m.faces;
 }
+
+// Compact rigid boss ordnance: ceramic nose, plated motor, recessed nozzle and
+// cruciform fins. Shared geometry instances keep a full battery volley cheap.
+(function buildBossOrdnance(){
+ const m=meshBuilder();
+ m.ellipsoid(0,0,0,15,3.5,3.5,[157,178,181],0,16,8);
+ m.ellipsoid(11,0,0,6,2.9,2.9,[47,63,77],0,12,6);
+ m.ellipsoid(-12,0,0,3,3.7,3.7,[50,67,78],0,12,6);
+ m.ellipsoid(-14,0,0,.5,2.5,2.5,[12,23,31],0,10,5);
+ m.ellipsoid(-14.5,0,0,.25,1.6,1.6,[255,196,112],.65,8,4);
+ for(let i=0;i<4;i++){
+  const a=i*Math.PI/2,turn=([x,y,z])=>[x,y*Math.cos(a)-z*Math.sin(a),y*Math.sin(a)+z*Math.cos(a)];
+  m.wedge(turn([-5,3,-.5]),turn([-12,8,-.5]),turn([-13,2,-.5]),1,[83,107,124]);
+  m.tube([turn([-2,3.6,0]),turn([4,3.2,0])],.55,[210,136,64],0,0,5,1);
+ }
+ meshes.bossMissile=m.faces;meshes.bossMissile.industrial=true;
+})();
