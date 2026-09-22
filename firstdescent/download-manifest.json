@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 70462224,
+  "bytes": 71206585,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 383420,
-      "sha256": "721cb8a49c0bb12a3e4d711f04c2be632d3782f080322e0a2c788c0c9373fa0d"
+      "bytes": 390238,
+      "sha256": "dd0d17581e23a3de6f965886de55ba322b3e162aa7665788990062643b9b19f4"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -610,9 +610,24 @@
       "sha256": "609edb98e59688aee735e9da62567c1bd6258d9111bc57d8f4ba68a1f4662e72"
     },
     {
+      "path": "assets/terrain-basalt-v123.webp",
+      "bytes": 258460,
+      "sha256": "a7b2f9fd5aad901d0f74185b7babf7e90a7e7d598027d4bdcf4fc877a9698606"
+    },
+    {
+      "path": "assets/terrain-foundry-v123.webp",
+      "bytes": 239944,
+      "sha256": "621bdc9f5453dd14c18656689abd364006396d6ea16999a9bb8c79544a082011"
+    },
+    {
       "path": "assets/terrain-glacier-v1.webp",
       "bytes": 384230,
       "sha256": "226b6ef2c1fb2c5a53b64ef5c72744de7c9f841308eda3dd15f24d158b980495"
+    },
+    {
+      "path": "assets/terrain-mineral-v123.webp",
+      "bytes": 232714,
+      "sha256": "00f088632fd65d9c65e2a00f7e2bbff3ba9c2717a876d8b9b0d8c35f9bfc3b2a"
     },
     {
       "path": "assets/world-aether-aerial-landscape-v1.webp",
@@ -1591,13 +1606,13 @@
     },
     {
       "path": "game.js",
-      "bytes": 92418,
-      "sha256": "a323179b7167a5d3677555648c5a267118e0a0eb35b23ca745b3604af2a26cd6"
+      "bytes": 92489,
+      "sha256": "47e61f3b578cefc925f6b8f08cbd870f4bb8b4f3979c0b7b76a882b5920d83c2"
     },
     {
       "path": "index.html",
-      "bytes": 6838,
-      "sha256": "53195b10a6ce2123cd981ae6c41938f6dccc3d2acce27b9ac55b9b06459e574e"
+      "bytes": 6835,
+      "sha256": "d8d8f7369ff4cddbde79e70e650111b2d0ca7c461cb23bcbbdf5325cc4e25f01"
     },
     {
       "path": "levels.js",
@@ -1621,8 +1636,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 32085,
-      "sha256": "c8b9d50b7184c92246bb95fc6ec69efbb80de9d5f9bd527c3d83d60d8a2f7c49"
+      "bytes": 38442,
+      "sha256": "497c3c5f7413fcb8fe64b4da16291a2263bf88a143a64065969758684ce78076"
     },
     {
       "path": "runs.js",

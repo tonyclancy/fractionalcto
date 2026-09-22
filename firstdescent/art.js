@@ -32,7 +32,19 @@ function sprite(img,col,row,cols,rows,x,y,w,h,hit=0){
  ctx.save();if(hit>0)ctx.filter='brightness(2.8) saturate(0.3)';
  if(img===art.bosses){const crops=[[0,0,435,1024],[435,35,650,890],[1078,0,458,1024]];const [sx,sy,sw,sh]=crops[col];ctx.drawImage(img,sx,sy,sw,sh,x-w/2,y-h/2,w,h)}else ctx.drawImage(img,col*img.naturalWidth/cols,row*img.naturalHeight/rows,img.naturalWidth/cols,img.naturalHeight/rows,x-w/2,y-h/2,w,h);ctx.restore();return true;
 }
+// Choose illumination from the scene, not its obstacle material alone.
+function sceneryLighting(definition){
+ const biome=definition.worldIdentity?.biome||'',habitat=definition.worldIdentity?.habitat;
+ if(definition.stellar||/magma|core|corona/.test(biome)||habitat==='hot')return 'hot';
+ if(definition.medium==='water')return 'underwater';
+ if(/ice|glacier/.test(biome))return 'ice';
+ if(definition.theme==='forge'||biome==='foundry')return 'foundry';
+ if(/storm/.test(biome)||definition.theme==='storm')return 'storm';
+ if(/cave|trench/.test(biome))return 'cavern';
+ return definition.gravityWell?'space':'daylight';
+}
 function drawBackdrop(dt=1/60){
+ window.gpuModels?.setEnvironment?.(sceneryLighting(sectors[level]));
  if(sectors[level].stellar){drawStellarBackdrop(sectors[level]);return;}
  if(sectors[level].gravityWell){drawGravityBackdrop(sectors[level]);return;}
  const s=sectors[level],vertical=s.scrollAxis,painting=scenePainting(),lean=vertical?(ship.x-W/2)*.018:(ship.y-H/2)*.025;
@@ -1596,9 +1608,30 @@ function updateTechLaser(b,dt){
 function terrainAppearance(definition=sectors[level]){
  const world=definition.worldIdentity||{},biome=world.biome||definition.environment||'',seed=world.seed||0;
  const kind=/ice|glacier/i.test(biome)?'ice':definition.medium==='water'?'reef':/magma|solar|core/.test(biome)||world.habitat==='hot'?'basalt':/storm/.test(biome)?'storm':'stone';
- const colors={ice:[195,216,221],reef:[160,187,169],basalt:[175,145,125],storm:[113,126,135],stone:[185,174,152]};
+ const colors={ice:[195,216,221],reef:[92,115,109],basalt:[120,99,84],storm:[113,126,135],stone:[185,174,152]};
  const base=colors[kind].map((n,i)=>Math.round(n*(.90+((seed>>>(i*5))&15)/100)));
  return{kind,base,seed,metal:kind==='basalt'?[106,88,68]:kind==='storm'?[100,116,125]:[91,107,111],accent:world.accent||[184,136,78]};
+}
+// Bake an oblique relief into retained terrain, once at construction. Rear
+// silhouette vertices stay in place, so solidity and room-edge anchors agree
+// with the collision profile. Front fittings reveal their side walls without
+// rotating or stretching the whole obstacle during flight.
+function finishTerrainRelief(faces,r,seed){
+ if(faces.terrainRelief)return faces;
+ const cross=r.side?r.h:r.w,length=r.side?r.w:r.h,axis=r.side?1:0;
+ const depth=Math.max(1,Math.min(cross,length)*(faces.industrial?.22:.34));
+ const project=v=>{
+  const t=clamp(v[1-axis]/length,0,1),width=cross*Math.max(terrainProfile(r,t,seed),terrainProfile(r,Math.max(0,t-.000001),seed),terrainProfile(r,Math.min(1,t+.000001),seed));
+  const center=cross*((faces.industrial||faces.stormArchitecture)? .5 : terrainCenter(t,seed));
+  const front=clamp(-v[2]/depth,0,1),inset=faces.industrial?.30:.20;
+  v[axis]=center+(v[axis]-center)*(1-inset*front)+width*.055*front;
+  v[2]*=1.35;
+ };
+ for(const v of new Set(faces.flatMap(f=>f.v)))project(v);
+ for(const port of faces.ports||[])project(port.point);
+ // Let continuous normals and the scene lights shape curved surfaces.
+ // Per-face baked darkening creates visible bands even with smooth normals.
+ faces.terrainRelief=true;return faces;
 }
 function terrainMesh(r,seed){if(themeIndex()===1||themeIndex()===4)return industrialTerrainMesh(r,seed);const faces=[],rows=40,sides=24,style=terrainAppearance(),color=style.base;
  const point=(t,a,offset=0)=>{const width=terrainProfile(r,t,seed),cross=Math.cos(a),depth=Math.sin(a),rough=1-.07*Math.sin(t*13+a*3+seed+style.seed%17)*Math.sin(a*2+seed),relief=Math.min(r.h,r.w)*.32*(.72+width*.28)*rough+offset;return r.side?[t*r.w,(terrainCenter(t,seed)+cross*width*.5)*r.h,depth*relief]:[(terrainCenter(t,seed)+cross*width*.5)*r.w,t*r.h,depth*relief];};
@@ -1614,8 +1647,51 @@ function terrainMesh(r,seed){if(themeIndex()===1||themeIndex()===4)return indust
    faces.push({v:[point(t,a-.006,1),point(next,b-.006,1),point(next,b+.006,1),point(t,a+.006,1)],c:dark,em:style.kind==='basalt'?.28:0,flex:0});
   }
  }
- faces.rock=true;faces.terrainMaterial=style.kind;faces.terrainUV={width:r.w,height:r.h,side:!!r.side,flip:r.side?r.side==='right':!r.ceiling,seed};faces.terrainWorld=style.seed;addTerrainVents(faces,r,seed,[point(.29,Math.PI*1.44,3),point(.66,Math.PI*1.57,3)]);return faces;}
-function drawTerrainObstacle(o){if(themeIndex()===0){for(const [i,r] of obstacleForms(o).entries()){const a=asteroidSurface(o,r,i),p=asteroidPose(o,i);drawModel(a.mesh,r.x+r.w/2,r.y+r.h/2,1,p.yaw,p.roll,p.pitch,time);queueTerrainEmitters(a.mesh,r,p);}return;}o.terrainMeshes??=[];for(const [index,r] of obstacleForms(o).entries()){if(r.w<=0||r.h<=0)continue;const seed=(o.id||0)*1.7+index*.9,key=r.w.toFixed(1)+':'+r.h.toFixed(1);let saved=o.terrainMeshes[index];if(!saved){const mesh=terrainMesh(r,seed),depth=Math.min(r.h,r.w);saved=o.terrainMeshes[index]={mesh,key,points:[...new Set(mesh.flatMap(f=>f.v))].map(v=>({v,x:v[0]/r.w,y:v[1]/r.h,z:v[2]/depth}))};}else if(saved.key!==key){const depth=Math.min(r.h,r.w);for(const p of saved.points){p.v[0]=p.x*r.w;p.v[1]=p.y*r.h;p.v[2]=p.z*depth;}saved.mesh.dynamic=true;saved.key=key;}drawModel(saved.mesh,r.x,r.y,1,0,0,0,0);queueTerrainEmitters(saved.mesh,r);}}
+ // Sparse attached algae ribbons. Roots stay embedded in the rock; only
+ // tips bend on the GPU, leaving the retained rock and collision shape rigid.
+ if(style.kind==='reef'){
+  faces.foliage=true;
+  const tufts=1+Math.floor(sceneryVariation(seed,style.seed%997)*3);
+  for(let tuft=0;tuft<tufts;tuft++){
+   const t=.16+sceneryVariation(seed,tuft+31)*.61,angle=Math.PI*(1.25+sceneryVariation(seed,tuft+67)*.39),root=point(t,angle,2),size=Math.min(r.w,r.h)*(.10+sceneryVariation(seed,tuft+91)*.13);
+   for(let leaf=0;leaf<2;leaf++){
+    const phase=seed*2.7+tuft*3.1+leaf*1.9,lean=(leaf?1:-1)*size*.3,blade=[];
+    for(let j=0;j<=3;j++){const q=j/3,w=size*.115*(1-q)+.15;blade.push([[-w,w].map(side=>[root[0]+lean*q*q+side,root[1]-size*q,root[2]-q*12]),q]);}
+    for(let j=0;j<3;j++)faces.push({v:[blade[j][0][0],blade[j+1][0][0],blade[j+1][0][1],blade[j][0][1]],c:leaf?[124,152,86]:[78,133,105],em:.14,flex:0,textureWeight:0,growth:[[blade[j][1],phase],[blade[j+1][1],phase],[blade[j+1][1],phase],[blade[j][1],phase]]});
+   }
+  }
+ }
+ faces.rock=true;faces.terrainMaterial=style.kind;faces.terrainUV={width:r.w,height:r.h,side:!!r.side,flip:r.side?r.side==='right':!r.ceiling,seed};faces.terrainWorld=style.seed;addTerrainVents(faces,r,seed,[point(.29,Math.PI*1.44,3),point(.66,Math.PI*1.57,3)]);return finishTerrainRelief(faces,r,seed);}
+function retainedTerrainPart(o,r,index){
+ o.terrainMeshes??=[];const seed=(o.id||0)*1.7+index*.9,key=r.w.toFixed(1)+':'+r.h.toFixed(1);let saved=o.terrainMeshes[index];
+ if(!saved){const mesh=terrainMesh(r,seed),depth=Math.min(r.h,r.w);saved=o.terrainMeshes[index]={mesh,key,points:[...new Set(mesh.flatMap(f=>f.v))].map(v=>({v,x:v[0]/r.w,y:v[1]/r.h,z:v[2]/depth}))};}
+ else if(saved.key!==key){const depth=Math.min(r.h,r.w);for(const p of saved.points){p.v[0]=p.x*r.w;p.v[1]=p.y*r.h;p.v[2]=p.z*depth;}saved.mesh.dynamic=true;saved.key=key;}return saved.mesh;
+}
+// Prepare one part per idle slice, several seconds before entry. Hand the exact
+// retained object to the live simulation; never build a duplicate at the edge.
+const upcomingTerrain=new Map();let terrainPrepLevel=-1,terrainPrepTime=-1,terrainPrepPending=false,terrainPrepGeneration=0;
+function prepareUpcomingTerrain(plan,index){
+ if(terrainPrepLevel!==level||time<terrainPrepTime){upcomingTerrain.clear();terrainPrepLevel=level;terrainPrepGeneration++;}
+ terrainPrepTime=time;
+ for(const [id] of upcomingTerrain)if(id<index)upcomingTerrain.delete(id);
+ for(let i=index;i<plan.length&&plan[i].at<=time+6;i++)if(!upcomingTerrain.has(i))upcomingTerrain.set(i,{...plan[i],id:i,x:W+100,w:plan[i].width||82+difficulty()*8,preparedParts:0});
+ if(terrainPrepPending||(!window.requestIdleCallback&&!window.setTimeout))return;
+ const generation=terrainPrepGeneration;
+ const idle=window.requestIdleCallback?.bind(window)||(fn=>window.setTimeout(()=>fn({timeRemaining:()=>8}),0));
+ terrainPrepPending=true;idle(deadline=>{
+  terrainPrepPending=false;if(generation!==terrainPrepGeneration||terrainPrepLevel!==level||time<terrainPrepTime||deadline.timeRemaining()<7)return;
+  for(const o of upcomingTerrain.values()){
+   const forms=obstacleForms(o);if(o.preparedParts>=forms.length)continue;
+   const i=o.preparedParts,r=forms[i];
+   // Mesh construction and indexed-buffer preparation occupy separate slices.
+   if(!o.preparingMesh){o.preparingMesh=themeIndex()===0?asteroidSurface(o,r,i).mesh:retainedTerrainPart(o,r,i);}
+   else{window.gpuModels?.prepareTerrain?.(o.preparingMesh);o.preparingMesh=null;o.preparedParts++;}break;
+  }
+ });
+}
+function takePreparedTerrain(id){const o=upcomingTerrain.get(id);upcomingTerrain.delete(id);return o;}
+function drawTerrainObstacle(o){if(themeIndex()===0){for(const [i,r] of obstacleForms(o).entries()){const a=asteroidSurface(o,r,i),p=asteroidPose(o,i);drawModel(a.mesh,r.x+r.w/2,r.y+r.h/2,1,p.yaw,p.roll,p.pitch,time);queueTerrainEmitters(a.mesh,r,p);}return;}for(const [index,r] of obstacleForms(o).entries()){if(r.w<=0||r.h<=0)continue;const mesh=retainedTerrainPart(o,r,index);drawModel(mesh,r.x,r.y,1,0,0,0,time);queueTerrainEmitters(mesh,r);}}
+
 
 // Scenery activity is attached to retained meshes. Only a bounded list of
 // visible sockets is projected each frame; no simulated particle population.
@@ -1724,8 +1800,14 @@ function drawWardenCreature(b){const expression=wardenExpression(b),mesh=meshes.
 // Forge equipment uses three repeatable engineering profiles. Bands align with
 // the existing 24 collision slices; its support always reaches the room edge.
 // Each authored group advances its part seed by .9; keep those parts distinct.
-function forgeObstacleVariant(seed){return Math.floor(Math.abs(seed)/.9+.001)%3;}
-function forgeObstacleProfile(fromRoot,seed){const q=Math.min(23,Math.floor(clamp(fromRoot,0,1)*24)),kind=forgeObstacleVariant(seed);if(kind===0)return q<4?.96:q<15?.86:q<21?.70:.58;if(kind===1)return q<4?.96:q<14?.58:q<21?.84:.66;return q<5?.96:q<12?.78:q<20?.92:q<23?.76:.60;}
+// Stable hashed variation avoids the former three-item carousel.
+function sceneryVariation(seed,salt=0){let n=(Math.round(seed*1000)^Math.imul(salt+1,0x9e3779b1))|0;n=Math.imul(n^(n>>>16),0x21f0aaad);n=Math.imul(n^(n>>>15),0x735a2d97);return ((n^(n>>>15))>>>0)/4294967296;}
+function forgeObstacleVariant(seed){return Math.floor(sceneryVariation(seed,17)*3);}
+function forgeObstacleProfile(fromRoot,seed){
+ // Rounded load-bearing shoulders and tapered noses. The same 24 segments
+ // define both the mesh and the collision corridor, including side walls.
+ const profiles=[[.94,.94,.92,.89,.87,.86,.85,.84,.82,.80,.78,.76,.74,.72,.70,.68,.66,.64,.61,.57,.51,.43,.34,.25,.18],[.94,.94,.90,.81,.71,.62,.58,.56,.55,.55,.56,.59,.64,.73,.81,.84,.84,.82,.78,.72,.63,.52,.40,.29,.20],[.94,.94,.92,.88,.83,.80,.79,.80,.83,.87,.90,.91,.90,.88,.84,.79,.73,.67,.61,.55,.49,.42,.34,.25,.17]],p=profiles[forgeObstacleVariant(seed)],t=clamp(fromRoot,0,1)*24,i=Math.min(23,Math.floor(t));return p[i]+(p[i+1]-p[i])*(t-i);
+}
 function forgeTerrainMesh(r,seed){
  const faces=[],components=[],cross=r.side?r.h:r.w,length=r.side?r.w:r.h,depth=Math.min(cross,length)*.22,kind=forgeObstacleVariant(seed);
  const style=terrainAppearance(),steel=style.metal,edge=steel.map(n=>n+30),dark=steel.map(n=>Math.round(n*.39)),black=[17,23,26],brass=[151,115,70],paint=steel.map(n=>Math.round(n*.76)),warm=[224,157,67],cool=[104,178,191];
@@ -1733,8 +1815,10 @@ function forgeTerrainMesh(r,seed){
  const face=(v,c,em=0)=>faces.push({v,c,em,flex:0});
  const finish=(name,start)=>components.push({name,start,end:faces.length});
  function box(u,v,w,h,c=steel,front=-depth-2,d=5,bevel=1.8){
-  const start=faces.length,b=Math.min(w*.2,h*.2,bevel),xy=[[u-w/2+b,v-h/2],[u+w/2-b,v-h/2],[u+w/2,v-h/2+b],[u+w/2,v+h/2-b],[u+w/2-b,v+h/2],[u-w/2+b,v+h/2],[u-w/2,v+h/2-b],[u-w/2,v-h/2+b]],a=xy.map(p=>point(p[0],p[1],front)),z=xy.map(p=>point(p[0],p[1],front+d));
-  face(a,c);face(z.slice().reverse(),dark);for(let i=0;i<8;i++){const j=(i+1)%8;face([a[i],a[j],z[j],z[i]],i%2?edge:dark);}finish('closed equipment panel',start);
+  const start=faces.length,b=Math.min(w*.27,h*.27,Math.max(bevel,Math.min(w,h)*.18)),xy=Math.min(w,h)<12?[[u-w/2,v-h/2],[u+w/2,v-h/2],[u+w/2,v+h/2],[u-w/2,v+h/2]]:[[u-w/2+b,v-h/2],[u+w/2-b,v-h/2],[u+w/2,v-h/2+b],[u+w/2,v+h/2-b],[u+w/2-b,v+h/2],[u-w/2+b,v+h/2],[u-w/2,v+h/2-b],[u-w/2,v-h/2+b]],a=xy.map(p=>point(p[0],p[1],front)),z=xy.map(p=>point(p[0],p[1],front+d));
+  if(Math.min(w,h)<12||d<3){face(a,c);face(z.slice().reverse(),dark);for(let i=0;i<a.length;i++){const j=(i+1)%a.length;face([a[i],a[j],z[j],z[i]],i%2?edge:dark);}finish('closed equipment panel',start);return;}
+  const lip=Math.min(w*.13,h*.18,3.2),cap=xy.map(p=>point(u+(p[0]-u)*(1-2*lip/w),v+(p[1]-v)*(1-2*lip/h),front-2.5));
+  face(cap,c);face(z.slice().reverse(),dark);for(let i=0;i<8;i++){const j=(i+1)%8;face([cap[i],cap[j],a[j],a[i]],i<4?edge:steel);face([a[i],a[j],z[j],z[i]],dark);}finish('closed equipment panel',start);
  }
  function tube(path,radius,c=steel,sides=10){
   const start=faces.length,rings=[];
@@ -1742,19 +1826,21 @@ function forgeTerrainMesh(r,seed){
    const p=path[j],a=path[Math.max(0,j-1)],b=path[Math.min(path.length-1,j+1)],du=b[0]-a[0],dv=b[1]-a[1],len=Math.hypot(du,dv)||1,n=[-dv/len,du/len];
    rings.push(Array.from({length:sides},(_,i)=>{const t=i/sides*TAU;return point(p[0]+Math.cos(t)*radius*n[0],p[1]+Math.cos(t)*radius*n[1],p[2]+Math.sin(t)*radius);}));
   }
-  face(rings[0].slice().reverse(),c);face(rings.at(-1),c);for(let j=0;j<rings.length-1;j++)for(let i=0;i<sides;i++){const k=(i+1)%sides;face([rings[j][i],rings[j][k],rings[j+1][k],rings[j+1][i]],i%4?c:edge);}finish('closed flanged pipe',start);
+  face(rings[0].slice().reverse(),c);face(rings.at(-1),c);for(let j=0;j<rings.length-1;j++)for(let i=0;i<sides;i++){const k=(i+1)%sides;face([rings[j][i],rings[j][k],rings[j+1][k],rings[j+1][i]],c);}for(let i=start+2;i<faces.length;i++)faces[i].smoothGroup='pipe-'+start;finish('closed flanged pipe',start);
  }
  function light(u,v,w,h,c){const start=faces.length;box(u,v,w,h,c,-depth-7,1,.4);for(let i=start;i<faces.length;i++)faces[i].em=.5;}
- // A continuous eight-sided armored shell, not a pile of independent boxes.
- const rows=[];let previous=null;
- const row=(v,width)=>{const l=(cross-width)/2,rr=(cross+width)/2,b=Math.min(11,width*.09,depth*.48);return[[l+b,-depth],[rr-b,-depth],[rr,-depth+b],[rr,depth-b],[rr-b,depth],[l+b,depth],[l,depth-b],[l,-depth+b]].map(p=>point(p[0],v,p[1]));};
- for(let i=0;i<24;i++){
-  const width=cross*forgeObstacleProfile((i+.5)/24,seed),v=i*length/24;
-  if(previous===null)rows.push(row(v,width));else if(width!==previous){rows.push(row(v,previous));rows.push(row(v,width));}
-  previous=width;
- }rows.push(row(length,previous));
+ // A rounded rectangular section: planar armor blended into curved shoulders.
+ // Sixteen vertices preserve real thickness without an eight-sided bevel stripe.
+ const rows=[],shellSides=16;
+ const row=(v,width)=>{
+  const l=(cross-width)/2,rr=(cross+width)/2,b=Math.min(width*.18,depth*.75),ring=[];
+  const corners=[[rr-b,-depth+b,-Math.PI/2],[rr-b,depth-b,0],[l+b,depth-b,Math.PI/2],[l+b,-depth+b,Math.PI]];
+  for(const [u,z,a] of corners)for(let i=0;i<4;i++){const t=a+i/3*Math.PI/2;ring.push(point(u+Math.cos(t)*b,v,z+Math.sin(t)*b));}
+  return ring;
+ };
+ for(let i=0;i<=24;i++)rows.push(row(i*length/24,cross*forgeObstacleProfile(i/24,seed)));
  face(rows[0].slice().reverse(),dark);face(rows.at(-1),steel);
- for(let j=0;j<rows.length-1;j++)for(let i=0;i<8;i++){const k=(i+1)%8;face([rows[j][i],rows[j][k],rows[j+1][k],rows[j+1][i]],i===0?paint:i===7||i===1?edge:steel);}
+ for(let j=0;j<rows.length-1;j++)for(let i=0;i<shellSides;i++){const k=(i+1)%shellSides;face([rows[j][i],rows[j][k],rows[j+1][k],rows[j+1][i]],paint);faces.at(-1).smoothGroup='shell';}
  finish('closed anchored shell',0);
  // Root collar, bolted maintenance hatch and a inset control panel are shared
  // architectural language, while the three machines have different workings.
@@ -1781,14 +1867,15 @@ function forgeTerrainMesh(r,seed){
   for(let i=0;i<6;i++)box(cross*(.25+i*.10),length*.73,cross*.045,length*.11,edge,-depth-10,3,.5);
   light(cross*.5,length*.92,cross*.27,Math.max(2,length*.009),warm);
  }else{
-  // Power housing: segmented switchgear around a separate cooling manifold.
-  for(let i=0;i<3;i++){
-   const v=length*(.27+i*.20),w=cross*(i===0?.62:.75);
-   box(cross*.5,v,w,length*.16,dark,-depth-3,5);box(cross*.5,v,w*.87,length*.13,steel,-depth-6,3);
-   for(let j=0;j<4;j++)box(cross*.45,v+length*(j-1.5)*.026,w*.52,length*.008,black,-depth-8,1,.3);
-   light(cross*.72,v,cross*.025,length*.06,i===1?cool:warm);
-  }
-  tube([[cross*.35,length*.86,-depth-5],[cross*.35,length*.94,-depth-5],[cross*.65,length*.94,-depth-5],[cross*.65,length*.86,-depth-5]],cross*.032,brass,10);
+  // Tapered reactor vessel with a rounded crown and return conduits.
+  // Fewer large housings, more functional depth and curved silhouettes.
+  const u=cross*.5,rad=cross*.23;
+  tube([[u,length*.19,-depth-4],[u,length*.64,-depth-4]],rad,paint,16);
+  for(const v of [.23,.58])tube([[u,length*(v-.013),-depth-4],[u,length*(v+.013),-depth-4]],rad*1.09,edge,16);
+  for(const sign of [-1,1])tube([[cross*(.5+sign*.29),length*.24,-depth-1],[cross*(.5+sign*.30),length*.49,-depth-1],[cross*(.5+sign*.26),length*.65,-depth-4],[cross*(.5+sign*.15),length*.73,-depth-7],[cross*.5,length*.78,-depth-7]],cross*.034,brass,10);
+  box(cross*.5,length*.44,cross*.26,length*.18,dark,-depth-rad-2,4,5);
+  for(let i=0;i<4;i++)box(cross*.5,length*(.385+i*.036),cross*.20,length*.011,steel,-depth-rad-6,2,1);
+  light(cross*.5,length*.66,cross*.10,length*.017,warm);
  }
  // Riveted service plates and raised edge rails provide physical relief. Keep
  // every fitting inset from the collision envelope, including stepped bands.
@@ -1803,13 +1890,16 @@ function forgeTerrainMesh(r,seed){
  }
  // Heat-exchanger foot: layered cap and recessed cooling passages, backed by
  // opaque steel so the readable solid edge never suggests a fly-through gap.
- const tipWidth=cross*Math.min(forgeObstacleProfile(.93,seed),forgeObstacleProfile(.98,seed))*.85;
+ const tipWidth=cross*Math.min(forgeObstacleProfile(.93,seed),forgeObstacleProfile(.98,seed))*.74;
  box(cross*.5,length*.956,tipWidth,length*.033,dark,-depth-3,5,3);
  for(let i=0;i<7;i++)box(cross*.5+(i-3)*tipWidth*.11,length*.956,tipWidth*.065,length*.025,steel,-depth-6,3,.8);
  // Small inset hazard tabs identify the collision tip without a neon outline.
- for(let i=0;i<4;i++)box(cross*(.34+i*.10),length*.985,cross*.042,Math.max(1.5,length*.012),i%2?dark:warm,-depth-4,2,.3);
- for(const f of faces){f.textureWeight=.16;const center=f.v.reduce((a,p)=>a+p[r.side?0:1],0)/f.v.length/(r.side?r.w:r.h),wear=.93+.06*Math.sin(center*19+style.seed%53);if(!f.em)f.c=f.c.map(n=>Math.round(n*wear));}
- faces.industrial=true;faces.terrainMaterial='foundry';faces.terrainWorld=style.seed;faces.forgeVariant=kind;faces.components=components;addTerrainVents(faces,r,seed,[point(cross*.51,length*.85,-depth-12)]);return faces;
+ for(let i=0;i<4;i++)box(cross*.5+(i-1.5)*tipWidth*.18,length*.982,tipWidth*.10,Math.max(1.5,length*.012),i%2?dark:warm,-depth-4,2,.3);
+ // Fit mounted equipment to the narrowing shell before the shared depth pass.
+ const fittingPoints=new Set(faces.slice(components[0].end).flatMap(f=>f.v));
+ for(const p of fittingPoints){const axis=r.side?1:0,t=(r.side?(r.side==='left'?p[0]:length-p[0]):(r.ceiling?p[1]:length-p[1]))/length,half=cross*forgeObstacleProfile(t,seed)*.47;p[axis]=cross*.5+clamp(p[axis]-cross*.5,-half,half);}
+ for(const f of faces){f.textureWeight=f.em?0:.86;const center=f.v.reduce((a,p)=>a+p[r.side?0:1],0)/f.v.length/(r.side?r.w:r.h),wear=.93+.06*Math.sin(center*19+style.seed%53);if(!f.em)f.c=f.c.map(n=>Math.round(n*wear));}
+ faces.industrial=true;faces.terrainMaterial='foundry';faces.terrainWorld=style.seed;faces.forgeVariant=kind;faces.components=components;addTerrainVents(faces,r,seed,[point(cross*.51,length*.85,-depth-12)]);return finishTerrainRelief(faces,r,seed);
 }
 
 // Storm ruins share the background's carved flying-buttress language. Their
@@ -1845,7 +1935,7 @@ function industrialTerrainMesh(r,seed){
   const a=Math.PI*1.43,b=Math.PI*1.46;
   faces.push({v:[surface(t,a,2),surface(t+.014,a,2),surface(t+.014,b,2),surface(t,b,2)],c:solar?[242,134,47]:[227,188,114],em:.24,flex:0});
  }
- faces.rock=true;faces.terrainMaterial=solar?'basalt':'storm';faces.terrainWorld=style.seed;faces.stormArchitecture=true;addTerrainVents(faces,r,seed,[surface(.36,Math.PI*1.43,5),surface(.65,Math.PI*1.57,5)]);return faces;
+ faces.rock=true;faces.terrainMaterial=solar?'basalt':'storm';faces.terrainWorld=style.seed;faces.stormArchitecture=true;addTerrainVents(faces,r,seed,[surface(.36,Math.PI*1.43,5),surface(.65,Math.PI*1.57,5)]);return finishTerrainRelief(faces,r,seed);
 }
 
 const asteroidSurfaces=new Map();

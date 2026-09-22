@@ -262,7 +262,7 @@ function spawn(){
  const enemy={x:W+180+n*96,y,base:y,type:memberType,elite:leader,wave:i,hp,max:hp,hit:0,age:0,phase:i*.45+n*.16,shoot:(leader?.9:1.5)+n*.38,speed:([220,180,130,205][memberType]+difficulty()*17)*(leader==='ace'?1.55:1)*(1+Math.min(i,20)*.018),r:memberType===2?39:31};prepareEnemyEntry(enemy,i,n);enemies.push(enemy);}
 }
 function updateStructures(dt){
- const plan=gatePlans[level];while(gateIndex<plan.length&&time>=plan[gateIndex].at){const g=plan[gateIndex];obstacles.push({...g,id:gateIndex,x:W+100,w:g.width||82+difficulty()*8});gateIndex++}
+ const plan=gatePlans[level];prepareUpcomingTerrain(plan,gateIndex);while(gateIndex<plan.length&&time>=plan[gateIndex].at){const g=plan[gateIndex];obstacles.push(takePreparedTerrain(gateIndex)||{...g,id:gateIndex,x:W+100,w:g.width||82+difficulty()*8});gateIndex++}
  for(const o of obstacles){o.x=W+100-(time-o.at)*SCROLL_SPEED;updateAsteroidDynamics(o);if(o.rotor&&rotorContact(o,ship.x,ship.y,18))damage();if(obstacleSolids(o).some(r=>ship.x+24>r.x&&ship.x-24<r.x+r.w&&ship.y+14>r.y&&ship.y-14<r.y+r.h))damage()}
  obstacles=obstacles.filter(obstacleStillVisible);
 }
