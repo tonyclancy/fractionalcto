@@ -1042,9 +1042,9 @@ function drawEnvironmentalMachinery(){
 // Shared rectangles keep the painted obstruction and physical collision in agreement.
 function obstacleBaseForms(o){return o.shutters?(themeIndex()===0?rigidAsteroidPassage(o):shutterSolids(o)):o.parts?o.parts.map(p=>({...p,x:o.x+p.x})):[{x:o.x,y:0,w:o.w+30,h:o.gap-o.open/2+20,ceiling:true},{x:o.x,y:o.gap+o.open/2,w:o.w+30,h:H-o.gap-o.open/2,ceiling:false}];}
 function obstacleForms(o){const raw=obstacleBaseForms(o);if(themeIndex()===0)for(const [i,r] of raw.entries()){const d=asteroidDrift(o,i);r.x+=d.x;r.y+=d.y;}const axis=sectors[level].scrollAxis;return axis?raw.map(r=>({x:axis==='down'?r.y*W/H:(H-r.y-r.h)*W/H,y:axis==='down'?r.x*H/W:(W-r.x-r.w)*H/W,w:r.h*W/H,h:r.w*H/W,ceiling:r.ceiling,side:axis==='down'?(r.ceiling?'left':'right'):(r.ceiling?'right':'left')})):raw;}
-function terrainProfile(r,t,seed){const k=themeIndex(),fromRoot=r.side?(r.side==='left'?t:1-t):(r.ceiling?t:1-t);if(k===0){const envelope=Math.pow(Math.max(.015,Math.sin(t*Math.PI)),.3+.18*(1+Math.sin(seed*2.7))),u=t*(7+Math.floor((Math.sin(seed)+1)*2)),cell=Math.floor(u),blend=u-cell,hash=n=>{const x=Math.sin(n*127.1+seed*93.7)*43758.5453;return x-Math.floor(x);},jag=.52+.44*(hash(cell)*(1-blend)+hash(cell+1)*blend);return Math.max(.08,envelope*jag);}if(k===1)return forgeObstacleProfile(fromRoot,seed);if(k===4)return stormTerrainProfile(fromRoot,seed);const u=t*7,cell=Math.floor(u),blend=u-cell,hash=n=>{const v=Math.sin(n*127.1+seed*93.7)*43758.5453;return v-Math.floor(v);},strata=hash(cell)*(1-blend)+hash(cell+1)*blend;return Math.max(.13,(.97-(.52+.15*Math.sin(seed))*Math.pow(fromRoot,1.6+.5*Math.cos(seed)))*(.84+strata*.12)*(1-.75*Math.pow(clamp((fromRoot-.78)/.22,0,1),1.2)));}
+function terrainProfile(r,t,seed){const k=themeIndex(),fromRoot=r.side?(r.side==='left'?t:1-t):(r.ceiling?t:1-t);if(k===0){const envelope=Math.pow(Math.max(.015,Math.sin(t*Math.PI)),.3+.18*(1+Math.sin(seed*2.7))),u=t*(7+Math.floor((Math.sin(seed)+1)*2)),cell=Math.floor(u),blend=u-cell,hash=n=>{const x=Math.sin(n*127.1+seed*93.7)*43758.5453;return x-Math.floor(x);},jag=.52+.44*(hash(cell)*(1-blend)+hash(cell+1)*blend);return Math.max(.08,envelope*jag);}if(k===1)return forgeObstacleProfile(fromRoot,seed);if(k===4)return stormTerrainProfile(fromRoot,seed);if(sectors[level].medium==='water'){const u=fromRoot*7,cell=Math.floor(u),q=u-cell,blend=q*q*(3-2*q),shelf=.68+.25*(sceneryVariation(seed,cell+41)*(1-blend)+sceneryVariation(seed,cell+42)*blend);return Math.max(.22,(.98-.17*fromRoot)*shelf*(1-.56*Math.pow(clamp((fromRoot-.85)/.15,0,1),.7)));}const u=t*7,cell=Math.floor(u),blend=u-cell,hash=n=>{const v=Math.sin(n*127.1+seed*93.7)*43758.5453;return v-Math.floor(v);},strata=hash(cell)*(1-blend)+hash(cell+1)*blend;return Math.max(.13,(.97-(.52+.15*Math.sin(seed))*Math.pow(fromRoot,1.6+.5*Math.cos(seed)))*(.84+strata*.12)*(1-.75*Math.pow(clamp((fromRoot-.78)/.22,0,1),1.2)));}
 
-function terrainCenter(t,seed){if(themeIndex()===1||themeIndex()===4)return .5;return .5+Math.sin(t*9+seed*3)*Math.sin(t*Math.PI)*.10;}
+function terrainCenter(t,seed){if(themeIndex()===1||themeIndex()===4)return .5;if(sectors[level].medium==='water')return .5+Math.sin(t*5+seed)*Math.sin(t*Math.PI)*.025;return .5+Math.sin(t*9+seed*3)*Math.sin(t*Math.PI)*.10;}
 function obstacleSolids(o){const key=time+':'+o.x+':'+level;if(o.solidCache?.key===key)return o.solidCache.value;const value=themeIndex()===0&&!o.navigation?asteroidSolids(o):obstacleForms(o).flatMap((r,index)=>Array.from({length:24},(_,i)=>{const t=(i+.5)/24,seed=(o.id||0)*1.7+index*.9,f=terrainProfile(r,t,seed),center=terrainCenter(t,seed);return r.side?{...r,x:r.x+i*r.w/24,y:r.y+r.h*(center-f/2),w:r.w/24,h:r.h*f}:{...r,x:r.x+r.w*(center-f/2),y:r.y+i*r.h/24,w:r.w*f,h:r.h/24};}));o.solidCache={key,value};return value;}
 
 function enemyRouteX(e,x){for(const o of routeObstacles())for(const r of obstacleSolids(o)){const u=clamp((r.h/2+420-Math.abs(e.y-r.y-r.h/2))/290,0,1),edge=r.side==='left'?r.x+r.w+105:r.x-105,target=r.side==='left'?Math.max(x,edge):Math.min(x,edge);x+=(target-x)*passEase(u);}return clamp(x,90,W-90);}
@@ -1633,7 +1633,7 @@ function finishTerrainRelief(faces,r,seed){
  // Per-face baked darkening creates visible bands even with smooth normals.
  faces.terrainRelief=true;return faces;
 }
-function terrainMesh(r,seed){if(themeIndex()===1||themeIndex()===4)return industrialTerrainMesh(r,seed);const faces=[],rows=40,sides=24,style=terrainAppearance(),color=style.base;
+function terrainMesh(r,seed){if(themeIndex()===1||themeIndex()===4)return industrialTerrainMesh(r,seed);const faces=[],style=terrainAppearance(),rows=style.kind==='reef'?32:40,sides=style.kind==='reef'?18:24,color=style.base;
  const point=(t,a,offset=0)=>{const width=terrainProfile(r,t,seed),cross=Math.cos(a),depth=Math.sin(a),rough=1-.07*Math.sin(t*13+a*3+seed+style.seed%17)*Math.sin(a*2+seed),relief=Math.min(r.h,r.w)*.32*(.72+width*.28)*rough+offset;return r.side?[t*r.w,(terrainCenter(t,seed)+cross*width*.5)*r.h,depth*relief]:[(terrainCenter(t,seed)+cross*width*.5)*r.w,t*r.h,depth*relief];};
  const rings=Array.from({length:rows+1},(_,i)=>Array.from({length:sides},(_,j)=>point(i/rows,j/sides*TAU)));
  for(let i=0;i<rows;i++)for(let j=0;j<sides;j++){
@@ -1647,21 +1647,66 @@ function terrainMesh(r,seed){if(themeIndex()===1||themeIndex()===4)return indust
    faces.push({v:[point(t,a-.006,1),point(next,b-.006,1),point(next,b+.006,1),point(t,a+.006,1)],c:dark,em:style.kind==='basalt'?.28:0,flex:0});
   }
  }
- // Sparse attached algae ribbons. Roots stay embedded in the rock; only
- // tips bend on the GPU, leaving the retained rock and collision shape rigid.
- if(style.kind==='reef'){
-  faces.foliage=true;
-  const tufts=1+Math.floor(sceneryVariation(seed,style.seed%997)*3);
-  for(let tuft=0;tuft<tufts;tuft++){
-   const t=.16+sceneryVariation(seed,tuft+31)*.61,angle=Math.PI*(1.25+sceneryVariation(seed,tuft+67)*.39),root=point(t,angle,2),size=Math.min(r.w,r.h)*(.10+sceneryVariation(seed,tuft+91)*.13);
-   for(let leaf=0;leaf<2;leaf++){
-    const phase=seed*2.7+tuft*3.1+leaf*1.9,lean=(leaf?1:-1)*size*.3,blade=[];
-    for(let j=0;j<=3;j++){const q=j/3,w=size*.115*(1-q)+.15;blade.push([[-w,w].map(side=>[root[0]+lean*q*q+side,root[1]-size*q,root[2]-q*12]),q]);}
-    for(let j=0;j<3;j++)faces.push({v:[blade[j][0][0],blade[j+1][0][0],blade[j+1][0][1],blade[j][0][1]],c:leaf?[124,152,86]:[78,133,105],em:.14,flex:0,textureWeight:0,growth:[[blade[j][1],phase],[blade[j+1][1],phase],[blade[j+1][1],phase],[blade[j][1],phase]]});
+ // Reef colonies are retained geometry; only soft attached leaves animate.
+ if(style.kind==='reef')addReefColonies(faces,r,seed,style,point);
+ faces.rock=true;faces.terrainMaterial=style.kind;faces.terrainUV={width:r.w,height:r.h,side:!!r.side,flip:r.side?r.side==='right':!r.ceiling,seed};faces.terrainWorld=style.seed;addTerrainVents(faces,r,seed,[point(.29,Math.PI*1.44,3),point(.66,Math.PI*1.57,3)]);return finishTerrainRelief(faces,r,seed);}
+function addReefColonies(faces,r,seed,style,point){
+ const m=meshBuilder(),cross=Math.min(r.w,r.h),length=r.side?r.w:r.h,rnd=n=>sceneryVariation(seed+style.seed*.0001,n),colonies=2+Math.floor(rnd(4)*3),centers=[];
+ const palette=[[151,132,108],[158,124,130],[116,147,135],[173,149,114]][Math.floor(rnd(9)*4)];
+ const tint=(c,d)=>c.map(v=>clamp(Math.round(v+d),40,210));
+ // Colonies spread in patches. Gaps, overlap and a wide size range keep each
+ // outcrop from becoming a row of equally spaced ornaments.
+ for(let k=0;k<colonies;k++){
+  const t=.09+rnd(30+k*29)*.76,a=Math.PI*(1.17+rnd(31+k*29)*.64),size=cross*(.14+Math.pow(rnd(32+k*29),1.2)*.32),root=point(t,a,2),c=tint(palette,(rnd(k+40)-.5)*32),form=rnd(k+50);
+  centers.push({t,a,size});
+  if(form<.42){
+   // A low, spreading sea fan: fine tapered branches attach directly to reef.
+   const spread=size*(1.3+rnd(k+61)*.6),rise=size*(.48+rnd(k+63)*.55),lean=(rnd(k+67)-.5)*size;
+   const tips=[];
+   for(let j=0;j<5;j++){
+    const q=(j+.2+rnd(k*21+j+70)*.6)/5,tip=[root[0]+(q-.5)*spread+lean,root[1]-rise*(.55+.45*Math.sin(q*Math.PI)),root[2]-size*(.18+rnd(k*21+j+80)*.22)],joint=[root[0]+(tip[0]-root[0])*.43,root[1]-rise*.22,root[2]-size*.14];
+    m.tube([root,joint,tip],size*(.023+rnd(j+k*13+90)*.014),c,0,0,6,2);tips.push(tip);
+    for(let b=0;b<2;b++){
+     const f=.48+b*.23,start=joint.map((v,i)=>v+(tip[i]-v)*f),end=[start[0]+(j%2?1:-1)*size*(.13+rnd(j*7+b+k*43+100)*.18),start[1]-size*(.11+rnd(j*7+b+k*43+110)*.23),start[2]-size*.07];
+     m.tube([start,end],size*.013,tint(c,14),0,0,5,1);
+    }
+   }
+   // Uneven cross-links give the fan a living lattice instead of antlers.
+   for(let j=0;j<4;j++){const p=tips[j].map((v,i)=>root[i]+(v-root[i])*.67),q=tips[j+1].map((v,i)=>root[i]+(v-root[i])*.78);m.tube([p,q],size*.011,c,0,0,5,1);}
+  }else{
+   // Thin ruffled plates grow out of the substrate without bulb-shaped bases.
+   const plates=2+Math.floor(rnd(k+120)*4);
+   for(let j=0;j<plates;j++){
+    const ang=rnd(k*17+j+130)*TAU,s=size*(.43+rnd(k*17+j+140)*.59),cx=root[0]+Math.cos(ang)*size*.38,cy=root[1]+Math.sin(ang)*size*.28,cz=root[2]-size*(.06+j*.055),rings=[];
+    for(let row=0;row<3;row++){const q=row/2;const ring=[];for(let n=0;n<18;n++){
+     const a=n/18*TAU,rad=s*(.18+q*.82)*(1+.17*Math.sin(a*3+ang)+.10*Math.sin(a*7+j)),ripple=Math.sin(a*(4+j%3)+ang)*s*.12*q*q;
+     ring.push([cx+Math.cos(a)*rad,cy+Math.sin(a)*rad*(.45+rnd(k+j+150)*.23),cz-s*.16*(1-q)+ripple]);
+    }rings.push(ring);}
+    m.faces.push({v:rings[0].slice().reverse(),c,em:0,flex:0});
+    for(let row=0;row<2;row++)for(let n=0;n<18;n++)m.faces.push({v:[rings[row][n],rings[row][(n+1)%18],rings[row+1][(n+1)%18],rings[row+1][n]],c:row?tint(c,13):c,em:0,flex:0});
    }
   }
  }
- faces.rock=true;faces.terrainMaterial=style.kind;faces.terrainUV={width:r.w,height:r.h,side:!!r.side,flip:r.side?r.side==='right':!r.ceiling,seed};faces.terrainWorld=style.seed;addTerrainVents(faces,r,seed,[point(.29,Math.PI*1.44,3),point(.66,Math.PI*1.57,3)]);return finishTerrainRelief(faces,r,seed);}
+ // Encrusting coral follows the actual curved substrate, connecting colonies
+ // visually instead of sitting on top as separate round pebbles.
+ for(let k=0;k<18;k++){
+  const cluster=centers[k%centers.length],t=clamp(cluster.t+(rnd(k+220)-.5)*.23,.03,.94),a=cluster.a+(rnd(k+240)-.5)*.85,rad=cross*(.035+rnd(k+260)*.09),center=point(t,a,1.5),ring=[],c=tint(palette,(rnd(k+280)-.5)*45);
+  for(let n=0;n<12;n++){const ang=n/12*TAU,rr=rad*(.75+rnd(k*12+n+300)*.5);ring.push(point(clamp(t+Math.cos(ang)*rr/length,.01,.98),a+Math.sin(ang)*rr/cross*2,1.5));}
+  for(let n=0;n<12;n++)m.faces.push({v:[center,ring[(n+1)%12],ring[n]],c,em:0,flex:0});
+ }
+ // Keep rigid detail inside the collision envelope; plants alone may overhang.
+ for(const face of m.faces){face.textureWeight=.65;for(const v of face.v){const axis=r.side?1:0,width=r.side?r.h:r.w,t=clamp(v[1-axis]/length,.015,.97);v[1-axis]=t*length;const center=terrainCenter(t,seed)*width,half=terrainProfile(r,t,seed)*width*.49;v[axis]=clamp(v[axis],center-half,center+half);}}
+ faces.push(...m.faces);faces.foliage=true;faces.coralColonies=colonies;
+ const tufts=1+Math.floor(rnd(440)*4);
+ for(let tuft=0;tuft<tufts;tuft++){
+  const root=point(.08+rnd(tuft+450)*.82,Math.PI*(1.13+rnd(tuft+460)*.72),3),size=cross*(.19+rnd(tuft+470)*.36),leaves=3+Math.floor(rnd(tuft+480)*4);
+  for(let leaf=0;leaf<leaves;leaf++){
+   const phase=seed*2.7+tuft*3.1+leaf*1.9,height=size*(.43+rnd(tuft*13+leaf+490)*.8),lean=(rnd(tuft*13+leaf+510)-.5)*size*.9,blade=[];
+   for(let j=0;j<=8;j++){const q=j/8,w=height*.035*Math.sin(Math.PI*q)+.06;blade.push({q,points:[-w,w].map(side=>[root[0]+lean*q+Math.sin(q*6+phase)*height*.16*q+side,clamp(root[1]-height*q,0,r.h),root[2]-q*9-Math.sin(q*4+phase)*q*5])});}
+   for(let j=0;j<8;j++)faces.push({v:[blade[j].points[0],blade[j+1].points[0],blade[j+1].points[1],blade[j].points[1]],c:leaf%2?[94,126,88]:[65,116,104],em:.04,flex:0,textureWeight:0,growth:[[blade[j].q,phase],[blade[j+1].q,phase],[blade[j+1].q,phase],[blade[j].q,phase]]});
+  }
+ }
+}
 function retainedTerrainPart(o,r,index){
  o.terrainMeshes??=[];const seed=(o.id||0)*1.7+index*.9,key=r.w.toFixed(1)+':'+r.h.toFixed(1);let saved=o.terrainMeshes[index];
  if(!saved){const mesh=terrainMesh(r,seed),depth=Math.min(r.h,r.w);saved=o.terrainMeshes[index]={mesh,key,points:[...new Set(mesh.flatMap(f=>f.v))].map(v=>({v,x:v[0]/r.w,y:v[1]/r.h,z:v[2]/depth}))};}
