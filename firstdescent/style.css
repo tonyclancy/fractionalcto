@@ -264,3 +264,33 @@ body.game-expanded{overscroll-behavior:none}
  .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment{gap:10px;padding:7px}
  .console:is(:fullscreen,.native-fullscreen,.expanded) #bossbar{top:calc(var(--flight-safe-top) + 156px);left:15%;width:70%}
 }
+
+/* Flight polish: quieter chrome, readable signals, and no competing text layers. */
+.stage{container-name:flight;container-type:inline-size}
+#bossbar{pointer-events:none;text-shadow:0 2px 5px #020911}
+#bossbar>div{height:6px;border-radius:3px;overflow:hidden;background:#182731d9;box-shadow:0 1px 5px #0008}
+#bosshealth{height:100%;border-radius:3px;background:linear-gradient(90deg,#d95155,#ff9682);box-shadow:inset 0 1px #ffd6c373;transition:width .12s ease-out}
+#bosstactic{line-height:1.4}
+.stage:has(#bossbar:not([hidden])) #announcement.compact{top:auto;bottom:22px;left:18px;max-width:min(65%,560px);padding:8px 12px;background:linear-gradient(90deg,#07121cde,#07121c80 80%,transparent);border-left-color:#e9c88d}
+#announcement.compact{border-radius:0 5px 5px 0;line-height:1.35}
+#announcement.compact small{letter-spacing:1px}
+@container flight (max-width:760px){
+ #bossbar{top:66px;left:14%;width:72%}
+ #bossbar span{font-size:9px;letter-spacing:1.5px}
+ #bosstactic{font-size:9px;line-height:1.35;letter-spacing:.25px}
+ #announcement.compact{font-size:11px;letter-spacing:.6px;left:12px;max-width:80%;padding:7px 9px}
+ .stage:has(#bossbar:not([hidden])) #announcement.compact{bottom:18px;left:12px;max-width:78%}
+ #announcement.compact small{font-size:9px;letter-spacing:.4px;margin-top:3px}
+}
+@media(pointer:coarse){
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .stage:has(#bossbar:not([hidden])) #announcement.compact{bottom:calc(env(safe-area-inset-bottom,0px) + 76px);max-width:70%}
+}
+@media(prefers-reduced-motion:reduce){#bosshealth{transition:none}}
+
+@media(max-width:680px){
+ .console:not(:fullscreen):not(.native-fullscreen):not(.expanded) .hud{height:auto;min-height:94px;padding:11px 14px;gap:10px}
+ .console:not(:fullscreen):not(.native-fullscreen):not(.expanded) .hud-sector{flex:1;min-width:0}
+ .console:not(:fullscreen):not(.native-fullscreen):not(.expanded) .hud-sector .eyebrow{line-height:1.5}
+ .console:not(:fullscreen):not(.native-fullscreen):not(.expanded) #sectorName{font-size:10px;letter-spacing:.6px;margin-top:5px}
+ .console:not(:fullscreen):not(.native-fullscreen):not(.expanded) #destinationProgress{font-size:8px;line-height:1.4}
+}

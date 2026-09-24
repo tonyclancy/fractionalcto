@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 71670759,
+  "bytes": 71682243,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 441694,
-      "sha256": "d076a03c34071b42d64e554a9075b2ef63d98c1551d66e24afaae7e595847039"
+      "bytes": 450157,
+      "sha256": "268900006ac80649a6597e19f4dd887481bf4fdf5506b7ee25afc3e1624ed773"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1576,8 +1576,8 @@
     },
     {
       "path": "audio.js",
-      "bytes": 78148,
-      "sha256": "cd80ecd15e9ca76fb2cd8b3ae1518b97f3a8a56a48fcc88f138a0fbe72c1e2d3"
+      "bytes": 78590,
+      "sha256": "90ec2bf4142d69f6f7e8d76445511f9b371a7429c03268c095dbc0b389d9ed17"
     },
     {
       "path": "authored-assets.js",
@@ -1616,13 +1616,13 @@
     },
     {
       "path": "game.js",
-      "bytes": 94313,
-      "sha256": "d82ce1b39bf2ed19f4112b63bcd6e295a508ddd92b43f1ea5ba86462efafa193"
+      "bytes": 94509,
+      "sha256": "aacd8b2f6ae9a72de7d59e4c06c376923e3efde8b788b4cf7f24bc0290de991d"
     },
     {
       "path": "index.html",
       "bytes": 6832,
-      "sha256": "7d7b44b923dcb479228744a58db60c32c27816d9054501ce4d019a3fcb0b4750"
+      "sha256": "41e30d5d6f19a695395f76202950ba227caf80ee3dd970f248702f4c55e85ae2"
     },
     {
       "path": "levels.js",
@@ -1646,8 +1646,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 39640,
-      "sha256": "ca95dfe98d938fd3c0b84c2cb97704a5fdb854525fe1fbca12a4873f2f696926"
+      "bytes": 39841,
+      "sha256": "f802ef9096b1fc8b007bfda61bd96903f58de8b52c588b5dfc2e30ba30dec00b"
     },
     {
       "path": "runs.js",
@@ -1666,8 +1666,8 @@
     },
     {
       "path": "style.css",
-      "bytes": 43093,
-      "sha256": "55f1e412353ade1f26c917eabc7263400b9a467b10c03385aa29777b4abc7097"
+      "bytes": 45275,
+      "sha256": "18bd80cb6dbfac699791ee71426bf785c5a89f7accd99807e63d3cb4912664a2"
     },
     {
       "path": "tide-encounter.js",

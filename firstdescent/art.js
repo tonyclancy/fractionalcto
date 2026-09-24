@@ -74,7 +74,8 @@ function sceneryLighting(definition){
  const biome=definition.worldIdentity?.biome||'',habitat=definition.worldIdentity?.habitat;
  if(definition.stellar||/magma|core|corona/.test(biome)||habitat==='hot')return 'hot';
  if(definition.medium==='water')return 'underwater';
- if(/ice|glacier/.test(biome))return 'ice';
+ if(habitat==='ice'||/ice|glacier/.test(biome))return 'ice';
+ const painting=SCENIC_TERRAIN[definition.worldIdentity?.id];if(painting?.light)return painting.light;
  if(definition.theme==='forge'||biome==='foundry')return 'foundry';
  if(/storm/.test(biome)||definition.theme==='storm')return 'storm';
  if(/cave|trench/.test(biome))return 'cavern';
@@ -262,7 +263,8 @@ function cloudTexture(seed){
 function drawCloudAtmosphere(){
  const cover=sectors[level].atmosphere?.clouds||0;if(!cover||sectors[level].medium==='water')return;
  cloudSurfaces??=[cloudTexture(1),cloudTexture(4),cloudTexture(7)];ctx.save();const t=sectorSceneTime();
- for(let layer=0;layer<((window.flightEffectsQuality||1)<1?1:2);layer++)for(let i=0;i<3;i++){
+ // Keep the sky composition stable when adaptive resolution changes.
+ for(let layer=0;layer<2;layer++)for(let i=0;i<3;i++){
   const width=layer?800:1050,height=layer?210:155,span=W+width,x=((i*span/3-t*(layer?52:15)+span)%span+span)%span-width;
   const y=(layer?H*.65:H*.24)+Math.sin(i*2.4+layer)*80+Math.sin(t*.09+i)*8;
   ctx.globalAlpha=cover*(layer?.55:.4);ctx.drawImage(cloudSurfaces[(i+layer)%3],x,y,width,height);
@@ -380,7 +382,14 @@ function drawPilotProtection(){
 }
 function dronePosition(i){const a=world*.012+i*Math.PI;return{x:ship.x+Math.cos(pilotTurn.angle)*(-50+Math.cos(a)*16),y:ship.y+(i===0?-1:1)*66+Math.sin(a)*12}}
 function drawDrone(i){const p=dronePosition(i),age=world*.012+i*Math.PI,yaw=pilotTurn.angle+Math.sin(age)*.22,pitch=flightPose.pitch*.65,roll=pilotTurn.angle+flightPose.roll*.45+Math.sin(age)*.28;orb(p.x-16*Math.cos(pilotTurn.angle),p.y,19,'#9892ff',.22);drawModel(meshes.wingmate,p.x,p.y,1,yaw,roll,pitch,age);}
-function healthBar(x,y,w,hp,max,color){ctx.save();ctx.fillStyle='#07101ddd';ctx.fillRect(x-w/2-2,y-2,w+4,8);ctx.fillStyle='#4a394b';ctx.fillRect(x-w/2,y,w,4);ctx.fillStyle=color;ctx.fillRect(x-w/2,y,w*clamp(hp/max,0,1),4);ctx.restore()}
+function healthBar(x,y,w,hp,max,color){
+ const fill=w*clamp(hp/Math.max(1,max),0,1);ctx.save();
+ ctx.fillStyle='#06131cdb';ctx.fillRect(x-w/2-2,y-2,w+4,8);
+ ctx.fillStyle='#64758366';ctx.fillRect(x-w/2,y,w,4);
+ ctx.fillStyle=color;ctx.fillRect(x-w/2,y,fill,4);
+ ctx.fillStyle='#ffffff60';ctx.fillRect(x-w/2,y,fill,1);
+ if(fill>1){ctx.fillStyle='#f1fff6';ctx.fillRect(x-w/2+fill-1,y,1,4);}ctx.restore();
+}
 // Route against authored scenery even before either actor enters the viewport.
 let routeCache=null;
 function routeObstacles(){if(routeCache?.time===time&&routeCache.level===level&&routeCache.source===obstacles&&routeCache.length===obstacles.length)return routeCache.value;const all=themeIndex()===0?obstacles.map(o=>({...o,navigation:true,solidCache:null})):obstacles.slice();const c=sectors[level].challenge;if(c&&c.at-4>time&&c.at-4<time+9)all.push({at:c.at-4,x:W+100-(time-c.at+4)*SCROLL_SPEED,shutters:true});for(const [id,p] of gatePlans[level].entries())if(p.at>time&&p.at<time+9)all.push({...p,id,navigation:themeIndex()===0,x:W+100-(time-p.at)*SCROLL_SPEED,w:p.width});routeCache={time,level,source:obstacles,length:obstacles.length,value:all};return all;}
@@ -960,7 +969,7 @@ function drawBossMissile(b){
  ctx.restore();
 }
 function drawHostile(b){if(b.arsenal){drawArsenalRound(b);return;}if(b.bossRound){drawBossMissile(b);return;}if(['fire','water','wind'].includes(b.kind)){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));if(b.bossShot){const scale=b.scale||.9;ctx.scale(scale,scale);orb(0,0,13,b.kind==='fire'?'#ff752d':'#87ecff',.36);ctx.strokeStyle=b.kind==='fire'?'#ffd09a':'#daffff';ctx.lineWidth=2;for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(-Math.min(28,8+(b.age||0)*280),side*5);ctx.quadraticCurveTo(-23,side*(12+Math.sin((b.age||0)*29)*2),-3,side*8);ctx.stroke();}}if(b.kind==='wind'){ctx.strokeStyle='#cbebeb';ctx.lineWidth=2;for(let i=0;i<3;i++){ctx.globalAlpha=.6-i*.15;ctx.beginPath();ctx.ellipse(-i*9,0,5,9+i*3,0,-1.4,1.4);ctx.stroke();}}else{for(let i=4;i>=0;i--)orb(-i*7,Math.sin((b.age||0)*25+i)*i,Math.max(3,12-i*2),b.kind==='fire'?(i>1?'#e55c2b':'#ffe09b'):'#83dfff',.65-i*.09);}ctx.globalCompositeOperation='lighter';if(b.kind==='wind'){orb(0,0,6,'#ecffff',.75);}else{const hot=b.kind==='fire'?'#fff4ca':'#eaffff';orb(0,0,9,hot,.95);ctx.strokeStyle=hot;ctx.lineWidth=3.2;ctx.beginPath();ctx.moveTo(-19,0);ctx.quadraticCurveTo(-7,-1,5,0);ctx.stroke();}ctx.restore();return;}if(b.kind==='energy'){orb(b.x,b.y,24,b.c,.35);orb(b.x,b.y,12,b.c,.95);orb(b.x-3,b.y-3,5,'#ffffff',.8);return}const angle=Math.atan2(b.vy,b.vx);ctx.save();ctx.translate(b.x,b.y);ctx.rotate(angle);if(b.kind==='spore'||b.kind==='seed'){orb(0,0,15*(b.scale||1),'#65f7ae',.35);drawModel(meshes.spore,0,0,b.scale||1,0,Math.sin(world*.03)*.3,0,world*.01);ctx.globalCompositeOperation='lighter';ctx.strokeStyle='#83ffb8';ctx.lineWidth=2.8;ctx.beginPath();ctx.moveTo(-7,0);ctx.quadraticCurveTo(-20,Math.sin(world*.07+b.x)*6,-36,0);ctx.stroke();ctx.strokeStyle='#e5ffc3';ctx.lineWidth=1.1;ctx.beginPath();ctx.moveTo(-5,0);ctx.lineTo(-18,0);ctx.stroke();orb(5,0,3.5*(b.scale||1),'#f1ffd0',.92);}else{const seeker=b.kind==='seeker',tail=seeker?48:35,plume=ctx.createLinearGradient(-tail,0,-7,0);plume.addColorStop(0,'rgba(255,99,42,0)');plume.addColorStop(.45,'rgba(255,153,73,.55)');plume.addColorStop(1,'#d6ffff');orb(-11,0,seeker?17:13,'#ffb76e',.32);poly([[-8,-2.8],[-tail,0],[-8,2.8]],plume);ctx.strokeStyle='#e4ffff';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(-8,0);ctx.lineTo(-tail*.58,0);ctx.stroke();drawModel(meshes.missile,0,0,seeker?1.25:.8,0,.15,0,world*.01);orb(seeker?12:8,0,seeker?6:4.5,seeker?'#ff7765':'#ffe4b0',.78);if(seeker){ctx.strokeStyle='#ffc38a';ctx.globalAlpha=.6;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-17,-3);ctx.lineTo(-36,-1);ctx.moveTo(-17,3);ctx.lineTo(-36,1);ctx.stroke();}}ctx.restore()}
-function drawPickup(d){if(d.fade===0||d.x< -30)return;const c=lootColors[d.type]||'#a0ffdf',fade=d.fade??1;ctx.save();ctx.translate(d.x,d.y+Math.sin(d.age*3)*5);orb(0,0,42,c,.25*fade);ctx.globalAlpha=fade;ctx.strokeStyle=c;ctx.lineWidth=1.6;ctx.save();ctx.rotate(d.age*1.3);for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(0,0,25,i*TAU/3,i*TAU/3+1.3);ctx.stroke()}ctx.restore();ctx.fillStyle='#0b1d30';ctx.beginPath();ctx.arc(0,0,20,0,TAU);ctx.fill();glow(c,10);ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=2.3;
+function drawPickup(d){if(d.fade===0||d.x< -30)return;const c=lootColors[d.type]||'#a0ffdf',fade=d.fade??1;ctx.save();ctx.translate(d.x,d.y+Math.sin(d.age*3)*5);orb(0,0,42,c,.25*fade);ctx.globalAlpha=fade;ctx.strokeStyle=c;ctx.lineWidth=1.6;ctx.save();ctx.rotate(d.age*1.3);for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(0,0,25,i*TAU/3,i*TAU/3+1.3);ctx.stroke()}ctx.restore();const lens=ctx.createRadialGradient(-7,-9,1,0,0,23);lens.addColorStop(0,'#456273');lens.addColorStop(.42,'#142c3d');lens.addColorStop(1,'#06121e');ctx.fillStyle=lens;ctx.beginPath();ctx.arc(0,0,20,0,TAU);ctx.fill();ctx.strokeStyle='#d9fff533';ctx.lineWidth=1;ctx.stroke();glow(c,8);ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=2.3;
  if(d.type==='orb'){drawModel(meshes.weaponOrb,0,0,.7,.2,d.age,0,d.age);}
  else if(d.type==='speed'){for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(-11+i*8,-8);ctx.lineTo(-5+i*8,0);ctx.lineTo(-11+i*8,8);ctx.stroke()}}
  else if(d.type==='companion'){for(const x of [-8,8]){poly([[x-5,-7],[x+6,0],[x-5,7]],c)}ctx.beginPath();ctx.arc(0,0,15,0,TAU);ctx.stroke()}
@@ -973,7 +982,7 @@ function drawPickup(d){if(d.fade===0||d.x< -30)return;const c=lootColors[d.type]
  else if(d.type==='wave'){for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(-9+i*8,0,10,-1.1,1.1);ctx.stroke()}}
  else if(d.type==='missile'){ctx.rotate(-.6);poly([[0,-14],[5,6],[9,12],[0,9],[-9,12],[-5,6]],c)}
  else{for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(-13,0);ctx.lineTo(13,i*8);ctx.stroke()}}
- noGlow();ctx.font='bold 11px "DM Sans",sans-serif';ctx.textAlign='center';ctx.fillStyle='#f2fff9';ctx.fillText(({orb:'WEAPON ORB',companion:'WINGMATE',speed:'SPEED',power:'CANNONS',repair:'REPAIR',rescue:'RESCUE',shield:'SHIELD',frontShield:'FRONT GUARD',nova:'NOVA'})[d.type]||weaponNames[d.type],0,44);ctx.restore();
+ noGlow();ctx.font='bold 11px "DM Sans",sans-serif';ctx.textAlign='center';ctx.fillStyle='#f2fff9';ctx.shadowColor='#03101e';ctx.shadowBlur=4;ctx.shadowOffsetY=1;ctx.fillText(({orb:'WEAPON ORB',companion:'WINGMATE',speed:'SPEED',power:'CANNONS',repair:'REPAIR',rescue:'RESCUE',shield:'SHIELD',frontShield:'FRONT GUARD',nova:'NOVA'})[d.type]||weaponNames[d.type],0,44);ctx.restore();
 }
 function organicVoice(e){return themeIndex()*8+(e.brood?4:e.satellite?5:e.type);}
 // Seed and launch velocity stay fixed for each particle. Retain its original
@@ -1038,7 +1047,7 @@ const SCENERY_BORDER_PERIOD=2304;
 // footprint stays inside the same collision rim and shares its scrolling body.
 function addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,field,project){
  const seed=definition.worldIdentity?.seed||0,period=SCENERY_BORDER_PERIOD,features=[],start=faces.length,biome=definition.worldIdentity?.biome||'',vertical=!!definition.scrollAxis;
- const verdant=style.kind==='stone'&&!metal&&definition.medium==='air'&&/garden|sky|orbital/.test(biome),damp=style.kind==='stone'&&/cave/.test(biome);
+ const verdant=!style.barren&&style.kind==='stone'&&!metal&&definition.medium==='air'&&/garden|sky|orbital/.test(biome),damp=style.kind==='stone'&&/cave/.test(biome);
  const tint=(color,n)=>color.map(v=>clamp(Math.round(v+n),18,218));
  const at=(u,v,lift=0)=>{u=clamp(u,8,period-8);const h=profile(u);v=Math.min(v,h-4);const q=clamp((v+30)/(h+30),0,1),f=field(u,q,810),detail=field(u,q,2210),lip=clamp((q-.83)/.17,0,1),z=metal?-40+lip*44:-42+(f-.5)*40+(detail-.5)*12+lip*39;return project(u,v,z-lift);};
  const face=(v,c,weight=.6,em=0,group='')=>faces.push({v,c,em,flex:0,textureWeight:weight,smoothGroup:group});
@@ -1170,7 +1179,7 @@ function addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,fiel
      for(let k=0;k<4;k++)face([base[k],base[(k+1)%4],ridge],k%2?[159,189,202]:[119,153,175],.7,0,'shore-ice-'+i+'-'+j);
     }
    }else{
-    const c=kind==='basalt'?[96,94,88]:kind==='storm'?[123,136,146]:[134,143,127];
+    const c=style.borderBase.map(v=>clamp(v+9,18,218));
     crust(u,v,size*1.3,size*.49,c,rnd,6+r(15)*7);
     if(form>.58)crust(u-size*.47,v+size*.38,size*.81,size*.24,tint(c,-10),n=>rnd(n+43),5,7);
     if(kind==='basalt'){
@@ -1210,7 +1219,7 @@ function addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,fiel
 }
 function sceneryBorderMesh(definition,edge){
  const style=terrainAppearance(definition),metal=definition.theme==='forge',vertical=!!definition.scrollAxis,seed=style.seed+edge*173,period=SCENERY_BORDER_PERIOD,cols=256;
- const palette={stone:[125,133,132],reef:[68,100,99],basalt:[83,79,76],storm:[106,115,128],ice:[153,183,194]},base=metal?[90,118,132]:palette[style.kind],faces=[];
+ const base=style.borderBase,faces=[];
  const noise=(u,cells,salt)=>{const cell=((u/period*cells)%cells+cells)%cells,i=Math.floor(cell),q=cell-i;return sceneryVariation(seed,i+salt)*(1-q)+sceneryVariation(seed,(i+1)%cells+salt)*q;};
  const openAir=definition.medium==='air'&&!metal&&!/cave|core/.test(definition.worldIdentity?.biome||''),openCount=openAir&&!edge?3:2;
  const openings=Array.from({length:openCount},(_,i)=>({center:180+i*period/openCount+sceneryVariation(seed,i+5100)*200,half:openAir&&!edge?225+sceneryVariation(seed,i+5200)*90:110+sceneryVariation(seed,i+5200)*95}));
@@ -1228,7 +1237,7 @@ function sceneryBorderMesh(definition,edge){
  }
  // Sparse fittings below are attached only to accepted solid patches. The
  // wall itself stays weathered and unstriped between these occasional sites.
- faces.rock=!metal;faces.industrial=metal;faces.terrainMaterial=metal?'foundry':style.kind;faces.terrainRelief=true;faces.terrainWorld=style.seed;
+ faces.rock=!metal;faces.industrial=metal;faces.terrainMaterial=metal?'foundry':style.kind;faces.terrainRelief=true;faces.terrainWorld=style.seed;faces.terrainNeutral=style.kind==='stone'||style.kind==='storm'?.8:0;
  const features=addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,field,project);
  faces.border={axis:vertical?1:0,period,openings,features,heights:Array.from({length:cols+1},(_,i)=>profile(i/cols*period))};
  return faces;
@@ -1241,6 +1250,7 @@ function prepareSceneryBorderEdge(definition,edge){
  return cache.layers[edge];
 }
 function prepareSceneryBorders(definition=sectors[level]){
+ const cached=sceneryBorderCaches.get(definition.id+':'+W+':'+H);if(cached?.layers[0]&&cached.layers[1])return cached;
  prepareSceneryBorderEdge(definition,0);prepareSceneryBorderEdge(definition,1);
  return sceneryBorderCaches.get(definition.id+':'+W+':'+H);
 }
@@ -1312,6 +1322,8 @@ function prepareShoreAtmosphere(stage=sectors[level]){
   const s=seed+band.edge*239+i*197,r=n=>sceneryVariation(s,n),h=sceneryBorderExtent(band,socket.u,socket.u,0);
   anchors.push({band,u:socket.u,h,sourceH:socket.h,phase:r(2)*TAU,width:150+r(3)*70,stretch:.7+r(4)*.6,variant:0,flip:r(6)>.5?-1:1,emits:true,period:3.8+r(8)*5.4,seed:s,outlet:socket.outlet});
  }
+ // Warm deterministic descriptions with the terrain, before the first draw.
+ if(kind==='cloud'||kind==='storm')for(const a of anchors)shoreCloudShape(a,false);
  return cache.atmosphere={kind,profile,anchors};
 }
 const shoreMistSprites=new Map();
@@ -1380,17 +1392,31 @@ function shoreCloudVolumeSprite(kind,variant,lighting=kind==='storm'?'storm':'da
  feather.addColorStop(0,'#ffffff00');feather.addColorStop(.13,'#ffffffff');feather.addColorStop(.83,'#ffffffff');feather.addColorStop(1,'#ffffff00');paint.fillStyle=feather;paint.fillRect(0,0,384,320);
  shoreCloudVolumes.set(id,{source,canvas});while(shoreCloudVolumes.size>12)shoreCloudVolumes.delete(shoreCloudVolumes.keys().next().value);return canvas;
 }
-function shoreCloudVolume(a,front,t,vertical,view=0){
- const r=n=>sceneryVariation(a.seed,n),normal=a.band.edge?-1:1;
- // Unequal clusters leave patches of exposed rock. Near puffs occupy pockets
- // between larger distant crowns, not a second continuous parallel ribbon.
- if(r(201)<(front?.45:.25))return null;
- const width=front?108+r(202)*109:158+r(203)*131,height=width*(front?.49+r(204)*.20:.61+r(205)*.20);
- const depth=front?.7+r(206)*.3:.14+r(207)*.25,wind=Math.sin(t*(.075+r(208)*.025)+a.phase)*7;
- const along=(r(209)-.5)*48+wind*(.4+depth)+view*depth*.75;
- const cross=normal*(front?-7-r(210)*12:12+r(211)*11)+Math.sin(t*.067+a.phase)*2+view*depth*.22;
- return {dx:vertical?cross:along,dy:vertical?along:cross,width,height,alpha:front?.47+r(212)*.14:.73+r(213)*.12,variant:Math.floor(r(214)*3),wisp:front&&r(215)>.74,shadow:front?.08+r(216)*.055:0,depth};
+// Anchor identities live with the two retained terrain caches. Weak keys allow
+// discarded worlds and their cloud descriptions to be collected together.
+const shoreCloudShapes=new WeakMap();
+function shoreCloudShape(a,front){
+ let pair=shoreCloudShapes.get(a);
+ if(!pair){
+  const r=n=>sceneryVariation(a.seed,n),normal=a.band.edge?-1:1;
+  pair=[false,true].map(front=>{
+   if(r(201)<(front?.45:.25))return null;
+   const width=front?108+r(202)*109:158+r(203)*131,height=width*(front?.49+r(204)*.20:.61+r(205)*.20);
+   return {width,height,depth:front?.7+r(206)*.3:.14+r(207)*.25,windRate:.075+r(208)*.025,along:(r(209)-.5)*48,cross:normal*(front?-7-r(210)*12:12+r(211)*11),alpha:front?.47+r(212)*.14:.73+r(213)*.12,variant:Math.floor(r(214)*3),wisp:front&&r(215)>.74,shadow:front?.08+r(216)*.055:0};
+  });shoreCloudShapes.set(a,pair);
+ }
+ return pair[+front];
 }
+function shoreCloudVolume(a,front,t,vertical,view=0,out={}){
+ const shape=shoreCloudShape(a,front);if(!shape)return null;
+ const {width,height,depth,alpha,variant,wisp,shadow}=shape,wind=Math.sin(t*shape.windRate+a.phase)*7;
+ const along=shape.along+wind*(.4+depth)+view*depth*.75;
+ const cross=shape.cross+Math.sin(t*.067+a.phase)*2+view*depth*.22;
+ out.dx=vertical?cross:along;out.dy=vertical?along:cross;out.width=width;out.height=height;out.alpha=alpha;out.variant=variant;out.wisp=wisp;out.shadow=shadow;out.depth=depth;
+ return out;
+}
+const shoreCloudDrawPose={};
+
 function drawShoreCloudContact(a,p,v,vertical,offset){
  // Restrict soft occlusion to the solid face; a cloud must not cast a dark
  // rectangle over the open flight corridor or the distant painted landscape.
@@ -1463,16 +1489,20 @@ function drawShoreVapor(front){
 
 function drawShoreClouds(front){
  if(!shoreUsesClouds()){drawShoreVapor(front);return;}
- const {kind,profile,anchors}=prepareShoreAtmosphere(),vertical=!!sectors[level].scrollAxis,offset=sceneryBorderOffset(),t=sectorSceneTime(),quality=window.flightEffectsQuality||1;
+ const {kind,anchors}=prepareShoreAtmosphere(),vertical=!!sectors[level].scrollAxis,offset=sceneryBorderOffset(),t=sectorSceneTime(),quality=window.flightEffectsQuality||1,lighting=shoreCloudLighting();
  ctx.save();
  for(let i=0;i<anchors.length;i++){
-  const a=anchors[i];if(quality<.8&&i%2)continue;const p=shoreAnchorPosition(a,offset,vertical);if(!p.visible)continue;
-  const v=shoreCloudVolume(a,front,t,vertical,viewY);if(!v)continue;
-  const sprite=v.wisp?shoreAtmosphereSprite('shoreWisp',kind):shoreCloudVolumeSprite(kind,v.variant,shoreCloudLighting());if(!sprite)continue;
-  if(front)drawShoreCloudContact(a,p,v,vertical,offset);
+  const a=anchors[i],v=shoreCloudVolume(a,front,t,vertical,viewY,shoreCloudDrawPose);if(!v)continue;
+  const w=v.wisp?v.width*1.30:v.width,h=v.wisp?v.height*.56:v.height;
+  // Cull using the cloud's actual footprint, including wind and view parallax,
+  // rather than the terrain socket. Recycle only beyond the screen edge.
+  const reach=(vertical?h:w)*.5+Math.abs(vertical?v.dy:v.dx)+2;
+  const p=shoreAnchorPosition(a,offset,vertical,Math.max(0,reach-a.width*.65));if(!p.visible)continue;
+  const sprite=v.wisp?shoreAtmosphereSprite('shoreWisp',kind):shoreCloudVolumeSprite(kind,v.variant,lighting);if(!sprite)continue;
+  // Low detail saves contact-shadow work, never whole visible cloud banks.
+  if(front&&quality>=.8)drawShoreCloudContact(a,p,v,vertical,offset);
   // The original photographic sunlight direction remains upright even under
   // an overhang; flipping a top bank upside down would invert its shadows.
-  const w=v.wisp?v.width*1.30:v.width,h=v.wisp?v.height*.56:v.height;
   ctx.globalAlpha=v.alpha*(kind==='storm'?.86:1);ctx.drawImage(sprite,p.x+v.dx-w*.5,p.y+v.dy-h*.5,w,h);
  }
  ctx.restore();
@@ -1489,10 +1519,10 @@ function drawShoreAtmosphere(){
  const {kind,profile,anchors}=prepareShoreAtmosphere(),sprite=shoreMistSprite(kind),vertical=!!sectors[level].scrollAxis,offset=sceneryBorderOffset(),t=sectorSceneTime(),quality=window.flightEffectsQuality||1;
  ctx.save();
  for(let i=0;i<anchors.length;i++){
-  const a=anchors[i];if(quality<.8&&i%2)continue;const p=shoreAnchorPosition(a,offset,vertical);if(!p.visible)continue;
+  const a=anchors[i];if(kind!=='cloud'&&kind!=='storm'&&quality<.8&&i%2)continue;const p=shoreAnchorPosition(a,offset,vertical);if(!p.visible)continue;
   // Narrow, soft contact haze carries the background hue into the stone face.
   // It follows the contour instead of floating at a fixed distance below it.
-  ctx.globalAlpha=profile.veil*(shoreUsesClouds()?.38:1);ctx.save();ctx.translate(p.x,p.y);if(vertical)ctx.rotate(Math.PI/2);ctx.drawImage(sprite,-a.width*.48,-37,a.width*.96,74);ctx.restore();
+  ctx.globalAlpha=profile.veil*(kind==='cloud'||kind==='storm'?.38:1);ctx.save();ctx.translate(p.x,p.y);if(vertical)ctx.rotate(Math.PI/2);ctx.drawImage(sprite,-a.width*.48,-37,a.width*.96,74);ctx.restore();
   if(a.emits){const outlet=shoreAnchorPosition(a,offset,vertical,0,true);if(kind==='hot'||kind==='forge')drawShoreHeat(a,outlet,t);drawShoreParticles(a,outlet,kind,t,quality,offset,vertical);}
  }
  ctx.restore();
@@ -1861,6 +1891,17 @@ function panoramaLayout(img){
 // inspected for visible surface water opts in; underwater, lava and cloud-only
 // scenes must never inherit ripples merely because they share an encounter.
 const SCENIC_WATER=freezeContent({
+ // Additional painted lakes and cascades audited against all 92 landscapes.
+ 'world:cervus-verdigris':{"color":"#e9d6ad","pools":[[[0.46,0.64],[0.56,0.64],[0.59,0.67],[0.75,0.69],[0.8,0.75],[0.59,0.74],[0.49,0.71]],[[0.46,0.54],[0.59,0.54],[0.63,0.56],[0.56,0.58],[0.46,0.58]],[[0.19,0.58],[0.28,0.58],[0.3,0.6],[0.22,0.61]]],"falls":[{"path":[[0.915,0.477,0.004],[0.909,0.524,0.005],[0.904,0.576,0.007],[0.901,0.617,0.009]]},{"path":[[0.874,0.477,0.002],[0.871,0.53,0.003],[0.869,0.588,0.004]]},{"path":[[0.228,0.45,0.003],[0.227,0.478,0.004],[0.233,0.515,0.006]]}]},
+ 'world:talos-beryl':{"color":"#e6d5b6","pools":[[[0.4,0.576],[0.48,0.583],[0.5,0.594],[0.55,0.59],[0.6,0.566],[0.62,0.611],[0.55,0.677],[0.5,0.688],[0.47,0.643],[0.4,0.655]],[[0.624,0.667],[0.674,0.68],[0.729,0.7],[0.738,0.744],[0.709,0.774],[0.636,0.751]],[[0.506,0.493],[0.548,0.491],[0.566,0.509],[0.553,0.536],[0.51,0.532]]],"falls":[{"path":[[0.57,0.869,0.004],[0.56,0.913,0.006],[0.559,0.96,0.008]]},{"path":[[0.46,0.771,0.003],[0.457,0.813,0.004],[0.458,0.875,0.006]]},{"path":[[0.207,0.614,0.002],[0.205,0.65,0.003],[0.211,0.678,0.005]]},{"path":[[0.806,0.65,0.002],[0.809,0.701,0.003],[0.813,0.75,0.005]]}]},
+ 'world:halcyon-cirrus':{"color":"#c5dedb","pools":[[[0.455,0.643],[0.51,0.65],[0.56,0.682],[0.63,0.703],[0.628,0.74],[0.558,0.724],[0.528,0.7]],[[0.374,0.555],[0.421,0.566],[0.463,0.567],[0.439,0.6],[0.398,0.605],[0.37,0.585]],[[0.623,0.755],[0.714,0.772],[0.752,0.818],[0.73,0.864],[0.678,0.823]]],"falls":[{"path":[[0.176,0.607,0.003],[0.177,0.636,0.004],[0.185,0.668,0.005]]},{"path":[[0.205,0.713,0.003],[0.208,0.746,0.005],[0.218,0.778,0.006]]},{"path":[[0.339,0.856,0.004],[0.336,0.88,0.005],[0.335,0.907,0.007]]},{"path":[[0.875,0.558,0.002],[0.874,0.584,0.003],[0.864,0.62,0.004]]}]},
+ 'world:selen-eidolon':{"color":"#d7e4dd","pools":[[[0.53,0.501],[0.61,0.5],[0.654,0.515],[0.633,0.54],[0.57,0.543],[0.532,0.522]],[[0.632,0.573],[0.709,0.565],[0.741,0.582],[0.723,0.615],[0.672,0.61]],[[0.55,0.717],[0.621,0.721],[0.65,0.75],[0.617,0.792],[0.57,0.784]]],"falls":[{"path":[[0.178,0.644,0.004],[0.172,0.686,0.006],[0.167,0.749,0.009]]},{"path":[[0.272,0.66,0.003],[0.269,0.71,0.005],[0.271,0.772,0.007]]},{"path":[[0.344,0.67,0.003],[0.34,0.735,0.004],[0.345,0.785,0.006]]},{"path":[[0.488,0.873,0.004],[0.493,0.91,0.006],[0.495,0.964,0.009]]}]},
+ 'world:umbra-viridia':{"color":"#c5c9c7","pools":[[[0.224,0.69],[0.325,0.691],[0.382,0.718],[0.366,0.749],[0.305,0.741],[0.254,0.724]],[[0.498,0.759],[0.559,0.748],[0.637,0.786],[0.666,0.827],[0.599,0.815],[0.55,0.79]],[[0.573,0.639],[0.623,0.636],[0.649,0.657],[0.636,0.678],[0.58,0.672]]],"falls":[]},
+ 'world:virent-lichen':{"color":"#badbd0","pools":[[[0.39,0.584],[0.558,0.576],[0.589,0.615],[0.508,0.636],[0.419,0.62]],[[0.629,0.639],[0.779,0.632],[0.869,0.678],[0.842,0.727],[0.745,0.735],[0.675,0.69]],[[0.192,0.6],[0.277,0.603],[0.332,0.63],[0.303,0.66],[0.212,0.646]]],"falls":[{"path":[[0.311,0.878,0.003],[0.309,0.924,0.004],[0.305,0.977,0.006]]},{"path":[[0.415,0.823,0.002],[0.414,0.865,0.003],[0.42,0.903,0.004]]},{"path":[[0.589,0.854,0.002],[0.588,0.915,0.003],[0.587,0.969,0.004]]}]},
+ 'world:elysian-serein':{"color":"#e0e2cf","pools":[[[0.236,0.722],[0.28,0.716],[0.32,0.727],[0.339,0.746],[0.316,0.764],[0.271,0.757]],[[0.004,0.698],[0.048,0.701],[0.078,0.715],[0.061,0.73],[0.012,0.728]],[[0.83,0.566],[0.87,0.566],[0.89,0.578],[0.876,0.587],[0.838,0.586]]],"falls":[{"path":[[0.225,0.366,0.003],[0.222,0.4,0.005],[0.218,0.458,0.007]]},{"path":[[0.16,0.381,0.004],[0.162,0.429,0.005],[0.158,0.479,0.007]]},{"path":[[0.788,0.661,0.004],[0.777,0.727,0.006],[0.77,0.788,0.009]]},{"path":[[0.677,0.628,0.004],[0.671,0.71,0.005],[0.668,0.774,0.007]]},{"path":[[0.359,0.796,0.004],[0.365,0.868,0.006],[0.367,0.94,0.008]]}]},
+ 'world:aether-aerial':{"color":"#dfd9d2","pools":[[[0.076,0.735],[0.13,0.729],[0.151,0.753],[0.128,0.773],[0.085,0.768]],[[0.189,0.534],[0.229,0.522],[0.25,0.542],[0.218,0.561],[0.191,0.552]],[[0.788,0.332],[0.837,0.333],[0.864,0.348],[0.825,0.36],[0.791,0.35]]],"falls":[{"path":[[0.326,0.595,0.004],[0.334,0.66,0.006],[0.339,0.738,0.008],[0.342,0.805,0.01]]},{"path":[[0.263,0.619,0.003],[0.269,0.697,0.005],[0.275,0.774,0.007]]},{"path":[[0.489,0.66,0.003],[0.5,0.718,0.005],[0.507,0.785,0.007]]},{"path":[[0.813,0.367,0.002],[0.813,0.409,0.003],[0.816,0.455,0.005]]},{"path":[[0.82,0.774,0.003],[0.819,0.833,0.005],[0.819,0.889,0.007]]}]},
+ 'world:meridian-lucent':{"color":"#c5d8e2","pools":[[[0.398,0.774],[0.447,0.779],[0.484,0.801],[0.465,0.822],[0.424,0.813]],[[0.367,0.823],[0.401,0.819],[0.416,0.831],[0.399,0.85],[0.365,0.843]],[[0.06,0.645],[0.113,0.646],[0.133,0.661],[0.108,0.68],[0.065,0.666]]],"falls":[{"path":[[0.217,0.751,0.004],[0.217,0.79,0.005],[0.226,0.849,0.007]]},{"path":[[0.393,0.875,0.003],[0.394,0.927,0.005],[0.396,0.974,0.006]]},{"path":[[0.557,0.827,0.003],[0.56,0.875,0.004],[0.561,0.924,0.006]]},{"path":[[0.869,0.363,0.003],[0.868,0.414,0.004],[0.865,0.47,0.006]]},{"path":[[0.222,0.348,0.002],[0.225,0.388,0.003],[0.225,0.429,0.005]]}]},
+
  'world:saffron-stillwater':{color:'#c9dbe5',pools:[[[.34,.579],[.53,.578],[.67,.602],[.63,.626],[.41,.626]],[[.60,.636],[.77,.641],[.86,.668],[.74,.682],[.61,.660]]],falls:[]},
  'world:caelus':{color:'#c4dcdb',pools:[[[.575,.469],[.624,.468],[.656,.498],[.669,.530],[.62,.534],[.582,.513]],[[.492,.668],[.545,.684],[.582,.711],[.565,.736],[.523,.716],[.495,.694]],[[.758,.577],[.798,.592],[.820,.630],[.773,.614]]],falls:[{path:[[.076,.354,.003],[.082,.386,.005],[.088,.421,.007],[.094,.458,.010],[.099,.489,.012]]},{path:[[.371,.545,.004],[.373,.570,.005],[.376,.597,.007],[.381,.626,.010]]},{path:[[.861,.624,.003],[.863,.661,.004],[.857,.702,.006],[.850,.730,.009]]}]},
  'world:lyra-aster':{color:'#eadcc3',pools:[[[.398,.431],[.601,.438],[.678,.471],[.551,.5],[.4,.486]],[[.457,.535],[.629,.523],[.668,.574],[.541,.598],[.48,.59]],[[.656,.754],[.707,.743],[.807,.768],[.791,.81],[.693,.794]]],falls:[]},
@@ -1871,6 +1912,7 @@ function scenicWaterContains(polygon,x,y){let inside=false;for(let i=0,j=polygon
 function prepareScenicWater(key){
  const definition=SCENIC_WATER[key];if(!definition)return null;
  if(scenicWaterCache?.key===key)return scenicWaterCache;
+ const falls=definition.falls.map(f=>({...f,minX:Math.min(...f.path.map(q=>q[0]-q[2]*2)),maxX:Math.max(...f.path.map(q=>q[0]+q[2]*2))}));
  const strokes=[];let seed=931;const unit=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
  for(const polygon of definition.pools){const xs=polygon.map(p=>p[0]),ys=polygon.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);let count=0;
   for(let trial=0;trial<180&&count<20;trial++){const x=minX+unit()*(maxX-minX),y=minY+unit()*(maxY-minY),length=.002+unit()*.006;
@@ -1881,7 +1923,7 @@ function prepareScenicWater(key){
  if(definition.falls.length&&!scenicMistSprite){
   scenicMistSprite=document.createElement('canvas');scenicMistSprite.width=scenicMistSprite.height=64;const g=scenicMistSprite.getContext('2d'),fade=g.createRadialGradient(32,32,0,32,32,32);fade.addColorStop(0,'#e1e8e7');fade.addColorStop(.45,'#dae4e280');fade.addColorStop(1,'#dae4e200');g.fillStyle=fade;g.fillRect(0,0,64,64);
  }
- return scenicWaterCache={key,definition,strokes};
+ return scenicWaterCache={key,definition,strokes,falls};
 }
 function drawScenicWaterTile(water,t,x,y,p,vertical){
  ctx.save();ctx.translate(x,y);ctx.strokeStyle=water.definition.color;ctx.lineCap='round';ctx.lineWidth=.7;ctx.globalAlpha=.20;ctx.beginPath();
@@ -1891,7 +1933,7 @@ function drawScenicWaterTile(water,t,x,y,p,vertical){
   ctx.moveTo(xx-length,yy);ctx.quadraticCurveTo(xx,yy+Math.sin(a)*.35,xx+length,yy);
  }ctx.stroke();
  ctx.restore();
- for(const fall of water.definition.falls)drawScenicCascade(fall,t,x,y,p,vertical,stride);
+ for(const fall of water.falls)drawScenicCascade(fall,t,x,y,p,vertical,stride);
 }
 // Interpolate an authored channel: x/y center and half-width are all in source
 // image coordinates. The same channel supplies the clip and flowing filaments.
@@ -1899,7 +1941,9 @@ function scenicCascadePoint(fall,u,out){const n=fall.path.length-1,f=clamp(u,0,1
 const cascadePoint=[0,0,0];
 function drawScenicCascade(fall,t,x,y,p,vertical,stride){
  const first=fall.path[0],last=fall.path.at(-1),edge=clamp((vertical?first[1]*p.ih:first[0]*p.iw)/p.overlap,0,1),feather=edge*edge*(3-2*edge);
- if(y+last[1]*p.ih<0||y+first[1]*p.ih>H)return;
+ // Include the widest base spray, not just the narrow flowing channel.
+ const spray=last[2]*p.iw*2.5;
+ if(x+fall.maxX*p.iw+spray<0||x+fall.minX*p.iw-spray>W||y+last[1]*p.ih+spray<0||y+first[1]*p.ih-spray>H)return;
  ctx.save();ctx.translate(x,y);ctx.beginPath();
  for(let i=0;i<fall.path.length;i++){const q=fall.path[i],xx=(q[0]-q[2])*p.iw,yy=q[1]*p.ih;i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);}
  for(let i=fall.path.length-1;i>=0;i--){const q=fall.path[i];ctx.lineTo((q[0]+q[2])*p.iw,q[1]*p.ih);}ctx.closePath();ctx.clip();
@@ -2208,12 +2252,34 @@ function updateTechLaser(b,dt){
 }
 
 
+// Painting-specific ground finishes. Encounter labels such as "orbital" or
+// "sky" do not tell us whether the depicted ground is green, snowy or barren.
+// Authored once, so color cannot change as an image loads or the camera moves.
+const SCENIC_TERRAIN=freezeContent({
+ 'caelus':{base:[125,133,132]},
+ 'lyra-aster':{base:[119,139,154],barren:true,light:'ice'},
+ 'nereid-mistral':{base:[139,133,117],barren:true},
+ 'pyrrha-aureole':{base:[128,139,150],barren:true,light:'ice'},
+ 'argent-peregrine':{base:[120,135,150],barren:true,light:'ice'},
+ 'noctis-rook':{base:[114,131,151],barren:true,light:'ice'},
+ 'elysian-serein':{base:[146,145,130]},
+ 'aether-aerial':{base:[136,136,147]},
+ 'meridian-lucent':{base:[122,139,155]},
+ 'solenne-zephyr':{base:[134,127,113]},
+ 'halcyon-cirrus':{base:[118,138,132]},
+ 'selen-eidolon':{base:[143,145,133]},
+ 'talos-beryl':{base:[133,125,113]},
+ 'cervus-verdigris':{base:[135,124,111]},
+ 'umbra-viridia':{base:[124,116,134]},
+ 'virent-lichen':{base:[100,131,120]}
+});
 function terrainAppearance(definition=sectors[level]){
- const world=definition.worldIdentity||{},biome=world.biome||definition.environment||'',seed=world.seed||0;
- const kind=/ice|glacier/i.test(biome)?'ice':definition.medium==='water'?'reef':/magma|solar|core/.test(biome)||world.habitat==='hot'?'basalt':/storm/.test(biome)?'storm':'stone';
+ const world=definition.worldIdentity||{},biome=world.biome||definition.environment||'',seed=world.seed||0,painting=SCENIC_TERRAIN[world.id]||{};
+ const kind=world.habitat==='ice'||/ice|glacier/i.test(biome)?'ice':definition.medium==='water'?'reef':/magma|solar|core|corona/.test(biome)||world.habitat==='hot'?'basalt':/storm/.test(biome)?'storm':'stone';
  const colors={ice:[195,216,221],reef:[68,100,99],basalt:[83,79,76],storm:[106,115,128],stone:[125,133,132]};
- const base=colors[kind].map((n,i)=>Math.round(n*(.90+((seed>>>(i*5))&15)/100)));
- return{kind,base,seed,metal:kind==='basalt'?[106,88,68]:kind==='storm'?[100,116,125]:[91,107,111],accent:world.accent||[184,136,78]};
+ const vary=color=>color.map((n,i)=>Math.round(n*(.96+((seed>>>(i*5))&15)/200)));
+ const base=painting.base?vary(painting.base):colors[kind].map((n,i)=>Math.round(n*(.90+((seed>>>(i*5))&15)/100))),borderBase=vary(painting.base||(definition.theme==='forge'?[90,118,132]:kind==='ice'?[153,183,194]:colors[kind]));
+ return{kind,base,borderBase,seed,barren:!!painting.barren||world.habitat==='ice',metal:kind==='basalt'?[106,88,68]:kind==='storm'?[100,116,125]:[91,107,111],accent:world.accent||[184,136,78]};
 }
 // Bake an oblique relief into retained terrain, once at construction. Rear
 // silhouette vertices stay in place, so solidity and room-edge anchors agree
