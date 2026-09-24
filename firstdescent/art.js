@@ -412,8 +412,9 @@ function steerFormationEnemy(e,x,y,dt){
  e.routeY=e.y;e.routeVY=e.formationVY;
 }
 function prepareEnemyEntry(e,wave,n){
- if(wave%4===2&&!e.elite&&prepareShoreEntry(e,wave,n))return;
- const advanced=sectors[level].entrySides||['right'],flanking=sectors[level].flankWaves?.includes(wave);e.entry=flanking?'left':advanced[wave%advanced.length];e.direction=e.entry==='left'?1:-1;
+ const authored=sectors[level].encounterWaves?.[wave];
+ if(!authored&&wave%4===2&&!e.elite&&prepareShoreEntry(e,wave,n))return;
+ const advanced=sectors[level].entrySides||['right'],flanking=sectors[level].flankWaves?.includes(wave);e.entry=authored?(authored.side||'right'):flanking?'left':advanced[wave%advanced.length];e.direction=e.entry==='left'?1:-1;
  if(sectors[level].scrollAxis){e.entry=(flanking||wave%5===4)?(sectors[level].scrollAxis==='down'?'top':'bottom'):(sectors[level].scrollAxis==='down'?'bottom':'top');e.verticalTravel=true;e.verticalDirection=e.entry==='top'?1:-1;e.baseX=clamp(W*.5+Math.sin(wave*1.7)*240+(n-2)*60,200,W-200);e.y=e.entry==='top'?-180-n*96:H+180+n*96;e.x=enemyRouteX(e,e.baseX);e.routeX=e.x;e.direction=e.x<W/2?1:-1;return;}
 
  if(e.entry==='left'){e.x=-180-n*100;}
@@ -563,7 +564,7 @@ function enemyKinematics(e,dt){
 // Pose and sockets share one transform, including swarm scale and barrel rolls.
 function speciesFlightPose(e){
  const organic=isOrganicEnemy(e),age=e.age+(e.phase||0),activity=organic?organicSpin(age):null;
- const pitch=(e.travelPitch||0)+(activity?.pitch||0);
+ const reaction=(e.hitKick||0)*clamp((e.hit||0)/.12,0,1),pitch=(e.travelPitch||0)+(activity?.pitch||0)+reaction;
  if(!e.satellite&&(e.brood||e.elite))return{
   // A shallow three-quarter attitude reveals the hull's depth. Banking follows
   // the actual turn/climb; upright elites never accumulate a belly-up roll.
@@ -1694,7 +1695,8 @@ const bossPassProfiles={
  3:{first:24,wait:25,dash:2.8,turn:1.6,rear:3.8,left:245,curve:32},
  5:{first:22,wait:20,dash:2.45,turn:1.35,rear:3.2,left:250,curve:-38}
 };
-function updateBossPass(b,dt){const profile=bossPassProfiles[bossIndex()];if(!profile)return false;
+function updateBossPass(b,dt){const base=bossPassProfiles[bossIndex()];if(!base)return false;
+ const benchmark=sectors[level].combatDirector==='reaver-counterattack',phase=bossCombatPhase(b),profile=benchmark?{...base,dash:base.dash*(1-phase*.09)}:base;
  b.passClock=(b.passClock??profile.first)-dt;
  if(!b.arsenal&&!b.pass&&!b.breath&&!b.eyeAttack&&b.passClock<=0&&b.charge<=0&&!(b.vacuum>0)&&!(b.barrage>0)&&!hazards.length&&!b.rackShots&&!b.salvoWindup&&!b.recovery&&!(bossIndex()===0&&b.exposed>0)&&!b.pressureFollowup&&!b.sporePods?.length&&!acidClouds.some(h=>h.bossTrap)&&!b.broodWatch&&(!b.comboSteps?.length||b.comboPassPending)){
   const clearance=80,bodyHalf=chargeLaneHalfHeight(),room=H/2-clearance-bodyHalf;
@@ -1703,17 +1705,17 @@ function updateBossPass(b,dt){const profile=bossPassProfiles[bossIndex()];if(!pr
   if(room<0){b.passClock=profile.wait;return false;}
   const curve=Math.sign(profile.curve)*Math.min(Math.abs(profile.curve),room),halfHeight=bodyHalf+Math.abs(curve);
   b.pass={stage:'warn',age:0,halfHeight,clearance,curve,y:clamp(ship.y,halfHeight+clearance,H-halfHeight-clearance),fromX:b.x,fromY:b.y,vx0:b.navVX||0,vy0:b.navVY||0};
-  b.attack=null;b.fireHeading=null;b.rush=0;announce('HOSTILE CHARGE','EVADE ITS CHARGE · SPACE FLIPS YOUR SHIP');
+  b.attack=null;b.fireHeading=null;b.rush=0;window.flightAudio?.bossAttack?.('dive-warning',bossIndex(),b.x);announce('HOSTILE CHARGE','EVADE ITS CHARGE · SPACE FLIPS YOUR SHIP');
  }
  const p=b.pass;if(!p)return false;p.age+=dt;
- const next=stage=>{if(stage==='dash'||stage==='return')window.flightAudio?.bossAttack?.('lunge',bossIndex(),b.x);p.stage=stage;p.age=0;p.fromX=b.x;p.fromY=b.y;};
+ const next=stage=>{if(stage==='returnWarn')window.flightAudio?.bossAttack?.('dive-warning',bossIndex(),b.x);if(stage==='dash'||stage==='return')window.flightAudio?.bossAttack?.('lunge',bossIndex(),b.x);p.stage=stage;p.age=0;p.fromX=b.x;p.fromY=b.y;};
  if(p.stage==='warn'){const u=clamp(p.age/1.55,0,1),brake=u-6*u*u*u+8*u*u*u*u-3*u*u*u*u*u;b.x=p.fromX+(p.vx0||0)*1.55*brake;b.y=p.fromY+(p.y-p.fromY)*passEase(u)+(p.vy0||0)*1.55*brake;if(p.age>=1.55)next('dash');}
  else if(p.stage==='dash'){const t=clamp(p.age/profile.dash,0,1),ease=passEase(t);b.x=p.fromX+(profile.left-p.fromX)*ease;b.y=p.y+(p.curve??profile.curve)*Math.pow(Math.sin(Math.PI*t),2);if(t===1)next('turn');}
- else if(p.stage==='turn'){b.turnYaw=Math.PI*passEase(p.age/profile.turn);if(p.age>=profile.turn){b.facing=1;b.shoot=0;b.special=1.1;b.recovery=0;next('rear');announce('HOSTILE BEHIND','FLIP · ATTACK THE HOSTILE BEHIND');}}
- else if(p.stage==='rear'){const t=clamp(p.age/profile.rear,0,1);b.x=p.fromX+70*Math.pow(Math.sin(Math.PI*t),2);b.y=p.fromY+Math.sin(t*Math.PI*2)*32*Math.pow(Math.sin(t*Math.PI),2);if(p.age>=profile.rear&&!bossPatternBusy(b)){p.y=clamp(ship.y,p.halfHeight+(p.clearance??80),H-p.halfHeight-(p.clearance??80));next('returnWarn');}}
+ else if(p.stage==='turn'){b.turnYaw=Math.PI*passEase(p.age/profile.turn);if(p.age>=profile.turn){b.facing=1;b.shoot=0;b.special=1.1;b.recovery=0;next('rear');if(benchmark){p.rewardWindow=2.8;b.exposed=2.8;b.recovery=2.8;holdBossSalvo(b);announce('COUNTERATTACK','FLIP · AIM AT THE OPEN MOUTH');}else announce('HOSTILE BEHIND','FLIP · ATTACK THE HOSTILE BEHIND');}}
+ else if(p.stage==='rear'){const t=clamp(p.age/(profile.rear+(p.rewardWindow||0)),0,1);b.x=p.fromX+70*Math.pow(Math.sin(Math.PI*t),2);b.y=p.fromY+Math.sin(t*Math.PI*2)*32*Math.pow(Math.sin(t*Math.PI),2);if(p.age>=profile.rear+(p.rewardWindow||0)&&!bossPatternBusy(b)){p.y=clamp(ship.y,p.halfHeight+(p.clearance??80),H-p.halfHeight-(p.clearance??80));next('returnWarn');}}
  else if(p.stage==='returnWarn'){b.y=p.fromY+(p.y-p.fromY)*passEase(p.age/1.55);if(p.age>=1.55)next('return');}
  else if(p.stage==='return'){const t=clamp(p.age/profile.dash,0,1);b.x=p.fromX+(1090-p.fromX)*passEase(t);b.y=p.y-(p.curve??profile.curve)*Math.pow(Math.sin(Math.PI*t),2);if(t===1)next('resetTurn');}
- else if(p.stage==='resetTurn'){b.turnYaw=Math.PI*(1-passEase(p.age/profile.turn));if(p.age>=profile.turn){b.turnYaw=0;b.facing=-1;b.pass=null;b.passClock=profile.wait-bossCombatPhase(b)*1.5;b.special=3.5;b.shoot=1.6;b.navVX=b.navVY=0;}}
+ else if(p.stage==='resetTurn'){b.turnYaw=Math.PI*(1-passEase(p.age/profile.turn));if(p.age>=profile.turn){b.turnYaw=0;b.facing=-1;b.pass=null;b.passClock=profile.wait-bossCombatPhase(b)*1.5;b.special=3.5;b.shoot=1.6;b.navVX=b.navVY=0;if(benchmark){b.exposed=2.2;b.recovery=2.2;holdBossSalvo(b);}}}
  return true;
 }
 function rotorContact(o,x,y,r=0){if(themeIndex()!==0&&!obstacleForms(o).length)return false;const cx=o.x+210,cy=380,dx=x-cx,dy=y-cy,a=(time-o.at)*o.spin,xx=dx*Math.cos(a)+dy*Math.sin(a),yy=-dx*Math.sin(a)+dy*Math.cos(a);return Math.hypot(dx,dy)<29+r||(Math.abs(xx)<155+r&&Math.abs(yy)<14+r);}

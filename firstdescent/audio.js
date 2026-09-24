@@ -121,7 +121,7 @@ window.flightAudio=(()=>{
   const voice={osc,amp,music,priority,endAt:now+duration+.012,disposed:false,dispose(){if(this.disposed)return;this.disposed=true;for(const node of nodes)node?.disconnect();voices.delete(voice);releasing.delete(voice)}};
   voices.add(voice);voiceCounters.started++;voiceCounters.peak=Math.max(voiceCounters.peak,voices.size+releasing.size);osc.onended=()=>voice.dispose();return voice;
  }
- function clear(){if(worldDucker){worldDuckUntil=0;worldDucker.gain.cancelScheduledValues(context.currentTime);worldDucker.gain.setTargetAtTime(1,context.currentTime,.08);}lastCries.clear();for(const v of [...voices,...releasing])if(!v.music)stopVoice(v);lastSwim=-1;lastBlast=-1;lastShieldHit=-1;duckUntil=0;duckDepth=1;if(musicDucker){musicDucker.gain.cancelScheduledValues(context.currentTime);musicDucker.gain.setTargetAtTime(1,context.currentTime,.12)}}
+ function clear(){lastImpactAt=-1;if(worldDucker){worldDuckUntil=0;worldDucker.gain.cancelScheduledValues(context.currentTime);worldDucker.gain.setTargetAtTime(1,context.currentTime,.08);}lastCries.clear();for(const v of [...voices,...releasing])if(!v.music)stopVoice(v);lastSwim=-1;lastBlast=-1;lastShieldHit=-1;duckUntil=0;duckDepth=1;if(musicDucker){musicDucker.gain.cancelScheduledValues(context.currentTime);musicDucker.gain.setTargetAtTime(1,context.currentTime,.12)}}
  function setEnabled(value){enabled=value;if(!enabled)clear();if(master){master.gain.cancelScheduledValues(context.currentTime);master.gain.setTargetAtTime(enabled?.8:0,context.currentTime,.015)}}
  function note({frequency=440,end=frequency,duration=.12,gain=.04,type='sine',pan=0,offset=0,attack=.006,hold=0,cutoff=2800,space=false,music=false,guitar=false,guitarBend=.965,endPan=null,cutoffEnd=null,vibrato=0,vibratoRate=5,cue=false,instrument=null,priority=cue?6:music?1:3}={}){
   if(!(music?musicEnabled:enabled)||!context||context.state!=='running'||!allocateVoice(priority,music))return;
@@ -229,54 +229,57 @@ window.flightAudio=(()=>{
   if(musicBus){musicBus.gain.cancelScheduledValues(context.currentTime);musicBus.gain.setTargetAtTime(0,context.currentTime,.025);}
   for(const v of [...voices])if(v.music)releaseVoice(v);
  }
- // G-major expedition theme: eight-bar hook, developed answer, contrasting
- // bridge, then the theme's full return. Events are [eighth-note step, MIDI,
- // held quarter-note beats]. Rests and releases belong to the phrase itself.
+ // Original D-Mixolydian theme. A short pickup leaps into a held note, then
+ // answers off the beat. The bass carries motion while the melody sings.
+ // Events: [eighth-note position (including half steps), MIDI, quarter beats].
  const titleChords={
   em:{root:40,voices:[55,59,64]},emd:{root:38,voices:[55,59,64]},
   c:{root:36,voices:[55,59,64]},b:{root:35,voices:[54,57,63]},
   am:{root:33,voices:[55,60,64]},emg:{root:43,voices:[55,59,64]},
   d:{root:38,voices:[54,57,62]},g:{root:43,voices:[55,59,62]},
-  fs:{root:42,voices:[57,60,64]}
+  fs:{root:42,voices:[57,60,64]},
+  td:{root:38,voices:[57,62,66]},tc:{root:36,voices:[55,60,64]},
+  tg:{root:31,voices:[55,59,62]},ta:{root:33,voices:[57,61,64]},
+  tbm:{root:35,voices:[54,59,62]},tem:{root:40,voices:[55,59,64]}
  };
  const titleChanges=[
-  'g','d','em','c','g','d','c','d',
-  'g','d','em','c','g','d','c','d',
-  'am','c','g','d','am','c','em','d',
-  'g','d','em','c','g','d','c','g'
+  'td','tc','tg','td','td','tc','tg','ta',
+  'td','tc','tg','td','tbm','tg','tem','ta',
+  'tbm','tg','td','ta','tbm','tg','tem','ta',
+  'td','tc','tg','td','tbm','tg','ta','td'
  ];
- // Original syncopated hook: repeated pickup, an upward answer, then a
- // falling resolution. It arrives with the full rhythm section on beat one.
+ // The five-note identity returns intact before each developed answer.
  const titleTheme=[
-  [[0,71,.42],[1,74,.42],[2,71,.42],[3,69,.42],[4,67,.85],[6,74,.42],[7,76,.42]],
-  [[0,78,.85],[2,74,.42],[3,69,.85],[5,74,.42],[6,76,.85]],
-  [[0,79,.42],[1,78,.42],[2,76,.85],[4,71,.42],[5,74,.42],[6,76,.85]],
-  [[0,76,.42],[1,74,.42],[2,72,.42],[3,67,.85],[5,69,.42],[6,72,.85]],
-  [[0,71,.42],[1,74,.42],[2,71,.42],[3,69,.42],[4,67,.85],[6,74,.42],[7,79,.42]],
-  [[0,78,.85],[2,76,.42],[3,74,.42],[4,69,.85],[6,66,.85]],
-  [[0,67,.42],[1,72,.42],[2,76,.85],[4,79,.42],[5,76,.42],[6,72,.85]],
-  [[0,74,.42],[1,76,.42],[2,78,.85],[4,74,.85],[6,69,.42]]
+  [[0,74,.42],[1,76,.42],[2,81,1.18],[4.5,78,.64],[6,76,.86]],
+  [[0,74,.42],[1,72,.42],[2,79,1.18],[4.5,76,.64],[6,74,.86]],
+  [[0,71,.68],[1.5,74,.68],[3,79,1.38],[6,78,.42],[7,76,.42]],
+  [[0,78,1.65],[3.5,76,.64],[5,74,.9]],
+  [[0,74,.42],[1,76,.42],[2,81,1.18],[4.5,78,.64],[6,83,.86]],
+  [[0,84,.9],[2,79,.42],[3,76,1.15],[5.5,74,.42],[6.5,72,.65]],
+  [[0,71,.68],[1.5,74,.68],[3,79,.9],[5,78,.42],[6,76,.42],[7,74,.42]],
+  [[0,73,.9],[2,76,.42],[3,81,1.1],[5.5,79,.42],[6.5,76,.42]]
  ];
  const titleDevelopment=[titleTheme[0],
-  [[0,78,.42],[1,81,.42],[2,78,.85],[4,74,.42],[5,76,.42],[6,78,.85]],
-  [[0,76,.42],[1,79,.42],[2,83,.85],[4,81,.42],[5,79,.42],[6,76,.85]],
-  [[0,79,.85],[2,76,.42],[3,72,.42],[4,67,.85],[6,72,.85]],
-  [[0,74,.42],[1,79,.42],[2,81,.85],[4,79,.42],[5,74,.42],[6,71,.85]],
-  [[0,78,.42],[1,76,.42],[2,74,.85],[4,69,.42],[5,74,.42],[6,78,.85]],
-  [[0,72,.42],[1,76,.42],[2,79,.85],[4,81,.85],[6,79,.85]],titleTheme[7]];
+  [[0,74,.42],[1,72,.42],[2,79,.9],[4,81,.2],[4.5,79,.2],[5,76,.68],[6.5,74,.65]],
+  [[0,71,.68],[1.5,74,.68],[3,83,1.38],[6,81,.42],[7,79,.42]],
+  [[0,78,.9],[2,76,.42],[3,74,.68],[4.5,69,.68],[6,74,.7]],
+  [[0,78,.42],[1,81,.42],[2,83,1.18],[4.5,78,.64],[6,74,.86]],
+  [[0,79,.9],[2,78,.42],[3,74,1.15],[5.5,71,.42],[6.5,74,.65]],
+  [[0,76,.68],[1.5,79,.68],[3,83,.9],[5,81,.42],[6,79,.42],[7,78,.42]],
+  [[0,76,.42],[1,73,.42],[2,69,.9],[4,73,.42],[5,76,.42],[6,81,.65]]];
  const titleBridge=[
-  [[0,76,1.35],[3,72,.42],[4,69,.85],[6,72,.85]],
-  [[0,79,.85],[2,76,.85],[4,72,1.35],[7,74,.42]],
-  [[0,74,.42],[1,71,.42],[2,67,1.35],[5,71,.42],[6,74,.85]],
-  [[0,78,1.35],[3,76,.42],[4,74,.85],[6,69,.85]],
-  [[0,69,.42],[1,72,.42],[2,76,.85],[4,81,1.35],[7,79,.42]],
-  [[0,76,.85],[2,72,.42],[3,67,.42],[4,72,1.35]],
-  [[0,71,.42],[1,74,.42],[2,76,.85],[4,79,.85],[6,76,.85]],
-  [[0,78,.42],[1,76,.42],[2,74,.42],[3,69,.42],[4,66,.85],[6,69,.42]]
+  [[0,66,1.65],[3.5,69,.64],[5,71,1.2]],
+  [[0,71,.68],[1.5,74,1.6],[5,71,.68],[6.5,67,.65]],
+  [[0,69,1.15],[2.5,74,.64],[4,78,1.6]],
+  [[0,76,1.65],[3.5,73,.64],[5,69,1.2]],
+  [[0,71,.68],[1.5,74,.68],[3,78,1.15],[5.5,81,.9]],
+  [[0,83,1.15],[2.5,81,.64],[4,79,.9],[6,74,.7]],
+  [[0,79,.68],[1.5,83,.68],[3,81,.68],[4.5,79,.64],[6,78,.7]],
+  [[0,76,.42],[1,73,.42],[2,69,.9],[4,73,.42],[5,76,.42],[6,79,.42],[7,81,.42]]
  ];
  const titleReturn=[titleTheme[0],titleTheme[1],titleDevelopment[2],titleTheme[3],
-  titleTheme[4],titleTheme[5],titleDevelopment[6],
-  [[0,74,.42],[1,71,.42],[2,67,1.35],[5,71,.42],[6,74,.85]]];
+  titleDevelopment[4],titleDevelopment[5],titleDevelopment[7],
+  [[0,78,.68],[1.5,76,.68],[3,74,1.65],[7,69,.32]]];
  const titlePhrases=[...titleTheme,...titleDevelopment,...titleBridge,...titleReturn];
  const descentHook=[[[0,0,.75],[2,7,.5],[3,5,.5],[4,3,1],[7,2,.4]],[[0,0,1.5],[3,-5,.5],[4,-2,1],[6,0,.85]]];
  // Later passes trade lead timbres and develop the hook while the rhythm
@@ -345,7 +348,7 @@ window.flightAudio=(()=>{
   const kind=profile.kind??Math.max(0,sectorTrack),organic=profile.organic??![1,4].includes(kind),anatomy=profile.anatomy||'',water=profile.habitat==='water'||environment==='water';
   const family=!organic?(kind===4?'ion':'turbine'):profile.protection==='stellar'?'plasma':/squid|nautilus|bell|jelly/.test(anatomy)?'siphon':water?'leviathan':/moth|wasp|mantis|beetle/.test(anatomy)||!anatomy&&kind===5?'swarm':/crab|trilobite/.test(anatomy)?'carapace':'hunter';
   const seed=(profile.seed??planetMusicSeed)>>>0,base=bossVoiceFamilies[family];
-  bossVoice={...base,family,kind,seed,pitch:base.register*(.87+(seed%29)/100),rate:12+(seed>>>9)%14};bossActionSerial=0;
+  bossVoice={...base,family,kind,seed,pitch:base.register*(.87+(seed%29)/100),rate:12+(seed>>>9)%14};bossActionSerial=0;diveSerial=0;diveVariant=0;
  }
  function currentSectorTheme(){return planetTheme?.track===sectorTrack?planetTheme:sectorMusic[Math.max(0,sectorTrack)];}
  function currentBossTheme(){const theme=currentSectorTheme();return {...theme,chords:theme.bossChords||theme.chords};}
@@ -373,12 +376,6 @@ window.flightAudio=(()=>{
   return{act,cycle,boss,approach,quiet,drive,chordIndex:orders[(Math.floor(act/2)+cycle)%4][bar%4],rest:!boss&&!approach&&bar%8===7,answer:act===1||act===4};
  }
 
- const titleBass=[
-  [0,12,-1,7,0,-1,12,7],[0,-1,7,12,0,-1,12,-1],
-  [0,12,-1,7,0,12,-1,7],[0,-1,7,12,0,-1,12,7],
-  [0,12,-1,7,0,12,7,-1],[0,-1,7,12,0,7,-1,12],
-  [0,12,0,7,0,12,-1,7],[0,-1,7,12,0,7,12,-1]
- ];
  // Interlocking parts share the current harmony and leave different holes in
  // each eight-bar sentence. Low-priority ornaments yield to combat audio.
  function arcadeOrchestration(index,offset,beat,chord,{quiet=false,drive=false,title=false}={}){
@@ -396,40 +393,35 @@ window.flightAudio=(()=>{
   // Small tuned percussion fills connect phrases, without a noise wall.
   if(cadence&&(step===5||step===6)){tone(root+24+(step===5?7:0),.28,.017,'rubber',step===5?-.25:.25);if(!quiet)noise({duration:.035,gain:.009,cutoff:2800,end:1300,highpass:1000,offset:offset+beat*.25,pan:.28,music:true,priority:0});}
  }
+ // Title bass is a written syncopated line, not the lead's rhythm doubled.
+ // Final pickups target the next root; major/minor thirds follow the harmony.
+ function titleBassPhrase(bar){
+  const chord=titleChords[titleChanges[bar%32]],next=titleChords[titleChanges[(bar+1)%32]],minor=['tbm','tem'].includes(titleChanges[bar%32]),third=minor?3:4;
+  const r=chord.root;
+  return bar%4===3?[[0,r,.68],[1.5,r+7,.42],[3,r+12,.42],[4,r,.42],[5,r+third,.42],[6,r+7,.42],[7,next.root+12,.42]]:
+   [[0,r,.68],[1.5,r+12,.42],[3,r+7,.42],[4,r,.68],[5.5,r+third,.42],[7,r+7,.42]];
+ }
  function titleStep(index,offset,beat){
-  const variation=titleVariation(index),bar=Math.floor(index/8)%32,step=index%8,section=Math.floor(bar/4),chord=titleChords[titleChanges[bar]],phrase=variation.answer?titleDevelopment[bar%8]:titlePhrases[bar],event=phrase.find(n=>n[0]===step),suspended=false,climax=section===6||section===7,quiet=section===4,groove=offset+(step%2?beat*.012:0),phraseEnd=bar%8===7;
+  const variation=titleVariation(index),bar=Math.floor(index/8)%32,step=index%8,chord=titleChords[titleChanges[bar]],bridge=bar>=16&&bar<24,climax=bar>=24;
+  const phrase=variation.answer?titleDevelopment[bar%8]:titlePhrases[bar];
   signalLayer(index,offset,beat,chord.voices);
-  arcadeOrchestration(index,offset,beat,[chord.root,...chord.voices],{quiet:suspended,drive:climax,title:true});
-  const leadBusy=phrase.some(n=>step>=n[0]&&step<n[0]+n[2]*2),leadGain=quiet?.069:climax?.084:.078;
-  if(event){
-   const pitch=event[1],duration=beat*event[2]*.94;
-   // A rounded, driven lead articulates the syncopated hook; longer bridge
-   // notes add contrast without changing the underlying pulse.
-   note({frequency:hz(pitch),duration,hold:duration*.42,gain:leadGain*(step===0?1:.94),instrument:variation.ambient?'glass':variation.warm?'ribbon':'arcade',type:variation.ambient?'sine':variation.warm?'triangle':'sawtooth',guitar:!variation.ambient&&!variation.warm,guitarBend:.994,cutoff:quiet?3000:4200,cutoffEnd:1700,attack:.009,vibrato:6,vibratoRate:4.8,pan:.08,endPan:.015,offset:groove,space:true,music:true,priority:2});
-   if(event[2]>=1.5&&!variation.ambient)note({frequency:hz(pitch-12),duration:duration*.9,hold:duration*.38,gain:.010,type:'triangle',cutoff:700,attack:.018,pan:-.12,offset:groove+.01,music:true});
-   if(climax&&(step===0||step===4)){const harmony=chord.voices.filter(n=>n<pitch).at(-1);note({frequency:hz(harmony),duration:duration*.93,hold:duration*.3,gain:.022,instrument:'ribbon',type:'triangle',cutoff:1050,attack:.03,pan:-.32,offset:groove+.015,space:true,music:true});}
+  // Schedule sixteenth pickups within their owning eighth-note tick. Notes
+  // hold through the bass syncopation instead of stopping on every beat.
+  for(const event of phrase.filter(n=>Math.floor(n[0])===step)){
+   const [at,pitch,length]=event,duration=beat*length,position=offset+(at-step)*beat/2;
+   note({frequency:hz(pitch),duration,hold:duration*.67,gain:bridge?.081:climax?.092:.086,instrument:variation.warm?'ribbon':'arcade',type:'sawtooth',guitar:!variation.warm,guitarBend:.994,cutoff:bridge?2800:4600,cutoffEnd:length>1?2600:1900,attack:.007,vibrato:length>.8?12:4,vibratoRate:5.1,pan:.07,endPan:.01,offset:position,space:true,music:true,priority:3});
+   // A lower, sparse answer joins the final return, never a constant unison.
+   if(climax&&length>1){const lower=chord.voices.at(-1);note({frequency:hz(lower),duration:duration*.9,hold:duration*.6,gain:.025,instrument:'reed',cutoff:2300,cutoffEnd:1300,attack:.016,pan:-.3,offset:position+.012,space:true,music:true,priority:1});}
   }
-  // One closely voiced chord per bar: common tones stay in place and the
-  // other voices move by a tone/semitone. No old pad crosses a new harmony.
-  if(step===0)for(const [i,pitch] of chord.voices.entries())note({frequency:hz(pitch)*(1+(i-1)*.0004),duration:beat*3.88,hold:beat*1.25,gain:suspended?.007:.0058,type:'triangle',attack:beat*.3,cutoff:quiet?820:1050,pan:(i-1)*.5,endPan:(i-1)*.35,offset:offset+i*.012,music:true,priority:0});
-  const arp=suspended?(step===3?0:step===7?2:-1):step%2===1?Math.floor(step/2)%3:-1;
-  if(arp>=0&&!(phraseEnd&&step>5)){const side=step%4===1?-.55:.55;note({frequency:hz(chord.voices[arp]+12),duration:beat*.42,attack:.008,gain:leadBusy?.0045:.0085,type:'triangle',cutoff:1300,pan:side,endPan:-side*.25,offset:groove,space:true,music:true,priority:0});}
-  // A clearly voiced answer occupies the cadence's open last beat. Its
-  // two sixteenths resolve into the next phrase without masking the main hook.
-  if(!leadBusy&&step===7&&phraseEnd){
-   const reply=bar===15?[78,81]:bar===23?[66,69]:[69,74];
-   for(const [i,pitch] of reply.entries())note({frequency:hz(pitch),duration:beat*.19,hold:beat*.045,attack:.006,gain:.041,instrument:'ribbon',cutoff:3200,cutoffEnd:1500,pan:-.3+i*.12,offset:groove+i*beat*.25,space:true,music:true,priority:2});
-  }
-  // Clipped offbeat chord accents open out in the development and return;
-  // the bridge has a warmer bass-led texture while the drums retain their pace.
-  if(!quiet&&(section===2||section===3||climax)&&(step===3||step===7)&&!phraseEnd){
-   for(const [i,pitch] of chord.voices.slice(1).entries())note({frequency:hz(pitch),duration:beat*.23,hold:beat*.04,attack:.004,gain:climax?.018:.013,instrument:'brass',cutoff:2100,cutoffEnd:850,pan:i?.32:-.32,offset:groove,music:true,priority:1});
-  }
-  const bass=titleBass[section][step],approach=step===7&&[1,5,6].includes(section)&&!phraseEnd;
-  if(bass>=0||approach){const next=titleChords[titleChanges[(bar+1)%32]].root,pitch=approach?next+(next<chord.root?1:-1):chord.root+bass;note({frequency:hz(pitch),duration:beat*(suspended?1.45:step===0?.78:.53),hold:beat*.18,gain:quiet?.081:.089,instrument:'bass',type:'triangle',cutoff:1200,cutoffEnd:380,attack:.008,offset:groove,music:true,priority:2});
-   if(step===0)note({frequency:hz(chord.root-12),duration:beat*1.45,hold:beat*.42,gain:.028,type:'sine',cutoff:160,attack:.013,offset:groove,music:true,priority:2});}
-  arcadeDrums(index,groove,beat,{drive:climax,title:true});
-
+  if(step===0)for(const [i,pitch] of chord.voices.entries())note({frequency:hz(pitch)*(1+(i-1)*.0004),duration:beat*3.88,hold:beat*1.25,gain:.0048,type:'triangle',attack:beat*.3,cutoff:bridge?820:1050,pan:(i-1)*.5,endPan:(i-1)*.35,offset:offset+i*.012,music:true,priority:0});
+  // Two separate offbeat chord chops establish the groove. In the bridge
+  // they move to a warmer register without losing the backbeat.
+  if(step===3||step===7)for(const [i,pitch] of chord.voices.slice(1).entries())note({frequency:hz(pitch+(bridge?0:12)),duration:beat*.29,hold:beat*.075,gain:climax?.022:.016,instrument:bridge?'ribbon':'brass',attack:.004,cutoff:3000,cutoffEnd:1250,pan:i?.4:-.4,offset,music:true,priority:1});
+  // A small descending answer occupies the deliberate hole at the cadence.
+  if(bar%8===3&&step===7)for(const [i,pitch] of [chord.voices[2]+12,chord.voices[1]+12].entries())note({frequency:hz(pitch),duration:beat*.2,hold:beat*.06,gain:.032,instrument:'harp',cutoff:3000,pan:-.27,offset:offset+i*beat*.25,space:true,music:true,priority:1});
+  for(const [at,pitch,length] of titleBassPhrase(bar).filter(n=>Math.floor(n[0])===step))note({frequency:hz(pitch),duration:beat*length,hold:beat*length*.53,gain:.09,instrument:'bass',cutoff:1600,cutoffEnd:550,attack:.006,offset:offset+(at-step)*beat/2,music:true,priority:2});
+  if(step===0)note({frequency:hz(chord.root-12),duration:beat*.85,hold:beat*.2,gain:.019,type:'sine',cutoff:160,attack:.01,offset,music:true,priority:2});
+  arcadeDrums(index,offset,beat,{drive:climax,title:true});
  }
  function bossMusicStep(index,offset,beat){
   const theme=currentBossTheme(),figure=bossApproaches[sectorTrack],step=index%8,bar=Math.floor(index/8),chord=theme.chords[bar%4],root=chord[0],intro=bar<4,breathing=bar%16>=8&&bar%16<10,returning=bar%16>=12,voice=bossVoiceFamilies[bossVoice.family];
@@ -539,15 +531,15 @@ window.flightAudio=(()=>{
  }
  // A voiced throat with two moving vowel resonances; irregular pressure
  // pulses and pitch breaks make the charge sound like an animal scream.
- function lungeThroat(pitch,pan){
+ function lungeThroat(pitch,pan,variant=0){
   if(!allocateVoice(5,false))return;
   const now=context.currentTime,duration=1.05,osc=context.createOscillator(),amp=context.createGain(),panner=context.createStereoPanner(),throat=context.createBiquadFilter(),mouth=context.createBiquadFilter(),mouthGain=context.createGain();
   osc.type='sawtooth';
-  const contour=[[0,.72],[.07,1.15],[.18,2.55],[.31,2.05],[.43,2.8],[.56,1.8],[.68,2.15],[.83,1.2],[1.05,.5]];
-  osc.frequency.setValueAtTime(pitch*.72,now);
+  const contour=[[[0,.72],[.07,1.15],[.18,2.55],[.31,2.05],[.43,2.8],[.56,1.8],[.68,2.15],[.83,1.2],[1.05,.5]],[[0,1.3],[.07,2.4],[.18,1.2],[.31,1.7],[.43,.9],[.56,2.2],[.68,1.6],[.83,.8],[1.05,.5]],[[0,.6],[.07,.8],[.18,1.1],[.31,1.9],[.43,2.1],[.56,2.6],[.68,1.3],[.83,1.8],[1.05,.5]],[[0,1.1],[.07,1.8],[.18,.8],[.31,2.3],[.43,1],[.56,1.9],[.68,.8],[.83,1.4],[1.05,.5]]][variant];
+  osc.frequency.setValueAtTime(pitch*contour[0][1],now);
   for(let i=1;i<contour.length;i++){const [at,mul]=contour[i];osc.frequency.exponentialRampToValueAtTime(pitch*mul,now+at);}
   throat.type=mouth.type='bandpass';throat.Q.value=2.8;mouth.Q.value=3.6;mouthGain.gain.value=.42;
-  for(const [filter,base] of [[throat,570],[mouth,1450]]){
+  for(const [filter,base] of [[throat,570*[1,.8,1.15,.9][variant]],[mouth,1450*[1,1.2,.85,1.12][variant]]]){
    filter.frequency.setValueAtTime(base*.65,now);
    filter.frequency.exponentialRampToValueAtTime(base*1.45,now+.21);
    filter.frequency.exponentialRampToValueAtTime(base*.95,now+.58);
@@ -558,17 +550,54 @@ window.flightAudio=(()=>{
   panner.pan.value=pan;osc.connect(throat);osc.connect(mouth);throat.connect(amp);mouth.connect(mouthGain);mouthGain.connect(amp);amp.connect(panner);panner.connect(worldBus);
   const voice=trackVoice(osc,amp,[osc,throat,mouth,mouthGain,amp,panner],false,5,now,duration);osc.start(now);osc.stop(voice.endAt);
  }
+ // Four movement phrases per creature: fixed warning timing, varied articulation.
+ // Warning and launch share a phrase; unrelated shots cannot change the sequence.
+ let diveSerial=0,diveVariant=0;
+ function diveEnvironment(pan,warning){
+  const offset=warning?.04:0,gain=warning?.065:.10,length=warning?.55:.68;
+  const h=o=>noise({priority:5,pan,offset,...o});
+  if(soundscape==='ocean'){
+   h({duration:length,gain:gain*1.6,cutoff:290,end:65,body:true,wet:true,pressure:true});
+   h({duration:length*.75,gain,cutoff:1150,end:260,wet:true,body:true,offset:offset+.10});
+  }else if(soundscape==='ice'){
+   h({duration:length,gain:gain*1.25,cutoff:540,end:150,body:true,band:true,resonance:.8});
+   for(const at of [.03,.19])h({duration:.09,gain:gain*.85,cutoff:4200,end:1200,highpass:750,offset:offset+at+diveVariant*.018});
+  }else if(soundscape==='volcanic'||soundscape==='foundry'){
+   h({duration:length,gain:gain*1.5,cutoff:780,end:160,body:true,pressure:true});
+   for(const at of [.06,.25])h({duration:.13,gain,cutoff:2700,end:420,body:true,tremolo:38+diveVariant*9,offset:offset+at});
+  }else if(soundscape!=='space'){
+   h({duration:length,gain,cutoff:850,end:2300,body:true});
+   h({duration:length*.7,gain:gain*.6,cutoff:2300,end:450,body:true,offset:offset+.14});
+  }
+ }
+ function bossDiveSound(x){
+  const v=bossVoice,pan=Math.max(-.8,Math.min(.8,(x/1440-.5)*1.5));
+  diveVariant=[0,2,1,3][(diveSerial+++(v.seed%4))%4];
+  const variant=diveVariant,mechanical=['turbine','ion'].includes(v.family),aquatic=['leviathan','siphon'].includes(v.family);
+  const register=v.pitch*[.82,1.12,.96,1.25][variant],rhythms=[[0,.24],[0,.11,.37],[0,.34,.49],[0,.14,.28,.47]][variant];
+  const n=o=>note({priority:5,pan,...o}),h=o=>noise({priority:5,pan,...o});
+  diveEnvironment(pan,true);
+  // Consistent low onset signals danger even when the upper gesture changes.
+  h({duration:.18,gain:.095,cutoff:190,end:48,body:true,pressure:true});
+  for(let i=0;i<rhythms.length;i++){
+   const offset=rhythms[i],last=i===rhythms.length-1;
+   h({duration:last?.26:.13,gain:mechanical?.10:.085,cutoff:(mechanical?2400:aquatic?760:1250)*(1+variant*.19),end:mechanical?680:220,offset,body:!mechanical,wet:aquatic,tremolo:v.rate*(.65+variant*.3),highpass:mechanical?360:0});
+   n({frequency:register*(last?1.15:.85),end:register*(last?1.7:.6),duration:last?.3:.16,gain:.07,instrument:mechanical?'brass':v.instrument,cutoff:mechanical?1300:720,attack:.015,offset,vibrato:mechanical?0:12,vibratoRate:4+variant});
+  }
+ }
  // Boss attacks reserve priority above routine gunfire and wing beats.
  function bossAttack(action='fire',kind=0,x=1000){
   if(!enabled||!context||context.state!=='running'||x< -100||x>1540)return;
-  const v=bossVoice,pan=Math.max(-.8,Math.min(.8,(x/1440-.5)*1.5)),large=['lunge','roar'].includes(action),length=large?(action==='roar'?1.25:.88):.22;
+  if(action==='dive-warning'){bossDiveSound(x);return;}
+  const v=bossVoice,pan=Math.max(-.8,Math.min(.8,(x/1440-.5)*1.5)),large=['lunge','roar'].includes(action),length=large?(action==='roar'?1.25:[.72,.94,.82,1.02][diveVariant]):.22;
   const pitch=v.pitch*(1+Math.sin(++bossActionSerial*2.399+v.seed%31)*.025),family=v.family;
-  if(large)duckMusic(.55,length);
+  if(large)duckMusic(action==='lunge'?.78:.55,action==='lunge'?.25:length);
+  if(action==='lunge')diveEnvironment(pan,false);
   const n=(o)=>note({priority:5,pan,...o}),h=(o)=>noise({priority:5,pan,...o});
   // Short projectile cues remain compact; movement gestures have distinct syntax.
   h({duration:length*.85,gain:large?.19:.055,cutoff:family==='ion'?210:160,end:45,body:true,pressure:true});
   if(family==='hunter'){
-   if(large)lungeThroat(pitch,pan);
+   if(large)lungeThroat(pitch,pan,action==='lunge'?diveVariant:0);
    n({frequency:pitch*.55,end:33,duration:length,gain:large?.15:.065,cutoff:260,attack:.018});
    for(let i=0;i<(large?3:1);i++)h({duration:length*.28,gain:large?.065:.09,cutoff:1900+i*270,end:400,offset:i*length*.17,highpass:240,body:true,tremolo:24+i*3});
   }else if(family==='swarm'){
@@ -694,6 +723,16 @@ window.flightAudio=(()=>{
  function laserBeam(duration=1.6){if(enabled)duckMusic(.74,Math.min(.45,duration));note({priority:5,frequency:620,end:95,duration:.32,attack:.004,gain:.14,type:'sawtooth',cutoff:2300,guitar:true,space:true});noise({priority:5,duration:.18,gain:.22,cutoff:2600,end:600});noise({priority:5,duration,gain:.23,cutoff:1300,end:650,body:true});noise({priority:5,duration,gain:.23,cutoff:190,end:75,body:true});note({priority:5,frequency:60,end:42,duration,attack:.015,hold:duration*.7,gain:.19,type:'sine',cutoff:180})}
 
 
+ // Brief non-tonal contacts: armor is dry, tissue soft, an opening weightier.
+ // Shared rate limiting prevents continuous fire from covering the score.
+ let lastImpactAt=-1;
+ function impact(x=720,kind='metal'){
+  if(!enabled||!context||context.state!=='running')return;
+  const weak=kind==='weak',now=context.currentTime;
+  if(now-lastImpactAt<(weak?.075:.11))return;lastImpactAt=now;
+  const organic=kind==='organic',armor=kind==='armor',pan=(x/1440-.5)*1.2;
+  noise({duration:weak?.15:organic?.10:.065,gain:weak?.052:armor?.013:.022,cutoff:weak?1800:organic?1200:3600,end:weak?240:organic?320:1800,highpass:armor?1100:0,body:!armor,pan,priority:weak?4:1});
+ }
  function shipHit(x=720,shield=false){
   if(!enabled||!context||context.state!=='running')return;
   const pan=(x/1440*2-1)*.45;
@@ -766,5 +805,5 @@ window.flightAudio=(()=>{
   noise({duration:profile.length*.85,hold:.065,gain:.10+force*.02,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
   noise({duration:.30,gain:.028,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
- return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:11,musicBpm:sectorTrack<0?148:currentSectorTheme().bpm,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
+ return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,impact,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:12,musicBpm:sectorTrack<0?148:currentSectorTheme().bpm,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
 })();

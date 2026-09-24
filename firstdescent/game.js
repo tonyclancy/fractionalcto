@@ -239,7 +239,7 @@ function fire(origin=ship,direction=shipDirection(),fromOrb=false){
 // formation at full damage. Ordinary rounds are consumed at their first hit.
 function hitEnemyWithShot(s,e){
  if(s.spent||e.hp<=0||s.seen.has(e))return false;
- e.hp-=s.damage;e.hit=.12;s.seen.add(e);burst(e.x,e.y,s.c,3);
+ e.hp-=s.damage;e.hit=.12;s.seen.add(e);combatImpact(s,e,isOrganicEnemy(e)?'organic':'metal');
  if(e.hp<=0)kill(e);
  if(!s.beam||s.seen.size>=3)s.spent=true;
  else s.damage*=.6;
@@ -250,16 +250,32 @@ function nova(){if(state!=='playing'||sectorBlend||novas<=0)return;novas--;flash
 function enemyWaveSlots(){return Math.max(0,levelPacing().maxActiveEnemies-enemies.filter(e=>e.hp>0&&!e.satellite&&!e.sentry).length);}
 function spawn(){
  const slots=enemyWaveSlots();if(!slots)return;
+ const authored=sectors[level].encounterWaves?.[waveIndex];
  if(sectors[level].broodWaves.includes(waveIndex)){
   const profile=sectors[level].escortEncounter||null,hp=(130+difficulty()*35)*(profile?1.15:1),type=profile&&!profile.organic?2:3;
   const mother={brood:true,escortProfile:profile,type,x:W+210,y:380,base:380,age:0,phase:waveIndex*.4,speed:115,hp,max:hp,hit:0,r:54,shoot:2};enemies.push(mother);
-  const count=profile?.count||6;
+  const count=authored?Math.min(slots-1,authored.count-1):profile?.count||6;
   for(let n=0;n<count;n++)enemies.push({satellite:true,mother,escortProfile:profile,orbit:n*TAU/count,type:profile&&!profile.organic?0:1,x:mother.x,y:mother.y,base:380,age:0,phase:n*.3,speed:245,hp:profile?20+difficulty()*2:14,max:profile?20+difficulty()*2:14,hit:0,r:20,shoot:profile?3+n*.65:Infinity});return;
  }
 
- const i=waveIndex,eliteInterval=sectors[level].systemChallenge?.eliteWaveInterval||10,elite=i===11?'hunter':sectors[level].flankWaves?.includes(i)?'ace':i%eliteInterval===Math.min(7,eliteInterval-1)?(Math.floor(i/eliteInterval)%2?'hunter':'ace'):null,type=elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length],center=sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=Math.min(slots,elite?3:i<2?2:4+(difficulty()>0?1:0));
+ const i=waveIndex,eliteInterval=sectors[level].systemChallenge?.eliteWaveInterval||10,elite=authored?(authored.elite||null):i===11?'hunter':sectors[level].flankWaves?.includes(i)?'ace':i%eliteInterval===Math.min(7,eliteInterval-1)?(Math.floor(i/eliteInterval)%2?'hunter':'ace'):null,type=authored?.type??(elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length]),center=authored?.center??sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=Math.min(slots,authored?.count??(elite?3:i<2?2:4+(difficulty()>0?1:0)));
  for(let n=0;n<count;n++){const leader=n===0?elite:null,memberType=elite&&n>0?0:type,offset=i%3===0?(n-(count-1)/2)*52:i%3===1?Math.sin(n*1.15)*75:(n%2?1:-1)*Math.ceil(n/2)*42,y=clamp(center+offset,100,H-100),hp=([7,9,22,13][memberType]+difficulty()*3)*(leader?2.5:1)*(sectors[level].enemyHealthScale||1);
- const enemy={x:W+180+n*96,y,base:y,type:memberType,elite:leader,wave:i,hp,max:hp,hit:0,age:0,phase:i*.45+n*.16,shoot:(leader?.9:1.5)+n*.38,speed:([220,180,130,205][memberType]+difficulty()*17)*(leader==='ace'?1.55:1)*(1+Math.min(i,20)*.018),r:memberType===2?39:31};prepareEnemyEntry(enemy,i,n);enemies.push(enemy);}
+ const placedY=authored?clamp(center+(authored.formation==='wedge'?Math.abs(n-(count-1)/2)*76:(n-(count-1)/2)*64),100,H-100):y;
+ const enemy={x:W+180+n*96,y:placedY,base:placedY,type:memberType,elite:leader,wave:i,hp,max:hp,hit:0,age:0,phase:i*.45+n*.16,shoot:(leader?.9:1.5)+n*.38,speed:([220,180,130,205][memberType]+difficulty()*17)*(leader==='ace'?1.55:1)*(1+Math.min(i,20)*.018),r:memberType===2?39:31};prepareEnemyEntry(enemy,i,n);enemies.push(enemy);}
+}
+// Short, directional impacts at the contact point. Unlike explosions these
+// never generate expanding rings or shake the whole scene on every bullet.
+function combatImpact(s,target,kind='metal'){
+ const weak=kind==='weak',armored=kind==='armor',organic=kind==='organic';
+ const dx=(s.x??target.x)-target.x,dy=(s.y??target.y)-target.y,d=Math.hypot(dx,dy)||1,r=target===boss?Infinity:(target.r||31)*(target.depth||1),scale=Math.min(1,r/d);
+ const x=target.x+dx*scale,y=target.y+dy*scale,angle=Math.atan2(-(s.vy||0),-(s.vx||1));
+ const count=weak?9:armored?3:5;
+ for(let i=0;i<count;i++){const a=angle+(i/(count-1)-.5)*2.2,v=(weak?145:85)+i*17,life=weak?.22:armored?.10:.15;
+  particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life,max:life,c:weak?'#fff0b3':armored?'#8eafb9':organic?(i%2?'#b5dec8':'#e4f9da'):(i%2?'#ffce87':'#e9faff'),r:weak?2.4:1.6,spark:true});
+ }
+ if(particles.length>900)particles.splice(0,particles.length-900);
+ target.hitKick=armored?0:clamp(s.damage*.008,.025,.11)*(dy<0?-1:1);
+ window.flightAudio?.impact?.(x,kind);
 }
 function updateStructures(dt){
  if(sceneryBorderContact(ship.x,ship.y))damage();
@@ -533,7 +549,7 @@ for(const e of enemies){enemyKinematics(e,dt);e.muzzle=Math.max(0,(e.muzzle||0)-
 const bossApproach=boss?1:clamp((time-(sectors[level].duration-18))/18,0,1);window.flightAudio?.setBossApproach?.(bossApproach,!!boss);window.flightAudio?.setIntensity(boss?.96:Math.max(Math.min(.75,enemies.length/24),bossApproach*.82));if(boss){const b=boss;b.age+=dt;b.depth=1;b.muzzle=Math.max(0,(b.muzzle||0)-dt);if(b.entry){updateBossEntry(b,dt);}else{updateBossSpecial(b,dt);updateEncounter(b,dt);updateBossArms(b,dt);moveBoss(b,dt);updateBossWeapon(b,dt);}updateBossWingAudio(b);b.hit=Math.max(0,b.hit-dt);if(bossBodyHit(b,ship.x,ship.y,18))damage()}
 if(state!=='playing')return;
 updateWaterWakes(dt);
-for(const s of shots){const oldX=s.x,oldY=s.y;moveShot(s,dt);const impact=shotTerrainHit(oldX,oldY,s);if(impact){terrainImpact(impact.x,impact.y,s.vx,s.vy);reactTerrainImpact(impact.x,impact.y);s.x=W+100;continue}if(hitEncounterNode(s)){s.x=W+100;continue;}for(const e of enemies){if(e.hp>0&&!s.seen.has(e)&&Math.hypot(e.x-s.x,e.y-s.y)<e.r*(e.depth||1)+s.r+7){hitEnemyWithShot(s,e);if(s.spent)break}}if(!s.spent&&boss&&!s.seen.has(boss)&&bossBodyHit(boss,s.x,s.y,s.r)){boss.hp-=bossDamage(s.damage)*encounterDamage(boss,s);boss.hit=.1;s.seen.add(boss);burst(s.x,s.y,s.c,2);s.x=W+100}}shots=shots.filter(s=>!s.spent&&s.x>-70&&s.x<W+60&&s.y>-30&&s.y<H+30);enemies=enemies.filter(e=>e.hp>0&&(e.retreat?!e.retreat.finished:e.entry?e.age<16&&(e.age<4.5||(e.x>-170&&e.x<W+170&&e.y>-100&&e.y<H+100)):e.x>-170));
+for(const s of shots){const oldX=s.x,oldY=s.y;moveShot(s,dt);const impact=shotTerrainHit(oldX,oldY,s);if(impact){terrainImpact(impact.x,impact.y,s.vx,s.vy);reactTerrainImpact(impact.x,impact.y);s.x=W+100;continue}if(hitEncounterNode(s)){s.x=W+100;continue;}for(const e of enemies){if(e.hp>0&&!s.seen.has(e)&&Math.hypot(e.x-s.x,e.y-s.y)<e.r*(e.depth||1)+s.r+7){hitEnemyWithShot(s,e);if(s.spent)break}}if(!s.spent&&boss&&!s.seen.has(boss)&&bossBodyHit(boss,s.x,s.y,s.r)){const multiplier=encounterDamage(boss,s);boss.hp-=bossDamage(s.damage)*multiplier;boss.hit=multiplier>1?.16:.055;s.seen.add(boss);combatImpact(s,boss,multiplier>1?'weak':'armor');s.x=W+100}}shots=shots.filter(s=>!s.spent&&s.x>-70&&s.x<W+60&&s.y>-30&&s.y<H+30);enemies=enemies.filter(e=>e.hp>0&&(e.retreat?!e.retreat.finished:e.entry?e.age<16&&(e.age<4.5||(e.x>-170&&e.x<W+170&&e.y>-100&&e.y<H+100)):e.x>-170));
 // Ordinary hostile rounds obey the same solid scenery as the player's rounds.
 // Breath volumes and beam hazards are managed separately by their encounter rules.
 for(const b of hostile){const oldX=b.x,oldY=b.y;steerHostile(b,dt);if(b.expired||b.kind==='seed'&&b.split)continue;b.x+=b.vx*dt;b.y+=b.vy*dt;const impact=shotTerrainHit(oldX,oldY,b);if(impact){terrainImpact(impact.x,impact.y,b.vx,b.vy);reactTerrainImpact(impact.x,impact.y);b.x=-100;continue}if(blockWithOrb(b,oldX,oldY)||blockWithFrontShield(b,oldX)){b.x=-100;continue}if(Math.hypot(b.x-ship.x,b.y-ship.y)<b.r+14){damage();b.x=-100}}hostile=hostile.filter(b=>!b.expired&&b.x>-50&&b.x<W+200&&b.y>-50&&b.y<H+50);

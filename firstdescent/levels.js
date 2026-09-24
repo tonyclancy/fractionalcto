@@ -86,6 +86,7 @@ function validateLevels(definitions){
   if(!Object.values(BOSS_ENCOUNTERS).some(e=>e.power===encounter.power)||!finite(encounter.cooldown)||encounter.cooldown<3||!finite(encounter.warning)||encounter.warning<1||!finite(encounter.phaseStep))fail(l,'invalid encounter profile');
   if(l.atmosphere&&['heat','clouds'].some(k=>!finite(l.atmosphere[k])||l.atmosphere[k]<0||l.atmosphere[k]>1))fail(l,'atmosphere heat/clouds must be between 0 and 1');
   if(l.entrySides&&(!Array.isArray(l.entrySides)||!l.entrySides.length||l.entrySides.some(side=>!['right','left','top','bottom'].includes(side))))fail(l,'invalid entry side');
+  if(l.encounterWaves&&(!Array.isArray(l.encounterWaves)||l.encounterWaves.length!==l.waves.length||l.encounterWaves.some((w,i)=>w.at!==l.waves[i]||!Number.isInteger(w.count)||w.count<1||w.count>8||!Number.isInteger(w.type)||w.type<0||w.type>3||!finite(w.center)||w.center<100||w.center>660||!['line','wedge','brood'].includes(w.formation)||w.side&&!['left','right'].includes(w.side)||w.elite&&!['hunter','ace'].includes(w.elite))))fail(l,'invalid authored encounter wave');
   if(l.challenge){const c=l.challenge;if(typeof c.title!=='string'||!finite(c.at)||!finite(c.end)||c.at<0||c.end<=c.at||c.end>=l.duration||!Array.isArray(c.waves)||!ordered(c.waves)||c.waves.some(t=>t<c.at||t>c.end)||!Array.isArray(c.types)||!c.types.length||c.types.some(t=>!Number.isInteger(t)||t<0||t>3)||!Number.isInteger(c.count)||c.count<1||c.count>6||!finite(c.speed)||c.speed<.5||c.speed>2)fail(l,'invalid mid-sector challenge');}
   if(l.pacing){const p=l.pacing;if(!finite(p.pickupGap)||p.pickupGap<1.5||p.pickupGap>5||!Number.isInteger(p.maxPickups)||p.maxPickups<1||p.maxPickups>2||!Number.isInteger(p.maxActiveEnemies)||p.maxActiveEnemies<5||p.maxActiveEnemies>18||!finite(p.pickupX)||p.pickupX<420||p.pickupX>900||typeof p.preBossRelief!=='boolean')fail(l,'invalid readability pacing');}
   if(!Array.isArray(l.obstacles)||!ordered(l.obstacles.map(o=>o.at)))fail(l,'invalid obstacle timing');
@@ -2235,6 +2236,31 @@ function varyVerticalWallFormations(stage){
 }
 levelDefinitions.forEach(varyVerticalWallFormations);
 const expedition=buildExpedition(contentReleases,levelDefinitions);
+// Caelus is the combat benchmark: introduce a front formation, teach a rear
+// approach, combine both, then leave room to collect supplies before the boss.
+// Keep these authored beats separate from the scalable campaign generator.
+const openingCombat=expedition.stages.find(s=>s.id==='verdant-reach');
+openingCombat.combatDirector='reaver-counterattack';
+openingCombat.encounterWaves=[
+ {at:3,count:2,type:1,center:330,formation:'line'},
+ {at:7,count:3,type:1,center:450,formation:'wedge'},
+ {at:12,count:3,type:3,center:260,formation:'line'},
+ {at:16,count:2,type:1,center:440,formation:'line',side:'left'},
+ {at:20,count:3,type:1,center:320,formation:'wedge'},
+ {at:23,count:2,type:3,center:490,formation:'line'},
+ {at:29,count:3,type:1,center:280,formation:'wedge'},
+ {at:32,count:2,type:2,center:460,formation:'line',elite:'hunter'},
+ {at:36,count:4,type:3,center:380,formation:'brood'},
+ {at:40,count:2,type:1,center:250,formation:'line',side:'left'},
+ {at:44,count:3,type:1,center:460,formation:'wedge'},
+ {at:47,count:2,type:3,center:300,formation:'line'}
+];
+openingCombat.waves=openingCombat.encounterWaves.map(w=>w.at);
+openingCombat.systemChallenge.waves=openingCombat.waves.length;
+openingCombat.broodWaves=[8];
+openingCombat.flankWaves=[3,9];
+openingCombat.challenge={...openingCombat.challenge,title:'NARROW PASSAGE',waves:[],count:2};
+openingCombat.revision++;
 freezeContent(expedition.locations);
 const campaign=freezeContent(validateLevels(expedition.stages));
 const CAMPAIGN_VERSION=contentReleases.map(r=>r.id+'@'+r.version).join('|')+'|'+campaign.map(l=>l.id+'@'+l.revision).join('|');
