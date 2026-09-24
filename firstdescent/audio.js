@@ -41,7 +41,7 @@ window.flightAudio=(()=>{
  const currentBpm=144,currentLoopSeconds=32*4*60/currentBpm;
  const currentAsset=typeof document!=='undefined'&&document.currentScript?.src
   ?new URL('music/dark-current155.m4a',document.currentScript.src).href:'music/dark-current155.m4a';
- let currentBuffer=null,currentSource=null,currentGain=null,currentOffset=0,currentStarted=0,currentLoad='idle',currentLoading=null;
+ let currentBuffer=null,currentSource=null,currentGain=null,currentMusicEQ,currentOffset=0,currentStarted=0,currentLoad='idle',currentLoading=null;
  function currentThemePosition(){return currentSource?(currentOffset+context.currentTime-currentStarted)%currentSource.loopEnd:currentOffset;}
  function currentThemeChord(position=currentThemePosition()){
   const bar=Math.floor(position/(4*60/currentBpm))%32,phraseBar=bar>=4?(bar-4)%8:bar;
@@ -74,11 +74,11 @@ window.flightAudio=(()=>{
   const t=context.currentTime,source=context.createBufferSource(),gain=context.createGain();
   source.buffer=currentBuffer;source.loop=true;source.loopStart=0;source.loopEnd=Math.min(currentLoopSeconds,currentBuffer.duration);
   currentOffset%=source.loopEnd;currentSource=source;currentGain=gain;currentStarted=t;
-  source.connect(gain);gain.connect(musicDucker);gain.gain.setValueAtTime(0,t);
+  source.connect(gain);gain.connect(currentMusicEQ);gain.gain.setValueAtTime(0,t);
   source.onended=()=>{source.disconnect();gain.disconnect();};
   const tick=()=>{
    sweepVoices();smoothedIntensity+=(intensity-smoothedIntensity)*.12;
-   gain.gain.setTargetAtTime(sectorTrack<0?.56:.44+smoothedIntensity*.045+bossApproach*.025,context.currentTime,.12);
+   gain.gain.setTargetAtTime(sectorTrack<0?.56:.38+smoothedIntensity*.015+bossApproach*.015,context.currentTime,.12);
    musicStep=Math.floor(((currentOffset+context.currentTime-currentStarted)%source.loopEnd)/(60/currentBpm/2));
   };
   source.start(t,currentOffset);musicTimer=setInterval(tick,100);tick();
@@ -109,6 +109,13 @@ window.flightAudio=(()=>{
    const musicBody=context.createBiquadFilter();musicBody.type='peaking';musicBody.frequency.value=250;musicBody.Q.value=.8;musicBody.gain.value=-2;
    const musicPresence=context.createBiquadFilter();musicPresence.type='peaking';musicPresence.frequency.value=2200;musicPresence.Q.value=.7;musicPresence.gain.value=-2;
    musicBus.connect(musicBody);musicBody.connect(musicPresence);musicPresence.connect(musicDucker);musicDucker.connect(bass);
+   // Brighten only the mastered theme; world effects retain their own acoustics.
+   // Trim low/mid masking and keep a little extra gameplay headroom for effects.
+   currentMusicEQ=context.createBiquadFilter();currentMusicEQ.type='lowshelf';currentMusicEQ.frequency.value=180;currentMusicEQ.gain.value=-2;
+   const currentPresence=context.createBiquadFilter(),currentAir=context.createBiquadFilter();
+   currentPresence.type='peaking';currentPresence.frequency.value=1500;currentPresence.Q.value=.65;currentPresence.gain.value=-2;
+   currentAir.type='highshelf';currentAir.frequency.value=2400;currentAir.gain.value=4.5;
+   currentMusicEQ.connect(currentPresence);currentPresence.connect(currentAir);currentAir.connect(musicDucker);
    musicDelay=context.createDelay(1);musicDelay.delayTime.value=themeBeat*.75;musicEcho=context.createGain();musicEcho.gain.value=.14;
    const echoLow=context.createBiquadFilter(),echoHigh=context.createBiquadFilter();echoLow.type='lowpass';echoLow.frequency.value=1900;echoHigh.type='highpass';echoHigh.frequency.value=280;
    musicDelay.connect(echoLow);echoLow.connect(echoHigh);echoHigh.connect(musicEcho);musicEcho.connect(musicDelay);
@@ -807,11 +814,13 @@ window.flightAudio=(()=>{
   const pan=(x/1440*2-1)*.45;
   if(shield){
    if(context.currentTime-lastShieldHit<.06)return;lastShieldHit=context.currentTime;
+   duckMusic(.86,.16);
    noise({priority:5,duration:.16,gain:.075,cutoff:1500,end:350,pan,body:true});
    note({priority:5,frequency:320,end:150,duration:.13,hold:.025,gain:.035,type:'triangle',cutoff:1100,pan});
    return;
   }
   // A physical hull strike with a low pressure thud and short electrical debris.
+  duckMusic(.72,.30);
   noise({priority:5,duration:.075,gain:.15,cutoff:2700,end:650,pan,body:true});
   noise({priority:5,duration:.36,gain:.34,cutoff:340,end:85,pan,body:true});
   noise({priority:5,duration:.18,gain:.065,cutoff:950,end:220,pan,offset:.025,body:true});
@@ -833,6 +842,8 @@ window.flightAudio=(()=>{
  }
  function pickup(x=720,kind='power'){
   if(!enabled||!context||context.state!=='running')return;
+  // Let acquisition speak above the score without making every shot pump it.
+  duckMusic(.76,.45);
   const pan=(x/1440*2-1)*.3,shield=['shield','frontShield','orb'].includes(kind),repair=['repair','rescue'].includes(kind),special=['orb','companion','nova'].includes(kind);
   const root=shield?50:repair?53:special?48:52,settle=shield?.16:repair?.12:.09;
   // Physical acquisition: a short low impact and broad pressure transient.
@@ -874,5 +885,5 @@ window.flightAudio=(()=>{
   noise({duration:profile.length*.85,hold:.065,gain:.10+force*.02,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
   noise({duration:.30,gain:.028,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
- return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,impact,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:15,musicTheme:currentBuffer?'Dark Current':'synthesized',musicAssetState:currentLoad,musicLoopSeconds:currentBuffer?Math.min(currentLoopSeconds,currentBuffer.duration):0,musicPosition:currentSource?(currentOffset+context.currentTime-currentStarted)%currentSource.loopEnd:currentOffset,musicBpm:currentBuffer?currentBpm:sectorTrack<0?148:currentSectorTheme().bpm,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
+ return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,impact,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:16,musicTheme:currentBuffer?'Dark Current':'synthesized',musicAssetState:currentLoad,musicLoopSeconds:currentBuffer?Math.min(currentLoopSeconds,currentBuffer.duration):0,musicPosition:currentSource?(currentOffset+context.currentTime-currentStarted)%currentSource.loopEnd:currentOffset,musicBpm:currentBuffer?currentBpm:sectorTrack<0?148:currentSectorTheme().bpm,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
 })();

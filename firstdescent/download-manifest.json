@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 72964341,
+  "bytes": 72965211,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -1576,8 +1576,8 @@
     },
     {
       "path": "audio.js",
-      "bytes": 83164,
-      "sha256": "70b4448a615022dbb6fe495f1233767a9daa034bb32612a0c51bed2640e3c474"
+      "bytes": 84061,
+      "sha256": "695cda6534c3b51a66a574a9d241ba1bb164c8472ddab070d9d28305f201bed6"
     },
     {
       "path": "authored-assets.js",
@@ -1621,8 +1621,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 6850,
-      "sha256": "00cc7ecd5077f9d16264fee10e01b993173b835d6b831a47f28f3349d8865fc9"
+      "bytes": 6823,
+      "sha256": "e2a774e6c24367d225c4d5475565fef51fa644e55fa73952434a21d434fb35bc"
     },
     {
       "path": "levels.js",
