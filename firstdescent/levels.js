@@ -2019,6 +2019,15 @@ function applySystemChallenge(stage,index,count,expeditionIndex){
  if(stage.escortEncounter)stage.escortEncounter={...stage.escortEncounter,count:3+Math.round(b.progress),pace:1+b.progress*.1};
  stage.revision++;
 }
+// Fixed encounter health, authored before play. Standard hulls need several
+// exposed attack windows; the ordered capital sections and tide-knots already
+// impose longer attack cycles, so they receive smaller increases.
+function bossDurabilityScale(stage){return stage.encounterDirector==='tide-knots'?1.06:stage.siege&&stage.bossKind==='cathedral'?1.3:stage.bossKind==='regent'?1.85:1.8;}
+function applyBossDurability(stage){
+ const b=stage.systemChallenge,base=b.baseBossHealth??b.hp;
+ b.baseBossHealth=base;b.bossHealthScale=bossDurabilityScale(stage);b.hp=Math.round(base*b.bossHealthScale);
+ stage.hp=b.hp;stage.revision++;
+}
 function materializeSystemPack(pack,packIndex){
  const slug=n=>n.toLowerCase().replace(/[^a-z0-9]+/g,'-'),worlds=[];
  for(const [worldIndex,[name,legacyArchetype,orbit,seed,features={}]] of pack.worlds.entries()){
@@ -2195,7 +2204,7 @@ function installPlanetBiosphere(stage,world,system){
  if(world.id==='nacre'){stage.biosphere.boss.authoredAsset='rift-lantern';stage.encounterDirector='tide-knots';stage.boss='THE RIFT LANTERN';}
  const prior=stage.escortEncounter||{};stage.escortEncounter={...prior,name:planetSpecies.get(ids[4]).name.toUpperCase(),model:ids[4],escort:ids[5],organic:!mechanicalSwarm,rig:'appendages',count:prior.count||4,orbit:prior.orbit||2.6,formation:['screen','figure8','petals'][seed%3],pace:prior.pace||1};stage.revision+=3;
 }
-for(const release of contentReleases)for(const system of release.systems)for(const world of system.destinations)for(const stageId of world.stages){const stage=levelDefinitions.find(l=>l.id===stageId);installPlanetBiosphere(stage,world,system);}
+for(const release of contentReleases)for(const system of release.systems)for(const world of system.destinations)for(const stageId of world.stages){const stage=levelDefinitions.find(l=>l.id===stageId);installPlanetBiosphere(stage,world,system);applyBossDurability(stage);}
 // Replace the inherited three-prong wall template, not handcrafted formations.
 // Authored once per world: geometry, collision, recovery and previews all share it.
 function varyVerticalWallFormations(stage){

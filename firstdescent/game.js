@@ -128,7 +128,7 @@ function saveCheckpoint(){checkpoint={section:currentSection(),sceneLead:sectorI
 // the actual collision profiles, with deterministic preferences and full ship clearance.
 function placeCheckpointRecovery(){
  const solids=obstacles.flatMap(obstacleSolids),rotors=obstacles.filter(o=>o.rotor),preferredY=380;
- const clear=(x,y,mx,my)=>solids.every(r=>x+mx<r.x||x-mx>r.x+r.w||y+my<r.y||y-my>r.y+r.h)&&rotors.every(o=>!rotorContact(o,x,y,Math.max(mx,my)));
+ const clear=(x,y,mx,my)=>!sceneryBorderContact(x,y,mx,my)&&solids.every(r=>x+mx<r.x||x-mx>r.x+r.w||y+my<r.y||y-my>r.y+r.h)&&rotors.every(o=>!rotorContact(o,x,y,Math.max(mx,my)));
  const ordered=(origin,min,max,extra=[])=>[...new Set([clamp(origin,min,max),min,max,...extra.filter(v=>v>=min&&v<=max),...Array.from({length:Math.ceil((max-min)/12)},(_,i)=>min+i*12)])].sort((a,b)=>Math.abs(a-origin)-Math.abs(b-origin)||a-b);
  const find=(x,y,mx,my,minX=40,maxX=W-65)=>{
   const xs=ordered(x,minX,maxX,solids.flatMap(r=>[r.x-mx-2,r.x+r.w+mx+2])),ys=ordered(y,42,H-42,solids.flatMap(r=>[r.y-my-2,r.y+r.h+my+2]));
@@ -262,6 +262,7 @@ function spawn(){
  const enemy={x:W+180+n*96,y,base:y,type:memberType,elite:leader,wave:i,hp,max:hp,hit:0,age:0,phase:i*.45+n*.16,shoot:(leader?.9:1.5)+n*.38,speed:([220,180,130,205][memberType]+difficulty()*17)*(leader==='ace'?1.55:1)*(1+Math.min(i,20)*.018),r:memberType===2?39:31};prepareEnemyEntry(enemy,i,n);enemies.push(enemy);}
 }
 function updateStructures(dt){
+ if(sceneryBorderContact(ship.x,ship.y))damage();
  const plan=gatePlans[level];prepareUpcomingTerrain(plan,gateIndex);while(gateIndex<plan.length&&time>=plan[gateIndex].at){const g=plan[gateIndex];obstacles.push(takePreparedTerrain(gateIndex)||{...g,id:gateIndex,x:W+100,w:g.width||82+difficulty()*8});gateIndex++}
  for(const o of obstacles){o.x=W+100-(time-o.at)*SCROLL_SPEED;updateAsteroidDynamics(o);if(o.rotor&&rotorContact(o,ship.x,ship.y,18))damage();if(obstacleSolids(o).some(r=>ship.x+24>r.x&&ship.x-24<r.x+r.w&&ship.y+14>r.y&&ship.y-14<r.y+r.h))damage()}
  obstacles=obstacles.filter(obstacleStillVisible);
@@ -353,6 +354,7 @@ function planRecoveryRoute(item){
   const x=item.x-item.drift*i*step,solids=recoveryTerrain(start+i*step,x),cost=new Float64Array(rows).fill(Infinity),parent=new Int16Array(rows).fill(-1);
   for(let r=0;r<rows;r++){
    const y=60+r*dy;
+   if(x>=170&&x<=W-170&&sceneryBorderContact(x,y,64,44,(start+i*step+sectorIntroLead)*SCROLL_SPEED))continue;
    if(solids.some(o=>x+64>o.x&&x-64<o.x+o.w&&y+44>o.y&&y-44<o.y+o.h))continue;
    const preference=((y-item.y)/H)**2;
    if(!previous)cost[r]=preference;
@@ -517,7 +519,7 @@ if(water){
 const suction=environment&&boss?bossSuctionForce(boss):0,oldX=ship.x,oldY=ship.y;
 ship.x=pilotEdgeBounce('x',ship.x+(drag&&!water?drag.x:ship.vx*dt)+suction*dt,40,W-65,targetVX,dt);ship.y=pilotEdgeBounce('y',ship.y+(drag&&!water?drag.y:ship.vy*dt)+(environment?sectorCurrent()*dt:0),42,H-42,targetVY,dt);
 // A quick finger swipe still crosses solid scenery; it cannot teleport through it.
-if(drag&&environment&&ship.inv<=0&&obstacles.length){const steps=Math.ceil(Math.hypot(ship.x-oldX,ship.y-oldY)/12),solids=obstacles.flatMap(obstacleSolids);for(let i=1;i<=steps;i++){const t=i/steps,x=oldX+(ship.x-oldX)*t,y=oldY+(ship.y-oldY)*t;if(solids.some(r=>x+24>r.x&&x-24<r.x+r.w&&y+14>r.y&&y-14<r.y+r.h)||obstacles.some(o=>o.rotor&&rotorContact(o,x,y,18))){damage();break;}}}
+if(environment&&ship.inv<=0){const steps=Math.ceil(Math.hypot(ship.x-oldX,ship.y-oldY)/12),solids=obstacles.flatMap(obstacleSolids);for(let i=1;i<=steps;i++){const t=i/steps,x=oldX+(ship.x-oldX)*t,y=oldY+(ship.y-oldY)*t;if(sceneryBorderContact(x,y)||solids.some(r=>x+24>r.x&&x-24<r.x+r.w&&y+14>r.y&&y-14<r.y+r.h)||obstacles.some(o=>o.rotor&&rotorContact(o,x,y,18))){damage();break;}}}
 if(ship.x===40||ship.x===W-65)ship.vx=0;if(ship.y===42||ship.y===H-42)ship.vy=0;
 const targetPitch=clamp(ship.vy/2800,-.18,.18)*shipDirection(),targetYaw=clamp(ship.vx/3400,-.15,.15),easing=1-Math.exp(-dt*11);
 flightPose.pitch+=(targetPitch-flightPose.pitch)*easing;const rollRate=-ship.vy/maxSpeed*7;flightPose.rollRate=((flightPose.rollRate||0)+(rollRate-(flightPose.rollRate||0))*(1-Math.exp(-dt*12)));flightPose.roll+=flightPose.rollRate*dt;if(Math.abs(ship.vy)<10)flightPose.roll+=(Math.round(flightPose.roll/TAU)*TAU-flightPose.roll)*(1-Math.exp(-dt*5));flightPose.yaw+=(targetYaw-flightPose.yaw)*easing;
@@ -544,7 +546,7 @@ function drawBossBackdropFocus(){
  const approach=boss?(boss.entry?clamp(boss.entry.age/boss.entry.duration,0,1):1):clamp((transition-3.5)/.5,0,1);
  ctx.save();ctx.fillStyle='rgba(2,8,16,'+(.18*approach)+')';ctx.fillRect(0,0,W,H);ctx.restore();
 }
-function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawBossBackdropFocus();drawStructures();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(!sectorBlend)drawTerrainEffects();if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'&&!sectorBlend?.destination){drawShip(ship.x,ship.y);drawPilotProtection();drawFrontShield();drawWeaponOrb();drawOrbCharge();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
+function render(dt){resizeFlightSurface();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawBossBackdropFocus();drawStructures();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();for(const e of enemies)enemyShape(e);drawBoss();window.gpuModels?.flush(ctx);if(boss)drawEncounterDefenses(boss);for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'&&!sectorBlend?.destination){drawShip(ship.x,ship.y);drawPilotProtection();drawFrontShield();drawWeaponOrb();drawOrbCharge();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
 window.gpuModels?.flush(ctx);drawExplosions(dt);if(!sectorBlend)drawNearField();if(!sectorBlend)drawWaterAtmosphere(true);const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}drawOriginRecovery();ctx.restore();window.gpuModels?.flush(ctx)}
 let accumulator=0,frameError=null,musicUiClock=0,sectorArtPrefetched=false;
 const renderQualityLimit=matchMedia('(pointer: coarse)').matches?1:1.5;
@@ -745,11 +747,12 @@ function trackFrame(dt){
 }
 
 
-// iPhone browser tabs cannot hide Safari chrome. Home Screen web apps can.
+// Open iPhone and installed games at viewport size. A launch gesture handles
+// Safari toolbar collapse; the compact HUD already floats over the full scene.
 const homeScreenMode=window.navigator?.standalone||matchMedia('(display-mode: standalone)').matches;
 const iphoneBrowser=/iPhone|iPod/.test(window.navigator?.userAgent||'')&&!homeScreenMode;
 if($('#homeScreenHint'))$('#homeScreenHint').hidden=!iphoneBrowser;
-if(homeScreenMode){fullscreenPanel().classList.add('expanded');document.body?.classList.add('game-expanded');}
+if(homeScreenMode||iphoneBrowser){fullscreenPanel().classList.add('expanded');document.body?.classList.add('game-expanded');}
 updateFullscreenButtons();
 
 window.flightImmersionInterrupted=()=>{if(state==='playing')pause();};

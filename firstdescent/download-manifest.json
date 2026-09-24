@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 71218958,
+  "bytes": 71617486,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 394772,
-      "sha256": "9135bd532d7b7f20ee2b3ef851f5c90143c145824c16ccb9ba7ec209b412dd01"
+      "bytes": 429648,
+      "sha256": "cd180f00218941c399b32ca9251aea809b0288d3747a9f2c20c27f8ac989fd16"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -583,6 +583,16 @@
       "path": "assets/reef-descent.webp",
       "bytes": 367340,
       "sha256": "571a35b0a0c39fc8613d51933441f40356005da613d0203241b59595178b9f62"
+    },
+    {
+      "path": "assets/shore-cloud-v134.webp",
+      "bytes": 262574,
+      "sha256": "f7955c98d7ceac4bce1f829876ab5f1839902fe9345e84c275c706202e2f2f88"
+    },
+    {
+      "path": "assets/shore-wisp-v135.webp",
+      "bytes": 81902,
+      "sha256": "5c7dc67f40e68d773ddffae736a73d2fd9b8f2c9383dda68cb76b85982a5c761"
     },
     {
       "path": "assets/space-panorama-thumb.webp",
@@ -1606,18 +1616,18 @@
     },
     {
       "path": "game.js",
-      "bytes": 92537,
-      "sha256": "b57f7c10024d02578b9dcad1b5017050b7ec4cb41373a24407fd3aa60e184ad6"
+      "bytes": 92794,
+      "sha256": "b88336e9d73e7ac3e7f8c44705131b212cf7260e5b905b2282e46ad6522a4bbb"
     },
     {
       "path": "index.html",
-      "bytes": 6829,
-      "sha256": "6620098195bf95b35f88cf8da49b177ebdb7658b370e9626189767a60d451827"
+      "bytes": 6856,
+      "sha256": "a7e2129b772a40fc473cb7349ad282d4b1f88e08c86fe72c5eed829105a624e8"
     },
     {
       "path": "levels.js",
-      "bytes": 110594,
-      "sha256": "e14115ddc07a3de8923be768a241dd4516c74dcc28ed45510e22d0840513a0fa"
+      "bytes": 111255,
+      "sha256": "f64ed74b90f6f1a40de3c4e70ded4a05683f74302677722c5e4f6f529b08db6a"
     },
     {
       "path": "manifest.webmanifest",
@@ -1636,8 +1646,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 38916,
-      "sha256": "eab9afa71a3202572b5b6d4c407ff0e1e48f70d3a86a67d84e4dd11c556fdc70"
+      "bytes": 39550,
+      "sha256": "f3c441b758285003ab5f0761eab50e45eadd354dd9d0499e3ff8c17cf3abe24a"
     },
     {
       "path": "runs.js",
@@ -1650,9 +1660,14 @@
       "sha256": "08b5721ea5d2a3fb6af7b0c31ba6ec6678bb1252c63a3cd12156c95925abd4ae"
     },
     {
+      "path": "shore-wildlife.js",
+      "bytes": 11335,
+      "sha256": "f61562f98649f02d84cff175ff88306f06fa3e73a434430364a3f79f55bdf0d3"
+    },
+    {
       "path": "style.css",
-      "bytes": 36831,
-      "sha256": "0c26756f875ff36bf8768810ed4c4873ef029bdaa55ba2ce8365de6f4706a864"
+      "bytes": 43093,
+      "sha256": "55f1e412353ade1f26c917eabc7263400b9a467b10c03385aa29777b4abc7097"
     },
     {
       "path": "tide-encounter.js",

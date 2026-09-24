@@ -101,16 +101,18 @@
 .orientation-hint{display:none;pointer-events:none}
 @media(pointer:coarse) and (orientation:portrait){.stage:fullscreen .orientation-hint,.stage.expanded .orientation-hint{display:block;position:absolute;top:74px;left:16px;right:16px;text-align:center;color:#a0f5d8;font-size:12px;letter-spacing:.6px;z-index:13}}
 
-/* Fullscreen is the complete cockpit: persistent score, hull and loadout. */
-.console:is(:fullscreen,.native-fullscreen),.console.expanded{--flight-hud:64px;--flight-equipment:60px;position:fixed;inset:0;z-index:9999;width:100vw;height:100dvh;max-width:none;display:flex;flex-direction:column;border:0;border-radius:0;background:#050b13}
-.console:is(:fullscreen,.native-fullscreen) .hud,.console.expanded .hud{height:var(--flight-hud);min-height:var(--flight-hud);flex:none;padding:0 20px}
-.console:is(:fullscreen,.native-fullscreen) .equipment,.console.expanded .equipment{height:var(--flight-equipment);min-height:var(--flight-equipment);flex:none;padding:10px 20px;gap:22px}
-.console:is(:fullscreen,.native-fullscreen) .stage,.console.expanded .stage{flex:1;min-height:0;width:100%;aspect-ratio:auto;display:flex;align-items:center;justify-content:center}
-.console:is(:fullscreen,.native-fullscreen) canvas,.console.expanded canvas{width:min(100vw,calc((100dvh - var(--flight-hud) - var(--flight-equipment))*1.89473684));height:auto;max-height:100%;aspect-ratio:1440/760;flex:none}
+/* The sector card can grow: destination and mission lines must never be clipped. */
+.hud-sector{min-width:0}.hud-sector .mission-hud{display:block}.hud-sector strong{line-height:1.2}
+.console:is(:fullscreen,.native-fullscreen),.console.expanded{--flight-hud:94px;--flight-equipment:60px;position:fixed;inset:0;z-index:9999;width:100%;height:100dvh;max-width:none;display:flex;flex-direction:column;border:0;border-radius:0;background:#050b13}
+.console:is(:fullscreen,.native-fullscreen) .hud,.console.expanded .hud{height:auto;min-height:var(--flight-hud);flex:none;padding:12px 20px;gap:20px;line-height:1.2}
+.console:is(:fullscreen,.native-fullscreen) .hud-sector,.console.expanded .hud-sector{max-width:65%}
+.console:is(:fullscreen,.native-fullscreen) .equipment,.console.expanded .equipment{height:auto;min-height:var(--flight-equipment);flex:none;padding:10px 20px;gap:22px;flex-wrap:wrap}
+.console:is(:fullscreen,.native-fullscreen) .stage,.console.expanded .stage{flex:1;min-height:0;width:100%;aspect-ratio:auto;display:flex;align-items:center;justify-content:center;container-type:size}
+.console:is(:fullscreen,.native-fullscreen) #game,.console.expanded #game{width:min(100vw,calc((100dvh - var(--flight-hud) - var(--flight-equipment))*1.89473684));height:auto;max-width:100%;max-height:100%;aspect-ratio:1440/760;flex:none;object-fit:contain}
+@supports(width:1cqw){.console:is(:fullscreen,.native-fullscreen) #game,.console.expanded #game{width:min(100cqw,189.473684cqh);height:min(100cqh,52.777778cqw)}}
 .console:is(:fullscreen,.native-fullscreen) canvas:focus,.console:is(:fullscreen,.native-fullscreen) canvas:focus-visible,.console.expanded canvas:focus,.console.expanded canvas:focus-visible{outline:none;outline-offset:0}
 .console:is(:fullscreen,.native-fullscreen) .progress-wrap,.console.expanded .progress-wrap{display:block;min-width:90px;width:18%}
-@media(max-height:550px){.console:is(:fullscreen,.native-fullscreen),.console.expanded{--flight-hud:45px;--flight-equipment:43px}.console:is(:fullscreen,.native-fullscreen) .hud strong,.console.expanded .hud strong{font-size:11px;margin-top:4px}.console:is(:fullscreen,.native-fullscreen) .scoreblock strong,.console.expanded .scoreblock strong{font-size:18px}.console:is(:fullscreen,.native-fullscreen) .equipment,.console.expanded .equipment{padding:5px 12px;gap:15px}.console:is(:fullscreen,.native-fullscreen) .equipment strong,.console.expanded .equipment strong{font-size:9px;margin-top:3px}.console:is(:fullscreen,.native-fullscreen) .equipment-icon,.console.expanded .equipment-icon{font-size:21px}.console:is(:fullscreen,.native-fullscreen) .eyebrow,.console.expanded .eyebrow{font-size:8px}}
-@media(pointer:coarse) and (orientation:portrait){.console:is(:fullscreen,.native-fullscreen) .orientation-hint,.console.expanded .orientation-hint{display:block;position:absolute;top:74px;left:16px;right:16px;text-align:center;color:#a0f5d8;font-size:12px;z-index:13}.console:is(:fullscreen,.native-fullscreen) .equipment,.console.expanded .equipment{gap:10px;padding:6px}.console:is(:fullscreen,.native-fullscreen) .loadout,.console.expanded .loadout{display:none}}
+@media(max-height:550px){.console:is(:fullscreen,.native-fullscreen),.console.expanded{--flight-hud:76px;--flight-equipment:46px}.console:is(:fullscreen,.native-fullscreen) .hud strong,.console.expanded .hud strong{font-size:11px;margin-top:4px}.console:is(:fullscreen,.native-fullscreen) .scoreblock strong,.console.expanded .scoreblock strong{font-size:18px}.console:is(:fullscreen,.native-fullscreen) .equipment,.console.expanded .equipment{padding:5px 12px;gap:15px}.console:is(:fullscreen,.native-fullscreen) .equipment strong,.console.expanded .equipment strong{font-size:9px;margin-top:3px}.console:is(:fullscreen,.native-fullscreen) .equipment-icon,.console.expanded .equipment-icon{font-size:21px}.console:is(:fullscreen,.native-fullscreen) .eyebrow,.console.expanded .eyebrow{font-size:8px}}
 
 #homeScreenHint{margin:12px auto;padding:12px 16px;max-width:640px;color:#b5c9d1;background:#13202b;border:1px solid #35404b;border-radius:4px;font-size:13px;line-height:1.5}
 @media(display-mode:standalone){.console.expanded{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}.console.expanded canvas{max-width:100%;object-fit:contain}}
@@ -125,7 +127,7 @@ html.safari-locked .safari-holder{display:block;position:fixed;inset:0;z-index:9
 .safari-scroller{height:100%;overflow-x:hidden;overflow-y:auto;overscroll-behavior:none;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .safari-track{height:calc(100% + 1px)}.safari-content{position:sticky;top:0;height:calc(100% - 1px)}
 html.safari-locked .console.expanded{position:relative;inset:auto;height:100%;width:100%;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom)}
-html.safari-locked .console.expanded canvas{max-width:100%;width:min(100%,calc((var(--safari-view-height) - var(--flight-hud) - var(--flight-equipment) - env(safe-area-inset-bottom))*1.89473684));object-fit:contain}
+html.safari-locked .console.expanded #game{max-width:100%;object-fit:contain}
 .hullblock .eyebrow b{color:#e9fff6;margin-left:8px}.hull-meter{width:166px;height:10px;margin:7px 0 3px auto;background:#2b2330;border:1px solid #58706d;border-radius:999px;overflow:hidden;box-shadow:inset 0 1px 4px #0008}.hull-meter i{display:block;width:100%;height:100%;background:linear-gradient(90deg,#ff716a,#ffc36b 38%,#a0f5d8 68%);box-shadow:0 0 10px #a0f5d888;transition:width .16s ease,filter .16s ease}.hullblock.low-hull .hull-meter i{filter:saturate(1.4);animation:hull-alert .65s steps(2,end) infinite}.hullblock.low-hull #hearts{color:#ff9f78}@keyframes hull-alert{50%{opacity:.38}}
 
 /* Thumb controls: orb at lower left, nova directly above it. */
@@ -220,3 +222,45 @@ body.game-expanded{overscroll-behavior:none}
 @media(max-width:680px){.atlas-card{min-height:205px;padding-top:115px}.atlas-galaxy{height:150px}.atlas-kind{font-size:8px}}
 
 .atlas-galaxy{height:auto;aspect-ratio:8/5;mix-blend-mode:screen;mask-image:radial-gradient(ellipse var(--galaxy-rx,50%) var(--galaxy-ry,50%) at 50% 50%,#000 57%,#0009 72%,#0002 88%,transparent 100%)}
+
+/* Touch cockpits use the entire viewport for flight. Information floats over
+   the scene instead of taking two opaque rows out of the play area. */
+@media(pointer:coarse),(max-width:680px),(max-width:960px) and (max-height:600px){
+ .console:is(:fullscreen,.native-fullscreen,.expanded){--flight-hud:0px;--flight-equipment:0px;--flight-safe-top:env(safe-area-inset-top,0px);--flight-safe-bottom:env(safe-area-inset-bottom,0px);--flight-safe-left:env(safe-area-inset-left,0px);--flight-safe-right:env(safe-area-inset-right,0px);display:block;padding:0;isolation:isolate}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .stage{position:absolute;inset:0;min-height:0;height:100%;width:100%;padding:0;container-type:size}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) #game{width:min(100vw,189.473684dvh);height:auto;max-height:100%;max-width:100%;object-fit:contain}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .hud{position:absolute;z-index:14;top:calc(var(--flight-safe-top) + 8px);left:calc(var(--flight-safe-left) + 10px);right:calc(var(--flight-safe-right) + 126px);height:auto;min-height:44px;padding:7px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;background:linear-gradient(110deg,#06121bd9,#07162186);border:1px solid #d4fff014;border-radius:7px;box-shadow:0 2px 12px #0002;pointer-events:none;text-shadow:0 1px 3px #000}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .hud-sector{max-width:none;min-width:0}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .hud .eyebrow{font-size:7px;letter-spacing:1px;white-space:nowrap}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .hud .eyebrow b{margin-left:5px}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) #sectorName{font-size:10px;line-height:1.25;letter-spacing:.6px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) #destinationProgress,.console:is(:fullscreen,.native-fullscreen,.expanded) #missionHud,.console:is(:fullscreen,.native-fullscreen,.expanded) #hearts{display:none}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .scoreblock strong{font-size:14px;line-height:1.2;letter-spacing:1px;margin-top:4px}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .hull-meter{width:80px;height:7px;margin:6px 0 1px}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment{position:absolute;z-index:14;bottom:calc(var(--flight-safe-bottom) + 10px);left:calc(var(--flight-safe-left) + 140px);right:calc(var(--flight-safe-right) + 10px);height:auto;min-height:0;width:auto;padding:7px 10px;display:flex;gap:18px;justify-content:flex-end;flex-wrap:nowrap;border-radius:7px;background:linear-gradient(270deg,#06121bd9,#07162170);pointer-events:none;text-shadow:0 1px 3px #000}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment>div{gap:0;min-width:0}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment .eyebrow{font-size:7px;letter-spacing:.8px}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment strong{font-size:9px;line-height:1.2;letter-spacing:.7px;margin-top:3px}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment-icon,.console:is(:fullscreen,.native-fullscreen,.expanded) .equipment .loadout{display:none}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment .progress-wrap{width:100px;min-width:75px;margin-left:0;flex-shrink:0}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .progress{margin-top:6px;height:2px}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .expand-game{top:calc(var(--flight-safe-top) + 8px);right:calc(var(--flight-safe-right) + 60px);width:58px;min-height:44px;padding:5px;font-size:8px;line-height:1.35;letter-spacing:.4px;background:#06121bab;z-index:16}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .pause{top:calc(var(--flight-safe-top) + 8px);right:calc(var(--flight-safe-right) + 10px);width:44px;min-height:44px;padding:8px;font-size:16px;background:#06121bab;z-index:16}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) #touchControls.active{position:absolute;z-index:15;left:calc(var(--flight-safe-left) + 10px);right:auto;bottom:calc(var(--flight-safe-bottom) + 8px);display:flex;align-items:center;gap:10px;width:auto;pointer-events:none}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) #touchControls button{width:54px;height:54px;font-size:9px;border:1px solid #9ee8d578;border-radius:50%;background:#071b25a6;box-shadow:0 2px 8px #0003;pointer-events:auto}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) #touchControls span{display:none}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) #bossbar{top:calc(var(--flight-safe-top) + 64px);left:25%;width:50%;pointer-events:none}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) #bossbar span{font-size:9px;letter-spacing:2px}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) #bosstactic{font-size:8px;line-height:1.35;margin-top:5px}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .origin-recovery{bottom:calc(var(--flight-safe-bottom) + 58px);max-width:72%;pointer-events:none}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .overlay{padding:calc(var(--flight-safe-top) + 12px) calc(var(--flight-safe-right) + 12px) calc(var(--flight-safe-bottom) + 12px) calc(var(--flight-safe-left) + 12px);z-index:15}
+ html.safari-locked .console.expanded{padding:0}
+ @supports(width:1cqw){.console:is(:fullscreen,.native-fullscreen,.expanded) #game,html.safari-locked .console.expanded #game{width:min(100cqw,189.473684cqh);height:min(100cqh,52.777778cqw)}}
+}
+@media(pointer:coarse) and (orientation:portrait),(max-width:680px) and (orientation:portrait){
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .hud{top:calc(var(--flight-safe-top) + 64px);right:calc(var(--flight-safe-right) + 10px);gap:10px}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .orientation-hint{display:block;position:absolute;top:calc(var(--flight-safe-top) + 124px);left:16px;right:16px;text-align:center;color:#a0f5d8;font-size:11px;z-index:13}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment .progress-wrap{display:none}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment{gap:10px;padding:7px}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) #bossbar{top:calc(var(--flight-safe-top) + 156px);left:15%;width:70%}
+}

@@ -3,18 +3,25 @@ function isTideEncounter(){return typeof updateTideEncounter==='function'&&secto
 const art={},artFiles={"blackHole":"black-hole-frontier-v1.webp","orisonOcean":"orison-ocean-v1.webp","orisonGas":"orison-gas-quiet-v2.webp","orisonLightning":"orison-gas-lightning-v1.webp","orisonCinder":"orison-cinder-v1.webp","orisonIce":"orison-ice-v1.webp","reefObstacle":"obstacle-reef.webp","stormObstacle":"obstacle-storm.webp","coreObstacle":"obstacle-core.webp","colonyObstacle":"obstacle-colony.webp","carrierObstacle":"obstacle-carrier.webp","derelictObstacle":"obstacle-derelict.webp","space":"space-panorama.webp","carrier":"carrier-panorama.webp","abyss":"abyss-panorama.webp","reef":"reef-descent.webp","storm":"storm-ascent.webp","core":"core-panorama.webp"};
 for(const a of Object.values(WORLD_ART))artFiles[a.background]=a.landscape;
 artFiles.cloudDischarge='cloud-discharge-v1.webp';
+artFiles.shoreCloud='shore-cloud-v134.webp';
+artFiles.shoreWisp='shore-wisp-v135.webp';
 const artCrops={"reefObstacle":{"x":62,"y":24,"w":920,"h":1485},"stormObstacle":{"x":141,"y":14,"w":748,"h":1502},"coreObstacle":{"x":51,"y":6,"w":964,"h":1519},"colonyObstacle":{"x":260,"y":5,"w":509,"h":1525},"carrierObstacle":{"x":230,"y":2,"w":559,"h":1526},"derelictObstacle":{"x":255,"y":4,"w":530,"h":1527}};
 function loadArt(key){
  if(art[key]||!artFiles[key])return art[key];
  const img=new Image();img.decoding='async';img.onload=()=>{if(typeof surfaceDirty!=='undefined')surfaceDirty=true;if(key==='orisonLightning')prepareCloudLightning();};if(artCrops[key])img.solidCrop=artCrops[key];art[key]=img;img.src='assets/'+artFiles[key];if(key==='orisonGas')loadArt('orisonLightning');return img;
 }
 function trimSectorArt(current,next){
- const keep=new Set();for(const d of [current,next])if(d){keep.add(d.background||({verdant:'space',forge:'carrier',abyss:'abyss'}[d.theme]||d.theme));keep.add(d.obstacleArt||({verdant:'colonyObstacle',forge:'carrierObstacle',abyss:'derelictObstacle'}[d.theme]||d.theme+'Obstacle'));}
+ const keep=new Set();for(const d of [current,next])if(d)for(const key of shoreAtmosphereAssets(d))keep.add(key);for(const d of [current,next])if(d){keep.add(d.background||({verdant:'space',forge:'carrier',abyss:'abyss'}[d.theme]||d.theme));keep.add(d.obstacleArt||({verdant:'colonyObstacle',forge:'carrierObstacle',abyss:'derelictObstacle'}[d.theme]||d.theme+'Obstacle'));}
  if(keep.has('orisonGas'))keep.add('orisonLightning');else cloudLightningCache=null;
  if([current,next].some(d=>d&&backgroundEventKind(d)==='lightning'))keep.add('cloudDischarge');
  for(const key of Object.keys(art))if(!keep.has(key)){panoramaSurfaces.delete(art[key]);delete art[key];}
 }
 function prepareSectorArt(definition){
+ for(const key of shoreAtmosphereAssets(definition))loadArt(key);
+ prepareShoreAtmosphere(definition);shoreMistSprite(shoreAtmosphereKind(definition));
+ if(!shoreUsesClouds(definition)&&shoreAtmosphereKind(definition)!=='solar')prepareShoreVapor(shoreAtmosphereKind(definition));
+ const borders=prepareSceneryBorders(definition);for(const band of borders.layers)window.gpuModels?.prepareTerrain?.(band.mesh);
+ if(typeof prepareShoreWildlife==='function')prepareShoreWildlife(definition);
  const location=expedition.locations[definition.id];if(location){preparePlanetCloseup(location);galaxyArtwork(expeditionGalaxy(location));requestSpaceImage('cosmic-remnant-v1.webp');}
  const theme={verdant:'space',forge:'carrier',abyss:'abyss',reef:'reef',storm:'storm',core:'core'};
  loadArt(definition.background||theme[definition.theme]||'space');
@@ -347,9 +354,18 @@ function healthBar(x,y,w,hp,max,color){ctx.save();ctx.fillStyle='#07101ddd';ctx.
 // Route against authored scenery even before either actor enters the viewport.
 let routeCache=null;
 function routeObstacles(){if(routeCache?.time===time&&routeCache.level===level&&routeCache.source===obstacles&&routeCache.length===obstacles.length)return routeCache.value;const all=themeIndex()===0?obstacles.map(o=>({...o,navigation:true,solidCache:null})):obstacles.slice();const c=sectors[level].challenge;if(c&&c.at-4>time&&c.at-4<time+9)all.push({at:c.at-4,x:W+100-(time-c.at+4)*SCROLL_SPEED,shutters:true});for(const [id,p] of gatePlans[level].entries())if(p.at>time&&p.at<time+9)all.push({...p,id,navigation:themeIndex()===0,x:W+100-(time-p.at)*SCROLL_SPEED,w:p.width});routeCache={time,level,source:obstacles,length:obstacles.length,value:all};return all;}
+// Look ahead through the shoreline in its moving frame, allowing the existing
+// velocity steering time to clear a headland before it reaches the creature.
+function enemyShoreCorridor(e,vertical,radius){
+ const stage=sectors[level],along=vertical?e.y:e.x,span=vertical?W:H,direction=vertical?(e.verticalDirection||1):(e.direction||-1);
+ const relative=direction*(e.swimSpeed||e.speed||220)-(stage.scrollAxis==='up'?SCROLL_SPEED:-SCROLL_SPEED),ahead=clamp(relative*.75,-300,300),offset=sceneryBorderOffset();
+ const lo=along-radius+Math.min(0,ahead),hi=along+radius+Math.max(0,ahead),bands=prepareSceneryBorders().layers;
+ return [sceneryBorderExtent(bands[0],lo,hi,offset)+radius+18,span-sceneryBorderExtent(bands[1],lo,hi,offset)-radius-18];
+}
 function enemyRouteY(e,naturalY){if(sectors[level].scrollAxis)return clamp(naturalY,100,H-100);let y=naturalY;const radius=e.brood?90:isOrganicEnemy(e)?70:55;
  for(const o of routeObstacles())for(const r of obstacleSolids(o)){const dist=Math.abs(e.x-(r.x+r.w/2)),u=clamp((r.w/2+(e.direction===1?700:480)-dist)/(e.direction===1?400:300),0,1),blend=passEase(u),edge=r.ceiling?r.y+r.h+radius+12:r.y-radius-12;const target=r.ceiling?Math.max(y,edge):Math.min(y,edge);y+=(target-y)*blend;}
- return clamp(y,80,H-80);
+ const [lower,upper]=enemyShoreCorridor(e,false,radius);
+ return clamp(y,Math.max(80,lower),Math.min(H-80,upper));
 }
 function steerEnemyY(e,target,dt){if(e.routeY==null){e.routeY=target;e.routeVY=0;}const a=1-Math.exp(-dt*8);const desired=clamp((target-e.routeY)*7,-320,320);e.routeVY+=(desired-e.routeVY)*a;e.routeY+=e.routeVY*dt;return e.routeY;}
 // Formation targets may change abruptly as moving terrain enters/leaves the
@@ -366,16 +382,39 @@ function steerFormationEnemy(e,x,y,dt){
  e.routeY=e.y;e.routeVY=e.formationVY;
 }
 function prepareEnemyEntry(e,wave,n){
+ if(wave%4===2&&!e.elite&&prepareShoreEntry(e,wave,n))return;
  const advanced=sectors[level].entrySides||['right'],flanking=sectors[level].flankWaves?.includes(wave);e.entry=flanking?'left':advanced[wave%advanced.length];e.direction=e.entry==='left'?1:-1;
  if(sectors[level].scrollAxis){e.entry=(flanking||wave%5===4)?(sectors[level].scrollAxis==='down'?'top':'bottom'):(sectors[level].scrollAxis==='down'?'bottom':'top');e.verticalTravel=true;e.verticalDirection=e.entry==='top'?1:-1;e.baseX=clamp(W*.5+Math.sin(wave*1.7)*240+(n-2)*60,200,W-200);e.y=e.entry==='top'?-180-n*96:H+180+n*96;e.x=enemyRouteX(e,e.baseX);e.routeX=e.x;e.direction=e.x<W/2?1:-1;return;}
 
  if(e.entry==='left'){e.x=-180-n*100;}
  else if(e.entry==='top'||e.entry==='bottom'){
-  const solids=routeObstacles().flatMap(obstacleSolids),candidates=[W*.76,W*.55,W*.9,W*.37];
-  const safe=candidates.find(x=>Array.from({length:13},(_,j)=>j*(2.5+n*.24)/12).every(a=>{const ex=x+n*12-180*passEase(clamp((a-n*.24)/2.5,0,1));return solids.every(r=>ex+115<r.x-a*SCROLL_SPEED||ex-115>r.x+r.w-a*SCROLL_SPEED);}));
-  if(safe==null){e.entry='right';}else{e.entryX=safe+n*12;e.x=e.entryX;e.entryY=e.entry==='top'?-140-n*85:H+140+n*85;e.y=e.entryY;e.entryDelay=n*.24;e.entryTarget=e.base;}
+  if(prepareShoreEntry(e,wave,n))return;
+  e.entry='right';
  }
+
  if(e.entry==='right'||e.entry==='left'){const atX=e.x;e.x=e.entry==='right'?W+100:-100;e.base=enemyRouteY(e,e.base);e.x=atX;e.y=e.base;e.routeY=e.base;e.routeVY=0;}
+}
+// Entrants follow a moving break while crossing the wall, then join the
+// normal flight route. Never aim an arrival through an opaque shoreline.
+function prepareShoreEntry(e,wave,n){
+ const vertical=!!sectors[level].scrollAxis,span=vertical?H:W,direction=sectors[level].scrollAxis==='up'?1:-1,offset=sceneryBorderOffset(),period=SCENERY_BORDER_PERIOD;
+ const bands=prepareSceneryBorders().layers,preferred=wave%2;
+ for(const edge of [preferred,1-preferred])for(const gap of bands[edge].mesh.border.openings){
+  const along=((gap.center+offset)%period+period)%period+(n%3-1)*24,finish=along+direction*SCROLL_SPEED*(1.7+n*.18);
+  if(Math.min(along,finish)<170||Math.max(along,finish)>span-170)continue;
+  const solids=routeObstacles().flatMap(obstacleSolids),cx=vertical?(edge?W-110:110):along,cy=vertical?along:(edge?H-110:110);
+  if(solids.some(r=>cx+90>r.x&&cx-90<r.x+r.w&&cy+90>r.y&&cy-90<r.y+r.h))continue;
+  e.shoreEntry={vertical,edge,along,direction,duration:1.7+n*.18};e.entry='shore';e.direction=vertical?(edge?-1:1):-1;
+  e.x=vertical?(edge?W+80:-80):along;e.y=vertical?along:(edge?H+80:-80);e.depth=1;return true;
+ }
+ return false;
+}
+function updateShoreEntry(e,dt){
+ const entry=e.shoreEntry,oldX=e.x,oldY=e.y;e.age+=dt;
+ const t=clamp(e.age/entry.duration,0,1),along=entry.along+entry.direction*SCROLL_SPEED*e.age,cross=-80+300*passEase(t),limit=entry.vertical?W:H;
+ e.x=entry.vertical?(entry.edge?limit-cross:cross):along;e.y=entry.vertical?along:(entry.edge?limit-cross:cross);
+ steerVerticalEnemyFacing(e,(e.x-oldX)/dt,(e.y-oldY)/dt,dt);
+ if(t===1){e.shoreEntry=null;e.entry='shore-complete';e.base=e.y;e.routeY=e.y;e.routeVY=0;e.baseX=e.x;e.routeX=e.x;if(entry.vertical){e.verticalTravel=true;e.verticalDirection=sectors[level].scrollAxis==='down'?-1:1;}else e.direction=-1;}
 }
 function drawEntryWarnings(){for(const side of ['left','top','bottom']){const incoming=enemies.find(e=>e.entry===side&&e.age<1.2);if(!incoming)continue;const x=side==='left'?26:clamp(incoming.entryX??incoming.x,90,W-90),y=side==='top'?26:side==='bottom'?H-26:incoming.base;ctx.save();ctx.translate(x,y);ctx.globalAlpha=.5+.25*Math.sin(incoming.age*7);ctx.fillStyle='#ffca83';ctx.font='bold 12px monospace';ctx.textAlign='center';ctx.fillText(side==='left'?'»':side==='top'?'▼':'▲',0,0);ctx.restore();}}
 function frontShieldPosition(){return pilotMount(65)}
@@ -431,6 +470,7 @@ function updateEnemyRetreat(e,dt){
  r.finished=e.x< -r.margin||e.x>W+r.margin||e.y< -r.margin||e.y>H+r.margin;
 }
 function enemyKinematics(e,dt){
+ if(e.shoreEntry&&!e.retreat){updateShoreEntry(e,dt);return;}
  if(e.retreat){updateEnemyRetreat(e,dt);return;}
  if(sectors[level].medium==='water'&&!e.sentry)dt*=WATER_HANDLING.enemyMotion;
  const species=enemySpecies(e);
@@ -959,7 +999,410 @@ function drawExplosions(dt){for(const e of explosions){if(state!=='paused')e.age
  if(e.bossBlast){for(const d of e.detonations){const age=e.age-d.delay;if(age<0||age>.72)continue;const fade=1-age/.72;ctx.save();ctx.translate(d.x,d.y);ctx.globalAlpha=fade*.75;drawSoftPlume(d,d.r*(.5+age),age*.65,fade*.8);ctx.restore();}}
  if(!e.organic&&e.age<.24)orb(-4,-5,(50+e.age*100)*e.size,'#ffefca',(1-e.age/.24)*.8);ctx.restore();}explosions=explosions.filter(e=>e.age<e.life);
 }
-function drawStructures(){terrainEmitters.length=0;for(const o of obstacles)drawTerrainObstacle(o);}
+// One solid, fractured shoreline per edge. Relief, ledges and recesses belong
+// to the same body: no independently sliding strips or rounded curtain folds.
+const sceneryBorderCaches=new Map();
+const SCENERY_BORDER_PERIOD=2304;
+// Material-specific details are grown out of the retained shore surface. Their
+// footprint stays inside the same collision rim and shares its scrolling body.
+function addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,field,project){
+ const seed=definition.worldIdentity?.seed||0,period=SCENERY_BORDER_PERIOD,features=[],start=faces.length,biome=definition.worldIdentity?.biome||'',vertical=!!definition.scrollAxis;
+ const verdant=style.kind==='stone'&&!metal&&definition.medium==='air'&&/garden|sky|orbital/.test(biome),damp=style.kind==='stone'&&/cave/.test(biome);
+ const tint=(color,n)=>color.map(v=>clamp(Math.round(v+n),18,218));
+ const at=(u,v,lift=0)=>{u=clamp(u,8,period-8);const h=profile(u);v=Math.min(v,h-4);const q=clamp((v+30)/(h+30),0,1),f=field(u,q,810),detail=field(u,q,2210),lip=clamp((q-.83)/.17,0,1),z=metal?-40+lip*44:-42+(f-.5)*40+(detail-.5)*12+lip*39;return project(u,v,z-lift);};
+ const face=(v,c,weight=.6,em=0,group='')=>faces.push({v,c,em,flex:0,textureWeight:weight,smoothGroup:group});
+ const tube=(path,radius,color,group)=>{const m=meshBuilder();m.tube(path.map(p=>at(...p)),radius,color,0,0,5,1);for(const f of m.faces){f.textureWeight=.35;f.smoothGroup=group;}faces.push(...m.faces);};
+ // A broken ledge or mineral crust has depth and an irregular low silhouette;
+ // it is embedded in the rock rather than mounted on a smooth circular base.
+ const crust=(u,v,w,h,color,rnd,lift=5,n=9)=>{
+  const outer=[],inner=[];
+  for(let j=0;j<n;j++){const a=j/n*TAU,r=.77+rnd(j+31)*.38,du=Math.cos(a)*w*r,dv=Math.sin(a)*h*r;outer.push(at(u+du,v+dv,.4));inner.push(at(u+du*.72,v+dv*.72,lift+(rnd(j+47)-.5)*3));}
+  const center=at(u-w*.16,v-h*.2,lift+2);
+  for(let j=0;j<n;j++){const k=(j+1)%n;face([outer[j],outer[k],inner[k],inner[j]],tint(color,-16),.9);face([inner[j],inner[k],center],color,.85);}
+ };
+ // Folded ribbons have a lit central ridge and tapered, unequal tips. Plants
+ // share the substrate transform while only their flexible growth moves.
+ const foliageFace=(vertices,color,weights,phase)=>{face(vertices,color,.10,0,'shore-leaf');faces.at(-1).growth=weights.map(q=>[q,phase]);faces.foliage=true;};
+ const kelp=(u,v,size,r)=>{
+  const count=1+Math.floor(r(281)*5),lean=(r(282)-.5)*size,kelpy=r(283)>.45;
+  for(let leaf=0;leaf<count;leaf++){
+   const phase=r(leaf+290)*TAU,length=size*(.95+r(leaf+300)*1.4),width=(kelpy?4:2.4)*( .7+r(leaf+310)*.7),spread=(r(leaf+320)-.5)*size*.6,rows=[];
+   for(let j=0;j<=6;j++){
+    const q=j/6,w=(Math.sin(Math.PI*q)**.7)*(width*(1+.19*Math.sin(q*14+phase)))+.06,du=vertical?-length*q:lean*q+spread*q+Math.sin(q*5+phase)*size*.17*q,dv=vertical?lean*q+spread*q:(edge?1:-1)*length*q,x=u+du,y=v+dv,lift=10+q*11;
+    const tu=vertical?-length:lean+spread+size*.17*(Math.sin(q*5+phase)+q*5*Math.cos(q*5+phase)),tv=vertical?lean+spread:(edge?1:-1)*length,norm=Math.hypot(tu,tv)||1,nx=-tv/norm,ny=tu/norm;
+    rows.push([at(x-nx*w,y-ny*w,lift),at(x,y,lift+2.5*Math.sin(Math.PI*q)),at(x+nx*w,y+ny*w,lift)]);
+   }
+   for(let j=0;j<6;j++)for(let side=0;side<2;side++)foliageFace([rows[j][side],rows[j+1][side],rows[j+1][side+1],rows[j][side+1]],side?[91,134,106]:[68,111,103],[j/6,(j+1)/6,(j+1)/6,j/6],phase);
+  }
+ };
+ const fern=(u,v,size,r)=>{
+  const count=1+Math.floor(r(350)*3);
+  for(let stem=0;stem<count;stem++){
+   const phase=r(stem+355)*TAU,length=size*(.9+r(stem+360)*.65),lean=(r(stem+365)-.5)*size*1.2,dir=edge?1:-1,points=[];
+   for(let j=0;j<=5;j++){const q=j/5;points.push([u+lean*q+Math.sin(q*2.8)*size*.18,v+dir*length*q,12+q*5]);}
+   tube(points,.55,[94,121,81],'shore-frond');
+   for(let j=1;j<5;j++)for(const side of [-1,1]){
+    const q=j/5,p=points[j],spread=size*(.17+.19*Math.sin(q*Math.PI))*(.7+r(stem*10+j+370)*.5),tip=at(p[0]+side*spread,p[1]+dir*size*.08,p[2]+1),root=at(...p),heel=at(p[0]+side*spread*.25,p[1]-dir*size*.15,p[2]+2);
+    foliageFace([root,tip,heel],side>0?[110,140,85]:[75,113,81],[q*.5,q,q*.75],phase);
+   }
+  }
+ };
+ const vine=(u,v,size,r)=>{
+  const count=1+Math.floor(r(400)*3);
+  for(let stem=0;stem<count;stem++){
+   const phase=r(stem+405)*TAU,length=size*(1+r(stem+410)*1.5),lean=(r(stem+415)-.5)*size*.8,points=[];
+   for(let j=0;j<=6;j++){const q=j/6;points.push([u+lean*q+Math.sin(q*5+phase)*size*.10*q,v+length*q,11+q*3]);}
+   tube(points,.55,[86,109,73],'shore-vine');
+   for(let j=1;j<=5;j++){
+    const q=j/6,p=points[j],side=j%2?1:-1,w=size*(.12+r(j+420)*.11),root=at(...p),tip=at(p[0]+side*w,p[1]+size*.09,p[2]+2),middle=at(p[0]+side*w*.63,p[1]-size*.09,p[2]+3);
+    foliageFace([root,middle,tip],[84,121,83],[q*.45,q*.85,q],phase);
+   }
+  }
+ };
+ let triangles=0;
+ for(let i=0;i<24;i++){
+  const r=n=>sceneryVariation(seed+edge*239,i*19+n),u=(i+.22+r(1)*.5)*period/24,h=profile(u);
+  if(h<36||u<42||u>period-42)continue;
+  const featureStart=faces.length,kind=metal?'forge':style.kind,emits=r(7)>.42;
+  // Physical crevices/outlets use the same seeded positions as live particles.
+  if(emits){
+   const v=h-6,rx=metal?6:4+r(9)*3,ry=metal?4.5:2.6+r(10)*2,outer=[],inner=[],c=metal?[117,139,143]:kind==='basalt'?[109,83,65]:kind==='reef'?[103,132,119]:kind==='ice'?[131,166,183]:[133,133,112];
+   for(let j=0;j<7;j++){const a=j/7*TAU,f=metal?1:.8+r(j+61)*.4;outer.push(at(u+Math.cos(a)*rx*f,v+Math.sin(a)*ry*f,1.5));inner.push(at(u+Math.cos(a)*rx*.55*f,v+Math.sin(a)*ry*.55*f,3));}
+   for(let j=0;j<7;j++)face([outer[j],outer[(j+1)%7],inner[(j+1)%7],inner[j]],c,.55);
+   face(inner.slice().reverse(),kind==='basalt'?[182,79,27]:[26,45,48],.08,kind==='basalt'?.24:0);
+   features.push({u,h:h-6,kind,point:at(u,v,3)});
+  }
+  const decorationStart=faces.length;
+  // Colonies, ledges and fittings occupy only broad solid sections. Unequal
+  // empty stretches prevent the old regularly spaced stacks from returning.
+  if(r(11)>.38&&Math.min(profile(u-36),profile(u+36))>43){
+   const v=h*(.34+r(12)*.27),size=17+r(13)*15,form=r(14),rnd=n=>r(n+200);
+   if(kind==='reef'){
+    const palette=[[130,152,134],[153,133,120],[129,142,151],[160,148,116]][Math.floor(r(15)*4)],c=tint(palette,(r(16)-.5)*16);
+    if(form<.52){
+     // Low ruffled plates overlap asymmetrically and follow the substrate.
+     const count=1+Math.floor(r(17)*3);
+     for(let j=0;j<count;j++){
+      const x=u+(r(18+j)-.5)*size,y=v+(r(22+j)-.5)*size*.6,w=size*(.5+r(26+j)*.65),ring=[],root=at(x,y,4);
+      for(let k=0;k<11;k++){const a=k/11*TAU,rr=1+.16*Math.sin(a*5+j)+.08*Math.sin(a*3);ring.push(at(x+Math.cos(a)*w*rr,y+Math.sin(a)*w*.42,7+Math.sin(a*4+j)*2.2));}
+      for(let k=0;k<11;k++)face([root,ring[k],ring[(k+1)%11]],tint(c,j*6),.45,0,'shore-plate-'+i+'-'+j);
+     }
+    }else{
+     // Spreading sea fans use tapered branches with split tips, not fingers.
+     for(let j=0;j<4;j++){
+      const spread=(j/3-.5)*size*1.9,tipV=v-size*(.3+.6*Math.sin((j+.5)/4*Math.PI)),joint=[u+spread*.47,v-size*.16,7],tip=[u+spread,tipV,10];
+      tube([[u,v,3],joint,tip],1.0,c,'shore-fan-'+i);
+      const t=.55,start=joint.map((n,k)=>n+(tip[k]-n)*t);
+      tube([start,[start[0]+(j%2?1:-1)*size*.26,start[1]-size*.22,11]],.48,tint(c,10),'shore-fan-'+i);
+     }
+    }
+    crust(u-size*.42,v+size*.2,size*.47,size*.25,tint(c,-18),rnd,2,7);
+    if(r(29)>.20){
+     // Large, uneven kelp/grass clumps sit in coral gaps instead of three icons.
+     kelp(u+size*(r(28)-.5)*1.1,v,size,r);
+    }
+   }else if(metal){
+    const steel=[115,141,148],dark=[40,60,67],warm=[172,142,92],width=size*1.7,height=13+r(15)*12;
+    const ring=[[-width,-height],[width*.7,-height],[width,height*.3],[width*.7,height],[-width*.8,height],[-width,height*.1]].map(([x,y])=>at(u+x,v+y,5));
+    const cap=[[-width*.87,-height*.72],[width*.59,-height*.72],[width*.86,height*.22],[width*.59,height*.72],[-width*.69,height*.72],[-width*.86,height*.07]].map(([x,y])=>at(u+x,v+y,9));
+    for(let j=0;j<6;j++)face([ring[j],ring[(j+1)%6],cap[(j+1)%6],cap[j]],steel,.65);
+    face(cap,dark,.7);
+    if(form<.5){
+     // Several recessed louvres share a single beveled housing.
+     for(let j=0;j<4;j++){const y=v-height*.51+j*height*.32;face([at(u-width*.62,y,10),at(u+width*.5,y,10),at(u+width*.5,y+2.5,12),at(u-width*.62,y+2.5,12)],steel,.35);}
+    }else{
+     tube([[u-width*.65,v,10],[u-width*.2,v-height*.25,13],[u+width*.62,v-height*.25,13]],2.6,steel,'shore-conduit-'+i);
+     face([at(u-width*.55,v+height*.43,10),at(u-width*.18,v+height*.43,10),at(u-width*.18,v+height*.43+2,10),at(u-width*.55,v+height*.43+2,10)],warm,.15,.08);
+    }
+   }else if(kind==='ice'){
+    // Fractured embedded lenses catch cold light without rows of long spikes.
+    for(let j=0;j<2+(form>.7);j++){
+     const x=u+(r(j+30)-.5)*size*1.3,y=v+(r(j+35)-.5)*size*.8,w=size*(.22+r(j+40)*.3),length=size*(.7+r(j+45)*.5),base=[at(x-w,y+length*.32,1),at(x+w,y+length*.2,1),at(x+w*.7,y-length*.5,2),at(x-w*.2,y-length*.65,2)],ridge=at(x-w*.15,y-length*.1,10+r(j+50)*9);
+     for(let k=0;k<4;k++)face([base[k],base[(k+1)%4],ridge],k%2?[159,189,202]:[119,153,175],.7,0,'shore-ice-'+i+'-'+j);
+    }
+   }else{
+    const c=kind==='basalt'?[96,94,88]:kind==='storm'?[123,136,146]:[134,143,127];
+    crust(u,v,size*1.3,size*.49,c,rnd,6+r(15)*7);
+    if(form>.58)crust(u-size*.47,v+size*.38,size*.81,size*.24,tint(c,-10),n=>rnd(n+43),5,7);
+    if(kind==='basalt'){
+     const path=Array.from({length:5},(_,j)=>[u-size*.75+j*size*.37,v+(r(40+j)-.5)*size*.4]);
+     for(let j=0;j<4;j++){const a=path[j],b=path[j+1];face([at(a[0],a[1]-1.2,14),at(b[0],b[1]-1.2,14),at(b[0],b[1]+1.2,14),at(a[0],a[1]+1.2,14)],[168,76,32],.3,.18);}
+    }else if(kind==='stone'&&(verdant||damp)){
+     // Broad connected moss and lichen patches follow damp ledges. Caves keep
+     // this sparse low growth; sunlit verdant worlds also support plants.
+     for(let j=0;j<1+Math.floor(r(52)*3);j++)crust(u+(r(j+51)-.5)*size,v-size*.18+(r(j+55)-.5)*size*.3,size*(.38+r(j+58)*.4),size*(.13+r(j+62)*.1),j%2?[115,131,90]:[84,115,92],n=>rnd(n+j*32+80),10,7);
+     if(verdant&&r(66)>.27){
+      if(!edge&&!vertical&&r(67)>.32)vine(u,v-size*.4,size,r);
+      else fern(u,v+size*.08,size,r);
+     }
+    }
+   }
+  }
+  const added=faces.slice(featureStart).reduce((n,f)=>n+f.v.length-2,0);
+  if(triangles+added>2000){faces.splice(decorationStart);triangles+=faces.slice(featureStart).reduce((n,f)=>n+f.v.length-2,0);}
+  else triangles+=added;
+ }
+ faces.borderFeatureStart=start;
+ return features;
+}
+function sceneryBorderMesh(definition,edge){
+ const style=terrainAppearance(definition),metal=definition.theme==='forge',vertical=!!definition.scrollAxis,seed=style.seed+edge*173,period=SCENERY_BORDER_PERIOD,cols=256;
+ const palette={stone:[125,133,132],reef:[68,100,99],basalt:[83,79,76],storm:[106,115,128],ice:[153,183,194]},base=metal?[90,118,132]:palette[style.kind],faces=[];
+ const noise=(u,cells,salt)=>{const cell=((u/period*cells)%cells+cells)%cells,i=Math.floor(cell),q=cell-i;return sceneryVariation(seed,i+salt)*(1-q)+sceneryVariation(seed,(i+1)%cells+salt)*q;};
+ const openAir=definition.medium==='air'&&!metal&&!/cave|core/.test(definition.worldIdentity?.biome||''),openCount=openAir&&!edge?3:2;
+ const openings=Array.from({length:openCount},(_,i)=>({center:180+i*period/openCount+sceneryVariation(seed,i+5100)*200,half:openAir&&!edge?225+sceneryVariation(seed,i+5200)*90:110+sceneryVariation(seed,i+5200)*95}));
+ const profile=u=>{const h=metal?54+noise(u,24,20)*45+noise(u,96,220)*5:Math.min(150,38+noise(u,14,20)*67+noise(u,48,220)*24+noise(u,256,480)*7+Math.max(0,noise(u,23,5700)-.58)*95);let solid=1;for(const gap of openings){const d=Math.abs(((u-gap.center+period*1.5)%period)-period*.5),t=clamp((d-gap.half)/65,0,1);solid=Math.min(solid,t*t*(3-2*t));}return -12+(h+12)*solid;};
+ const project=(u,v,z)=>vertical?[edge?W-v:v,u,z]:[u,edge?H-v:v,z];
+ const qs=Array.from({length:15},(_,j)=>j/14);
+ // Crosswise fracture fields do not run in parallel bands along the shoreline.
+ const field=(u,q,salt)=>{const t=q*6,j=Math.floor(t),f=t-j;return noise(u,45,salt+j*71)*(1-f)+noise(u,45,salt+(j+1)*71)*f;};
+ const surface=(u,j)=>{const q=qs[j],h=profile(u),f=field(u,q,810),detail=field(u,q,2210),v=-30+(h+30)*q+(f-.5)*8*Math.sin(q*Math.PI),lip=clamp((q-.83)/.17,0,1),z=metal?-40+lip*44:-42+(f-.5)*40+(detail-.5)*12+lip*39;return project(u,v,z);};
+ const rings=Array.from({length:cols+1},(_,i)=>qs.map((_,j)=>surface(i/cols*period,j)));
+ const tint=(u,j)=>{const f=field(u,qs[j],3210),shade=.82+f*.28;return base.map(v=>Math.round(v*shade));};
+ for(let i=0;i<cols;i++)for(let j=0;j<qs.length-1;j++){
+  const u=i/cols*period,next=(i+1)/cols*period;
+  faces.push({v:[rings[i][j],rings[i+1][j],rings[i+1][j+1],rings[i][j+1]],c:base,vertexColors:[tint(u,j),tint(next,j),tint(next,j+1),tint(u,j+1)],em:0,flex:0,smoothGroup:'shore-shell'});
+ }
+ // Service recesses belong to the industrial wall alone; geology uses its
+ // fractured relief and photographed mineral surface, without engraved stripes.
+ if(metal)for(let i=0;i<24;i++){
+  const u=30+i*(period-80)/24,j=3+Math.floor(sceneryVariation(seed,i+1600)*6),len=12+sceneryVariation(seed,i+1700)*22,p=(du,dv,dz)=>{const v=surface(u+du,j);v[1-(vertical?1:0)]+=(edge?-1:1)*dv;v[2]+=dz;return v;};
+  faces.push({v:[p(-len,0,-1),p(len,0,-1),p(len,7,-1),p(-len,7,-1)],c:base.map(v=>Math.round(v*.43)),em:0,flex:0});
+  faces.push({v:[p(-len,8,-2),p(len,8,-2),p(len,10,-2),p(-len,10,-2)],c:base.map(v=>Math.round(v*1.13)),em:0,flex:0});
+ }
+ faces.rock=!metal;faces.industrial=metal;faces.terrainMaterial=metal?'foundry':style.kind;faces.terrainRelief=true;faces.terrainWorld=style.seed;
+ const features=addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,field,project);
+ faces.border={axis:vertical?1:0,period,openings,features,heights:Array.from({length:cols+1},(_,i)=>profile(i/cols*period))};
+ return faces;
+}
+function prepareSceneryBorders(definition=sectors[level]){
+ const key=definition.id+':'+W+':'+H;
+ if(sceneryBorderCaches.has(key))return sceneryBorderCaches.get(key);
+ const layers=[0,1].map(edge=>({edge,mesh:sceneryBorderMesh(definition,edge)}));
+ const cache={key,layers};sceneryBorderCaches.set(key,cache);while(sceneryBorderCaches.size>2)sceneryBorderCaches.delete(sceneryBorderCaches.keys().next().value);return cache;
+}
+function sceneryBorderOffset(distance=sceneryDistance(),definition=sectors[level]){
+ const period=SCENERY_BORDER_PERIOD;
+ return ((distance*(definition.scrollAxis==='up'?1:-1))%period+period)%period;
+}
+// The collision contour is the actual tessellated silhouette, including wrap.
+// Maxima of a piecewise-linear rim occur at either endpoint or a mesh vertex.
+function sceneryBorderExtent(band,lo,hi,offset){
+ const {heights,period}=band.mesh.border,step=period/(heights.length-1),n=heights.length-1;
+ const sample=u=>{const t=((u-offset)%period+period)%period/step,i=Math.floor(t),f=t-i;return heights[i]*(1-f)+heights[i+1]*f;};
+ let height=Math.max(sample(lo),sample(hi));
+ for(let k=Math.ceil((lo-offset)/step);k*step+offset<hi;k++)height=Math.max(height,heights[(k%n+n)%n]);
+ return height;
+}
+function sceneryBorderContact(x,y,mx=24,my=14,distance=sceneryDistance()){
+ const vertical=!!sectors[level].scrollAxis,along=vertical?y:x,radius=vertical?my:mx,cross=vertical?x:y,reach=vertical?mx:my,span=vertical?W:H,offset=sceneryBorderOffset(distance);
+ return prepareSceneryBorders().layers.some(b=>{const h=sceneryBorderExtent(b,along-radius,along+radius,offset);return b.edge?cross+reach>=span-h:cross-reach<=h;});
+}
+function drawSceneryBorders(){
+ const stage=sectors[level],vertical=!!stage.scrollAxis,span=vertical?H:W,period=SCENERY_BORDER_PERIOD,offset=sceneryBorderOffset();
+ for(const band of prepareSceneryBorders(stage).layers)for(let p=offset-period;p<span;p+=period){
+  if(p+period<0)continue;
+  drawModel(band.mesh,vertical?0:p,vertical?p:0,1,0,0,0,time);
+ }
+}
+
+// Shared art is lit and tinted for the surrounding biome, rather than laying
+// the same white cloud over every planet. All emitters belong to solid terrain.
+const shoreAtmospheres={
+ cloud:{color:'#c4d3d5',veil:.20,back:.67,front:.53,particle:'water',assets:['shoreCloud','shoreWisp']},
+ storm:{color:'#bcb6a5',veil:.23,back:.54,front:.38,particle:'water',assets:['shoreCloud','shoreWisp']},
+ water:{color:'#387c89',veil:.21,back:.15,front:.17,particle:'bubble',assets:[]},
+ frost:{color:'#a2bdca',veil:.22,back:.28,front:.23,particle:'snow',assets:[]},
+ hot:{color:'#b39b88',veil:.16,back:.25,front:.25,particle:'lava',assets:[]},
+ forge:{color:'#a7a09a',veil:.14,back:.21,front:.22,particle:'spark',assets:[]},
+ dust:{color:'#a99578',veil:.16,back:.16,front:.15,particle:'dust',assets:[]},
+ cave:{color:'#809da0',veil:.17,back:.17,front:.17,particle:'water',assets:[]},
+ solar:{color:'#cf8e5b',veil:.10,back:.10,front:.10,particle:'ember',assets:[]}
+};
+function shoreAtmosphereKind(stage=sectors[level]){
+ const biome=stage.worldIdentity?.biome||'',style=terrainAppearance(stage);
+ if(stage.medium==='water')return 'water';
+ if(/corona/.test(biome))return 'solar';
+ if(/ice|glacier/i.test(biome))return 'frost';
+ if(stage.theme==='forge')return 'forge';
+ if(/desert/.test(biome))return 'dust';
+ if(style.kind==='basalt')return 'hot';
+ if(/cave/.test(biome))return 'cave';
+ return style.kind==='storm'?'storm':'cloud';
+}
+function shoreUsesClouds(stage=sectors[level]){return ['cloud','storm'].includes(shoreAtmosphereKind(stage));}
+function shoreAtmosphereAssets(stage){return shoreAtmospheres[shoreAtmosphereKind(stage)].assets;}
+function prepareShoreAtmosphere(stage=sectors[level]){
+ const cache=prepareSceneryBorders(stage);if(cache.atmosphere)return cache.atmosphere;
+ const kind=shoreAtmosphereKind(stage),profile=shoreAtmospheres[kind],seed=stage.worldIdentity?.seed||0,anchors=[];
+ for(const band of cache.layers)for(let i=0;i<24;i++){
+  // Sample solid sections densely enough that even a small overhead outcrop
+  // gets contact mist. Jitter and unequal sizes avoid a repeating cloud chain.
+  const s=seed+band.edge*239,r=n=>sceneryVariation(s,i*19+n),u=(i+.22+r(1)*.5)*SCENERY_BORDER_PERIOD/24,h=sceneryBorderExtent(band,u,u,0);
+  if(h<32)continue;
+  const socket=band.mesh.border.features?.find(f=>Math.abs(f.u-u)<.01);
+  anchors.push({band,u,h,sourceH:socket?.h??h,phase:r(2)*TAU,width:190+r(3)*180,stretch:.7+r(4)*.6,variant:Math.floor(r(5)*profile.assets.length),flip:r(6)>.5?-1:1,emits:r(7)>.42,period:3.8+r(8)*5.4,seed:s+i*31});
+ }
+ return cache.atmosphere={kind,profile,anchors};
+}
+const shoreMistSprites=new Map();
+function shoreMistSprite(kind){
+ if(shoreMistSprites.has(kind))return shoreMistSprites.get(kind);
+ const sprite=document.createElement('canvas');sprite.width=256;sprite.height=128;const c=sprite.getContext('2d'),color=shoreAtmospheres[kind].color;
+ for(let i=0;i<9;i++){const x=28+i*24,y=62+Math.sin(i*2.3)*13,r=28+(i%3)*7,g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color+'72');g.addColorStop(.5,color+'37');g.addColorStop(1,color+'00');c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);}
+ shoreMistSprites.set(kind,sprite);return sprite;
+}
+const shoreTintedSprites=new Map();
+function shoreAtmosphereSprite(key,kind){
+ const source=art[key];if(!imageReady(source))return null;
+ const id=key+':'+kind,cached=shoreTintedSprites.get(id);if(cached?.source===source)return cached.canvas;
+ const c=document.createElement('canvas');c.width=768;c.height=Math.round(768*source.naturalHeight/source.naturalWidth);const paint=c.getContext('2d');paint.drawImage(source,0,0,c.width,c.height);
+ paint.globalCompositeOperation='source-atop';paint.globalAlpha=kind==='cloud'?.13:kind==='water'?.65:.35;paint.fillStyle=shoreAtmospheres[kind].color;paint.fillRect(0,0,c.width,c.height);
+ shoreTintedSprites.set(id,{source,canvas:c});while(shoreTintedSprites.size>8)shoreTintedSprites.delete(shoreTintedSprites.keys().next().value);return c;
+}
+function shoreAnchorPosition(anchor,offset,vertical,padding=0,emitter=false){
+ const along=((anchor.u+offset)%SCENERY_BORDER_PERIOD+SCENERY_BORDER_PERIOD)%SCENERY_BORDER_PERIOD,span=vertical?H:W;
+ // Include the tail at the wrapped end as it leaves the viewport.
+ const margin=anchor.width*.65+padding,at=along>span+margin?along-SCENERY_BORDER_PERIOD:along;
+ const height=emitter?(anchor.sourceH??anchor.h):anchor.h,cross=anchor.band.edge?(vertical?W:H)-height:height;
+ return {x:vertical?cross:at,y:vertical?at:cross,along:at,visible:at>-margin&&at<span+margin};
+}
+// Small density textures are prepared once. Live particles create the plume:
+// every puff has its own birth, evolving curl, expansion and dissolution.
+const shoreVaporTextures=new Map();
+function prepareShoreVapor(kind){
+ if(shoreVaporTextures.has(kind))return shoreVaporTextures.get(kind);
+ const tint=shoreAtmospheres[kind].color.match(/[a-f\d]{2}/gi).map(n=>parseInt(n,16)),color=tint.map((n,i)=>kind==='water'?n*.8+[160,195,196][i]*.2:kind==='hot'||kind==='forge'?n*.65+[215,205,192][i]*.35:n),size=96,sprites=[];
+ for(let variant=0;variant<4;variant++){
+  const canvas=document.createElement('canvas');canvas.width=canvas.height=size;const paint=canvas.getContext('2d');
+  const data=paint.createImageData(size,size),grids=[4,9,19].map(n=>({n,v:Float32Array.from({length:(n+1)**2},(_,i)=>sceneryVariation(135+variant*81,i))}));
+  const noise=(grid,x,y)=>{const u=x*grid.n,v=y*grid.n,ix=Math.floor(u),iy=Math.floor(v),a=u-ix,b=v-iy,s=a*a*(3-2*a),t=b*b*(3-2*b),k=iy*(grid.n+1)+ix;return (grid.v[k]*(1-s)+grid.v[k+1]*s)*(1-t)+(grid.v[k+grid.n+1]*(1-s)+grid.v[k+grid.n+2]*s)*t;};
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+   const u=(x+.5)/size,v=(y+.5)/size,n=noise(grids[0],u,v)*.55+noise(grids[1],u,v)*.3+noise(grids[2],u,v)*.15,px=u*2-1,py=v*2-1;
+   const envelope=Math.max(0,1-px*px-py*py),density=Math.pow(envelope,1.5)*Math.max(0,(n-.10)*2),light=.88-py*.1+n*.12,k=(y*size+x)*4;
+   for(let c=0;c<3;c++)data.data[k+c]=Math.min(255,color[c]*light);data.data[k+3]=Math.min(220,density*255);
+  }
+  paint.putImageData(data,0,0);sprites.push(canvas);
+ }
+ shoreVaporTextures.set(kind,sprites);while(shoreVaporTextures.size>2)shoreVaporTextures.delete(shoreVaporTextures.keys().next().value);return sprites;
+}
+function shoreVaporPuff(a,index,t,kind,vertical){
+ const r=n=>sceneryVariation(a.seed,n),count=kind==='water'?7:9,life=3.1+r(171)*1.4,clock=t+a.phase+index*life/count,birth=Math.floor(clock/life),age=((clock%life)+life)%life,u=age/life;
+ const seed=a.seed+index*47+birth*131,variation=sceneryVariation(seed,180),normal=a.band.edge?-1:1,curl=Math.sin(age*2.3+variation*TAU)*u*11,wind=(variation-.5)*13;
+ let dx=wind*age+curl,dy;
+ if(vertical){dx=normal*(8+age*9)+wind*age*.25+curl*.35;dy=-age*17-age*age*5;}
+ else if(a.band.edge){dy=-4-age*18-age*age*5;}
+ else {dy=4+age*40-age*age*7;dx+=age*(variation>.5?1:-1)*14;}
+ if(kind==='dust'||kind==='frost'){dx+=age*14;dy*=.35;}
+ const size=12+age*(18+variation*10),alpha=passEase(Math.min(1,age/.3))*Math.pow(1-u,1.3)*(kind==='water'?.48:kind==='dust'||kind==='frost'?.36:.88);
+ return {dx,dy,width:size*(1+.12*Math.sin(age*1.4+variation*5)),height:size*(1.1+.13*Math.cos(age*1.1+variation*4)),angle:variation*TAU+age*(variation-.5)*.65,alpha,texture:Math.floor(variation*4),morph:passEase(u),age,life};
+}
+function drawShoreVapor(front){
+ const {kind,anchors}=prepareShoreAtmosphere();if(kind==='solar')return;
+ const sprites=prepareShoreVapor(kind),vertical=!!sectors[level].scrollAxis,offset=sceneryBorderOffset(),t=sectorSceneTime(),quality=window.flightEffectsQuality||1;
+ ctx.save();
+ for(const a of anchors){
+  if(!a.emits)continue;const p=shoreAnchorPosition(a,offset,vertical,180,true);if(!p.visible)continue;
+  const count=kind==='water'?7:9;
+  for(let n=0;n<count;n++){
+   if((n%3===0)!==front||(quality<.8&&n%2))continue;
+   const v=shoreVaporPuff(a,n,t,kind,vertical);if(v.alpha<.003)continue;
+   ctx.save();ctx.translate(p.x+v.dx,p.y+v.dy);ctx.rotate(v.angle);
+   // Cross-fade two turbulent density fields while the puff turns and grows;
+   // there is no fixed full-plume image attached to the scrolling wall.
+   ctx.globalAlpha=v.alpha*(1-v.morph);ctx.drawImage(sprites[v.texture],-v.width/2,-v.height/2,v.width,v.height);
+   ctx.globalAlpha=v.alpha*v.morph;ctx.drawImage(sprites[(v.texture+1)%sprites.length],-v.width/2,-v.height/2,v.width,v.height);
+   ctx.restore();
+  }
+ }
+ ctx.restore();
+}
+
+function drawShoreClouds(front){
+ if(!shoreUsesClouds()){drawShoreVapor(front);return;}
+ const {kind,profile,anchors}=prepareShoreAtmosphere(),vertical=!!sectors[level].scrollAxis,offset=sceneryBorderOffset(),t=sectorSceneTime(),quality=window.flightEffectsQuality||1;
+ ctx.save();
+ for(let i=0;i<anchors.length;i++){
+  const a=anchors[i];if(quality<.8&&i%2)continue;const p=shoreAnchorPosition(a,offset,vertical);if(!p.visible)continue;
+  // Billows emerge from behind the cliff; differently shaped, finer wisps
+  // overlap its face. Both share the exact terrain anchor and scroll speed.
+  const key=front?(sceneryVariation(a.seed,122)>(a.band.edge?.72:.48)?'shoreCloud':'shoreWisp'):profile.assets[a.variant],sprite=shoreAtmosphereSprite(key,kind);
+  if(!sprite)continue;
+  const w=a.width*(front?.85:1.18),h=w*.36*a.stretch,drift=Math.sin(t*.11+a.phase)*8;
+  const inward=a.band.edge?1:-1,cover=front?inward*14:-inward*13;
+  const x=p.x+(vertical?cover:drift),y=p.y+(vertical?drift:cover);
+  const opacity=(front?profile.front:profile.back)*(.78+.22*Math.sin(a.phase+t*.08));
+  ctx.globalAlpha=opacity;ctx.save();ctx.translate(x,y);ctx.scale(a.flip,1);ctx.drawImage(sprite,-w*.5,-h*.5,w,h);ctx.restore();
+ }
+ ctx.restore();
+}
+function drawShoreAtmosphere(){
+ const {kind,profile,anchors}=prepareShoreAtmosphere(),sprite=shoreMistSprite(kind),vertical=!!sectors[level].scrollAxis,offset=sceneryBorderOffset(),t=sectorSceneTime(),quality=window.flightEffectsQuality||1;
+ ctx.save();
+ for(let i=0;i<anchors.length;i++){
+  const a=anchors[i];if(quality<.8&&i%2)continue;const p=shoreAnchorPosition(a,offset,vertical);if(!p.visible)continue;
+  // Narrow, soft contact haze carries the background hue into the stone face.
+  // It follows the contour instead of floating at a fixed distance below it.
+  ctx.globalAlpha=profile.veil;ctx.save();ctx.translate(p.x,p.y);if(vertical)ctx.rotate(Math.PI/2);ctx.drawImage(sprite,-a.width*.48,-37,a.width*.96,74);ctx.restore();
+  if(a.emits)drawShoreParticles(a,shoreAnchorPosition(a,offset,vertical,0,true),kind,t,quality,offset,vertical);
+ }
+ ctx.restore();
+}
+function drawShoreParticles(a,p,kind,t,quality,offset,vertical){
+ const type=shoreAtmospheres[kind].particle,edge=a.band.edge,rnd=n=>sceneryVariation(a.seed,n),bubble=type==='bubble',falling=type==='water'||type==='lava';
+ // Gravity makes droplets plausible only beneath an overhang (or a side lip).
+ // Floor vents instead release heat/embers, while sediment and bubbles rise.
+ const count=quality<.8?3:bubble?7:3;
+ for(let n=0;n<count;n++){
+  const cycle=a.period*(bubble?.45:1),phase=(t/cycle+rnd(n+70))%1;
+  if(falling&&!vertical&&edge){if(type==='water')continue;}
+  if(falling&&phase>.32)continue; // drips are occasional, never a rain curtain
+  const age=falling?phase/.32:phase,inward=edge?1:-1,ox=vertical?-inward*3:(rnd(n+90)-.5)*18,oy=vertical?(rnd(n+90)-.5)*18:-inward*3;
+  const rise=bubble?-1:falling&&(vertical||!edge)?1:-1;
+  const distance=falling?age*age*(type==='lava'?72:95):bubble?age*(70+rnd(n+120)*45)+age*age*70:age*48;
+  const x=p.x+ox+Math.sin(age*5+a.phase+n)*age*(bubble?9:5),y=p.y+oy+rise*distance;
+  // Do not draw a free particle through the solid face it has risen into.
+  const along=vertical?y:x,h=sceneryBorderExtent(a.band,along,along,offset),cross=vertical?x:y;
+  if(edge?cross>(vertical?W:H)-h:cross<h)continue;
+  const alpha=Math.sin(Math.min(1,age*3)*Math.PI/2)*(1-age)*((bubble?.68:.45)+rnd(n+80)*.2);
+  ctx.globalAlpha=alpha;
+  if(bubble){const r=2.1+Math.sqrt(age)*2.2+rnd(n+100)*2.1;ctx.drawImage(prepareTerrainBubble(),x-r,y-r,r*2,r*2);}
+  else if(type==='water'){
+   ctx.strokeStyle='#aacbd0';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(x,y-2-age*3);ctx.lineTo(x,y);ctx.stroke();
+  }else if(type==='lava'&&(vertical||!edge)){
+   // A small amber bead with a restrained hot center, without black outlines.
+   ctx.fillStyle='#d37a36';ctx.beginPath();ctx.ellipse(x,y,1.6,2.4+age*2,0,0,TAU);ctx.fill();ctx.fillStyle='#f3bf77';ctx.fillRect(x-.45,y-1,.9,2);
+  }else if(type==='spark'||type==='ember'||type==='lava'){
+   if(phase>.3)continue;ctx.strokeStyle='#d6a16a';ctx.lineWidth=.9;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(n*2+a.phase)*3,y+2);ctx.stroke();
+  }else {ctx.fillStyle=type==='snow'?'#bbd0d6':'#a99d84';ctx.fillRect(x,y,1+rnd(n+110),1);}
+ }
+}
+
+function asteroidSceneryLayer(o,index){
+ // An entire body keeps its place in the scene; rotation must never let its
+ // near faces pierce a cliff while the far faces disappear into that cliff.
+ const seed=sectors[level].worldIdentity?.seed||371;
+ return ['behind','clouded','front'][Math.floor(sceneryVariation(seed+(o.id??o.at??0)*97,index+431)*3)];
+}
+function drawAsteroidSceneryLayer(layer){if(themeIndex()===0)for(const o of obstacles)drawTerrainObstacle(o,layer);}
+function drawStructures(){
+ terrainEmitters.length=0;
+ const limit=(window.flightEffectsQuality||1)<.8?14:24;let effectsDrawn=0;
+ // Keep every body's dust/steam in the same compositing layer as its solid
+ // geometry, while sharing one bounded port budget across all scenery passes.
+ const flushLayer=from=>{window.gpuModels?.flush(ctx);if(from<terrainEmitters.length&&effectsDrawn<limit)effectsDrawn+=drawTerrainPortEffects(from,terrainEmitters.length,limit-effectsDrawn);};
+ if(typeof drawDistantWildlife==='function')drawDistantWildlife();
+ drawAsteroidSceneryLayer('behind');flushLayer(0);
+ let portStart=terrainEmitters.length;
+ drawShoreClouds(false);drawSceneryBorders();
+ if(themeIndex()!==0)for(const o of obstacles)drawTerrainObstacle(o);
+ flushLayer(portStart);
+ portStart=terrainEmitters.length;
+ drawAsteroidSceneryLayer('clouded');flushLayer(portStart);
+ drawTerrainEffects(false);
+ portStart=terrainEmitters.length;
+ drawAsteroidSceneryLayer('front');flushLayer(portStart);
+}
 
 function drawSectorEnvironment(){
  const painting=art[sectors[level].background]||(themeIndex()===1?art.carrier:themeIndex()===2?art.abyss:null);
@@ -1041,13 +1484,23 @@ function drawEnvironmentalMachinery(){
 
 // Shared rectangles keep the painted obstruction and physical collision in agreement.
 function obstacleBaseForms(o){return o.shutters?(themeIndex()===0?rigidAsteroidPassage(o):shutterSolids(o)):o.parts?o.parts.map(p=>({...p,x:o.x+p.x})):[{x:o.x,y:0,w:o.w+30,h:o.gap-o.open/2+20,ceiling:true},{x:o.x,y:o.gap+o.open/2,w:o.w+30,h:H-o.gap-o.open/2,ceiling:false}];}
-function obstacleForms(o){const raw=obstacleBaseForms(o);if(themeIndex()===0)for(const [i,r] of raw.entries()){const d=asteroidDrift(o,i);r.x+=d.x;r.y+=d.y;}const axis=sectors[level].scrollAxis;return axis?raw.map(r=>({x:axis==='down'?r.y*W/H:(H-r.y-r.h)*W/H,y:axis==='down'?r.x*H/W:(W-r.x-r.w)*H/W,w:r.h*W/H,h:r.w*H/W,ceiling:r.ceiling,side:axis==='down'?(r.ceiling?'left':'right'):(r.ceiling?'right':'left')})):raw;}
+function obstacleForms(o){
+ const raw=obstacleBaseForms(o);if(themeIndex()===0)for(const [i,r] of raw.entries()){const d=asteroidDrift(o,i);r.x+=d.x;r.y+=d.y;}
+ const axis=sectors[level].scrollAxis,forms=axis?raw.map(r=>({x:axis==='down'?r.y*W/H:(H-r.y-r.h)*W/H,y:axis==='down'?r.x*H/W:(W-r.x-r.w)*H/W,w:r.h*W/H,h:r.w*H/W,ceiling:r.ceiling,side:axis==='down'?(r.ceiling?'left':'right'):(r.ceiling?'right':'left')})):raw;
+ // Shore geometry now owns every anchored obstruction. Keeping the old
+ // pillar meshes would give them a different scroll speed in vertical worlds
+ // and let them cover openings. Preserve only genuinely detached structures.
+ if(themeIndex()!==0)return forms.filter(r=>r.side?r.x>1&&r.x+r.w<W-1:r.y>1&&r.y+r.h<H-1);
+
+ return forms;
+}
+
 function terrainProfile(r,t,seed){const k=themeIndex(),fromRoot=r.side?(r.side==='left'?t:1-t):(r.ceiling?t:1-t);if(k===0){const envelope=Math.pow(Math.max(.015,Math.sin(t*Math.PI)),.3+.18*(1+Math.sin(seed*2.7))),u=t*(7+Math.floor((Math.sin(seed)+1)*2)),cell=Math.floor(u),blend=u-cell,hash=n=>{const x=Math.sin(n*127.1+seed*93.7)*43758.5453;return x-Math.floor(x);},jag=.52+.44*(hash(cell)*(1-blend)+hash(cell+1)*blend);return Math.max(.08,envelope*jag);}if(k===1)return forgeObstacleProfile(fromRoot,seed);if(k===4)return stormTerrainProfile(fromRoot,seed);if(sectors[level].medium==='water'){const u=fromRoot*7,cell=Math.floor(u),q=u-cell,blend=q*q*(3-2*q),shelf=.68+.25*(sceneryVariation(seed,cell+41)*(1-blend)+sceneryVariation(seed,cell+42)*blend);return Math.max(.22,(.98-.17*fromRoot)*shelf*(1-.56*Math.pow(clamp((fromRoot-.85)/.15,0,1),.7)));}const u=t*7,cell=Math.floor(u),blend=u-cell,hash=n=>{const v=Math.sin(n*127.1+seed*93.7)*43758.5453;return v-Math.floor(v);},strata=hash(cell)*(1-blend)+hash(cell+1)*blend;return Math.max(.13,(.97-(.52+.15*Math.sin(seed))*Math.pow(fromRoot,1.6+.5*Math.cos(seed)))*(.84+strata*.12)*(1-.75*Math.pow(clamp((fromRoot-.78)/.22,0,1),1.2)));}
 
 function terrainCenter(t,seed){if(themeIndex()===1||themeIndex()===4)return .5;if(sectors[level].medium==='water')return .5+Math.sin(t*5+seed)*Math.sin(t*Math.PI)*.025;return .5+Math.sin(t*9+seed*3)*Math.sin(t*Math.PI)*.10;}
 function obstacleSolids(o){const key=time+':'+o.x+':'+level;if(o.solidCache?.key===key)return o.solidCache.value;const value=themeIndex()===0&&!o.navigation?asteroidSolids(o):obstacleForms(o).flatMap((r,index)=>Array.from({length:24},(_,i)=>{const t=(i+.5)/24,seed=(o.id||0)*1.7+index*.9,f=terrainProfile(r,t,seed),center=terrainCenter(t,seed);return r.side?{...r,x:r.x+i*r.w/24,y:r.y+r.h*(center-f/2),w:r.w/24,h:r.h*f}:{...r,x:r.x+r.w*(center-f/2),y:r.y+i*r.h/24,w:r.w*f,h:r.h/24};}));o.solidCache={key,value};return value;}
 
-function enemyRouteX(e,x){for(const o of routeObstacles())for(const r of obstacleSolids(o)){const u=clamp((r.h/2+420-Math.abs(e.y-r.y-r.h/2))/290,0,1),edge=r.side==='left'?r.x+r.w+105:r.x-105,target=r.side==='left'?Math.max(x,edge):Math.min(x,edge);x+=(target-x)*passEase(u);}return clamp(x,90,W-90);}
+function enemyRouteX(e,x){for(const o of routeObstacles())for(const r of obstacleSolids(o)){const u=clamp((r.h/2+420-Math.abs(e.y-r.y-r.h/2))/290,0,1),edge=r.side==='left'?r.x+r.w+105:r.x-105,target=r.side==='left'?Math.max(x,edge):Math.min(x,edge);x+=(target-x)*passEase(u);}const radius=e.brood?90:isOrganicEnemy(e)?70:55,[lower,upper]=enemyShoreCorridor(e,true,radius);return clamp(x,Math.max(90,lower),Math.min(W-90,upper));}
 
 function drawDetailedObstacle(o,img){const crop=img.solidCrop;
  for(const solid of obstacleSolids(o)){if(solid.h<=0)continue;ctx.save();ctx.translate(solid.x,solid.y+(solid.ceiling?solid.h:0));if(solid.ceiling)ctx.scale(1,-1);
@@ -1115,7 +1568,7 @@ function updateBossPass(b,dt){const profile=bossPassProfiles[bossIndex()];if(!pr
  else if(p.stage==='resetTurn'){b.turnYaw=Math.PI*(1-passEase(p.age/profile.turn));if(p.age>=profile.turn){b.turnYaw=0;b.facing=-1;b.pass=null;b.passClock=profile.wait-bossCombatPhase(b)*1.5;b.special=3.5;b.shoot=1.6;b.navVX=b.navVY=0;}}
  return true;
 }
-function rotorContact(o,x,y,r=0){const cx=o.x+210,cy=380,dx=x-cx,dy=y-cy,a=(time-o.at)*o.spin,xx=dx*Math.cos(a)+dy*Math.sin(a),yy=-dx*Math.sin(a)+dy*Math.cos(a);return Math.hypot(dx,dy)<29+r||(Math.abs(xx)<155+r&&Math.abs(yy)<14+r);}
+function rotorContact(o,x,y,r=0){if(themeIndex()!==0&&!obstacleForms(o).length)return false;const cx=o.x+210,cy=380,dx=x-cx,dy=y-cy,a=(time-o.at)*o.spin,xx=dx*Math.cos(a)+dy*Math.sin(a),yy=-dx*Math.sin(a)+dy*Math.cos(a);return Math.hypot(dx,dy)<29+r||(Math.abs(xx)<155+r&&Math.abs(yy)<14+r);}
 function drawRotorGate(o){const x=o.x+210,y=380,a=(time-o.at)*o.spin,c=sectors[level].color;ctx.save();ctx.translate(x,y);ctx.strokeStyle='#566a78';ctx.lineWidth=16;for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(0,side*182);ctx.lineTo(0,side*290);ctx.stroke();}ctx.strokeStyle='#475966';ctx.lineWidth=8;ctx.beginPath();ctx.arc(0,0,182,0,TAU);ctx.stroke();ctx.strokeStyle=c;ctx.lineWidth=2;ctx.setLineDash([9,20]);ctx.stroke();ctx.setLineDash([]);ctx.rotate(a);drawModel(meshes.gateRotor,0,0,1,0,0,0,time);ctx.restore();}
 
 // Two offset pressure doors create a moving S-shaped flight path, anchored in the scenery.
@@ -1608,7 +2061,7 @@ function updateTechLaser(b,dt){
 function terrainAppearance(definition=sectors[level]){
  const world=definition.worldIdentity||{},biome=world.biome||definition.environment||'',seed=world.seed||0;
  const kind=/ice|glacier/i.test(biome)?'ice':definition.medium==='water'?'reef':/magma|solar|core/.test(biome)||world.habitat==='hot'?'basalt':/storm/.test(biome)?'storm':'stone';
- const colors={ice:[195,216,221],reef:[92,115,109],basalt:[120,99,84],storm:[113,126,135],stone:[185,174,152]};
+ const colors={ice:[195,216,221],reef:[68,100,99],basalt:[83,79,76],storm:[106,115,128],stone:[125,133,132]};
  const base=colors[kind].map((n,i)=>Math.round(n*(.90+((seed>>>(i*5))&15)/100)));
  return{kind,base,seed,metal:kind==='basalt'?[106,88,68]:kind==='storm'?[100,116,125]:[91,107,111],accent:world.accent||[184,136,78]};
 }
@@ -1735,7 +2188,7 @@ function prepareUpcomingTerrain(plan,index){
  });
 }
 function takePreparedTerrain(id){const o=upcomingTerrain.get(id);upcomingTerrain.delete(id);return o;}
-function drawTerrainObstacle(o){if(themeIndex()===0){for(const [i,r] of obstacleForms(o).entries()){const a=asteroidSurface(o,r,i),p=asteroidPose(o,i);drawModel(a.mesh,r.x+r.w/2,r.y+r.h/2,1,p.yaw,p.roll,p.pitch,time);queueTerrainEmitters(a.mesh,r,p);}return;}for(const [index,r] of obstacleForms(o).entries()){if(r.w<=0||r.h<=0)continue;const mesh=retainedTerrainPart(o,r,index);drawModel(mesh,r.x,r.y,1,0,0,0,time);queueTerrainEmitters(mesh,r);}}
+function drawTerrainObstacle(o,layer=null){if(themeIndex()===0){for(const [i,r] of obstacleForms(o).entries()){if(layer&&asteroidSceneryLayer(o,i)!==layer)continue;const a=asteroidSurface(o,r,i),p=asteroidPose(o,i);drawModel(a.mesh,r.x+r.w/2,r.y+r.h/2,1,p.yaw,p.roll,p.pitch,time);queueTerrainEmitters(a.mesh,r,p);}return;}for(const [index,r] of obstacleForms(o).entries()){if(r.w<=0||r.h<=0)continue;const mesh=retainedTerrainPart(o,r,index);drawModel(mesh,r.x,r.y,1,0,0,0,time);queueTerrainEmitters(mesh,r);}}
 
 
 // Scenery activity is attached to retained meshes. Only a bounded list of
@@ -1778,9 +2231,15 @@ function reactTerrainImpact(x,y){let nearest=null,distance=82;for(const port of 
 let terrainBubbleSprite=null;
 function prepareTerrainBubble(){if(terrainBubbleSprite)return terrainBubbleSprite;const sprite=document.createElement('canvas');sprite.width=sprite.height=24;const c=sprite.getContext('2d');c.fillStyle='#163b5328';c.beginPath();c.arc(12,12,7,0,TAU);c.fill();c.strokeStyle='#bce7edcc';c.lineWidth=1.1;c.beginPath();c.arc(12,12,7,.85,4.8);c.stroke();c.strokeStyle='#ebffffe0';c.beginPath();c.arc(10.5,10.5,4.8,3.65,4.8);c.stroke();return terrainBubbleSprite=sprite;}
 function terrainEmitterStrength(port,at=time,pilot=ship){const near=!port.triggerOnly&&Math.hypot(port.x-pilot.x,port.y-pilot.y)<100;return at<port.excitedUntil?1:near?.65:0;}
-function drawTerrainEffects(){
- const quality=window.flightEffectsQuality||1,limit=quality<.8?14:24;let drawn=0;ctx.save();
- for(const port of terrainEmitters){if(drawn++>=limit)break;const strength=terrainEmitterStrength(port),t=time+port.seed;if(port.triggerOnly&&!strength)continue;
+function drawTerrainEffects(includePorts=true){
+ drawShoreAtmosphere();drawShoreClouds(true);
+ if(typeof drawShoreWildlife==='function')drawShoreWildlife();
+ if(includePorts)drawTerrainPortEffects();
+}
+function drawTerrainPortEffects(start=0,end=terrainEmitters.length,budget=Infinity){
+ const quality=window.flightEffectsQuality||1,limit=Math.min(quality<.8?14:24,budget);let drawn=0;ctx.save();
+ for(let index=start;index<end&&drawn<limit;index++){
+  const port=terrainEmitters[index];drawn++;const strength=terrainEmitterStrength(port),t=time+port.seed;if(port.triggerOnly&&!strength)continue;
   const cycle=(t%5.7+5.7)%5.7,burst=cycle<1.35||strength>0;
   if(port.kind==='bubbles'){
    const sprite=prepareTerrainBubble(),count=quality<.8?5:9;
@@ -1794,7 +2253,7 @@ function drawTerrainEffects(){
    ctx.fillStyle=port.kind==='frost'?'#c5e3e9':'#c4b092';for(let i=0;i<(quality<.8?3:6);i++){const age=((t*.34+i/6)%1+1)%1;ctx.globalAlpha=Math.sin(age*Math.PI)*(.27+strength*.3);ctx.fillRect(port.x+Math.sin(i*2.4)*age*30-age*12,port.y+age*(port.kind==='frost'?32:18),1.3+i%2,1.3);}
   }
  }
- ctx.restore();
+ ctx.restore();return drawn;
 }
 
 function organicFlightPose(b){return bossFlightPose(b);}
@@ -2045,20 +2504,34 @@ function updateEncounter(b,dt){if(isTideEncounter())return;if(typeof isCapitalSi
 }
 // Exposed anatomy must be lined up with the gun, rather than granting a
 // whole-body bonus to every stray round. Capital/tide encounters have their own nodes.
+function bossWeakPointMount(b){
+ const d=bossDesign(),pose=bossFlightPose(b),forward=rotateVertex([-1,0,0],pose.yaw,pose.roll,pose.pitch,0,0);
+ if(!d||bossOrganic())return{...organicMouth(b),forward};
+ // A muzzle-relative offset is not a hull attachment: differently sized rocket
+ // frames used to display their weak point in empty air. Use the actual solid
+ // central nacelle, whose centre stays inside its visible silhouette at every
+ // angle. The same rigid projection drives both the glow and shot alignment.
+ if(d.weakPointAttachment?.mesh!==d.mesh){
+  const structural=d.mesh.hullVolumes?.filter(v=>v.structural),hulls=structural?.length?structural:d.bodyVolumes;
+  const hull=hulls.reduce((best,v)=>Math.hypot(v.center[1],v.center[2])<Math.hypot(best.center[1],best.center[2])?v:best);
+  d.weakPointAttachment={mesh:d.mesh,local:[hull.center[0]-hull.radii[0]*.38,hull.center[1],hull.center[2]]};
+ }
+ return{...bossMount(b,d.weakPointAttachment.local),forward};
+}
 function bossWeakPoint(b){
  if(isTideEncounter()||typeof isCapitalSiege==='function'&&isCapitalSiege(b))return null;
  const k=bossIndex(),open=k===1?b.shieldBroken:b.exposed>0;
  if(!open||k===5&&enemies.some(e=>e.guardian&&e.hp>0))return null;
- const d=bossDesign(),p=k===4?(d?bossMount(b,[d.mouth[0]+20,d.mouth[1]-38,d.mouth[2]]):techLaserOrigin(b)):organicMouth(b);
+ const p=bossWeakPointMount(b);
  return {...p,r:k===4?18:28,multiplier:k===4?8:6.5};
 }
 function encounterDamage(b,s){
  if(isTideEncounter())return b.exposed>0?2.2:.65+.15*(b.tide?.pods.filter(p=>p.hp<=0).length||0);
  if(typeof isCapitalSiege==='function'&&isCapitalSiege(b))return 0;
- const weak=bossWeakPoint(b),dir=s.direction||Math.sign(s.vx||1);
- // Project the shot's lane through the visible mouth/vent. The outer collision
- // shell can sit a few pixels ahead of that anatomical socket during rotation.
- if(weak&&Math.abs(s.y-weak.y)<weak.r+(s.r||0)&&(weak.x-b.x)*dir<0)return weak.multiplier;
+ const weak=bossWeakPoint(b),vx=s.vx??(s.direction||1),vy=s.vy||0,speed=Math.hypot(vx,vy)||1;
+ // Compare the incoming ray with the same visible attachment, including angled
+ // shots and a rolled/pitched hull. Rear impacts cannot claim the front opening.
+ if(weak&&(weak.forward[0]*vx+weak.forward[1]*vy)/speed<-.12&&Math.abs((weak.x-s.x)*vy-(weak.y-s.y)*vx)/speed<weak.r+(s.r||0))return weak.multiplier;
  return bossIndex()===4?.04:.25;
 }
 function drawBossWeakPoint(b){const p=bossWeakPoint(b);if(!p)return;ctx.save();const c=bossIndex()===4?'#ffe1a0':'#a6ffcd';orb(p.x,p.y,p.r,c,.3);ctx.strokeStyle=c;ctx.lineWidth=2;ctx.globalAlpha=.8;ctx.beginPath();ctx.arc(p.x,p.y,p.r+3,0,TAU);ctx.stroke();ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillStyle=c;ctx.fillText('EXPOSED',p.x,p.y-p.r-8);ctx.restore();}
