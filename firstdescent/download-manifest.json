@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 71617486,
+  "bytes": 71645471,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 429648,
-      "sha256": "cd180f00218941c399b32ca9251aea809b0288d3747a9f2c20c27f8ac989fd16"
+      "bytes": 433407,
+      "sha256": "5d119e60d3d5188c1c8404f7e9e71a5a686d98dc11c3d2ff4b9101abbe8c5328"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1621,8 +1621,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 6856,
-      "sha256": "a7e2129b772a40fc473cb7349ad282d4b1f88e08c86fe72c5eed829105a624e8"
+      "bytes": 6838,
+      "sha256": "0136aa59b8165a722f3d601d34296b551e4b2fdc55f2359d4e6fea464b66147a"
     },
     {
       "path": "levels.js",
@@ -1646,8 +1646,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 39550,
-      "sha256": "f3c441b758285003ab5f0761eab50e45eadd354dd9d0499e3ff8c17cf3abe24a"
+      "bytes": 39617,
+      "sha256": "48b64a288ade00361f9c771567fec01637376d950e945efa2eecd1804535b05a"
     },
     {
       "path": "runs.js",
@@ -1661,8 +1661,8 @@
     },
     {
       "path": "shore-wildlife.js",
-      "bytes": 11335,
-      "sha256": "f61562f98649f02d84cff175ff88306f06fa3e73a434430364a3f79f55bdf0d3"
+      "bytes": 8268,
+      "sha256": "90d58602da00bcdc53a34b0492fc064365670bb654f5eb19dfeb5b4dd8479f03"
     },
     {
       "path": "style.css",
@@ -1698,6 +1698,21 @@
       "path": "vendor/three.module.min.js",
       "bytes": 338908,
       "sha256": "e2b5ee6bccd38fd6d8a2428546b83c5f2426d84b152ef82be8055556e3b40eb6"
+    },
+    {
+      "path": "wildlife-aquatic.js",
+      "bytes": 10229,
+      "sha256": "0ca236b779558fe1eca4038314ba09e47bf6f257f5fc8368f26d65e198d46ff8"
+    },
+    {
+      "path": "wildlife-birds.js",
+      "bytes": 4223,
+      "sha256": "104d6477fb224e3c8adbc915b0f11493e50f4530b4b8673ce7f5ca1cd3a10640"
+    },
+    {
+      "path": "wildlife-small-life.js",
+      "bytes": 12792,
+      "sha256": "13bcb9c8cc6a9b73a8b3876113d7f712f39506fd84821e407e1c2e4a9aa54644"
     }
   ]
 }

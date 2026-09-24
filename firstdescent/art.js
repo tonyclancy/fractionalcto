@@ -1260,6 +1260,53 @@ function shoreAtmosphereSprite(key,kind){
  paint.globalCompositeOperation='source-atop';paint.globalAlpha=kind==='cloud'?.13:kind==='water'?.65:.35;paint.fillStyle=shoreAtmospheres[kind].color;paint.fillRect(0,0,c.width,c.height);
  shoreTintedSprites.set(id,{source,canvas:c});while(shoreTintedSprites.size>8)shoreTintedSprites.delete(shoreTintedSprites.keys().next().value);return c;
 }
+// Break the photographed bank into softly joined volumes, preserving its fine
+// billows rather than stretching the whole panorama into another white strip.
+// Lighting is baked once per biome/lobe, never recolored or read back per frame.
+const shoreCloudVolumes=new Map();
+function shoreCloudVolumeSprite(kind,variant){
+ const source=art.shoreCloud;if(!imageReady(source))return null;
+ const id=kind+':'+variant,cached=shoreCloudVolumes.get(id);if(cached?.source===source)return cached.canvas;
+ const crops=[[.015,.54],[.22,.48],[.48,.51]],crop=crops[variant%3],canvas=document.createElement('canvas');canvas.width=384;canvas.height=320;
+ const paint=canvas.getContext('2d'),storm=kind==='storm';
+ // Storm illumination comes from upper right, matching the terrain light rig.
+ if(storm){paint.translate(canvas.width,0);paint.scale(-1,1);}
+ paint.drawImage(source,source.naturalWidth*crop[0],0,source.naturalWidth*crop[1],source.naturalHeight,0,0,384,320);
+ if(storm){paint.scale(-1,1);paint.translate(-canvas.width,0);}
+ paint.globalCompositeOperation='source-atop';
+ const shade=paint.createLinearGradient(storm?340:40,20,storm?120:280,300);
+ shade.addColorStop(0,storm?'rgba(244,217,175,.12)':'rgba(255,242,211,.10)');
+ shade.addColorStop(.32,'rgba(112,140,158,0)');shade.addColorStop(.68,storm?'rgba(66,76,99,.16)':'rgba(80,111,135,.10)');
+ shade.addColorStop(1,storm?'rgba(41,52,76,.40)':'rgba(61,86,111,.25)');paint.fillStyle=shade;paint.fillRect(0,0,384,320);
+ // Feather the cropped sides; the photographed crown and lower curls retain
+ // their own alpha silhouette. Adjacent masses no longer show cut tile edges.
+ paint.globalCompositeOperation='destination-in';const feather=paint.createLinearGradient(0,0,384,0);
+ feather.addColorStop(0,'#ffffff00');feather.addColorStop(.13,'#ffffffff');feather.addColorStop(.83,'#ffffffff');feather.addColorStop(1,'#ffffff00');paint.fillStyle=feather;paint.fillRect(0,0,384,320);
+ shoreCloudVolumes.set(id,{source,canvas});while(shoreCloudVolumes.size>6)shoreCloudVolumes.delete(shoreCloudVolumes.keys().next().value);return canvas;
+}
+function shoreCloudVolume(a,front,t,vertical,view=0){
+ const r=n=>sceneryVariation(a.seed,n),normal=a.band.edge?-1:1;
+ // Unequal clusters leave patches of exposed rock. Near puffs occupy pockets
+ // between larger distant crowns, not a second continuous parallel ribbon.
+ if(r(201)<(front?.45:.25))return null;
+ const width=front?108+r(202)*109:158+r(203)*131,height=width*(front?.49+r(204)*.20:.61+r(205)*.20);
+ const depth=front?.7+r(206)*.3:.14+r(207)*.25,wind=Math.sin(t*(.075+r(208)*.025)+a.phase)*7;
+ const along=(r(209)-.5)*48+wind*(.4+depth)+view*depth*.75;
+ const cross=normal*(front?-7-r(210)*12:12+r(211)*11)+Math.sin(t*.067+a.phase)*2+view*depth*.22;
+ return {dx:vertical?cross:along,dy:vertical?along:cross,width,height,alpha:front?.47+r(212)*.14:.73+r(213)*.12,variant:Math.floor(r(214)*3),wisp:front&&r(215)>.74,shadow:front?.08+r(216)*.055:0,depth};
+}
+function drawShoreCloudContact(a,p,v,vertical,offset){
+ // Restrict soft occlusion to the solid face; a cloud must not cast a dark
+ // rectangle over the open flight corridor or the distant painted landscape.
+ const span=vertical?W:H,lo=p.along-v.width*.5,hi=p.along+v.width*.5;
+ ctx.save();ctx.beginPath();
+ const point=(u,h)=>vertical?ctx.lineTo(h,u):ctx.lineTo(u,h);
+ const outside=a.band.edge?span:0;point(lo,outside);
+ for(let u=lo;u<hi+1;u+=Math.max(1,(hi-lo)/12)){const h=sceneryBorderExtent(a.band,u,u,offset);point(u,a.band.edge?span-h:h);}
+ point(hi,outside);ctx.closePath();ctx.clip();
+ ctx.translate(p.x+v.dx,p.y+v.dy+v.height*.12);if(vertical)ctx.rotate(Math.PI/2);
+ ctx.scale(v.width*.57,v.height*.31);const shade=ctx.createRadialGradient(0,0,0,0,0,1);shade.addColorStop(0,'rgba(39,58,72,'+v.shadow+')');shade.addColorStop(.42,'rgba(39,58,72,'+v.shadow*.7+')');shade.addColorStop(1,'rgba(39,58,72,0)');ctx.fillStyle=shade;ctx.fillRect(-1,-1,2,2);ctx.restore();
+}
 function shoreAnchorPosition(anchor,offset,vertical,padding=0,emitter=false){
  const along=((anchor.u+offset)%SCENERY_BORDER_PERIOD+SCENERY_BORDER_PERIOD)%SCENERY_BORDER_PERIOD,span=vertical?H:W;
  // Include the tail at the wrapped end as it leaves the viewport.
@@ -1324,15 +1371,13 @@ function drawShoreClouds(front){
  ctx.save();
  for(let i=0;i<anchors.length;i++){
   const a=anchors[i];if(quality<.8&&i%2)continue;const p=shoreAnchorPosition(a,offset,vertical);if(!p.visible)continue;
-  // Billows emerge from behind the cliff; differently shaped, finer wisps
-  // overlap its face. Both share the exact terrain anchor and scroll speed.
-  const key=front?(sceneryVariation(a.seed,122)>(a.band.edge?.72:.48)?'shoreCloud':'shoreWisp'):profile.assets[a.variant],sprite=shoreAtmosphereSprite(key,kind);
-  if(!sprite)continue;
-  const w=a.width*(front?.85:1.18),h=w*.36*a.stretch,drift=Math.sin(t*.11+a.phase)*8;
-  const inward=a.band.edge?1:-1,cover=front?inward*14:-inward*13;
-  const x=p.x+(vertical?cover:drift),y=p.y+(vertical?drift:cover);
-  const opacity=(front?profile.front:profile.back)*(.78+.22*Math.sin(a.phase+t*.08));
-  ctx.globalAlpha=opacity;ctx.save();ctx.translate(x,y);ctx.scale(a.flip,1);ctx.drawImage(sprite,-w*.5,-h*.5,w,h);ctx.restore();
+  const v=shoreCloudVolume(a,front,t,vertical,viewY);if(!v)continue;
+  const sprite=v.wisp?shoreAtmosphereSprite('shoreWisp',kind):shoreCloudVolumeSprite(kind,v.variant);if(!sprite)continue;
+  if(front)drawShoreCloudContact(a,p,v,vertical,offset);
+  // The original photographic sunlight direction remains upright even under
+  // an overhang; flipping a top bank upside down would invert its shadows.
+  const w=v.wisp?v.width*1.30:v.width,h=v.wisp?v.height*.56:v.height;
+  ctx.globalAlpha=v.alpha*(kind==='storm'?.86:1);ctx.drawImage(sprite,p.x+v.dx-w*.5,p.y+v.dy-h*.5,w,h);
  }
  ctx.restore();
 }
@@ -1343,7 +1388,7 @@ function drawShoreAtmosphere(){
   const a=anchors[i];if(quality<.8&&i%2)continue;const p=shoreAnchorPosition(a,offset,vertical);if(!p.visible)continue;
   // Narrow, soft contact haze carries the background hue into the stone face.
   // It follows the contour instead of floating at a fixed distance below it.
-  ctx.globalAlpha=profile.veil;ctx.save();ctx.translate(p.x,p.y);if(vertical)ctx.rotate(Math.PI/2);ctx.drawImage(sprite,-a.width*.48,-37,a.width*.96,74);ctx.restore();
+  ctx.globalAlpha=profile.veil*(shoreUsesClouds()?.38:1);ctx.save();ctx.translate(p.x,p.y);if(vertical)ctx.rotate(Math.PI/2);ctx.drawImage(sprite,-a.width*.48,-37,a.width*.96,74);ctx.restore();
   if(a.emits)drawShoreParticles(a,shoreAnchorPosition(a,offset,vertical,0,true),kind,t,quality,offset,vertical);
  }
  ctx.restore();
