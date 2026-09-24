@@ -573,7 +573,7 @@ function frame(now){
  musicUiClock+=dt;if(musicUiClock>=.2){musicUiClock=0;musicControls();}
  // Fetch the following sector well before the transition, after startup.
  if(state==='paused'&&!surfaceDirty){accumulator=0;return;}
- if(state==='playing'&&!sectorArtPrefetched&&time>sectors[level].duration*.65){sectorArtPrefetched=true;if(sectors[level+1])prepareSectorArt(sectors[level+1]);}
+ if(state==='playing'&&!sectorArtPrefetched&&time>sectors[level].duration*.65){sectorArtPrefetched=true;if(sectors[level+1])queueSectorArt(sectors[level+1]);}
  try{accumulator+=dt;while(accumulator>=1/120){captureMotion();update(1/120);accumulator-=1/120}renderSmooth(dt,accumulator*120)}catch(error){reportFrameError(error)}
 }
 // Testing shortcuts use the normal sector reset/travel paths, but never save scores.
@@ -670,6 +670,7 @@ if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContex
 function updateExpeditionIntro(){const system=contentReleases[0].systems[0],planets=system.destinations.filter(d=>d.kind==='planet'),stages=system.destinations.flatMap(d=>d.stages);$('#campaignCaption').textContent=`${system.star.name} · ${systemCensusLabel(system)} · ${stages.length} BOSSES · ${expeditionSystems.size} SYSTEMS TO EXPLORE`;const copy=$('.introcopy');if(copy)copy.textContent=`An expedition vanished following the Origin Signal.\nIts guardians hold the fragments of a living star map.\nRecover their memories. Find the way through.`;const mission=$('#mission');if(mission)mission.textContent=missionObjective()+' · MISSION LOG ↗';const rail=$('#routeCount');if(rail)rail.textContent=systemCensusLabel(system)+' · THEN A NEW GALAXY';const map=$('#expeditionMap');if(map)map.setAttribute('aria-label',`Rotating ${expeditionGalaxy(expedition.locations[stages[0]]).name}, ${system.name} marked on an outer arm; ${systemCensusLabel(system)}`);}
 $('#records').onclick=showLocalScores;bindUniverseButton();updateExpeditionIntro();
 updateHUD();requestAnimationFrame(frame);
+queueSectorArt(sectors[level]);
 
 // Title music is independently switchable; the first gesture unlocks browser audio.
 function musicControls(){const info=window.flightAudio?.stats();if(!info)return;const button=$('#music');const label=!info.musicEnabled?'MUSIC OFF':info.musicPlaying||state!=='title'?'MUSIC ON':'PLAY MUSIC';if(button.textContent!==label){button.textContent=label;button.setAttribute('aria-label',info.musicEnabled&&(info.musicPlaying||state!=='title')?'Turn off music':'Play music');button.setAttribute('aria-pressed',String(info.musicEnabled));}const titleButton=$('#introMusic'),titleLabel=$('#introMusicLabel');if(titleButton&&titleLabel){const playing=info.musicEnabled&&info.musicPlaying;titleLabel.textContent=playing?'PAUSE THE THEME':'PLAY THE THEME';titleButton.setAttribute('aria-label',playing?'Pause the theme':'Play the theme');titleButton.setAttribute('aria-pressed',String(playing));titleButton.classList.toggle('playing',playing);}}

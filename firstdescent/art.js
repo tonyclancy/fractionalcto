@@ -16,17 +16,47 @@ function trimSectorArt(current,next){
  if([current,next].some(d=>d&&backgroundEventKind(d)==='lightning'))keep.add('cloudDischarge');
  for(const key of Object.keys(art))if(!keep.has(key)){panoramaSurfaces.delete(art[key]);delete art[key];}
 }
-function prepareSectorArt(definition){
- for(const key of shoreAtmosphereAssets(definition))loadArt(key);
- prepareShoreAtmosphere(definition);shoreMistSprite(shoreAtmosphereKind(definition));
- if(!shoreUsesClouds(definition)&&shoreAtmosphereKind(definition)!=='solar')prepareShoreVapor(shoreAtmosphereKind(definition));
- const borders=prepareSceneryBorders(definition);for(const band of borders.layers)window.gpuModels?.prepareTerrain?.(band.mesh);
- if(typeof prepareShoreWildlife==='function')prepareShoreWildlife(definition);
- const location=expedition.locations[definition.id];if(location){preparePlanetCloseup(location);galaxyArtwork(expeditionGalaxy(location));requestSpaceImage('cosmic-remnant-v1.webp');}
- const theme={verdant:'space',forge:'carrier',abyss:'abyss',reef:'reef',storm:'storm',core:'core'};
- loadArt(definition.background||theme[definition.theme]||'space');
- if(backgroundEventKind(definition)==='lightning')loadArt('cloudDischarge');
- loadArt(definition.obstacleArt||({verdant:'colonyObstacle',forge:'carrierObstacle',abyss:'derelictObstacle'}[definition.theme]||definition.theme+'Obstacle'));
+function sectorArtPreparation(definition){
+ const kind=shoreAtmosphereKind(definition);
+ return [
+  ()=>{for(const key of shoreAtmosphereAssets(definition))loadArt(key);
+   const theme={verdant:'space',forge:'carrier',abyss:'abyss',reef:'reef',storm:'storm',core:'core'};
+   loadArt(definition.background||theme[definition.theme]||'space');
+   if(backgroundEventKind(definition)==='lightning')loadArt('cloudDischarge');
+   loadArt(definition.obstacleArt||({verdant:'colonyObstacle',forge:'carrierObstacle',abyss:'derelictObstacle'}[definition.theme]||definition.theme+'Obstacle'));},
+  ()=>prepareSceneryBorderEdge(definition,0),
+  ()=>prepareSceneryBorderEdge(definition,1),
+  ()=>prepareShoreAtmosphere(definition),
+  ()=>shoreMistSprite(kind),
+  ()=>{if(!shoreUsesClouds(definition)&&kind!=='solar')prepareShoreVapor(kind);},
+  ()=>window.gpuModels?.prepareTerrain?.(prepareSceneryBorders(definition).layers[0].mesh),
+  ()=>window.gpuModels?.prepareTerrain?.(prepareSceneryBorders(definition).layers[1].mesh),
+  ()=>{if(typeof prepareShoreWildlife==='function')prepareShoreWildlife(definition);},
+  ()=>{const location=expedition.locations[definition.id];if(location){preparePlanetCloseup(location);galaxyArtwork(expeditionGalaxy(location));requestSpaceImage('cosmic-remnant-v1.webp');}}
+ ];
+}
+function prepareSectorArt(definition){for(const prepare of sectorArtPreparation(definition))prepare();}
+// Each idle slice warms one retained resource. Entering a world can still
+// complete anything outstanding synchronously; prefetch never changes level.
+const sectorArtJobs=new Map();let sectorArtIdlePending=false;
+function queueSectorArt(definition){
+ if(!definition||(!window.requestIdleCallback&&!window.setTimeout))return;
+ if(!sectorArtJobs.has(definition.id))sectorArtJobs.set(definition.id,{definition,jobs:sectorArtPreparation(definition)});
+ scheduleSectorArt();
+}
+function scheduleSectorArt(){
+ if(sectorArtIdlePending||!sectorArtJobs.size)return;
+ sectorArtIdlePending=true;
+ const idle=window.requestIdleCallback?.bind(window)||(fn=>window.setTimeout(()=>fn({timeRemaining:()=>8}),16));
+ idle(deadline=>{
+  sectorArtIdlePending=false;
+  for(const [id,job] of sectorArtJobs)if(![sectors[level],sectors[level+1]].includes(job.definition))sectorArtJobs.delete(id);
+  if((deadline.timeRemaining()>=7||deadline.didTimeout)&&sectorArtJobs.size){
+   const [id,job]=sectorArtJobs.entries().next().value;
+   job.jobs.shift()();if(!job.jobs.length)sectorArtJobs.delete(id);
+  }
+  scheduleSectorArt();
+ },{timeout:1500});
 }
 // Warm the opening sector while the deep-space title is displayed.
 loadArt(campaign[0].background||'space');
@@ -1202,11 +1232,16 @@ function sceneryBorderMesh(definition,edge){
  faces.border={axis:vertical?1:0,period,openings,features,heights:Array.from({length:cols+1},(_,i)=>profile(i/cols*period))};
  return faces;
 }
-function prepareSceneryBorders(definition=sectors[level]){
+function prepareSceneryBorderEdge(definition,edge){
  const key=definition.id+':'+W+':'+H;
- if(sceneryBorderCaches.has(key))return sceneryBorderCaches.get(key);
- const layers=[0,1].map(edge=>({edge,mesh:sceneryBorderMesh(definition,edge)}));
- const cache={key,layers};sceneryBorderCaches.set(key,cache);while(sceneryBorderCaches.size>2)sceneryBorderCaches.delete(sceneryBorderCaches.keys().next().value);return cache;
+ let cache=sceneryBorderCaches.get(key);
+ if(!cache){cache={key,layers:[]};sceneryBorderCaches.set(key,cache);while(sceneryBorderCaches.size>2)sceneryBorderCaches.delete(sceneryBorderCaches.keys().next().value);}
+ if(!cache.layers[edge])cache.layers[edge]={edge,mesh:sceneryBorderMesh(definition,edge)};
+ return cache.layers[edge];
+}
+function prepareSceneryBorders(definition=sectors[level]){
+ prepareSceneryBorderEdge(definition,0);prepareSceneryBorderEdge(definition,1);
+ return sceneryBorderCaches.get(definition.id+':'+W+':'+H);
 }
 function sceneryBorderOffset(distance=sceneryDistance(),definition=sectors[level]){
  const period=SCENERY_BORDER_PERIOD;

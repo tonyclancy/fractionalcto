@@ -17,10 +17,10 @@ window.flightAudio=(()=>{
  // Instruments follow the place; enemy material is supplied separately by its rig.
  const soundscapes={
   sky:{lead:'arcade',reply:'harp',pad:'silk',drum:155,metal:false,air:.007},
-  garden:{lead:'harp',reply:'flute',pad:'choir',drum:185,metal:false,air:.006},
-  ocean:{lead:'glass',reply:'choir',pad:'silk',drum:105,metal:false,air:.003},
+  garden:{lead:'ribbon',reply:'flute',pad:'choir',drum:185,metal:false,air:.006},
+  ocean:{lead:'ribbon',reply:'choir',pad:'silk',drum:105,metal:false,air:.003},
   ice:{lead:'crystal',reply:'glass',pad:'choir',drum:215,metal:false,air:.004},
-  foundry:{lead:'mallet',reply:'pluck',pad:'silk',drum:135,metal:true,air:.009},
+  foundry:{lead:'brass',reply:'pluck',pad:'silk',drum:135,metal:true,air:.009},
   volcanic:{lead:'reed',reply:'mallet',pad:'choir',drum:88,metal:false,air:.012},
   space:{lead:'ribbon',reply:'crystal',pad:'silk',drum:120,metal:true,air:.004}
  };
@@ -34,7 +34,7 @@ window.flightAudio=(()=>{
   return theme==='verdant'&&habitat==='surface'?'garden':'sky';
  }
 
- const themeBeat=60/124; // 124 BPM; all sequencer and echo divisions share this clock.
+ const themeBeat=60/148; // 148 BPM; all sequencer and echo divisions share this clock.
  let musicEnabled=true,titleActive=false,musicTimer=null,musicBus,musicDelay,musicEcho,musicCross,nextBeat=0,musicStep=0,sectorTrack=-1,musicDucker,intensity=0,smoothedIntensity=0,bossApproach=0,smoothedApproach=0,bossEngaged=false,duckUntil=0,duckDepth=1;
  try{musicEnabled=localStorage.getItem('neon-vanguard-title-music')!=='off'}catch{}
 
@@ -197,15 +197,15 @@ window.flightAudio=(()=>{
  // Authored environment scores: harmony, melody and pace change together.
  // Intervals are relative to the sounding chord; lengths are eighth notes.
  const sceneScores={
-  sky:{bpm:124,chords:[[43,50,59],[40,47,55],[36,43,52],[38,45,54]],phrases:[[[0,24,2],[2,28,1],[3,31,2],[5,28,1],[6,24,2]],[[0,19,3],[3,24,1],[4,22,2],[6,19,2]],[[0,24,1],[1,28,1],[2,31,3],[5,33,1],[6,31,2]],[[0,26,2],[2,24,2],[4,19,4]]]},
-  garden:{bpm:114,chords:[[41,48,57],[36,43,52],[38,45,53],[34,41,50]],phrases:[[[0,24,3],[3,28,1],[4,31,2],[7,28,1]],[[1,24,2],[3,19,1],[4,22,3]],[[0,19,1],[2,24,1],[3,27,2],[6,24,2]],[[0,28,3],[3,26,1],[4,24,4]]]},
-  ocean:{bpm:86,chords:[[39,46,55],[34,41,50],[36,43,51],[32,39,48]],phrases:[[[0,24,4],[4,31,3]],[[0,28,3],[3,26,1],[5,24,3]],[[0,19,3],[4,24,4]],[[0,28,2],[2,31,2],[4,24,4]]]},
-  ice:{bpm:102,chords:[[38,45,54],[33,40,49],[35,42,50],[31,38,47]],phrases:[[[0,31,1],[2,28,2],[5,24,3]],[[0,24,3],[4,31,2],[6,28,2]],[[1,27,2],[4,24,3]],[[0,28,2],[2,26,2],[4,24,4]]]},
-  foundry:{bpm:128,chords:[[38,45,53],[34,41,50],[41,48,57],[36,43,52]],phrases:[[[0,12,1],[1,12,1],[3,19,1],[4,24,2],[6,19,2]],[[0,16,2],[3,19,1],[4,24,3]],[[0,24,1],[2,19,1],[3,16,1],[5,19,1],[6,24,2]],[[0,19,2],[2,16,1],[4,12,4]]]},
-  volcanic:{bpm:118,chords:[[33,40,48],[41,48,57],[36,43,52],[31,38,47]],phrases:[[[0,12,3],[3,19,1],[4,24,3]],[[0,24,2],[2,28,1],[4,31,3]],[[0,19,1],[2,24,2],[5,28,3]],[[0,19,2],[2,16,2],[4,12,4]]]},
-  space:{bpm:110,chords:[[36,43,52],[43,50,59],[45,52,60],[41,48,57]],phrases:[[[0,24,3],[3,31,1],[4,36,3]],[[1,28,3],[4,26,2],[6,24,2]],[[0,24,2],[2,19,2],[5,27,3]],[[0,28,2],[2,31,2],[4,24,4]]]}
+  sky:{bpm:148,chords:[[43,50,59],[40,47,55],[36,43,52],[38,45,54]],phrases:[[[0,24,1],[1,31,1],[2,28,1],[3,24,2],[5,26,1],[6,28,2]],[[0,24,1],[1,27,1],[2,31,2],[4,34,1],[5,31,1],[6,27,2]],[[0,28,1],[1,31,1],[2,36,2],[4,33,1],[5,31,1],[7,28,1]],[[0,31,1],[1,28,1],[2,26,1],[3,24,2],[5,19,1],[6,24,2]]]},
+  garden:{bpm:144,chords:[[41,48,57],[36,43,52],[38,45,53],[34,41,50]],phrases:[[[0,24,1],[1,28,1],[3,31,1],[4,28,1],[5,26,1],[6,24,2]],[[0,28,2],[2,31,1],[3,33,1],[4,31,1],[6,28,1],[7,26,1]],[[0,27,1],[1,24,1],[2,19,2],[4,24,1],[5,27,1],[6,31,2]],[[0,28,1],[2,26,1],[3,24,1],[4,19,2],[6,24,2]]]},
+  ocean:{bpm:140,chords:[[39,46,55],[34,41,50],[36,43,51],[32,39,48]],phrases:[[[0,24,1],[1,31,1],[2,28,2],[4,26,1],[5,24,1],[7,19,1]],[[0,24,2],[2,28,1],[3,31,1],[4,33,1],[5,31,1],[6,28,2]],[[0,31,1],[1,27,1],[3,24,1],[4,27,2],[6,22,1],[7,24,1]],[[0,28,1],[1,31,1],[2,36,2],[4,31,1],[5,28,1],[6,24,2]]]},
+  ice:{bpm:146,chords:[[38,45,54],[33,40,49],[35,42,50],[31,38,47]],phrases:[[[0,31,1],[1,28,1],[2,24,1],[4,26,1],[5,28,1],[6,31,2]],[[0,28,1],[2,24,1],[3,19,1],[4,24,2],[6,28,1],[7,31,1]],[[0,27,2],[2,31,1],[3,34,1],[5,31,1],[6,27,2]],[[0,31,1],[1,28,1],[2,26,1],[3,24,1],[4,19,2],[6,24,2]]]},
+  foundry:{bpm:154,chords:[[38,45,53],[34,41,50],[41,48,57],[36,43,52]],phrases:[[[0,24,1],[1,24,1],[2,27,1],[3,31,2],[5,24,1],[6,34,2]],[[0,28,1],[1,24,1],[3,19,1],[4,24,1],[5,28,1],[6,31,2]],[[0,31,1],[1,28,1],[2,24,2],[4,28,1],[5,31,1],[7,33,1]],[[0,31,1],[2,28,1],[3,26,1],[4,24,1],[5,19,1],[6,24,2]]]},
+  volcanic:{bpm:156,chords:[[33,40,48],[41,48,57],[36,43,52],[31,38,47]],phrases:[[[0,24,1],[1,31,1],[2,27,2],[4,24,1],[5,22,1],[6,24,2]],[[0,28,1],[1,31,1],[3,36,1],[4,31,1],[5,28,1],[6,24,2]],[[0,24,1],[1,28,1],[2,31,2],[4,33,1],[6,31,1],[7,28,1]],[[0,31,1],[1,28,1],[2,26,1],[3,24,1],[4,19,2],[6,24,2]]]},
+  space:{bpm:150,chords:[[36,43,52],[43,50,59],[45,52,60],[41,48,57]],phrases:[[[0,24,1],[1,28,1],[2,31,1],[3,36,2],[5,31,1],[6,33,2]],[[0,31,1],[1,28,1],[3,26,1],[4,24,2],[6,28,2]],[[0,27,1],[1,31,1],[2,34,2],[4,31,1],[5,27,1],[7,24,1]],[[0,28,1],[2,31,1],[3,33,1],[4,36,1],[5,31,1],[6,24,2]]]}
  };
- // Each sector has its own rhythmic silhouette, register and breathing room.
+ // Sector accompaniment keeps its own register, syncopation and stereo figures.
  const arrangements=[
   {arp:[0,-1,1,2,-1,1,2,-1],bass:[0,-1,0,-1,0,12,-1,7],kick:[0,4],snare:[2,6],hat:[1,3,5,7],swing:0,answer:[71,74,69,67],pad:'triangle'},
   {arp:[0,1,-1,0,2,-1,1,0],bass:[0,-1,0,7,-1,0,12,-1],kick:[0,3,4],snare:[2,6],hat:[1,3,4,7],swing:.035,answer:[65,69,62,60],pad:'sine'},
@@ -245,44 +245,44 @@ window.flightAudio=(()=>{
   'am','c','g','d','am','c','em','d',
   'g','d','em','c','g','d','c','g'
  ];
+ // Original syncopated hook: repeated pickup, an upward answer, then a
+ // falling resolution. It arrives with the full rhythm section on beat one.
  const titleTheme=[
-  [[0,71,.5],[1,74,.5],[2,79,1.25],[5,78,.5],[6,74,.8]],
-  [[0,69,1.5],[3,66,.5],[4,62,1],[6,66,.75]],
-  [[0,67,1],[2,71,1],[4,76,1.5]],
-  [[0,76,1],[2,74,.5],[3,72,.5],[4,67,1.5]],
-  [[0,71,.5],[1,74,.5],[2,79,1.25],[5,81,.5],[6,79,.8]],
-  [[0,78,1.5],[3,74,.5],[4,69,1],[6,66,.75]],
-  [[0,76,1],[2,74,1],[4,72,1],[6,67,.75]],
-  [[0,69,1],[2,66,1],[4,62,1.5]]
+  [[0,71,.42],[1,74,.42],[2,71,.42],[3,69,.42],[4,67,.85],[6,74,.42],[7,76,.42]],
+  [[0,78,.85],[2,74,.42],[3,69,.85],[5,74,.42],[6,76,.85]],
+  [[0,79,.42],[1,78,.42],[2,76,.85],[4,71,.42],[5,74,.42],[6,76,.85]],
+  [[0,76,.42],[1,74,.42],[2,72,.42],[3,67,.85],[5,69,.42],[6,72,.85]],
+  [[0,71,.42],[1,74,.42],[2,71,.42],[3,69,.42],[4,67,.85],[6,74,.42],[7,79,.42]],
+  [[0,78,.85],[2,76,.42],[3,74,.42],[4,69,.85],[6,66,.85]],
+  [[0,67,.42],[1,72,.42],[2,76,.85],[4,79,.42],[5,76,.42],[6,72,.85]],
+  [[0,74,.42],[1,76,.42],[2,78,.85],[4,74,.85],[6,69,.42]]
  ];
- const titleDevelopment=[titleTheme[0],titleTheme[1],
-  [[0,71,1.5],[3,74,.5],[4,76,1],[6,79,.75]],
-  [[0,76,1],[2,72,1],[4,67,1.5]],
-  [[0,74,1.5],[3,71,.5],[4,67,1],[6,71,.75]],
-  [[0,78,2],[4,76,.5],[5,74,.5],[6,69,.75]],
-  [[0,72,1],[2,76,1],[4,79,1.5]],titleTheme[7]];
+ const titleDevelopment=[titleTheme[0],
+  [[0,78,.42],[1,81,.42],[2,78,.85],[4,74,.42],[5,76,.42],[6,78,.85]],
+  [[0,76,.42],[1,79,.42],[2,83,.85],[4,81,.42],[5,79,.42],[6,76,.85]],
+  [[0,79,.85],[2,76,.42],[3,72,.42],[4,67,.85],[6,72,.85]],
+  [[0,74,.42],[1,79,.42],[2,81,.85],[4,79,.42],[5,74,.42],[6,71,.85]],
+  [[0,78,.42],[1,76,.42],[2,74,.85],[4,69,.42],[5,74,.42],[6,78,.85]],
+  [[0,72,.42],[1,76,.42],[2,79,.85],[4,81,.85],[6,79,.85]],titleTheme[7]];
  const titleBridge=[
-  [[0,69,2],[4,72,1],[6,76,.75]],
-  [[0,76,1.5],[3,72,.5],[4,67,1.5]],
-  [[0,71,2],[4,74,1],[6,79,.75]],
-  [[0,78,1.5],[3,76,.5],[4,74,1.5]],
-  [[0,72,1],[2,71,1],[4,69,1.5]],
-  [[0,67,1],[2,72,1],[4,76,1.5]],
-  [[0,71,1.5],[3,74,.5],[4,76,1.5]],
-  [[0,74,1],[2,69,1],[4,66,1],[7,62,.4]]
+  [[0,76,1.35],[3,72,.42],[4,69,.85],[6,72,.85]],
+  [[0,79,.85],[2,76,.85],[4,72,1.35],[7,74,.42]],
+  [[0,74,.42],[1,71,.42],[2,67,1.35],[5,71,.42],[6,74,.85]],
+  [[0,78,1.35],[3,76,.42],[4,74,.85],[6,69,.85]],
+  [[0,69,.42],[1,72,.42],[2,76,.85],[4,81,1.35],[7,79,.42]],
+  [[0,76,.85],[2,72,.42],[3,67,.42],[4,72,1.35]],
+  [[0,71,.42],[1,74,.42],[2,76,.85],[4,79,.85],[6,76,.85]],
+  [[0,78,.42],[1,76,.42],[2,74,.42],[3,69,.42],[4,66,.85],[6,69,.42]]
  ];
- const titleReturn=[
-  titleTheme[0],titleTheme[1],titleDevelopment[2],titleTheme[3],
-  titleTheme[0],titleTheme[1],
-  [[0,72,1],[2,76,1],[4,79,1],[6,76,.75]],
-  [[0,74,1],[2,71,1],[4,67,1.5]]
- ];
+ const titleReturn=[titleTheme[0],titleTheme[1],titleDevelopment[2],titleTheme[3],
+  titleTheme[4],titleTheme[5],titleDevelopment[6],
+  [[0,74,.42],[1,71,.42],[2,67,1.35],[5,71,.42],[6,74,.85]]];
  const titlePhrases=[...titleTheme,...titleDevelopment,...titleBridge,...titleReturn];
  const descentHook=[[[0,0,.75],[2,7,.5],[3,5,.5],[4,3,1],[7,2,.4]],[[0,0,1.5],[3,-5,.5],[4,-2,1],[6,0,.85]]];
- // Subsequent passes re-orchestrate the song instead of restarting the same
- // recording: a spacious response, then a warmer, rhythm-led variation.
- function titleVariation(index){const pass=Math.floor(index/256)%4,bar=Math.floor(index/8)%32;return{pass,ambient:pass===1&&bar<8,answer:pass>0&&bar%4>=2,warm:pass===2,counter:pass===3};}
- // Eight melodic sentences with held notes and genuine rests. Chord tones
+ // Later passes trade lead timbres and develop the hook while the rhythm
+ // section keeps driving: there is no ambient, half-time opening on repeats.
+ function titleVariation(index){const pass=Math.floor(index/256)%4,bar=Math.floor(index/8)%32;return{pass,ambient:false,answer:pass>0&&bar%8===6,warm:pass===2||pass===1&&bar%4>=2,counter:pass===3};}
+ // Fallback melodic sentences with held notes and rests. Chord tones
  // connect the melody to changing harmony, rather than rotating one short riff.
  const sectorPhrases=[
   [[0,0,2,2],[3,1,2,1],[5,2,1,2]],
@@ -362,22 +362,22 @@ window.flightAudio=(()=>{
  }
  function sectorMelody(theme,form,bar,step){
   const bank=theme.phrases||biomeMelodies[sectorTrack],phrase=bank[(bar+form.cycle)%bank.length],event=phrase.find(n=>n[0]===step),chord=theme.chords[form.chordIndex];
-  const rests=form.rest||(!form.drive&&bar%8===3)||form.quiet&&step!==0&&step!==4;
+  const rests=form.rest&&step===7;
   const busy=!rests&&phrase.some(n=>step>=n[0]&&step<n[0]+n[2]);
   return{pitch:!event||rests?-1:harmonicPitch(chord[0]+event[1]+(form.answer?12:0),chord,event[2]>=3),duration:event?Math.min(event[2]*.5,(8-step)*.5-.04):0,busy};
  }
  function sectorArrangement(index,energy){
   const bar=Math.floor(index/8)%128,act=Math.floor(bar/8)%8,cycle=Math.floor(bar/64),boss=energy>.82;
-  const approach=bossApproach>.04,quiet=!boss&&!approach&&(act===2||act===5||act===7),drive=boss||approach||act===3||act===6;
+  const approach=bossApproach>.04,quiet=!boss&&!approach&&bar%32>=16&&bar%32<18,drive=boss||approach||act===0||act===3||act===6;
   const orders=[[0,1,2,3],[0,2,1,3],[2,1,0,3],[0,1,3,2]];
-  return{act,cycle,boss,approach,quiet,drive,chordIndex:orders[(Math.floor(act/2)+cycle)%4][bar%4],rest:!boss&&!approach&&(bar%8===7||act===4&&bar%2===1),answer:act===1||act===4||cycle===1};
+  return{act,cycle,boss,approach,quiet,drive,chordIndex:orders[(Math.floor(act/2)+cycle)%4][bar%4],rest:!boss&&!approach&&bar%8===7,answer:act===1||act===4};
  }
 
  const titleBass=[
   [0,12,-1,7,0,-1,12,7],[0,-1,7,12,0,-1,12,-1],
   [0,12,-1,7,0,12,-1,7],[0,-1,7,12,0,-1,12,7],
-  [0,-1,-1,-1,7,-1,-1,-1],[0,-1,7,-1,0,-1,12,-1],
-  [0,-1,7,-1,0,-1,12,-1],[0,-1,-1,7,0,-1,-1,-1]
+  [0,12,-1,7,0,12,7,-1],[0,-1,7,12,0,7,-1,12],
+  [0,12,0,7,0,12,-1,7],[0,-1,7,12,0,7,12,-1]
  ];
  // Interlocking parts share the current harmony and leave different holes in
  // each eight-bar sentence. Low-priority ornaments yield to combat audio.
@@ -385,48 +385,51 @@ window.flightAudio=(()=>{
   const step=index%8,bar=Math.floor(index/8),act=Math.floor(bar/4)%4,root=chord[0],cadence=bar%8===7;
   const tone=(pitch,length,gain,instrument,pan,delay=0)=>note({frequency:hz(harmonicPitch(pitch,chord,length>1)),duration:Math.min(beat*length,beat*((8-step)/2)-delay-.012),hold:beat*length*.23,gain,instrument,attack:instrument==='choir'?.075:.008,cutoff:instrument==='rubber'?820:instrument==='choir'?1550:3300,cutoffEnd:instrument==='rubber'?240:1200,pan,offset:offset+delay,space:instrument!=='rubber',music:true,priority:instrument==='ribbon'?2:0});
   // A second voice answers the hook with a warm, separate register.
-  if((step===3||step===6)&&!quiet&&!cadence&&act!==2)tone(root+12+[7,3,12,7][(bar+step)%4],step===6?.85:1.1,title?.017:.012,'ribbon',-.34);
+  if(!title&&(step===3||step===6)&&!quiet&&!cadence&&act!==2)tone(root+12+[7,3,12,7][(bar+step)%4],step===6?.85:1.1,title?.017:.012,'ribbon',-.34);
   // Fast glistening runs: controlled chord tones rather than random pitches.
   if(!quiet&&!cadence&&(act===1||act===3||drive)&&step%2===1){
    const order=act===3?[2,1,0,1]:[0,1,2,1];for(let i=0;i<2;i++)tone(chord[order[(step+i+bar)%4]]+24,.22,i?.006:.008,'crystal',i?.55:-.55,i*beat*.25);
   }
   // Syncopated octave bass plucks and a softly voiced breath behind the melody.
   if((step===3||step===7)&&!quiet&&!cadence&&bar%2===0)tone(root+(step===3?12:7),.3,title?.025:.018,'rubber',-.06);
-  if(step===0&&(act===0||act===2))for(const [i,pitch] of chord.slice(1).entries())tone(pitch+12,3.55,quiet?.004:.006,'choir',i?-.58:.58);
+  if(!title&&step===0&&(act===0||act===2))for(const [i,pitch] of chord.slice(1).entries())tone(pitch+12,3.55,quiet?.004:.006,'choir',i?-.58:.58);
   // Small tuned percussion fills connect phrases, without a noise wall.
   if(cadence&&(step===5||step===6)){tone(root+24+(step===5?7:0),.28,.017,'rubber',step===5?-.25:.25);if(!quiet)noise({duration:.035,gain:.009,cutoff:2800,end:1300,highpass:1000,offset:offset+beat*.25,pan:.28,music:true,priority:0});}
  }
  function titleStep(index,offset,beat){
-  const variation=titleVariation(index),bar=Math.floor(index/8)%32,step=index%8,section=Math.floor(bar/4),chord=titleChords[titleChanges[bar]],phrase=variation.answer?[[0,chord.voices[1]+12,2],[4,chord.voices[2]+12,1.5]]:titlePhrases[bar],event=phrase.find(n=>n[0]===step),suspended=section===4||variation.ambient,climax=section===6&&!variation.ambient,quiet=section===0||suspended,groove=offset+(step%2?beat*.012:0),phraseEnd=bar%8===7;
+  const variation=titleVariation(index),bar=Math.floor(index/8)%32,step=index%8,section=Math.floor(bar/4),chord=titleChords[titleChanges[bar]],phrase=variation.answer?titleDevelopment[bar%8]:titlePhrases[bar],event=phrase.find(n=>n[0]===step),suspended=false,climax=section===6||section===7,quiet=section===4,groove=offset+(step%2?beat*.012:0),phraseEnd=bar%8===7;
   signalLayer(index,offset,beat,chord.voices);
   arcadeOrchestration(index,offset,beat,[chord.root,...chord.voices],{quiet:suspended,drive:climax,title:true});
-  const leadBusy=phrase.some(n=>step>=n[0]&&step<n[0]+n[2]*2),leadGain=quiet?.055:climax?.068:.061;
+  const leadBusy=phrase.some(n=>step>=n[0]&&step<n[0]+n[2]*2),leadGain=quiet?.069:climax?.084:.078;
   if(event){
    const pitch=event[1],duration=beat*event[2]*.94;
-   // A gently driven string with a stable pitch centre; deliberate long notes
-   // carry the tune, rather than a pitch scoop on every sequencer tick.
-   note({frequency:hz(pitch),duration,hold:duration*.42,gain:leadGain*(step===0?1:.94),instrument:variation.ambient?'glass':variation.warm?'ribbon':'arcade',type:variation.ambient?'sine':variation.warm?'triangle':'sawtooth',guitar:!variation.ambient&&!variation.warm,guitarBend:.994,cutoff:quiet?2200:3100,cutoffEnd:1100,attack:.009,vibrato:6,vibratoRate:4.8,pan:.08,endPan:.015,offset:groove,space:true,music:true,priority:2});
+   // A rounded, driven lead articulates the syncopated hook; longer bridge
+   // notes add contrast without changing the underlying pulse.
+   note({frequency:hz(pitch),duration,hold:duration*.42,gain:leadGain*(step===0?1:.94),instrument:variation.ambient?'glass':variation.warm?'ribbon':'arcade',type:variation.ambient?'sine':variation.warm?'triangle':'sawtooth',guitar:!variation.ambient&&!variation.warm,guitarBend:.994,cutoff:quiet?3000:4200,cutoffEnd:1700,attack:.009,vibrato:6,vibratoRate:4.8,pan:.08,endPan:.015,offset:groove,space:true,music:true,priority:2});
    if(event[2]>=1.5&&!variation.ambient)note({frequency:hz(pitch-12),duration:duration*.9,hold:duration*.38,gain:.010,type:'triangle',cutoff:700,attack:.018,pan:-.12,offset:groove+.01,music:true});
-   if(climax&&step===0){const harmony=chord.voices.filter(n=>n<pitch).at(-1);note({frequency:hz(harmony),duration:duration*.93,hold:duration*.3,gain:.011,type:'triangle',cutoff:1050,attack:.03,pan:-.32,offset:groove+.015,space:true,music:true});}
+   if(climax&&(step===0||step===4)){const harmony=chord.voices.filter(n=>n<pitch).at(-1);note({frequency:hz(harmony),duration:duration*.93,hold:duration*.3,gain:.022,instrument:'ribbon',type:'triangle',cutoff:1050,attack:.03,pan:-.32,offset:groove+.015,space:true,music:true});}
   }
   // One closely voiced chord per bar: common tones stay in place and the
   // other voices move by a tone/semitone. No old pad crosses a new harmony.
   if(step===0)for(const [i,pitch] of chord.voices.entries())note({frequency:hz(pitch)*(1+(i-1)*.0004),duration:beat*3.88,hold:beat*1.25,gain:suspended?.007:.0058,type:'triangle',attack:beat*.3,cutoff:quiet?820:1050,pan:(i-1)*.5,endPan:(i-1)*.35,offset:offset+i*.012,music:true,priority:0});
   const arp=suspended?(step===3?0:step===7?2:-1):step%2===1?Math.floor(step/2)%3:-1;
   if(arp>=0&&!(phraseEnd&&step>5)){const side=step%4===1?-.55:.55;note({frequency:hz(chord.voices[arp]+12),duration:beat*.42,attack:.008,gain:leadBusy?.0045:.0085,type:'triangle',cutoff:1300,pan:side,endPan:-side*.25,offset:groove,space:true,music:true,priority:0});}
-  // The answer appears only in an actual rest, never over a held lead note.
-  if(!leadBusy&&step%2===1&&(bar%4===1||phraseEnd))note({frequency:hz(chord.voices[phraseEnd?2:1]+12),duration:beat*.7,attack:.035,hold:beat*.1,gain:.014,type:'sine',cutoff:1200,pan:-.4,endPan:.15,offset:groove,space:true,music:true});
-  if(variation.counter&&!leadBusy&&(step===1||step===5)){const pitch=chord.voices[step===1?0:2]+12;note({frequency:hz(pitch),duration:beat*1.25,attack:.05,hold:beat*.3,gain:.012,type:'triangle',guitar:true,guitarBend:.997,cutoff:1500,pan:step===1?-.5:.5,endPan:step===1?.2:-.2,offset:groove,space:true,music:true,priority:1});}
+  // A clearly voiced answer occupies the cadence's open last beat. Its
+  // two sixteenths resolve into the next phrase without masking the main hook.
+  if(!leadBusy&&step===7&&phraseEnd){
+   const reply=bar===15?[78,81]:bar===23?[66,69]:[69,74];
+   for(const [i,pitch] of reply.entries())note({frequency:hz(pitch),duration:beat*.19,hold:beat*.045,attack:.006,gain:.041,instrument:'ribbon',cutoff:3200,cutoffEnd:1500,pan:-.3+i*.12,offset:groove+i*beat*.25,space:true,music:true,priority:2});
+  }
+  // Clipped offbeat chord accents open out in the development and return;
+  // the bridge has a warmer bass-led texture while the drums retain their pace.
+  if(!quiet&&(section===2||section===3||climax)&&(step===3||step===7)&&!phraseEnd){
+   for(const [i,pitch] of chord.voices.slice(1).entries())note({frequency:hz(pitch),duration:beat*.23,hold:beat*.04,attack:.004,gain:climax?.018:.013,instrument:'brass',cutoff:2100,cutoffEnd:850,pan:i?.32:-.32,offset:groove,music:true,priority:1});
+  }
   const bass=titleBass[section][step],approach=step===7&&[1,5,6].includes(section)&&!phraseEnd;
-  if(bass>=0||approach){const next=titleChords[titleChanges[(bar+1)%32]].root,pitch=approach?next+(next<chord.root?1:-1):chord.root+bass;note({frequency:hz(pitch),duration:beat*(suspended?1.45:step===0?.78:.53),hold:beat*.18,gain:quiet?.067:.077,instrument:'rubber',type:'triangle',cutoff:780,cutoffEnd:210,attack:.008,offset:groove,music:true,priority:2});
+  if(bass>=0||approach){const next=titleChords[titleChanges[(bar+1)%32]].root,pitch=approach?next+(next<chord.root?1:-1):chord.root+bass;note({frequency:hz(pitch),duration:beat*(suspended?1.45:step===0?.78:.53),hold:beat*.18,gain:quiet?.081:.089,instrument:'bass',type:'triangle',cutoff:1200,cutoffEnd:380,attack:.008,offset:groove,music:true,priority:2});
    if(step===0)note({frequency:hz(chord.root-12),duration:beat*1.45,hold:beat*.42,gain:.028,type:'sine',cutoff:160,attack:.013,offset:groove,music:true,priority:2});}
-  const kick=suspended?[0]:climax?[0,4,7]:[0,4];
-  if(kick.includes(step)&&!(phraseEnd&&step===7)&&(!variation.ambient||bar%2===0))note({frequency:102,end:43,duration:.2,hold:.025,gain:quiet?.054:.068,cutoff:340,offset:groove,music:true,priority:2});
-  if(!variation.ambient&&(suspended?step===4:step===2||step===6)){noise({duration:.10,gain:quiet?.018:.026,cutoff:1700,end:570,highpass:190,offset:groove,music:true});note({frequency:142,end:68,duration:.08,gain:.020,type:'triangle',cutoff:570,offset:groove,music:true});}
-  if(!suspended&&step%2===1)noise({duration:step===7&&!phraseEnd?.055:.025,gain:quiet?.007:.011,cutoff:3100,end:1500,highpass:1300,hold:.002,pan:step%4<2?-.3:.3,offset:groove,music:true,priority:0});
-  // A short fill marks an eight-bar sentence, with a quieter last cadence
-  // that resolves into the returning major-key expedition motif.
-  if(phraseEnd&&step===7&&bar!==31)for(let i=0;i<2;i++)note({frequency:[116,87][i],end:[78,56][i],duration:.13,gain:.019-i*.003,type:'sine',cutoff:480,offset:offset+i*beat*.25,music:true});
+  arcadeDrums(index,groove,beat,{drive:climax,title:true});
+
  }
  function bossMusicStep(index,offset,beat){
   const theme=currentBossTheme(),figure=bossApproaches[sectorTrack],step=index%8,bar=Math.floor(index/8),chord=theme.chords[bar%4],root=chord[0],intro=bar<4,breathing=bar%16>=8&&bar%16<10,returning=bar%16>=12,voice=bossVoiceFamilies[bossVoice.family];
@@ -445,18 +448,30 @@ window.flightAudio=(()=>{
   arcadeOrchestration(index,offset,beat,chord,{drive:returning,quiet:breathing||intro&&bar===0});
   if(!breathing&&(step===6||step===7))noise({duration:.075,gain:.025,cutoff:2500,end:600,offset,music:true,priority:2});
  }
- // Replace the universal snare/hi-hat pair with a small played percussion kit.
- // Ocean pulses, wooden garden knocks and foundry ticks share the score's rhythm.
- function environmentRhythm(step,offset,beat,chord,arr,form){
-  if(form.rest)return;
-  const kit=soundscapes[soundscape];
-  if(arr.hat.includes(step)&&!form.quiet){
-   if(kit.metal)noise({duration:.025,gain:kit.air,cutoff:4200,end:1800,highpass:1600,pan:step%4<2?-.32:.32,offset,music:true,priority:0});
-   else note({frequency:hz(chord[step%3]+24),duration:soundscape==='ocean'?.23:.085,gain:.012,instrument:kit.reply,cutoff:2400,offset:offset+(step%2?beat*.018:0),pan:step%4<2?-.3:.3,music:true,priority:0});
+ // A continuous rhythm section is the motor of the score. The world adds
+ // its own percussion above this foundation without deleting the backbeat.
+ function arcadeDrums(index,offset,beat,{drive=false,title=false}={}){
+  const step=index%8,bar=Math.floor(index/8),fill=bar%8===7,weight=title?1:.88;
+  const kick=[0,4,...(bar%2?[3]:[5]),...(drive&&bar%4===2?[7]:[])];
+  if(kick.includes(step)){
+   note({frequency:155,end:46,duration:.19,hold:.018,gain:.12*weight,instrument:'drum',cutoff:950,cutoffEnd:180,offset,music:true,priority:2});
+   noise({duration:.018,gain:.021*weight,cutoff:4500,end:900,highpass:800,offset,music:true,priority:1});
   }
-  if(arr.snare.includes(step)&&!form.quiet){
-   note({frequency:kit.drum,end:kit.drum*.62,duration:.13,gain:.031,instrument:kit.metal?'mallet':'rubber',cutoff:1100,offset,music:true,priority:1});
-   noise({duration:soundscape==='volcanic'?.13:.05,gain:kit.air,cutoff:kit.metal?3200:1300,end:450,highpass:200,offset,music:true,priority:0});
+  if(step===2||step===6){
+   note({frequency:195,end:118,duration:.14,hold:.012,gain:.072*weight,instrument:'drum',type:'triangle',cutoff:1900,offset,music:true,priority:2});
+   noise({duration:.15,gain:.067*weight,cutoff:6700,end:2300,highpass:750,hold:.014,pan:.06,offset,music:true,priority:2});
+  }
+  // Eighth-note timekeeping, a lifted offbeat and occasional sixteenth pickup.
+  const open=step===7&&!fill;
+  noise({duration:open?.115:.036,gain:(step%2?.025:.015)*weight,cutoff:9200,end:open?4500:6200,highpass:5500,pan:step%2?.28:-.23,offset,music:true,priority:1});
+  if((fill&&step>=6)||drive&&step===7)noise({duration:.027,gain:.014*weight,cutoff:8400,end:5100,highpass:4800,pan:-.3,offset:offset+beat*.25,music:true,priority:1});
+  if(fill&&step===7)for(let i=0;i<2;i++)note({frequency:[180,132][i],end:[102,76][i],duration:.12,gain:.046*weight,instrument:'drum',type:'triangle',cutoff:1100,pan:i?.2:-.2,offset:offset+i*beat*.25,music:true,priority:2});
+ }
+ function environmentRhythm(step,offset,beat,chord,arr,form){
+  const kit=soundscapes[soundscape];
+  if((step===3||step===7)&&!form.quiet){
+   note({frequency:kit.drum*(step===3?1.4:1),end:kit.drum*.78,duration:.1,gain:.023,instrument:kit.metal?'mallet':'rubber',cutoff:kit.metal?3000:1300,pan:step===3?-.4:.4,offset,music:true,priority:0});
+   if(kit.metal)noise({duration:.032,gain:.012,cutoff:5700,end:2600,highpass:2200,offset,music:true,priority:0});
   }
  }
  function startTitleLoop(){
@@ -474,11 +489,11 @@ window.flightAudio=(()=>{
     const bar=Math.floor(musicStep/8)%128,step=musicStep%8;
     // Latch orchestration on the bar line, so combat changes never chop notes.
     if(step===0)arrangement=sectorArrangement(musicStep,smoothedIntensity);
-    const form=arrangement,chord=theme.chords[form.chordIndex],offset=Math.max(0,nextBeat-context.currentTime),phrase=Math.floor(bar/4)%4,cadence=bar%4===3&&step>=6,groove=offset+(step%2?beat*arr.swing:0);
+    const form=arrangement,chord=theme.chords[form.chordIndex],offset=Math.max(0,nextBeat-context.currentTime),phrase=Math.floor(bar/4)%4,cadence=bar%8===7&&step===7,groove=offset+(step%2?beat*arr.swing:0);
     signalLayer(musicStep,groove,beat,chord);
     arcadeOrchestration(musicStep,groove,beat,chord,{quiet:form.quiet||form.rest,drive:form.drive});
     const melody=sectorMelody(theme,form,bar,step),lead=melody.pitch;
-    if(lead>=0&&!cadence)note({frequency:hz(lead),duration:beat*melody.duration*.94,hold:beat*melody.duration*.38,attack:.014,gain:form.quiet?.046:form.drive?.068:.058,instrument:form.quiet?soundscapes[soundscape].reply:soundscapes[soundscape].lead,type:'triangle',cutoff:form.quiet?1800:form.drive?3200:2600,cutoffEnd:1200,vibrato:5,vibratoRate:4.4,pan:form.answer?-.15:.12,offset:groove,space:true,music:true,priority:2});
+    if(lead>=0&&!cadence)note({frequency:hz(lead),duration:beat*melody.duration*.94,hold:beat*melody.duration*.38,attack:.014,gain:form.quiet?.059:form.drive?.079:.07,instrument:soundscapes[soundscape].lead,type:'triangle',cutoff:form.quiet?2600:form.drive?4100:3400,cutoffEnd:1500,vibrato:5,vibratoRate:4.4,pan:form.answer?-.15:.12,offset:groove,space:true,music:true,priority:2});
     if(form.answer&&!form.drive&&!form.rest&&(step===2||step===6)){
      const line=sectorCounterlines[sectorTrack],interval=line[(bar+(step===6?4:0))%line.length],pitch=harmonicPitch(chord[0]+interval+12,chord,true);
      note({frequency:hz(pitch),duration:beat*Math.min(1.35,(8-step)*.5-.04),hold:beat*.38,attack:.055,gain:form.quiet?.008:.012,type:sectorTrack===1||sectorTrack===4?'sawtooth':'triangle',guitar:sectorTrack===0||sectorTrack===5,guitarBend:.997,cutoff:form.quiet?1050:1550,pan:step===2?-.48:.48,endPan:step===2?.22:-.22,offset:groove,space:true,music:true,priority:1});
@@ -495,10 +510,10 @@ window.flightAudio=(()=>{
     if(bar%4===3&&step===6)for(let i=0;i<2;i++)note({frequency:hz(chord[i]+24),duration:beat*.68,gain:.006,type:'sine',pan:(i-.5)*.8,offset:offset+i*beat*.25,space:true,music:true,priority:0});
     // A slow stereo string voice provides a second melodic arc over the fast arpeggio.
     if((step===1||step===5)&&phrase!==1&&!form.drive){const pitch=chord[(bar+Math.floor(step/4))%3]+12,side=step===1?-.55:.55;note({frequency:hz(pitch),duration:beat*Math.min(1.65,(8-step)*.5-.04),attack:.11,hold:beat*.45,gain:.010,type:'triangle',cutoff:1250,pan:side,endPan:-side,offset,space:true,music:true});}
-    const bassInterval=arr.bass[step];
-    if(bassInterval>=0&&(!form.quiet||step===0||step===4))note({frequency:hz(chord[0]+bassInterval),duration:beat*.54,hold:beat*.12,gain:.068,type:'triangle',cutoff:440,offset:groove,music:true,priority:2});
+    const bassInterval=[0,12,0,7,0,12,7,bar%2?-1:12][step];
+    if(bassInterval>=0)note({frequency:hz(chord[0]+bassInterval),duration:beat*.54,hold:beat*.12,gain:.082,instrument:'bass',type:'triangle',cutoff:1000,cutoffEnd:320,offset:groove,music:true,priority:2});
     if(step===0&&bar%2===0)for(const [i,pitch] of chord.slice(1).entries())for(const side of [-1,1])note({frequency:hz(pitch+12)*(1+side*.0006),duration:beat*3.5,hold:beat*.7,gain:.006,instrument:soundscapes[soundscape].pad,type:arr.pad,attack:beat*.5,cutoff:1150,pan:side*.65,endPan:side*.3,offset:offset+i*.025,music:true,priority:0});
-    if((form.drive?arr.kick.includes(step)||step===4:arr.kick.includes(step))&&(!form.quiet||step===0)&&!form.rest)note({frequency:112,end:48,duration:.18,hold:.015,gain:.060,cutoff:400,offset:groove,music:true,priority:2});
+    arcadeDrums(musicStep,groove,beat,{drive:form.drive});
     environmentRhythm(step,groove,beat,chord,arr,form);
     if(form.drive&&bar%4===3&&step===7)noise({duration:.055,gain:.019,cutoff:1100,end:320,offset:offset+beat/4,music:true,priority:0});
     musicStep++;nextBeat+=beat/2;
@@ -751,5 +766,5 @@ window.flightAudio=(()=>{
   noise({duration:profile.length*.85,hold:.065,gain:.10+force*.02,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
   noise({duration:.30,gain:.028,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
- return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:9,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
+ return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:11,musicBpm:sectorTrack<0?148:currentSectorTheme().bpm,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
 })();
