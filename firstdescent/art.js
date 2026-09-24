@@ -1128,6 +1128,8 @@ function addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,fiel
     // Crust overlaps one edge: this is equipment embedded in a weathered
     // shoreline, not a clean badge pasted on every strip of terrain.
     crust(u-width*.62,v+height*.65,width*.5,height*.57,[83,101,106],rnd,4,7);
+    // Slag shoulders and oxidised deposits bury part of the housing.
+    for(let j=0;j<3;j++)crust(u+(j-1)*width*.75,v+height*(j%2?1.25:-.9),width*(.32+r(110+j)*.22),height*.65,j%2?[116,102,72]:[64,73,72],n=>rnd(n+j*37),7+r(118+j)*8,7);
     details.push({u,h:v,kind:'service',width:width*2,height:height*2});
     if(emits)features.push({u,h:v,kind,point:at(u,v,4),outlet:'service'});
    }else if(kind==='ice'){
@@ -1149,6 +1151,12 @@ function addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,fiel
       face([at(a[0],a[1]-2.6,13),at(b[0],b[1]-2,13),at(b[0],b[1]+2.2,13),at(a[0],a[1]+2.7,13)],[44,47,46],.9);
       face([at(a[0],a[1]-width,14),at(b[0],b[1]-width*.65,14),at(b[0],b[1]+width*.65,14),at(a[0],a[1]+width,14)],[147,75,37],.6,.12);
      }
+     // Broken clinker, sulfur deposits and a branching incandescent seam.
+     for(let j=0;j<4;j++){
+      const x=u+(r(120+j)-.5)*size*2.8,y=v+(r(125+j)-.5)*size;
+      crust(x,y,size*(.22+r(130+j)*.32),size*(.13+r(135+j)*.14),j===0?[133,111,62]:[57+j*7,58+j*5,55+j*3],n=>rnd(n+j*43),9+r(140+j)*11,7);
+     }
+     tube([[u,v,16],[u+size*.25,v-size*.23,17],[u+size*.61,v-size*.28,14]],.65,[224,112,40],'shore-molten-'+i);
      details.push({u,h:v,kind:'fissure',width:size*1.5});
      if(emits){const source=path[2],sourceH=Math.min(source[1],profile(source[0])-4);features.push({u:source[0],h:sourceH,kind,point:at(source[0],sourceH,14),outlet:'fissure'});}
     }else if(kind==='stone'&&(verdant||damp)){
@@ -1282,32 +1290,59 @@ function shoreAtmosphereSprite(key,kind){
  const source=art[key];if(!imageReady(source))return null;
  const id=key+':'+kind,cached=shoreTintedSprites.get(id);if(cached?.source===source)return cached.canvas;
  const c=document.createElement('canvas');c.width=768;c.height=Math.round(768*source.naturalHeight/source.naturalWidth);const paint=c.getContext('2d');paint.drawImage(source,0,0,c.width,c.height);
- paint.globalCompositeOperation='source-atop';paint.globalAlpha=kind==='cloud'?.13:kind==='water'?.65:.35;paint.fillStyle=shoreAtmospheres[kind].color;paint.fillRect(0,0,c.width,c.height);
+ paint.globalCompositeOperation='source-atop';paint.globalAlpha=kind==='cloud'?.43:kind==='water'?.65:.48;paint.fillStyle=shoreAtmospheres[kind].color;paint.fillRect(0,0,c.width,c.height);
  shoreTintedSprites.set(id,{source,canvas:c});while(shoreTintedSprites.size>8)shoreTintedSprites.delete(shoreTintedSprites.keys().next().value);return c;
 }
 // Break the photographed bank into softly joined volumes, preserving its fine
 // billows rather than stretching the whole panorama into another white strip.
 // Lighting is baked once per biome/lobe, never recolored or read back per frame.
-const shoreCloudVolumes=new Map();
-function shoreCloudVolumeSprite(kind,variant){
+const shoreCloudVolumes=new Map(),shoreCloudLightingCache=new Map();
+function shoreCloudLighting(stage=sectors[level]){
+ const source=art[stage.background],kind=shoreAtmosphereKind(stage),cached=shoreCloudLightingCache.get(stage.id);
+ if(cached&&cached.source===source)return cached.palette;
+ let warmth=kind==='storm'?.48:0;
+ if(imageReady(source)){
+  // Sample the actual sky once, rather than using the HUD/gameplay palette.
+  const sample=document.createElement('canvas');sample.width=24;sample.height=12;
+  const c=sample.getContext('2d');c.drawImage(source,0,0,source.naturalWidth,source.naturalHeight*.6,0,0,24,12);
+  const pixels=c.getImageData(0,0,24,12)?.data;let sum=0,count=0;
+  if(pixels)for(let i=0;i<pixels.length;i+=4){const r=pixels[i],g=pixels[i+1],b=pixels[i+2];if((r+g+b)/3>90){sum+=clamp((r-b-4)/65,0,1);count++;}}
+  if(count)warmth=sum/count;
+ }
+ const palette=warmth>.22?'sunset':kind==='storm'?'storm':'daylight';
+ if(imageReady(source)){shoreCloudLightingCache.set(stage.id,{source,palette});while(shoreCloudLightingCache.size>8)shoreCloudLightingCache.delete(shoreCloudLightingCache.keys().next().value);}
+ return palette;
+}
+const shoreCloudPalettes={
+ daylight:{light:[240,239,228],mid:[132,148,159],dark:[53,67,83]},
+ sunset:{light:[250,216,171],mid:[157,135,132],dark:[64,61,79]},
+ storm:{light:[211,219,225],mid:[111,124,141],dark:[43,51,70]}
+};
+function shoreCloudVolumeSprite(kind,variant,lighting=kind==='storm'?'storm':'daylight'){
  const source=art.shoreCloud;if(!imageReady(source))return null;
- const id=kind+':'+variant,cached=shoreCloudVolumes.get(id);if(cached?.source===source)return cached.canvas;
+ const id=kind+':'+lighting+':'+variant,cached=shoreCloudVolumes.get(id);if(cached?.source===source)return cached.canvas;
  const crops=[[.015,.54],[.22,.48],[.48,.51]],crop=crops[variant%3],canvas=document.createElement('canvas');canvas.width=384;canvas.height=320;
- const paint=canvas.getContext('2d'),storm=kind==='storm';
- // Storm illumination comes from upper right, matching the terrain light rig.
+ const paint=canvas.getContext('2d'),storm=kind==='storm',palette=shoreCloudPalettes[lighting],rgba=(c,a)=>`rgba(${c.join(',')},${a})`;
  if(storm){paint.translate(canvas.width,0);paint.scale(-1,1);}
  paint.drawImage(source,source.naturalWidth*crop[0],0,source.naturalWidth*crop[1],source.naturalHeight,0,0,384,320);
  if(storm){paint.scale(-1,1);paint.translate(-canvas.width,0);}
  paint.globalCompositeOperation='source-atop';
- const shade=paint.createLinearGradient(storm?340:40,20,storm?120:280,300);
- shade.addColorStop(0,storm?'rgba(244,217,175,.12)':'rgba(255,242,211,.10)');
- shade.addColorStop(.32,'rgba(112,140,158,0)');shade.addColorStop(.68,storm?'rgba(66,76,99,.16)':'rgba(80,111,135,.10)');
- shade.addColorStop(1,storm?'rgba(41,52,76,.40)':'rgba(61,86,111,.25)');paint.fillStyle=shade;paint.fillRect(0,0,384,320);
- // Feather the cropped sides; the photographed crown and lower curls retain
- // their own alpha silhouette. Adjacent masses no longer show cut tile edges.
+ // Preserve small bright crowns, with broad gray body and dark self-shadow.
+ // Three different shadow placements prevent the bank reading as white foam.
+ const shade=paint.createLinearGradient(storm?340:40,0,storm?120:280,310);
+ shade.addColorStop(0,rgba(palette.light,.24));
+ shade.addColorStop(.27,rgba(palette.mid,.15+variant*.09));
+ shade.addColorStop(.59,rgba(palette.mid,.51+variant*.07));
+ shade.addColorStop(1,rgba(palette.dark,.82));paint.fillStyle=shade;paint.fillRect(0,0,384,320);
+ for(let i=0;i<3;i++){
+  const x=70+i*115+Math.sin(variant*3+i)*28,y=145+Math.cos(i*2+variant)*46;
+  const shadow=paint.createRadialGradient(x,y,8,x,y,95);
+  shadow.addColorStop(0,rgba(palette.dark,.21+variant*.06));shadow.addColorStop(.55,rgba(palette.dark,.13));shadow.addColorStop(1,rgba(palette.dark,0));
+  paint.fillStyle=shadow;paint.fillRect(x-95,y-95,190,190);
+ }
  paint.globalCompositeOperation='destination-in';const feather=paint.createLinearGradient(0,0,384,0);
  feather.addColorStop(0,'#ffffff00');feather.addColorStop(.13,'#ffffffff');feather.addColorStop(.83,'#ffffffff');feather.addColorStop(1,'#ffffff00');paint.fillStyle=feather;paint.fillRect(0,0,384,320);
- shoreCloudVolumes.set(id,{source,canvas});while(shoreCloudVolumes.size>6)shoreCloudVolumes.delete(shoreCloudVolumes.keys().next().value);return canvas;
+ shoreCloudVolumes.set(id,{source,canvas});while(shoreCloudVolumes.size>12)shoreCloudVolumes.delete(shoreCloudVolumes.keys().next().value);return canvas;
 }
 function shoreCloudVolume(a,front,t,vertical,view=0){
  const r=n=>sceneryVariation(a.seed,n),normal=a.band.edge?-1:1;
@@ -1352,21 +1387,21 @@ function prepareShoreVapor(kind){
   for(let y=0;y<size;y++)for(let x=0;x<size;x++){
    const u=(x+.5)/size,v=(y+.5)/size,n=noise(grids[0],u,v)*.55+noise(grids[1],u,v)*.3+noise(grids[2],u,v)*.15,px=u*2-1,py=v*2-1;
    const envelope=Math.max(0,1-px*px-py*py),density=Math.pow(envelope,1.5)*Math.max(0,(n-.10)*2),light=.88-py*.1+n*.12,k=(y*size+x)*4;
-   for(let c=0;c<3;c++)data.data[k+c]=Math.min(255,color[c]*light);data.data[k+3]=Math.min(220,density*255);
+   for(let c=0;c<3;c++)data.data[k+c]=Math.min(255,color[c]*light*((kind==='hot'||kind==='forge')&&variant%2?.54:1));data.data[k+3]=Math.min(220,density*255);
   }
   paint.putImageData(data,0,0);sprites.push(canvas);
  }
  shoreVaporTextures.set(kind,sprites);while(shoreVaporTextures.size>2)shoreVaporTextures.delete(shoreVaporTextures.keys().next().value);return sprites;
 }
 function shoreVaporPuff(a,index,t,kind,vertical){
- const r=n=>sceneryVariation(a.seed,n),count=kind==='water'?7:9,life=3.1+r(171)*1.4,clock=t+a.phase+index*life/count,birth=Math.floor(clock/life),age=((clock%life)+life)%life,u=age/life;
+ const r=n=>sceneryVariation(a.seed,n),count=kind==='water'?7:kind==='hot'||kind==='forge'?12:9,life=3.1+r(171)*1.4,clock=t+a.phase+index*life/count,birth=Math.floor(clock/life),age=((clock%life)+life)%life,u=age/life;
  const seed=a.seed+index*47+birth*131,variation=sceneryVariation(seed,180),normal=a.band.edge?-1:1,curl=Math.sin(age*2.3+variation*TAU)*u*11,wind=(variation-.5)*13;
  let dx=wind*age+curl,dy;
  if(vertical){dx=normal*(8+age*9)+wind*age*.25+curl*.35;dy=-age*17-age*age*5;}
  else if(a.band.edge){dy=-4-age*18-age*age*5;}
  else {dy=4+age*40-age*age*7;dx+=age*(variation>.5?1:-1)*14;}
  if(kind==='dust'||kind==='frost'){dx+=age*14;dy*=.35;}
- const size=12+age*(18+variation*10),alpha=passEase(Math.min(1,age/.3))*Math.pow(1-u,1.3)*(kind==='water'?.48:kind==='dust'||kind==='frost'?.36:.88);
+ const thermal=kind==='hot'||kind==='forge',size=(thermal?15:12)+age*((thermal?24:18)+variation*10),alpha=passEase(Math.min(1,age/.3))*Math.pow(1-u,1.3)*(kind==='water'?.48:kind==='dust'||kind==='frost'?.36:.88);
  return {dx,dy,width:size*(1+.12*Math.sin(age*1.4+variation*5)),height:size*(1.1+.13*Math.cos(age*1.1+variation*4)),angle:variation*TAU+age*(variation-.5)*.65,alpha,texture:Math.floor(variation*4),morph:passEase(u),age,life};
 }
 function drawShoreVapor(front){
@@ -1375,7 +1410,7 @@ function drawShoreVapor(front){
  ctx.save();
  for(const a of anchors){
   if(!a.emits)continue;const p=shoreAnchorPosition(a,offset,vertical,180,true);if(!p.visible)continue;
-  const count=kind==='water'?7:9;
+  const count=kind==='water'?7:kind==='hot'||kind==='forge'?12:9;
   for(let n=0;n<count;n++){
    if((n%3===0)!==front||(quality<.8&&n%2))continue;
    const v=shoreVaporPuff(a,n,t,kind,vertical);if(v.alpha<.003)continue;
@@ -1397,7 +1432,7 @@ function drawShoreClouds(front){
  for(let i=0;i<anchors.length;i++){
   const a=anchors[i];if(quality<.8&&i%2)continue;const p=shoreAnchorPosition(a,offset,vertical);if(!p.visible)continue;
   const v=shoreCloudVolume(a,front,t,vertical,viewY);if(!v)continue;
-  const sprite=v.wisp?shoreAtmosphereSprite('shoreWisp',kind):shoreCloudVolumeSprite(kind,v.variant);if(!sprite)continue;
+  const sprite=v.wisp?shoreAtmosphereSprite('shoreWisp',kind):shoreCloudVolumeSprite(kind,v.variant,shoreCloudLighting());if(!sprite)continue;
   if(front)drawShoreCloudContact(a,p,v,vertical,offset);
   // The original photographic sunlight direction remains upright even under
   // an overhang; flipping a top bank upside down would invert its shadows.
@@ -1405,6 +1440,14 @@ function drawShoreClouds(front){
   ctx.globalAlpha=v.alpha*(kind==='storm'?.86:1);ctx.drawImage(sprite,p.x+v.dx-w*.5,p.y+v.dy-h*.5,w,h);
  }
  ctx.restore();
+}
+function drawShoreHeat(a,p,t){
+ const thermal=a.outlet==='fissure',radius=thermal?46:30;
+ // Local reflected heat follows the physical outlet; no full-screen flashes.
+ ctx.save();ctx.globalCompositeOperation='screen';ctx.globalAlpha=(thermal?.24:.13)*( .88+.08*Math.sin(t*1.7+a.phase)+.04*Math.sin(t*4.1+a.seed));
+ const glow=ctx.createRadialGradient(p.x,p.y,1,p.x,p.y,radius);
+ glow.addColorStop(0,thermal?'#fca04e':'#d9a478');glow.addColorStop(.35,'#a6441c77');glow.addColorStop(1,'#75301700');
+ ctx.fillStyle=glow;ctx.fillRect(p.x-radius,p.y-radius,radius*2,radius*2);ctx.restore();
 }
 function drawShoreAtmosphere(){
  const {kind,profile,anchors}=prepareShoreAtmosphere(),sprite=shoreMistSprite(kind),vertical=!!sectors[level].scrollAxis,offset=sceneryBorderOffset(),t=sectorSceneTime(),quality=window.flightEffectsQuality||1;
@@ -1414,7 +1457,7 @@ function drawShoreAtmosphere(){
   // Narrow, soft contact haze carries the background hue into the stone face.
   // It follows the contour instead of floating at a fixed distance below it.
   ctx.globalAlpha=profile.veil*(shoreUsesClouds()?.38:1);ctx.save();ctx.translate(p.x,p.y);if(vertical)ctx.rotate(Math.PI/2);ctx.drawImage(sprite,-a.width*.48,-37,a.width*.96,74);ctx.restore();
-  if(a.emits)drawShoreParticles(a,shoreAnchorPosition(a,offset,vertical,0,true),kind,t,quality,offset,vertical);
+  if(a.emits){const outlet=shoreAnchorPosition(a,offset,vertical,0,true);if(kind==='hot'||kind==='forge')drawShoreHeat(a,outlet,t);drawShoreParticles(a,outlet,kind,t,quality,offset,vertical);}
  }
  ctx.restore();
 }
@@ -1422,18 +1465,18 @@ function drawShoreParticles(a,p,kind,t,quality,offset,vertical){
  const type=shoreAtmospheres[kind].particle,edge=a.band.edge,rnd=n=>sceneryVariation(a.seed,n),bubble=type==='bubble',falling=type==='water'||type==='lava';
  // Gravity makes droplets plausible only beneath an overhang (or a side lip).
  // Floor vents instead release heat/embers, while sediment and bubbles rise.
- const count=quality<.8?3:bubble?7:3;
+ const count=quality<.8?3:bubble?7:(type==='lava'||type==='spark')?8:3;
  for(let n=0;n<count;n++){
   const cycle=a.period*(bubble?.45:1),phase=(t/cycle+rnd(n+70))%1;
   if(falling&&!vertical&&edge){if(type==='water')continue;}
   if(falling&&phase>.32)continue; // drips are occasional, never a rain curtain
   const age=falling?phase/.32:phase,inward=edge?1:-1,ox=vertical?-inward*3:(rnd(n+90)-.5)*18,oy=vertical?(rnd(n+90)-.5)*18:-inward*3;
-  const rise=bubble?-1:falling&&(vertical||!edge)?1:-1;
-  const distance=falling?age*age*(type==='lava'?72:95):bubble?age*(70+rnd(n+120)*45)+age*age*70:age*48;
+  const rise=bubble?-1:(falling||type==='spark')&&(vertical||!edge)?1:-1;
+  const distance=falling?age*age*(type==='lava'?72:95):bubble?age*(70+rnd(n+120)*45)+age*age*70:age*(type==='spark'||type==='ember'?94:48);
   const x=p.x+ox+Math.sin(age*5+a.phase+n)*age*(bubble?9:5),y=p.y+oy+rise*distance;
   // Do not draw a free particle through the solid face it has risen into.
   const along=vertical?y:x,h=sceneryBorderExtent(a.band,along,along,offset),cross=vertical?x:y;
-  if(edge?cross>(vertical?W:H)-h:cross<h)continue;
+  if(!['hot','forge'].includes(kind)&&(edge?cross>(vertical?W:H)-h:cross<h))continue;
   const alpha=Math.sin(Math.min(1,age*3)*Math.PI/2)*(1-age)*((bubble?.68:.45)+rnd(n+80)*.2);
   ctx.globalAlpha=alpha;
   if(bubble){const r=2.1+Math.sqrt(age)*2.2+rnd(n+100)*2.1;ctx.drawImage(prepareTerrainBubble(),x-r,y-r,r*2,r*2);}
@@ -1443,7 +1486,7 @@ function drawShoreParticles(a,p,kind,t,quality,offset,vertical){
    // A small amber bead with a restrained hot center, without black outlines.
    ctx.fillStyle='#d37a36';ctx.beginPath();ctx.ellipse(x,y,1.6,2.4+age*2,0,0,TAU);ctx.fill();ctx.fillStyle='#f3bf77';ctx.fillRect(x-.45,y-1,.9,2);
   }else if(type==='spark'||type==='ember'||type==='lava'){
-   if(phase>.3)continue;ctx.strokeStyle='#d6a16a';ctx.lineWidth=.9;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(n*2+a.phase)*3,y+2);ctx.stroke();
+   if(phase>.72)continue;ctx.strokeStyle=n%3?'#d99951':'#f3c587';ctx.lineWidth=1.1;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(n*2+a.phase)*4,y-rise*(3+age*3));ctx.stroke();ctx.fillStyle='#f7bd71';ctx.beginPath();ctx.arc(x,y,.9+rnd(n+140)*.8,0,TAU);ctx.fill();
   }else {ctx.fillStyle=type==='snow'?'#bbd0d6':'#a99d84';ctx.fillRect(x,y,1+rnd(n+110),1);}
  }
 }
@@ -2890,7 +2933,7 @@ function navigationStarCamera(blend=sectorBlend){
  // Galaxy magnification is the reference scale. Depth attenuates each star's
  // parallax; its apparent point size is independent of the camera magnification.
  if(!origin){const p=navigationEase((u-.14)/.34),system=expeditionSystem(destination),offset=galaxySystemOffset(system,1000);return{x:offset.x*p*.65,y:offset.y*p*.65,zoom:Math.exp(p*Math.log(14))};}
- if(origin.galaxyId!==destination.galaxyId){const p=navigationEase((u-.18)/.57),outbound=1-navigationEase((u-.18)/.14),inbound=navigationEase((u-.58)/.17),heading=galaxyFlightHeading(destination),flight=galaxyCrossingPose(destination,(u-.32)/.26);return{x:heading.x*W*.95*p,y:heading.y*H*p,zoom:Math.exp((outbound+inbound)*Math.log(14)),flight};}
+ if(origin.galaxyId!==destination.galaxyId){const flight=galaxyCrossingPose(destination,(u-.18)/.57);return{x:0,y:0,zoom:14,flight};}
  const p=navigationEase(u);return{x:W*.15*p,y:H*.025*p,zoom:14};
 }
 function navigationStarLayers(){
@@ -2905,14 +2948,17 @@ function navigationStarLayers(){
 // Artwork, resolved galaxy stars and flight stars share this route. The
 // vanishing point follows the arriving galaxy rather than an unrelated wobble.
 function galaxyCrossingPose(destination,progress){
- const p=clamp(progress,0,1),heading=galaxyFlightHeading(destination),exit=navigationEase(p/.32),entry=navigationEase((p-.43)/.57);
- const outgoing={gx:W*.5-heading.x*W*.3*exit,gy:H*.52-heading.y*H*.3*exit,width:1000*Math.exp(-exit*2.6),alpha:1-exit};
- const incoming={gx:W*.5+heading.x*W*.34*(1-entry),gy:H*.52+heading.y*H*.34*(1-entry),width:24*Math.exp(entry*Math.log(1000/24)),alpha:entry};
- const up=.24,down=.64,speed=navigationEase(p/up)*(1-navigationEase((p-down)/(1-down)));
+ const p=clamp(progress,0,1),heading=galaxyFlightHeading(destination),up=.20,down=.78;
+ // One acceleration, sustained travel, one braking arc. The integrated camera
+ // never stops at a galaxy artwork handoff or reverses its field of view.
+ const speed=navigationEase(p/up)*(1-navigationEase((p-down)/(1-down)));
  const integral=t=>{t=clamp(t,0,1);return t*t*t*t*(2.5+t*(-3+t));};
- const distance=8*(up*integral(p/up)+Math.max(0,p-up)-(1-down)*integral((p-down)/(1-down)));
- const turn=navigationEase(p/.43);
- return{p,speed,distance,outgoing,incoming,x:W*.5+(incoming.gx-W*.5)*turn,y:H*.52+(incoming.gy-H*.52)*turn,label:p<up?'ACCELERATING':p<down?'LIGHT-SPEED TRANSIT':'DECELERATING'};
+ const distance=46*(up*integral(p/up)+Math.max(0,p-up)-(1-down)*integral((p-down)/(1-down)));
+ const travel=distance/(46*(1-(up+1-down)*.5)),approach=navigationEase((p-.25)/.75);
+ const width=22*Math.exp(approach*Math.log(14000/22)),offset=galaxySystemOffset(expeditionSystem(destination),width);
+ const incoming={gx:W*.5+heading.x*W*.12*(1-approach)-offset.x*approach,gy:H*.52+heading.y*H*.12*(1-approach)-offset.y*approach,width,alpha:navigationEase((p-.18)/.32)*(1-navigationEase((p-.78)/.20))};
+ const exit=navigationEase(p/.28),outgoing={gx:W*.5-heading.x*W*.6*exit,gy:H*.52-heading.y*H*.6*exit,width:14000*Math.exp(-exit*6),alpha:1-exit};
+ return{p,speed,distance,travel,outgoing,incoming,x:W*.5+heading.x*W*.045*Math.sin(Math.PI*travel),y:H*.52+heading.y*H*.045*Math.sin(Math.PI*travel),label:p<up?'WARP ENGAGED':p<down?'INTERGALACTIC WARP':'ARRIVING'};
 }
 function navigationStarProjection(star,depth,camera,out={}){
  // Project persistent points in a volume. A camera dolly changes their depth;
@@ -2933,21 +2979,21 @@ function navigationStarProjection(star,depth,camera,out={}){
 }
 function navigationWarpState(blend=sectorBlend){
  if(!blend?.origin||!blend.destination||blend.origin.galaxyId===blend.destination.galaxyId)return null;
- const p=(blend.age/blend.duration-.32)/.26;if(p<=1e-9||p>=1-1e-9)return null;
+ const p=(blend.age/blend.duration-.18)/.57;if(p<=1e-9||p>=1-1e-9)return null;
  return galaxyCrossingPose(blend.destination,p);
 }
 function navigationWarpProjection(star,depth,warp,out={},camera=navigationStarCamera(),previous=null,tail={}){
  navigationStarProjection(star,depth,camera,out);
- navigationStarProjection(star,depth,previous||(warp?{...camera,flight:{...camera.flight,distance:Math.max(0,warp.distance-warp.speed*.14)}}:camera),tail);
+ navigationStarProjection(star,depth,previous||(warp?{...camera,flight:{...camera.flight,distance:Math.max(0,warp.distance-warp.speed*.30)}}:camera),tail);
  const dx=tail.x-out.x,dy=tail.y-out.y,limit=out.cycle===tail.cycle?Math.min(1,96/Math.max(1,Math.hypot(dx,dy))):0;
  out.tx=out.x+dx*limit;out.ty=out.y+dy*limit;return out;
 }
 function drawNavigationStars(){
- const camera=navigationStarCamera(),warp=navigationWarpState(),exposure=warp?.038:.022,previous=sectorBlend?.destination?navigationStarCamera({...sectorBlend,age:Math.max(0,sectorBlend.age-exposure)}):null,p={},tail={};ctx.save();ctx.lineCap='round';
+ const camera=navigationStarCamera(),warp=navigationWarpState(),exposure=warp?.055:.022,previous=sectorBlend?.destination?navigationStarCamera({...sectorBlend,age:Math.max(0,sectorBlend.age-exposure)}):null,p={},tail={};ctx.save();ctx.lineCap='round';
  // A single retained field throughout the journey. Motion-blur tails sample
  // the same projection at an earlier camera time, including the course turn.
  for(const layer of navigationStarLayers())for(const group of layer.groups){
-  ctx.fillStyle=group.color;ctx.strokeStyle=group.color;ctx.lineWidth=.7+layer.depth;
+  ctx.fillStyle=group.color;ctx.strokeStyle=warp?group.color.replace(/,([\d.]+)\)$/,(_,a)=>','+Math.min(.9,Number(a)*(1+warp.speed*.85))+')'):group.color;ctx.lineWidth=.7+layer.depth;
   if(previous){ctx.beginPath();for(const star of group.points){
    navigationWarpProjection(star,layer.depth,warp,p,camera,previous,tail);
    if(p.alpha<.08||p.x<-190||p.x>W+190||p.y<-190||p.y>H+190)continue;
@@ -2989,9 +3035,10 @@ function drawNavigationGalacticField(){
  if(!sectorBlend?.destination)return;const {origin,destination}=sectorBlend,u=sectorBlend.age/sectorBlend.duration;
  if(!origin){const p=galaxyApproachPose(expeditionSystem(destination),Math.max(0,(u-.14)/.34)),settle=navigationEase(u/.14);ctx.save();ctx.translate(W*.215*(1-settle),-H*.12*(1-settle));ctx.translate(W*.5,H*.52);ctx.scale(.77+.23*settle,.77+.23*settle);ctx.translate(-W*.5,-H*.52);drawResolvedGalaxyStars(destination,p);ctx.restore();return;}
  if(origin.galaxyId===destination.galaxyId){drawResolvedGalaxyStars(destination,galaxyApproachPose(expeditionSystem(destination),1));return;}
- if(u<.32){drawResolvedGalaxyStars(origin,galaxyApproachPose(expeditionSystem(origin),u<.18?1:1-(u-.18)/.14));return;}
- if(u<.58){const route=galaxyCrossingPose(destination,(u-.32)/.26);drawResolvedGalaxyStars(origin,route.outgoing,route.outgoing.alpha);drawResolvedGalaxyStars(destination,route.incoming,route.incoming.alpha);return;}
- drawResolvedGalaxyStars(destination,galaxyApproachPose(expeditionSystem(destination),Math.min(1,(u-.58)/.17)));
+ const route=galaxyCrossingPose(destination,(u-.18)/.57);
+ drawResolvedGalaxyStars(origin,route.outgoing,route.outgoing.alpha*.45);
+ drawResolvedGalaxyStars(destination,route.incoming,route.incoming.alpha*.65);
+
 }
 // One reversible camera: chart position → complete globe → curved horizon →
 // local scenery. Departure uses the same path backwards, with the real outgoing
@@ -3139,22 +3186,23 @@ function drawUniversalLandmarks(location,camera){
 
 function galaxyTransitPhase(u){return u<.18?'planet':u<.32?'departure':u<.58?'crossing':u<.75?'arrival':'descent';}
 function drawGalaxyTransit(origin,destination,u){
- const smooth=navigationEase,from=expeditionGalaxy(origin),to=expeditionGalaxy(destination),system=expeditionSystem(destination),phase=galaxyTransitPhase(u);
- if(phase==='planet'){drawPlanetDeparture(origin,u/.18);return;}
- if(phase==='descent'){drawPlanetApproach(destination,(u-.75)/.25);return;}
- const cx=W*.5,cy=H*.52,galaxy=(g,width,alpha,x=cx,y=cy)=>{if(alpha>0)paintRotatingGalaxy(ctx,g,x,y,width,alpha);};
+ if(u<.18){drawPlanetDeparture(origin,u/.18);return;}
+ if(u>=.75){drawPlanetApproach(destination,(u-.75)/.25);return;}
+ const from=expeditionGalaxy(origin),to=expeditionGalaxy(destination),route=galaxyCrossingPose(destination,(u-.18)/.57);
  ctx.save();ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);drawNavigationStars();
- if(phase==='departure'){
-  drawGalaxySystemApproach(origin,1-(u-.18)/.14);
- }else if(phase==='crossing'){
-  const route=galaxyCrossingPose(destination,(u-.32)/.26);
-  for(const [g,pose] of [[from,route.outgoing],[to,route.incoming]])galaxy(g,pose.width,pose.alpha*galaxyApproachVisibility(0),pose.gx,pose.gy);
-
- }else{
-  drawGalaxySystemApproach(destination,(u-.58)/.17);
- }
- ctx.fillStyle='#e1fff2';ctx.font='bold 27px monospace';ctx.fillText(phase==='departure'?'LEAVING '+from.name:phase==='crossing'?(navigationWarpState()?.label||'INTERGALACTIC FLIGHT'):'ENTERING '+to.name,64,74);ctx.fillStyle='#afc2d5';ctx.font='14px monospace';ctx.fillText(phase==='departure'?origin.systemName+' SYSTEM → INTERGALACTIC SPACE':phase==='crossing'?galaxyFlightHeading(destination).label+' · '+from.name+' → '+to.name:systemFocus(system).name+' · '+systemFocus(system).type+' · '+systemCensusLabel(system),65,105);
- ctx.restore();
+ // The destination grows on one continuous bearing while the origin drops
+ // away. Charts only appear at the two ends, never interrupting warp travel.
+ for(const [g,pose] of [[from,route.outgoing],[to,route.incoming]])if(pose.alpha>.002)paintRotatingGalaxy(ctx,g,pose.gx,pose.gy,pose.width,pose.alpha*.25);
+ const leaving=1-navigationEase(route.p/.14),arriving=navigationEase((route.p-.82)/.18);
+ if(leaving>0){ctx.save();ctx.globalAlpha=leaving;drawMovingSystemChart(expeditionSystem(origin),origin.destinationId,false);ctx.restore();}
+ if(arriving>0){ctx.save();ctx.globalAlpha=arriving;drawMovingSystemChart(expeditionSystem(destination),destination.destinationId,false);ctx.restore();}
+ // Restrained peripheral light supports forward motion without a flashing
+ // tunnel, central whiteout or an abrupt second launch.
+ const halo=ctx.createRadialGradient(route.x,route.y,H*.12,route.x,route.y,W*.65);
+ halo.addColorStop(0,'#1b355000');halo.addColorStop(.55,'#193c6500');halo.addColorStop(1,'#315779');
+ ctx.globalAlpha=route.speed*.12;ctx.fillStyle=halo;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;
+ ctx.fillStyle='#e1fff2';ctx.font='bold 27px monospace';ctx.fillText(route.label,64,74);
+ ctx.fillStyle='#afc2d5';ctx.font='14px monospace';ctx.fillText(from.name+' → '+to.name+' · '+destination.systemName,65,105);ctx.restore();
 }
 
 function drawTravelViewport(u){

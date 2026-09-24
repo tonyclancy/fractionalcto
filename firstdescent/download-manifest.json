@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 71656792,
+  "bytes": 71660698,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 435637,
-      "sha256": "73de28b34b453591d925ad259bb47aa0050a1be5c6d8872253a15171c245d9fb"
+      "bytes": 439373,
+      "sha256": "85d56a98e6831d4f38274dd4fa52dab119e46dd3f01696cef96ed8038b56b43d"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1621,8 +1621,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 6838,
-      "sha256": "27c9c7e262d2d288a79c31731de6af8e00c6a3f6c2d43b241fd7a5ef5e0f1cb9"
+      "bytes": 6844,
+      "sha256": "0646b31e8f39589358a8b1647b3825e3ae12d6ab2bc551d04288e3eff159c0ba"
     },
     {
       "path": "levels.js",
@@ -1661,8 +1661,8 @@
     },
     {
       "path": "shore-wildlife.js",
-      "bytes": 12913,
-      "sha256": "2ccde05f243719ec456e3ed5786a5262750d954699a76e21aeab663cae780e98"
+      "bytes": 13077,
+      "sha256": "8cce157d269278dffa880662e3662d3d278e4d6de13c7c49c5933a87398d8316"
     },
     {
       "path": "style.css",

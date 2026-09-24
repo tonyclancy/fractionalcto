@@ -47,11 +47,12 @@ function prepareShoreWildlife(stage=sectors[level]){
  for(const band of prepareSceneryBorders(stage).layers){
   // Patrol an entire solid patch. Loops close on themselves, so a crab never
   // expires or fades while the ledge carrying it remains on screen.
-  for(let i=0,accepted=0;i<64&&accepted<2;i++){
-   const s=seed+band.edge*283+i*73,r=n=>sceneryVariation(s,n),u=r(31)*SCENERY_BORDER_PERIOD,length=100+r(32)*116,direction=r(33)>.5?1:-1;
+  const thermal=profile.ground==='ember-beetle',residents=thermal?6:2;
+  for(let i=0,accepted=0;i<320&&accepted<residents;i++){
+   const s=seed+band.edge*283+i*73,r=n=>sceneryVariation(s,n),u=r(31)*SCENERY_BORDER_PERIOD,length=(thermal?110:100)+r(32)*(thermal?145:116),direction=r(33)>.5?1:-1;
    let clear=true;
-   for(let d=-24;d<=length+24;d+=3)if(sceneryBorderExtent(band,u+direction*d,u+direction*d,0)<72){clear=false;break;}
-   for(const other of crawlers)if(other.band===band){const d=Math.abs(other.u-u)%SCENERY_BORDER_PERIOD;if(Math.min(d,SCENERY_BORDER_PERIOD-d)<130)clear=false;}
+   for(let d=-24;d<=length+24;d+=3)if(sceneryBorderExtent(band,u+direction*d,u+direction*d,0)<(thermal?68:72)){clear=false;break;}
+   for(const other of crawlers)if(other.band===band){const d=Math.abs(other.u-u)%SCENERY_BORDER_PERIOD;if(Math.min(d,SCENERY_BORDER_PERIOD-d)<(thermal?100:130))clear=false;}
    if(!clear)continue;
    const route={band,u,length,direction,seed:s,kind:profile.ground,habitat,size:1.45+r(34)*.38,color:habitat==='water'?(r(39)>.5?'#8ca69b':'#939ca5'):habitat==='ice'?'#91a9ab':habitat==='desert'?'#a09676':'#809489'};
    prepareCrawlerPatrol(route,r);
@@ -111,12 +112,12 @@ function prepareCrawlerPatrol(route,r){
  const stops=[.12,.88,.60,.95,.15,.36];
  route.points=stops.map((fraction,i)=>({u:route.u+route.direction*route.length*fraction,inset:29+r(51+i)*12}));
  route.segments=[];route.period=0;route.totalDistance=0;
- const pace=route.kind==='ember-beetle'?82+r(62)*38:route.kind==='crab'?55+r(62)*24:63+r(62)*27;
+ const pace=route.kind==='ember-beetle'?140+r(62)*65:route.kind==='crab'?55+r(62)*24:63+r(62)*27;
  for(let i=0;i<route.points.length;i++){
   const a=route.points[i],b=route.points[(i+1)%route.points.length];
   let length=0,previousDepth=crawlerSurfaceDepth(route,a.u,a.inset);const arc=[0];
-  for(let j=1;j<=24;j++){const q=j/24,u=a.u+(b.u-a.u)*q,inset=a.inset+(b.inset-a.inset)*q,depth=crawlerSurfaceDepth(route,u,inset);length+=Math.hypot((b.u-a.u)/24,depth-previousDepth);arc.push(length);previousDepth=depth;}
-  const pause=.28+r(70+i)*.13,duration=Math.max(.36,length/pace/.85);
+  for(let j=1;j<=128;j++){const q=j/128,u=a.u+(b.u-a.u)*q,inset=a.inset+(b.inset-a.inset)*q,depth=crawlerSurfaceDepth(route,u,inset);length+=Math.hypot((b.u-a.u)/128,depth-previousDepth);arc.push(length);previousDepth=depth;}
+  const pause=route.kind==='ember-beetle'?.22+r(70+i)*.06:.28+r(70+i)*.13,duration=Math.max(.36,length/pace/.85);
   route.segments.push({a,b,length,arc,pause,duration,start:route.period,distance:route.totalDistance});
   route.period+=pause+duration;route.totalDistance+=length;
  }
@@ -138,8 +139,8 @@ function sampleCrawlerPatrol(route,t,out){
  const derivative=rest?0:(x<r?x/r:x>1-r?(1-x)/r:1)/(1-r);
  // Arc-length lookup keeps the pace steady as the rocky contour steepens.
  const wanted=segment.length*progress;let k=0;
- while(k<23&&segment.arc[k+1]<wanted)k++;
- const fraction=(k+(wanted-segment.arc[k])/Math.max(.0001,segment.arc[k+1]-segment.arc[k]))/24;
+ while(k<127&&segment.arc[k+1]<wanted)k++;
+ const fraction=(k+(wanted-segment.arc[k])/Math.max(.0001,segment.arc[k+1]-segment.arc[k]))/128;
  out.u=segment.a.u+(segment.b.u-segment.a.u)*fraction;
  out.inset=segment.a.inset+(segment.b.inset-segment.a.inset)*fraction;
  out.distance=cycle*route.totalDistance+segment.distance+wanted;
@@ -169,7 +170,6 @@ function drawShoreWildlife(){
  if(!cache.crawlers.length)return;
  let drawn=0;ctx.save();
  for(const route of cache.crawlers){
-  if(drawn>=4)break;
   const p=sampleShoreCrawler(route,t,offset,vertical,shoreWildlifePose);if(!p.visible)continue;drawn++;
   ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);ctx.scale(route.size,route.size);ctx.globalAlpha=1;
   drawCrawlerContactShadow(route,p);
