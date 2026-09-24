@@ -458,7 +458,12 @@ function updateShoreEntry(e,dt){
 }
 function drawEntryWarnings(){for(const side of ['left','top','bottom']){const incoming=enemies.find(e=>e.entry===side&&e.age<1.2);if(!incoming)continue;const x=side==='left'?26:clamp(incoming.entryX??incoming.x,90,W-90),y=side==='top'?26:side==='bottom'?H-26:incoming.base;ctx.save();ctx.translate(x,y);ctx.globalAlpha=.5+.25*Math.sin(incoming.age*7);ctx.fillStyle='#ffca83';ctx.font='bold 12px monospace';ctx.textAlign='center';ctx.fillText(side==='left'?'»':side==='top'?'▼':'▲',0,0);ctx.restore();}}
 function frontShieldPosition(){return pilotMount(65)}
-function blockWithFrontShield(b,oldX){if(!(ship.frontShield>0)||shipTurning()||b.vx*shipDirection()>=0)return false;const p=frontShieldPosition();if(Math.max(oldX,b.x)+b.r>=p.x-8&&Math.min(oldX,b.x)-b.r<=p.x+8&&Math.abs(b.y-p.y)<40+b.r){ship.frontShield--;ship.frontFlash=.18;burst(p.x,b.y,'#a3ffef',9);window.flightAudio?.shipHit(p.x,true);updateHUD();return true}return false}
+function blockWithFrontShield(b,oldX,oldY=b.y){
+ if(!(ship.frontShield>0)||shipTurning()||b.vx*shipDirection()>=0)return false;
+ const p=frontShieldPosition(),t=segmentBoxTime(oldX,oldY,b.x-oldX,b.y-oldY,p.x-8-b.r,p.y-40-b.r,p.x+8+b.r,p.y+40+b.r);
+ if(t===Infinity)return false;
+ ship.frontShield--;ship.frontFlash=.18;burst(p.x,oldY+(b.y-oldY)*t,'#a3ffef',9);window.flightAudio?.shipHit(p.x,true);updateHUD();return true;
+}
 function drawFrontShield(){if(!(ship.frontShield>0))return;const p=frontShieldPosition(),hit=ship.frontFlash>0;ctx.save();ctx.translate(p.x,p.y);ctx.scale(Math.cos(pilotTurn.angle),1);const fill=ctx.createRadialGradient(0,0,3,0,0,48);fill.addColorStop(0,'#88ffe908');fill.addColorStop(.7,'#71ffe91a');fill.addColorStop(1,'#b9fff066');ctx.fillStyle=fill;ctx.beginPath();ctx.ellipse(0,0,20,43,0,-Math.PI/2,Math.PI/2);ctx.closePath();ctx.fill();glow('#72ffea',hit?28:15);for(let i=0;i<3;i++){ctx.globalAlpha=(hit?1:.75)/(i+1);ctx.lineWidth=i===0?2:4+i*3;ctx.strokeStyle=hit?'#ffffff':'#8cfff0';ctx.beginPath();ctx.ellipse(0,0,20+i,43+i,0,-Math.PI/2,Math.PI/2);ctx.stroke();}ctx.globalAlpha=.18;ctx.lineWidth=1;for(let y=-30;y<=30;y+=12){ctx.beginPath();ctx.moveTo(1,y);ctx.lineTo(15*Math.sqrt(1-y*y/1800),y);ctx.stroke();}noGlow();ctx.restore();}
 
 // A rigid turn follows the path tangent; rendering, guns and exhaust share it.
@@ -2751,7 +2756,15 @@ function encounterDamage(b,s){
  return bossIndex()===4?.04:.25;
 }
 function drawBossWeakPoint(b){const p=bossWeakPoint(b);if(!p)return;ctx.save();const c=bossIndex()===4?'#ffe1a0':'#a6ffcd';orb(p.x,p.y,p.r,c,.3);ctx.strokeStyle=c;ctx.lineWidth=2;ctx.globalAlpha=.8;ctx.beginPath();ctx.arc(p.x,p.y,p.r+3,0,TAU);ctx.stroke();ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillStyle=c;ctx.fillText('EXPOSED',p.x,p.y-p.r-8);ctx.restore();}
-function hitEncounterNode(s){if(isTideEncounter())return hitTideNode(s);if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))return hitCapitalSection(s);if(!boss||bossIndex()!==1)return false;for(const n of boss.generators||[]){if(n.hp<=0)continue;const p=encounterSocket(boss,[-18,n.side*57,-40]);if(Math.hypot(s.x-p.x,s.y-p.y)<20+s.r){n.hp-=s.damage;burst(p.x,p.y,n.hp<=0?'#ffba70':'#81dfff',n.hp<=0?12:3);return true;}}return false;}
+function hitEncounterNode(s,oldX=s.trail?.at(-1)?.x??s.x,oldY=s.trail?.at(-1)?.y??s.y,limit=1){
+ const start={x:oldX,y:oldY};
+ if(isTideEncounter())return hitTideNode(s,limit,start);
+ if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))return hitCapitalSection(s,limit,start);
+ if(!boss||bossIndex()!==1)return false;
+ let target=null,point=null,first=Math.min(1,limit);
+ for(const n of boss.generators||[]){if(n.hp<=0)continue;const p=encounterSocket(boss,[-18,n.side*57,-40]),t=segmentCircleTime(oldX,oldY,s.x-oldX,s.y-oldY,p.x,p.y,20+s.r);if(t<=first){first=t;target=n;point=p;}}
+ if(!target)return false;target.hp-=s.damage;burst(point.x,point.y,target.hp<=0?'#ffba70':'#81dfff',target.hp<=0?12:3);return true;
+}
 // Only physical charge effects and released attacks; no projected paths or landing markers.
 function drawBossPatternTelegraphs(b){
  ctx.save();

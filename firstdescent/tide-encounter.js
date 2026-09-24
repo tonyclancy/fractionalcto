@@ -45,15 +45,15 @@ function moveTideBoss(b,dt){
 function tideRingGap(p,b){return p.gap??Math.atan2(p.y-b.y,p.x-b.x);}
 // Sweep each shot from its previous position and choose the first living knot.
 // Fast beams and missiles must not jump over a small, deliberately aimed target.
-function tideNodeEntry(p,s){
- const a=s.trail?.at(-1)||s,dx=s.x-a.x,dy=s.y-a.y,x=a.x-p.x,y=a.y-p.y,r=17+(s.r||0),c=x*x+y*y-r*r;
+function tideNodeEntry(p,s,start){
+ const a=start||s.trail?.at(-1)||s,dx=s.x-a.x,dy=s.y-a.y,x=a.x-p.x,y=a.y-p.y,r=17+(s.r||0),c=x*x+y*y-r*r;
  if(c<=0)return 0;const length=dx*dx+dy*dy;if(length<1e-12)return Infinity;
  const dot=x*dx+y*dy,discriminant=dot*dot-length*c;if(discriminant<0)return Infinity;
  const t=(-dot-Math.sqrt(discriminant))/length;return t>=0&&t<=1?t:Infinity;
 }
-function hitTideNode(s){
- if(!boss?.tide)return false;let target=null,entry=Infinity;
- for(const p of boss.tide.pods){if(p.hp<=0)continue;const t=tideNodeEntry(p,s);if(t<entry){entry=t;target=p;}}
+function hitTideNode(s,limit=1,start){
+ if(!boss?.tide)return false;let target=null,entry=limit;
+ for(const p of boss.tide.pods){if(p.hp<=0)continue;const t=tideNodeEntry(p,s,start);if(t<=entry&&Number.isFinite(t)){entry=t;target=p;}}
  if(!target)return false;target.hp=Math.max(0,target.hp-s.damage);target.hit=.12;
  burst(target.x,target.y,target.hp<=0?'#e6ffbf':'#99dfcc',target.hp<=0?14:3);return true;
 }

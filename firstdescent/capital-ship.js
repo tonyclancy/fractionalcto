@@ -324,17 +324,17 @@ function capitalDamageNode(b,n,amount){
   }
  else burst(p.x,p.y,'#ffd799',3);
 }
-function hitCapitalSection(s){
+function hitCapitalSection(s,limit=1,start){
  if(!isCapitalSiege())return false;const b=boss;initCapitalSiege(b);
- const prev=s.trail?.[s.trail.length-1],a=prev||{x:s.x-(s.vx||0)/120,y:s.y-(s.vy||0)/120},z={x:s.x,y:s.y},hull=capitalFirstHullHit(b,a,z,s.r||0);
+ const prev=s.trail?.[s.trail.length-1],a=start||prev||{x:s.x-(s.vx||0)/120,y:s.y-(s.vy||0)/120},z={x:s.x,y:s.y},hull=capitalFirstHullHit(b,a,z,s.r||0);
  let node=null,tNode=Infinity;
  for(const n of b.siege.nodes){if(n.hp<=0)continue;const t=capitalNodeIntersection(b,n,a,z,s.r||0);if(t<tNode){tNode=t;node=n;}}
- if(node&&tNode<=hull+.015){
+ if(node&&tNode<=limit&&tNode<=hull+.015){
   if(capitalNodeActive(b,node)&&capitalShotSideAllowed(b,node,s,a))capitalDamageNode(b,node,bossDamage(s.damage)*1.25*capitalSectionDamageScale(node));
   else terrainImpact(a.x+(z.x-a.x)*tNode,a.y+(z.y-a.y)*tNode,s.vx,s.vy);
   return true;
  }
- if(Number.isFinite(hull)){terrainImpact(a.x+(z.x-a.x)*hull,a.y+(z.y-a.y)*hull,s.vx,s.vy);return true;}return false;
+ if(Number.isFinite(hull)&&hull<=limit){terrainImpact(a.x+(z.x-a.x)*hull,a.y+(z.y-a.y)*hull,s.vx,s.vy);return true;}return false;
 }
 // Exhaust/discharge leaves the exposed machinery hot. Accurate follow-up fire
 // earns faster progress; total authored health and nova damage stay unchanged.

@@ -36,6 +36,53 @@ window.flightAudio=(()=>{
 
  const themeBeat=60/148; // 148 BPM; all sequencer and echo divisions share this clock.
  let musicEnabled=true,titleActive=false,musicTimer=null,musicBus,musicDelay,musicEcho,musicCross,nextBeat=0,musicStep=0,sectorTrack=-1,musicDucker,intensity=0,smoothedIntensity=0,bossApproach=0,smoothedApproach=0,bossEngaged=false,duckUntil=0,duckDepth=1;
+ // One mastered stereo source carries the auditioned theme into actual play.
+ // It uses the music ducking bus, independently of effects mute and voice stealing.
+ const currentBpm=144,currentLoopSeconds=32*4*60/currentBpm;
+ const currentAsset=typeof document!=='undefined'&&document.currentScript?.src
+  ?new URL('music/dark-current155.m4a',document.currentScript.src).href:'music/dark-current155.m4a';
+ let currentBuffer=null,currentSource=null,currentGain=null,currentOffset=0,currentStarted=0,currentLoad='idle',currentLoading=null;
+ function currentThemePosition(){return currentSource?(currentOffset+context.currentTime-currentStarted)%currentSource.loopEnd:currentOffset;}
+ function currentThemeChord(position=currentThemePosition()){
+  const bar=Math.floor(position/(4*60/currentBpm))%32,phraseBar=bar>=4?(bar-4)%8:bar;
+  return bar===31?[38,50,57,65]:[[38,50,57,65],[38,51,58,65],[36,50,55,63],[38,51,57,62]][Math.floor(phraseBar/2)];
+ }
+ function loadCurrentTheme(){
+  if(currentLoading||currentLoad!=='idle')return;
+  if(typeof fetch!=='function'||!context?.decodeAudioData){currentLoad='unavailable';return;}
+  currentLoad='loading';
+  currentLoading=(async()=>{
+   try{
+    const response=await fetch(currentAsset);if(!response.ok)throw new Error(`Music asset: ${response.status}`);
+    const buffer=await context.decodeAudioData(await response.arrayBuffer());
+    if(!Number.isFinite(buffer.duration)||buffer.duration<currentLoopSeconds-.05)throw new Error('Music loop is incomplete');
+    currentBuffer=buffer;currentLoad='ready';
+   }catch(error){currentLoad='failed';console.warn('Dark Current could not load; using synthesized score',error);}
+   // Loading can finish after a pause, mute, or boss entrance. Re-evaluate state.
+   startTitleLoop();
+  })();
+ }
+ function stopCurrentTheme(){
+  if(!currentSource)return;
+  const source=currentSource,gain=currentGain,t=context.currentTime;
+  currentOffset=(currentOffset+Math.max(0,t-currentStarted))%source.loopEnd;
+  currentSource=null;currentGain=null;
+  gain.gain.cancelScheduledValues(t);gain.gain.setTargetAtTime(0,t,.008);
+  source.stop(t+.045);
+ }
+ function startCurrentTheme(){
+  const t=context.currentTime,source=context.createBufferSource(),gain=context.createGain();
+  source.buffer=currentBuffer;source.loop=true;source.loopStart=0;source.loopEnd=Math.min(currentLoopSeconds,currentBuffer.duration);
+  currentOffset%=source.loopEnd;currentSource=source;currentGain=gain;currentStarted=t;
+  source.connect(gain);gain.connect(musicDucker);gain.gain.setValueAtTime(0,t);
+  source.onended=()=>{source.disconnect();gain.disconnect();};
+  const tick=()=>{
+   sweepVoices();smoothedIntensity+=(intensity-smoothedIntensity)*.12;
+   gain.gain.setTargetAtTime(sectorTrack<0?.56:.44+smoothedIntensity*.045+bossApproach*.025,context.currentTime,.12);
+   musicStep=Math.floor(((currentOffset+context.currentTime-currentStarted)%source.loopEnd)/(60/currentBpm/2));
+  };
+  source.start(t,currentOffset);musicTimer=setInterval(tick,100);tick();
+ }
  try{musicEnabled=localStorage.getItem('neon-vanguard-title-music')!=='off'}catch{}
 
  function init(){
@@ -83,6 +130,7 @@ window.flightAudio=(()=>{
    }
    applyEnvironment();
   }
+  loadCurrentTheme();
   if(context.state==='running'){startTitleLoop();flushBossCue();return true;}
   // Retry on a real gesture after Safari interrupts audio during app switches.
   context.resume().then(()=>{startTitleLoop();flushBossCue();}).catch(error=>{console.warn('Audio resume failed',error);});return true;
@@ -226,6 +274,7 @@ window.flightAudio=(()=>{
 
  function stopTitleLoop(){
   if(musicTimer!==null)clearInterval(musicTimer);musicTimer=null;
+  stopCurrentTheme();
   if(musicBus){musicBus.gain.cancelScheduledValues(context.currentTime);musicBus.gain.setTargetAtTime(0,context.currentTime,.025);}
   for(const v of [...voices])if(v.music)releaseVoice(v);
  }
@@ -358,7 +407,7 @@ window.flightAudio=(()=>{
  }
  function planetArrival(){
   if(!musicEnabled||!context||context.state!=='running')return;
-  const theme=currentSectorTheme(),chord=theme.chords[0],phrase=planetPhrase(0),beat=60/theme.bpm;
+  const theme=currentSectorTheme(),chord=currentSource?[38,57,62]:theme.chords[0],phrase=planetPhrase(0),beat=60/(currentSource?currentBpm:theme.bpm);
   duckMusic(.8,.7);
   phrase.forEach(([at,interval,length],i)=>note({frequency:hz(harmonicPitch(chord[0]+interval,chord)),duration:Math.min(.8,length*beat*.45),gain:.047,attack:.012,instrument:['ribbon','crystal','pluck'][planetMusicSeed%3],cutoff:2700,pan:(i-1.5)*.13,offset:at*beat*.45,music:true,cue:true,space:true}));
   note({frequency:hz(chord[0]-12),duration:1.8,hold:.55,gain:.065,instrument:'bass',cutoff:280,music:true,cue:true});
@@ -468,6 +517,9 @@ window.flightAudio=(()=>{
  }
  function startTitleLoop(){
   if(!titleActive||!musicEnabled||!context||context.state!=='running'||musicTimer!==null)return;
+  if(currentBuffer){startCurrentTheme();return;}
+  // Don't briefly switch to the previous score during loading, even at a boss.
+  if(currentLoad==='loading')return;
   musicBus.gain.cancelScheduledValues(context.currentTime);musicBus.gain.setTargetAtTime(sectorTrack<0?1.45:1.12,context.currentTime,.12);
   const theme=sectorTrack<0?null:currentSectorTheme(),arr=theme?arrangements[sectorTrack]:arrangements[0],beat=theme?60/(theme.bpm*(bossApproach>.04?1.18:1)):themeBeat;
   musicDelay.delayTime.value=beat*.75;musicCross.delayTime.value=beat*.25;
@@ -658,10 +710,10 @@ window.flightAudio=(()=>{
  function bossThemeCue(reveal){
   if(!context||context.state!=='running'||sectorTrack<0)return false;
   bossCueCount++;lastBossCueAt=context.currentTime;bossCueKind=reveal?'arrival':'approach';
-  const theme=currentBossTheme(),root=theme.chords[0][0],duration=reveal?4.6:3.6;
+  const theme=currentBossTheme(),root=theme.chords[0][0],duration=currentBuffer?(reveal?1.6:1.15):(reveal?4.6:3.6);
   // Encounter cues bypass music ducking AND the world acoustic filter. They
   // reserve priority six, so weapon fire/wing beats cannot steal the entrance.
-  duckMusic(.38,Math.min(1.25,duration));duckWorld(duration);
+  duckMusic(currentBuffer?.72:.38,currentBuffer?.55:Math.min(1.25,duration));duckWorld(duration);
   const hits=reveal?4:3,spacing=(reveal?.30:.37)*( .91+(bossVoice.seed%7)*.03);
   for(let i=0;i<hits;i++){
    const offset=i*spacing,weight=1-i*.09;
@@ -671,6 +723,20 @@ window.flightAudio=(()=>{
   }
   if(reveal){bossAttack('roar',bossVoice.kind,1000);noise({duration:1.3,gain:.19,cutoff:300,end:65,body:true,pressure:true,offset:.03,cue:true});noise({duration:.66,gain:.09,cutoff:2300,end:400,body:true,offset:.03,cue:true});}
   if(!musicEnabled)return true;
+  if(currentBuffer){
+   // A short electronic warning over the continuing score, rather than the
+   // old fanfare. Sample the actual loop harmony for each beat of the accent.
+   const beat=60/currentBpm,position=currentThemePosition(),grid=beat/2;
+   const offset=(grid-position%grid)%grid;
+   const count=reveal?4:3;
+   for(let i=0;i<count;i++){
+    const at=offset+i*grid,chord=currentThemeChord((position+at)%currentLoopSeconds);
+    const pitch=chord[reveal?[1,3,2,1][i]:[2,3,1][i]];
+    note({frequency:hz(pitch),duration:beat*(i===count-1?1.35:.55),attack:.009,hold:beat*.12,gain:reveal?.085:.065,instrument:bossVoice.instrument,cutoff:1800,cutoffEnd:650,pan:(i%2?.14:-.14),offset:at,music:true,cue:true});
+    note({frequency:hz(chord[0]-12),duration:beat*.7,attack:.006,gain:reveal?.08:.06,instrument:'bass',cutoff:260,offset:at,music:true,cue:true});
+   }
+   return true;
+  }
   const shapes=[[0,7,3,1,0],[0,6,7,3,0],[0,5,8,1,0],[0,3,10,7,0],[0,1,7,6,0],[0,8,7,1,0]],shape=shapes[sectorTrack];
   for(let i=0;i<5;i++){
    const offset=.12+i*(reveal?.68:.50),pitch=harmonicPitch(root+12+shape[i],theme.chords[0]),length=i===4?1.65:.72;
@@ -687,9 +753,9 @@ window.flightAudio=(()=>{
   const next=Number.isFinite(value)?Math.max(0,Math.min(1,value)):0;
   const entering=next>.04&&bossApproach<=.04,leaving=next<=.04&&bossApproach>.04,arrival=engaged&&!bossEngaged;
   bossApproach=next;
-  if(entering||arrival){stopTitleLoop();musicStep=0;startTitleLoop();requestBossCue(arrival);}
+  if(entering||arrival){if(!currentBuffer){stopTitleLoop();musicStep=0;startTitleLoop();}requestBossCue(arrival);}
   bossEngaged=!!engaged;
-  if(leaving){pendingBossCue=null;stopTitleLoop();musicStep=0;startTitleLoop();}
+  if(leaving){pendingBossCue=null;if(!currentBuffer){stopTitleLoop();musicStep=0;startTitleLoop();}}
  }
  function bossEntrance(){setBossApproach(1,true);}
  function explosion(x=720,size=1,organic=false){
@@ -808,5 +874,5 @@ window.flightAudio=(()=>{
   noise({duration:profile.length*.85,hold:.065,gain:.10+force*.02,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
   noise({duration:.30,gain:.028,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
- return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,impact,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:13,musicBpm:sectorTrack<0?148:currentSectorTheme().bpm,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
+ return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,impact,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,stats:()=>{sweepVoices();const all=[...voices,...releasing];return{mixVersion:15,musicTheme:currentBuffer?'Dark Current':'synthesized',musicAssetState:currentLoad,musicLoopSeconds:currentBuffer?Math.min(currentLoopSeconds,currentBuffer.duration):0,musicPosition:currentSource?(currentOffset+context.currentTime-currentStarted)%currentSource.loopEnd:currentOffset,musicBpm:currentBuffer?currentBpm:sectorTrack<0?148:currentSectorTheme().bpm,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:all.length,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices:all.filter(v=>v.music).length,effectsVoices:all.filter(v=>!v.music).length,voiceLimit,musicLimit,byPriority:Array.from({length:7},(_,priority)=>all.filter(v=>v.priority===priority).length),...voiceCounters}}};
 })();

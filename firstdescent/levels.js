@@ -47,9 +47,9 @@ const BOSS_ARSENALS=freezeContent({
 function bossArsenal(definition){return BOSS_ARSENALS[definition.arsenal||bossEncounterProfile(definition).power]||null;}
 
 // Shared tuning keeps future encounters within the same learnable combat rhythm.
-const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.25,specialRest:1.15,hitGrace:2.4,shieldGrace:1.5,breathTracking:.55,enemyWindup:.48,enemyShotClearance:180});
+const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.05,specialRest:1,hitGrace:1.25,shieldGrace:.85,enemySpeed:1.14,enemyCadence:.82,enemyProjectileSpeed:1.10,breathTracking:.55,enemyWindup:.48,enemyShotClearance:180});
 const WATER_HANDLING=freezeContent({pilotSpeed:.9,acceleration:.065,braking:.09,reversal:.05,touchBuffer:.04,enemyMotion:.78,bossMotion:.84});
-const GAME_RULESET='2026-09-habitat-hazards-v94';
+const GAME_RULESET='2026-09-combat-pressure-v154';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova','rescue']);
@@ -1998,14 +1998,14 @@ function systemChallengeBudget(index,count,expeditionIndex=0){
  if(!Number.isInteger(index)||!Number.isInteger(count)||count<1||index<0||index>=count)throw Error('Invalid system challenge position');
  if(!Number.isInteger(expeditionIndex)||expeditionIndex<0)throw Error('Invalid expedition position');
  const progress=count===1?0:index/(count-1),journey=1-Math.exp(-expeditionIndex/5);
- return {version:3,expeditionIndex,journey,enemyFireScale:1-journey*.18,index,count,progress,difficulty:Number((.75+progress*2.75).toFixed(3)),hp:Math.round(1000+300*progress),enemyHealthScale:(1.04+progress*.38)*(1+journey*.3),bossArmor:1+progress*.12,maxActiveEnemies:9+Math.round(progress*5),waves:18+Math.round(progress*8),eliteWaveInterval:11-Math.round(progress*4+journey*2),salvoRestScale:(1-progress*.34)*(1-journey*.18),specialCooldown:(6.1-progress*2)*(1-journey*.14),warning:1.85-progress*.25};
+ return {version:5,expeditionIndex,journey,enemyFireScale:1-journey*.18,index,count,progress,difficulty:Number((.75+progress*2.75).toFixed(3)),hp:Math.round(1000+300*progress),enemyHealthScale:(1.04+progress*.38)*(1+journey*.3),bossArmor:1+progress*.12,maxActiveEnemies:9+Math.round(progress*5),waves:22+Math.round(progress*8),eliteWaveInterval:11-Math.round(progress*4+journey*2),salvoRestScale:(1-progress*.34)*(1-journey*.18),specialCooldown:(6.1-progress*2)*(1-journey*.14),warning:1.85-progress*.25};
 }
 function applySystemChallenge(stage,index,count,expeditionIndex){
  const b=systemChallengeBudget(index,count,expeditionIndex);stage.systemChallenge=b;
  Object.assign(stage,{difficulty:b.difficulty,hp:b.hp,enemyHealthScale:b.enemyHealthScale,bossArmor:b.bossArmor,salvoRestScale:b.salvoRestScale});
  stage.pacing={...stage.pacing,maxActiveEnemies:b.maxActiveEnemies,pickupGap:2.7-b.progress*.4,maxPickups:2,preBossRelief:true};
  // A little room to read the opening; the same authored wave count builds later.
- stage.waves=Array.from({length:b.waves},(_,i)=>Number((3+Math.pow(i/(b.waves-1),.76)*(stage.duration-8.5)).toFixed(3)));
+ stage.waves=Array.from({length:b.waves},(_,i)=>Number((3+Math.pow(i/(b.waves-1),.86)*(stage.duration-8.5)).toFixed(3)));
  // Defense is the first learnable pickup, before the opening obstacle reaches the pilot.
  const guard=stage.supplies.find(d=>d.type==='frontShield'),speed=stage.supplies.find(d=>d.type==='speed');
  if(guard){guard.at=1;guard.y=380;guard.drift=260;}if(speed)speed.at=3.5;
@@ -2013,12 +2013,12 @@ function applySystemChallenge(stage,index,count,expeditionIndex){
  stage.supplies.sort((a,b)=>a.at-b.at);
  stage.broodWaves=b.progress>=.6?[5,13,Math.min(b.waves-2,21)]:[5,13];
  // Fixed counter-waves ask the pilot to flip; never depend on current power.
- const flankInterval=b.progress>=.7?5:b.progress>=.35||b.journey>=.3?7:0;
+ const flankInterval=b.progress>=.7?4:b.progress>=.35||b.journey>=.3?5:6;
  stage.flankWaves=flankInterval?stage.waves.map((_,i)=>i).filter(i=>i>=4&&(i-4)%flankInterval===0&&!stage.broodWaves.includes(i)):[];
  stage.encounterProfile={...bossEncounterProfile(stage),cooldown:b.specialCooldown,warning:b.warning};
  if(stage.challenge){stage.challenge.count=b.progress<.65?2:3;stage.challenge.speed=1+b.progress*.1;}
  if(stage.escortEncounter)stage.escortEncounter={...stage.escortEncounter,count:3+Math.round(b.progress),pace:1+b.progress*.1};
- stage.revision++;
+ stage.revision+=3;
 }
 // Fixed encounter health, authored before play. Standard hulls need several
 // exposed attack windows; the ordered capital sections and tide-knots already
@@ -2241,26 +2241,33 @@ const expedition=buildExpedition(contentReleases,levelDefinitions);
 // Keep these authored beats separate from the scalable campaign generator.
 const openingCombat=expedition.stages.find(s=>s.id==='verdant-reach');
 openingCombat.combatDirector='reaver-counterattack';
+// A few later leaders commit to the pilot at the muzzle warning. Followers
+// keep lane fire, preserving gaps and the quiet introductory waves.
 openingCombat.encounterWaves=[
  {at:3,count:2,type:1,center:330,formation:'line'},
  {at:7,count:3,type:1,center:450,formation:'wedge'},
- {at:12,count:3,type:3,center:260,formation:'line'},
- {at:16,count:2,type:1,center:440,formation:'line',side:'left'},
- {at:20,count:3,type:1,center:320,formation:'wedge'},
- {at:23,count:2,type:3,center:490,formation:'line'},
- {at:29,count:3,type:1,center:280,formation:'wedge'},
- {at:32,count:2,type:2,center:460,formation:'line',elite:'hunter'},
- {at:36,count:4,type:3,center:380,formation:'brood'},
- {at:40,count:2,type:1,center:250,formation:'line',side:'left'},
- {at:44,count:3,type:1,center:460,formation:'wedge'},
- {at:47,count:2,type:3,center:300,formation:'line'}
+ {at:10,count:3,type:3,center:260,formation:'line',aimed:true},
+ {at:12,count:3,type:1,center:440,formation:'line',side:'left',aimed:true},
+ {at:14.5,count:3,type:1,center:320,formation:'wedge',elite:'ace',aimed:true},
+ {at:18,count:3,type:3,center:490,formation:'line',aimed:true},
+ {at:21,count:4,type:1,center:280,formation:'wedge',aimed:true},
+ {at:24,count:3,type:2,center:460,formation:'line',elite:'hunter'},
+ {at:27,count:4,type:3,center:380,formation:'brood'},
+ {at:30,count:3,type:1,center:250,formation:'line',side:'left',aimed:true},
+ {at:33,count:4,type:1,center:460,formation:'wedge',aimed:true},
+ {at:36,count:3,type:3,center:300,formation:'line',aimed:true},
+ {at:39,count:3,type:1,center:520,formation:'wedge',aimed:true},
+ {at:42,count:3,type:3,center:360,formation:'line',side:'left',aimed:true},
+ {at:45,count:4,type:1,center:420,formation:'wedge',aimed:true},
+ {at:47.5,count:2,type:3,center:500,formation:'line',side:'left',aimed:true},
+ {at:50,count:3,type:1,center:260,formation:'wedge',aimed:true}
 ];
 openingCombat.waves=openingCombat.encounterWaves.map(w=>w.at);
 openingCombat.systemChallenge.waves=openingCombat.waves.length;
 openingCombat.broodWaves=[8];
-openingCombat.flankWaves=[3,9];
+openingCombat.flankWaves=[3,9,13,15];
 openingCombat.challenge={...openingCombat.challenge,title:'NARROW PASSAGE',waves:[],count:2};
-openingCombat.revision++;
+openingCombat.revision+=4;
 freezeContent(expedition.locations);
 const campaign=freezeContent(validateLevels(expedition.stages));
 const CAMPAIGN_VERSION=contentReleases.map(r=>r.id+'@'+r.version).join('|')+'|'+campaign.map(l=>l.id+'@'+l.revision).join('|');
