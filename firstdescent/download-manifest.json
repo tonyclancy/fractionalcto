@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 71645471,
+  "bytes": 71656792,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 433407,
-      "sha256": "5d119e60d3d5188c1c8404f7e9e71a5a686d98dc11c3d2ff4b9101abbe8c5328"
+      "bytes": 435637,
+      "sha256": "73de28b34b453591d925ad259bb47aa0050a1be5c6d8872253a15171c245d9fb"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1622,7 +1622,7 @@
     {
       "path": "index.html",
       "bytes": 6838,
-      "sha256": "0136aa59b8165a722f3d601d34296b551e4b2fdc55f2359d4e6fea464b66147a"
+      "sha256": "27c9c7e262d2d288a79c31731de6af8e00c6a3f6c2d43b241fd7a5ef5e0f1cb9"
     },
     {
       "path": "levels.js",
@@ -1646,8 +1646,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 39617,
-      "sha256": "48b64a288ade00361f9c771567fec01637376d950e945efa2eecd1804535b05a"
+      "bytes": 39640,
+      "sha256": "ca95dfe98d938fd3c0b84c2cb97704a5fdb854525fe1fbca12a4873f2f696926"
     },
     {
       "path": "runs.js",
@@ -1661,8 +1661,8 @@
     },
     {
       "path": "shore-wildlife.js",
-      "bytes": 8268,
-      "sha256": "90d58602da00bcdc53a34b0492fc064365670bb654f5eb19dfeb5b4dd8479f03"
+      "bytes": 12913,
+      "sha256": "2ccde05f243719ec456e3ed5786a5262750d954699a76e21aeab663cae780e98"
     },
     {
       "path": "style.css",
@@ -1710,9 +1710,14 @@
       "sha256": "104d6477fb224e3c8adbc915b0f11493e50f4530b4b8673ce7f5ca1cd3a10640"
     },
     {
+      "path": "wildlife-crawlers.js",
+      "bytes": 7780,
+      "sha256": "7e011f8439bca6b2b4b80dc35fa30d01c48b54ddc554e58e86eab0b5e09be2fb"
+    },
+    {
       "path": "wildlife-small-life.js",
-      "bytes": 12792,
-      "sha256": "13bcb9c8cc6a9b73a8b3876113d7f712f39506fd84821e407e1c2e4a9aa54644"
+      "bytes": 9435,
+      "sha256": "314d0bda9d322be51d23a3dad15cf13314e4ab2edcd58e79def70fa3856c90d3"
     }
   ]
 }

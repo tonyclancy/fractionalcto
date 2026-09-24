@@ -1059,13 +1059,26 @@ function addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,fiel
    }
   }
  };
- let triangles=0;
- for(let i=0;i<24;i++){
-  const r=n=>sceneryVariation(seed+edge*239,i*19+n),u=(i+.22+r(1)*.5)*period/24,h=profile(u);
+ const thermal=metal||style.kind==='basalt',stations=[];
+ if(thermal){
+  // A few irregular service sites or fused geological patches replace the
+  // evenly spaced row of plates. All footprints stay on broad, solid rock.
+  const wanted=metal?2+(sceneryVariation(seed,edge+6100)>.48):5+(sceneryVariation(seed,edge+6101)>.6),spacing=metal?420:280;
+  for(let i=0;i<96&&stations.length<wanted;i++){
+   const r=n=>sceneryVariation(seed+edge*239,i*19+n),u=64+r(1)*(period-128);
+   if(Math.min(profile(u-40),profile(u),profile(u+40))<49)continue;
+   if(stations.some(site=>{const d=Math.abs(site.u-u);return Math.min(d,period-d)<spacing;}))continue;
+   stations.push({i,u});
+  }
+ }else for(let i=0;i<24;i++){const r=n=>sceneryVariation(seed+edge*239,i*19+n);stations.push({i,u:(i+.22+r(1)*.5)*period/24});}
+ const details=[];let triangles=0;
+ for(let station=0;station<stations.length;station++){
+  const {i,u}=stations[station],r=n=>sceneryVariation(seed+edge*239,i*19+n),h=profile(u);
   if(h<36||u<42||u>period-42)continue;
-  const featureStart=faces.length,kind=metal?'forge':style.kind,emits=r(7)>.42;
-  // Physical crevices/outlets use the same seeded positions as live particles.
-  if(emits){
+  const featureStart=faces.length,kind=metal?'forge':style.kind,emits=thermal?(metal||station%2===0):r(7)>.42;
+  // Water and mineral vents retain a small physical opening. Heat escapes
+  // from the actual service fitting or fractured crust constructed below.
+  if(emits&&!thermal){
    const v=h-6,rx=metal?6:4+r(9)*3,ry=metal?4.5:2.6+r(10)*2,outer=[],inner=[],c=metal?[117,139,143]:kind==='basalt'?[109,83,65]:kind==='reef'?[103,132,119]:kind==='ice'?[131,166,183]:[133,133,112];
    for(let j=0;j<7;j++){const a=j/7*TAU,f=metal?1:.8+r(j+61)*.4;outer.push(at(u+Math.cos(a)*rx*f,v+Math.sin(a)*ry*f,1.5));inner.push(at(u+Math.cos(a)*rx*.55*f,v+Math.sin(a)*ry*.55*f,3));}
    for(let j=0;j<7;j++)face([outer[j],outer[(j+1)%7],inner[(j+1)%7],inner[j]],c,.55);
@@ -1075,8 +1088,8 @@ function addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,fiel
   const decorationStart=faces.length;
   // Colonies, ledges and fittings occupy only broad solid sections. Unequal
   // empty stretches prevent the old regularly spaced stacks from returning.
-  if(r(11)>.38&&Math.min(profile(u-36),profile(u+36))>43){
-   const v=h*(.34+r(12)*.27),size=17+r(13)*15,form=r(14),rnd=n=>r(n+200);
+  if((thermal||r(11)>.38)&&Math.min(profile(u-36),profile(u+36))>43){
+   const v=h*(.34+r(12)*.27),size=metal?10+r(13)*7:17+r(13)*15,form=r(14),rnd=n=>r(n+200);
    if(kind==='reef'){
     const palette=[[130,152,134],[153,133,120],[129,142,151],[160,148,116]][Math.floor(r(15)*4)],c=tint(palette,(r(16)-.5)*16);
     if(form<.52){
@@ -1102,18 +1115,21 @@ function addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,fiel
      kelp(u+size*(r(28)-.5)*1.1,v,size,r);
     }
    }else if(metal){
-    const steel=[115,141,148],dark=[40,60,67],warm=[172,142,92],width=size*1.7,height=13+r(15)*12;
-    const ring=[[-width,-height],[width*.7,-height],[width,height*.3],[width*.7,height],[-width*.8,height],[-width,height*.1]].map(([x,y])=>at(u+x,v+y,5));
-    const cap=[[-width*.87,-height*.72],[width*.59,-height*.72],[width*.86,height*.22],[width*.59,height*.72],[-width*.69,height*.72],[-width*.86,height*.07]].map(([x,y])=>at(u+x,v+y,9));
-    for(let j=0;j<6;j++)face([ring[j],ring[(j+1)%6],cap[(j+1)%6],cap[j]],steel,.65);
-    face(cap,dark,.7);
+    const steel=[101,120,125],dark=[48,62,65],width=size*1.6,height=6+r(15)*4;
+    const ring=[[-width,-height],[width*.7,-height],[width,height*.3],[width*.7,height],[-width*.8,height],[-width,height*.1]].map(([x,y])=>at(u+x,v+y,1.5));
+    const cap=[[-width*.87,-height*.72],[width*.59,-height*.72],[width*.86,height*.22],[width*.59,height*.72],[-width*.69,height*.72],[-width*.86,height*.07]].map(([x,y])=>at(u+x,v+y,3.5));
+    for(let j=0;j<6;j++)face([ring[j],ring[(j+1)%6],cap[(j+1)%6],cap[j]],steel,.78);
+    face(cap,dark,.85);
     if(form<.5){
-     // Several recessed louvres share a single beveled housing.
-     for(let j=0;j<4;j++){const y=v-height*.51+j*height*.32;face([at(u-width*.62,y,10),at(u+width*.5,y,10),at(u+width*.5,y+2.5,12),at(u-width*.62,y+2.5,12)],steel,.35);}
+     for(let j=0;j<3;j++){const y=v-height*.43+j*height*.40;face([at(u-width*.57,y,4),at(u+width*.44,y,4),at(u+width*.44,y+1.3,5),at(u-width*.57,y+1.3,5)],steel,.7);}
     }else{
-     tube([[u-width*.65,v,10],[u-width*.2,v-height*.25,13],[u+width*.62,v-height*.25,13]],2.6,steel,'shore-conduit-'+i);
-     face([at(u-width*.55,v+height*.43,10),at(u-width*.18,v+height*.43,10),at(u-width*.18,v+height*.43+2,10),at(u-width*.55,v+height*.43+2,10)],warm,.15,.08);
+     tube([[u-width*.65,v+height*.32,3],[u-width*.2,v-height*.25,5],[u+width*.58,v-height*.25,5]],1.3,steel,'shore-conduit-'+i);
     }
+    // Crust overlaps one edge: this is equipment embedded in a weathered
+    // shoreline, not a clean badge pasted on every strip of terrain.
+    crust(u-width*.62,v+height*.65,width*.5,height*.57,[83,101,106],rnd,4,7);
+    details.push({u,h:v,kind:'service',width:width*2,height:height*2});
+    if(emits)features.push({u,h:v,kind,point:at(u,v,4),outlet:'service'});
    }else if(kind==='ice'){
     // Fractured embedded lenses catch cold light without rows of long spikes.
     for(let j=0;j<2+(form>.7);j++){
@@ -1125,8 +1141,16 @@ function addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,fiel
     crust(u,v,size*1.3,size*.49,c,rnd,6+r(15)*7);
     if(form>.58)crust(u-size*.47,v+size*.38,size*.81,size*.24,tint(c,-10),n=>rnd(n+43),5,7);
     if(kind==='basalt'){
+     // A broken, tapered seam under dark fused crust; no circular brass vent
+     // or repeated mechanical louvre belongs on a natural volcanic shore.
      const path=Array.from({length:5},(_,j)=>[u-size*.75+j*size*.37,v+(r(40+j)-.5)*size*.4]);
-     for(let j=0;j<4;j++){const a=path[j],b=path[j+1];face([at(a[0],a[1]-1.2,14),at(b[0],b[1]-1.2,14),at(b[0],b[1]+1.2,14),at(a[0],a[1]+1.2,14)],[168,76,32],.3,.18);}
+     for(let j=0;j<4;j++){
+      const a=path[j],b=path[j+1],width=.35+r(44+j)*.7;
+      face([at(a[0],a[1]-2.6,13),at(b[0],b[1]-2,13),at(b[0],b[1]+2.2,13),at(a[0],a[1]+2.7,13)],[44,47,46],.9);
+      face([at(a[0],a[1]-width,14),at(b[0],b[1]-width*.65,14),at(b[0],b[1]+width*.65,14),at(a[0],a[1]+width,14)],[147,75,37],.6,.12);
+     }
+     details.push({u,h:v,kind:'fissure',width:size*1.5});
+     if(emits){const source=path[2],sourceH=Math.min(source[1],profile(source[0])-4);features.push({u:source[0],h:sourceH,kind,point:at(source[0],sourceH,14),outlet:'fissure'});}
     }else if(kind==='stone'&&(verdant||damp)){
      // Broad connected moss and lichen patches follow damp ledges. Caves keep
      // this sparse low growth; sunlit verdant worlds also support plants.
@@ -1142,7 +1166,7 @@ function addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,fiel
   if(triangles+added>2000){faces.splice(decorationStart);triangles+=faces.slice(featureStart).reduce((n,f)=>n+f.v.length-2,0);}
   else triangles+=added;
  }
- faces.borderFeatureStart=start;
+ faces.borderFeatureStart=start;faces.borderDetails=details;
  return features;
 }
 function sceneryBorderMesh(definition,edge){
@@ -1163,13 +1187,8 @@ function sceneryBorderMesh(definition,edge){
   const u=i/cols*period,next=(i+1)/cols*period;
   faces.push({v:[rings[i][j],rings[i+1][j],rings[i+1][j+1],rings[i][j+1]],c:base,vertexColors:[tint(u,j),tint(next,j),tint(next,j+1),tint(u,j+1)],em:0,flex:0,smoothGroup:'shore-shell'});
  }
- // Service recesses belong to the industrial wall alone; geology uses its
- // fractured relief and photographed mineral surface, without engraved stripes.
- if(metal)for(let i=0;i<24;i++){
-  const u=30+i*(period-80)/24,j=3+Math.floor(sceneryVariation(seed,i+1600)*6),len=12+sceneryVariation(seed,i+1700)*22,p=(du,dv,dz)=>{const v=surface(u+du,j);v[1-(vertical?1:0)]+=(edge?-1:1)*dv;v[2]+=dz;return v;};
-  faces.push({v:[p(-len,0,-1),p(len,0,-1),p(len,7,-1),p(-len,7,-1)],c:base.map(v=>Math.round(v*.43)),em:0,flex:0});
-  faces.push({v:[p(-len,8,-2),p(len,8,-2),p(len,10,-2),p(-len,10,-2)],c:base.map(v=>Math.round(v*1.13)),em:0,flex:0});
- }
+ // Sparse fittings below are attached only to accepted solid patches. The
+ // wall itself stays weathered and unstriped between these occasional sites.
  faces.rock=!metal;faces.industrial=metal;faces.terrainMaterial=metal?'foundry':style.kind;faces.terrainRelief=true;faces.terrainWorld=style.seed;
  const features=addSceneryBorderFeatures(faces,definition,edge,style,metal,profile,field,project);
  faces.border={axis:vertical?1:0,period,openings,features,heights:Array.from({length:cols+1},(_,i)=>profile(i/cols*period))};
@@ -1240,8 +1259,14 @@ function prepareShoreAtmosphere(stage=sectors[level]){
   // gets contact mist. Jitter and unequal sizes avoid a repeating cloud chain.
   const s=seed+band.edge*239,r=n=>sceneryVariation(s,i*19+n),u=(i+.22+r(1)*.5)*SCENERY_BORDER_PERIOD/24,h=sceneryBorderExtent(band,u,u,0);
   if(h<32)continue;
-  const socket=band.mesh.border.features?.find(f=>Math.abs(f.u-u)<.01);
-  anchors.push({band,u,h,sourceH:socket?.h??h,phase:r(2)*TAU,width:190+r(3)*180,stretch:.7+r(4)*.6,variant:Math.floor(r(5)*profile.assets.length),flip:r(6)>.5?-1:1,emits:r(7)>.42,period:3.8+r(8)*5.4,seed:s+i*31});
+  const socket=band.mesh.border.features?.find(f=>Math.abs(f.u-u)<.01),thermal=band.mesh.industrial||band.mesh.terrainMaterial==='basalt';
+  anchors.push({band,u,h,sourceH:socket?.h??h,phase:r(2)*TAU,width:190+r(3)*180,stretch:.7+r(4)*.6,variant:Math.floor(r(5)*profile.assets.length),flip:r(6)>.5?-1:1,emits:!thermal&&!!socket,period:3.8+r(8)*5.4,seed:s+i*31});
+ }
+ for(const band of cache.layers)if(band.mesh.industrial||band.mesh.terrainMaterial==='basalt')for(const [i,socket] of band.mesh.border.features.entries()){
+  // Every visible plume/drip belongs to a real accepted outlet. Dense contact
+  // haze may still hug the wall, but cannot grow a second row of phantom vents.
+  const s=seed+band.edge*239+i*197,r=n=>sceneryVariation(s,n),h=sceneryBorderExtent(band,socket.u,socket.u,0);
+  anchors.push({band,u:socket.u,h,sourceH:socket.h,phase:r(2)*TAU,width:150+r(3)*70,stretch:.7+r(4)*.6,variant:0,flip:r(6)>.5?-1:1,emits:true,period:3.8+r(8)*5.4,seed:s,outlet:socket.outlet});
  }
  return cache.atmosphere={kind,profile,anchors};
 }
@@ -2277,8 +2302,8 @@ let terrainBubbleSprite=null;
 function prepareTerrainBubble(){if(terrainBubbleSprite)return terrainBubbleSprite;const sprite=document.createElement('canvas');sprite.width=sprite.height=24;const c=sprite.getContext('2d');c.fillStyle='#163b5328';c.beginPath();c.arc(12,12,7,0,TAU);c.fill();c.strokeStyle='#bce7edcc';c.lineWidth=1.1;c.beginPath();c.arc(12,12,7,.85,4.8);c.stroke();c.strokeStyle='#ebffffe0';c.beginPath();c.arc(10.5,10.5,4.8,3.65,4.8);c.stroke();return terrainBubbleSprite=sprite;}
 function terrainEmitterStrength(port,at=time,pilot=ship){const near=!port.triggerOnly&&Math.hypot(port.x-pilot.x,port.y-pilot.y)<100;return at<port.excitedUntil?1:near?.65:0;}
 function drawTerrainEffects(includePorts=true){
- drawShoreAtmosphere();drawShoreClouds(true);
  if(typeof drawShoreWildlife==='function')drawShoreWildlife();
+ drawShoreAtmosphere();drawShoreClouds(true);
  if(includePorts)drawTerrainPortEffects();
 }
 function drawTerrainPortEffects(start=0,end=terrainEmitters.length,budget=Infinity){
@@ -2872,8 +2897,8 @@ function navigationStarLayers(){
  if(navigationStars)return navigationStars;
  const random=n=>{const q=Math.sin(n*127.1+19.3)*43758.5453;return q-Math.floor(q);};
  navigationStars=[.08,.28,.62].map((depth,layer)=>{
-  const groups=Array.from({length:6},(_,i)=>({color:`rgba(${i%2?'240,221,196':'194,215,238'},${.22+Math.floor(i/2)*.18})`,points:[]}));
-  for(let i=0;i<[310,150,72][layer];i++){const seed=i+layer*1000;groups[i%6].points.push({x:random(seed+1)*W,y:random(seed+900)*H,r:.3+random(seed+1700)*(.35+layer*.12)});}
+  const groups=Array.from({length:6},(_,i)=>({color:`rgba(${i%2?'230,222,210':'202,215,232'},${.12+Math.floor(i/2)*.20})`,points:[]}));
+  for(let i=0;i<[310,150,72][layer];i++){const seed=i+layer*1000;groups[i%6].points.push({x:random(seed+1)*W,y:random(seed+900)*H,z:[10,5,2.3][layer]+random(seed+2400)*[10,5,3.4][layer],r:.20+Math.pow(random(seed+1700),2)*(.38+layer*.14)});}
   return{depth,groups};
  });return navigationStars;
 }
@@ -2890,22 +2915,21 @@ function galaxyCrossingPose(destination,progress){
  return{p,speed,distance,outgoing,incoming,x:W*.5+(incoming.gx-W*.5)*turn,y:H*.52+(incoming.gy-H*.52)*turn,label:p<up?'ACCELERATING':p<down?'LIGHT-SPEED TRANSIT':'DECELERATING'};
 }
 function navigationStarProjection(star,depth,camera,out={}){
- const scale=1/(1-depth*(1-1/camera.zoom)),width=W*scale,height=H*scale,margin=6;
- let x=((star.x*scale-camera.x*depth*scale-(width-W)/2+margin)%width+width)%width-margin,y=((star.y*scale-camera.y*depth*scale-(height-H)/2+margin)%height+height)%height-margin;
- out.alpha=1;out.cycle=0;
- if(camera.flight){
-  const f=camera.flight,z0=.8+((star.x*.017+star.y*.031+depth*7)%1)*3,raw=z0-f.distance*(.55+depth),z=.16+((raw-.16)%4+4)%4;
-  out.cycle=Math.floor((raw-.16)/4);
-  // The exact same points accelerate out of their departure positions. Keep
-  // accumulated depth after braking so arrival never swaps back to old stars.
-  const magnification=z0/z,edge=Math.min(x+margin,width-margin-x,y+margin,height-margin-y);
-  x=f.x+(x-f.x)*magnification;y=f.y+(y-f.y)*magnification;
-  out.alpha=navigationEase((z-.16)/.30)*(out.cycle<0?navigationEase((4.16-z)/.35):1);
-  // Recycled, distant points can expose a wrapped tile edge inside the view.
-  // Hide that seam locally instead of crossfading an entire replacement field.
-  if(magnification<1)out.alpha*=1-(1-navigationEase(edge/32))*navigationEase((1-magnification)/.2);
- }
- out.x=x;out.y=y;out.r=Math.min(1.35,star.r*(1+Math.log(scale)*.10));return out;
+ // Project persistent points in a volume. A camera dolly changes their depth;
+ // no screen-space tile wrap can slide a line of stars across the window.
+ const z0=star.z??(2.2+(1-depth)*7),near=.22,span=12+z0*.45;
+ const approach=(1-1/Math.max(1,camera.zoom))*2,travel=(camera.flight?.distance||0)*1.15;
+ const raw=z0-approach-travel,cycle=Math.floor((raw-near)/span),z=near+((raw-near)%span+span)%span;
+ const ratio=z0/z,focusX=camera.flight?.x??W*.5,focusY=camera.flight?.y??H*.52;
+ // Flight focus and galaxy focus use the same course; distant stars react less
+ // than nearby stars to the small lateral correction toward the destination.
+ const sx=W*.5+(star.x-W*.5)*z0/(z0-approach)-camera.x*.30/(z0-approach);
+ const sy=H*.52+(star.y-H*.52)*z0/(z0-approach)-camera.y*.30/(z0-approach);
+ const flightRatio=(z0-approach)/z;
+ out.x=focusX+(sx-focusX)*flightRatio;out.y=focusY+(sy-focusY)*flightRatio;
+ out.alpha=navigationEase((z-near)/.45)*(cycle<0?navigationEase((span+near-z)/1.4):1);
+ out.cycle=cycle;out.z=z;
+ out.r=Math.min(1.30,star.r*(.88+.12*Math.sqrt(Math.max(.1,ratio))));return out;
 }
 function navigationWarpState(blend=sectorBlend){
  if(!blend?.origin||!blend.destination||blend.origin.galaxyId===blend.destination.galaxyId)return null;
@@ -2914,17 +2938,17 @@ function navigationWarpState(blend=sectorBlend){
 }
 function navigationWarpProjection(star,depth,warp,out={},camera=navigationStarCamera(),previous=null,tail={}){
  navigationStarProjection(star,depth,camera,out);
- navigationStarProjection(star,depth,previous||{...camera,flight:{...camera.flight,distance:Math.max(0,warp.distance-warp.speed*.14)}},tail);
- const dx=tail.x-out.x,dy=tail.y-out.y,limit=out.cycle===tail.cycle?Math.min(1,180/Math.max(1,Math.hypot(dx,dy))):0;
+ navigationStarProjection(star,depth,previous||(warp?{...camera,flight:{...camera.flight,distance:Math.max(0,warp.distance-warp.speed*.14)}}:camera),tail);
+ const dx=tail.x-out.x,dy=tail.y-out.y,limit=out.cycle===tail.cycle?Math.min(1,96/Math.max(1,Math.hypot(dx,dy))):0;
  out.tx=out.x+dx*limit;out.ty=out.y+dy*limit;return out;
 }
 function drawNavigationStars(){
- const camera=navigationStarCamera(),warp=navigationWarpState(),previous=warp?navigationStarCamera({...sectorBlend,age:Math.max(0,sectorBlend.age-.065*warp.speed)}):null,p={},tail={};ctx.save();ctx.lineCap='round';
+ const camera=navigationStarCamera(),warp=navigationWarpState(),exposure=warp?.038:.022,previous=sectorBlend?.destination?navigationStarCamera({...sectorBlend,age:Math.max(0,sectorBlend.age-exposure)}):null,p={},tail={};ctx.save();ctx.lineCap='round';
  // A single retained field throughout the journey. Motion-blur tails sample
  // the same projection at an earlier camera time, including the course turn.
  for(const layer of navigationStarLayers())for(const group of layer.groups){
   ctx.fillStyle=group.color;ctx.strokeStyle=group.color;ctx.lineWidth=.7+layer.depth;
-  if(warp){ctx.beginPath();for(const star of group.points){
+  if(previous){ctx.beginPath();for(const star of group.points){
    navigationWarpProjection(star,layer.depth,warp,p,camera,previous,tail);
    if(p.alpha<.08||p.x<-190||p.x>W+190||p.y<-190||p.y>H+190)continue;
    ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+(p.tx-p.x)*p.alpha,p.y+(p.ty-p.y)*p.alpha);
@@ -2956,8 +2980,9 @@ function drawResolvedGalaxyStars(location,pose,alpha=1){
   while(resolvedGalaxyStars.size>=3)resolvedGalaxyStars.delete(resolvedGalaxyStars.keys().next().value);resolvedGalaxyStars.set(system.id,stars);
  }
  const angle=galaxyRotation(galaxy),co=Math.cos(angle),si=Math.sin(angle),magnification=pose.width/1000;
- ctx.save();ctx.globalAlpha*=alpha*.55;ctx.fillStyle='#b8cddd';ctx.beginPath();
- for(const star of stars){const depth=1/(1-star.z*(1-1/Math.max(1,magnification))),x=pose.gx+(star.x*co-star.y*.625*si)*pose.width*depth,y=pose.gy+(star.x*si+star.y*.625*co)*pose.width*depth,r=Math.min(1.15,star.r*(1+Math.log(Math.max(1,magnification))*.12));if(x<-3||x>W+3||y<-3||y>H+3)continue;ctx.moveTo(x+r,y);ctx.arc(x,y,r,0,TAU);}
+ const detail=navigationEase(Math.log(Math.max(1,magnification))/Math.log(5)),distant=Math.min(1,magnification);
+ ctx.save();ctx.globalAlpha*=alpha*(.09+.46*detail)*distant;ctx.fillStyle='#b8cddd';ctx.beginPath();
+ for(const star of stars){const depth=1/(1-star.z*(1-1/Math.max(1,magnification))),x=pose.gx+(star.x*co-star.y*.625*si)*pose.width*depth,y=pose.gy+(star.x*si+star.y*.625*co)*pose.width*depth,r=Math.min(1.15,star.r*Math.sqrt(distant)*(1+Math.log(Math.max(1,magnification))*.12));if(x<-3||x>W+3||y<-3||y>H+3)continue;ctx.moveTo(x+r,y);ctx.arc(x,y,r,0,TAU);}
  ctx.fill();ctx.restore();
 }
 function drawNavigationGalacticField(){
@@ -3065,9 +3090,12 @@ function galaxyApproachPose(system,progress){
  const t=navigationEase(progress),width=1000*Math.exp(t*Math.log(14)),offset=galaxySystemOffset(system,width);
  return {t,width,gx:W*.5-offset.x*t,gy:H*.52-offset.y*t,sx:W*.5+offset.x*(1-t),sy:H*.52+offset.y*(1-t),scale:Math.exp(Math.log(.09)*(1-navigationEase((t-.68)/.32)))};
 }
+function galaxyApproachVisibility(progress){
+ const t=clamp(progress,0,1);return (.22+.46*navigationEase(t/.42))*(1-navigationEase((t-.48)/.38));
+}
 function drawGalaxySystemApproach(location,progress){
  const system=expeditionSystem(location),galaxy=expeditionGalaxy(location),p=galaxyApproachPose(system,progress);
- paintRotatingGalaxy(ctx,galaxy,p.gx,p.gy,p.width,1-navigationEase((p.t-.48)/.38));
+ paintRotatingGalaxy(ctx,galaxy,p.gx,p.gy,p.width,galaxyApproachVisibility(p.t));
  drawUniversalLandmarks(location,p);
  const reveal=navigationEase((p.t-.67)/.33);ctx.save();ctx.globalAlpha=reveal;ctx.translate(p.sx,p.sy);ctx.scale(p.scale,p.scale);ctx.translate(-W*.5,-H*.52);drawMovingSystemChart(system,location.destinationId,false);ctx.restore();
  const anomaly=navigationAnomaly(location);if(anomaly&&!system.centralBody){const q=galacticLandmarkPose(location,p,[.022,-.013],.006),mix=reveal,x=q.x*(1-mix)+(p.sx+319*p.scale)*mix,y=q.y*(1-mix)+(p.sy-128.7*p.scale)*mix,r=Math.max(1.4,q.width)*(1-mix)+24.2*p.scale*mix;paintNavigationBlackHole(ctx,x,y,r,p.t>.5?anomaly.name:'');}
@@ -3094,7 +3122,7 @@ function galacticLandmarkPose(location,camera,offset,size){
 function galacticLandmarkVisibility(camera){
  // Resolved gradually inside the galaxy; gone before the orbital chart takes
  // over. Reversing this same camera also makes departure continuous.
- return navigationEase(camera.t/.2)*(1-navigationEase((camera.t-.70)/.30));
+ return navigationEase((camera.t-.24)/.34)*(1-navigationEase((camera.t-.68)/.24));
 }
 function drawUniversalLandmarks(location,camera){
  const galaxy=expeditionGalaxy(location),remnantImage=requestSpaceImage('cosmic-remnant-v1.webp'),remnant=remnantImage.galaxyCutout,envelope=galacticLandmarkVisibility(camera);
@@ -3103,9 +3131,9 @@ function drawUniversalLandmarks(location,camera){
  // galaxy camera enlarges and moves them past the window, without a screen-space
  // overlay or a dissolve behind the planetary orbit map.
  ctx.save();ctx.globalCompositeOperation='screen';
- if(remnant&&galaxy.seed%3!==0){const p=galacticLandmarkPose(location,camera,[.12,-.06],.065);ctx.globalAlpha=.76*envelope*spaceArtworkReveal(remnantImage.spaceReadyAt);ctx.save();ctx.translate(p.x,p.y);ctx.rotate((galaxy.seed%7-3)*.13);ctx.drawImage(remnant,-p.width/2,-p.width*.3125,p.width,p.width*.625);ctx.restore();}
- const cluster=galacticLandmarkPose(location,camera,[-.13,.065],.037);ctx.globalAlpha=.62*envelope;ctx.drawImage(stellarClusterArtwork(),cluster.x-cluster.width/2,cluster.y-cluster.width/2,cluster.width,cluster.width);
- if(galaxy.seed%4<2){const p=galacticLandmarkPose(location,camera,[.11,.10],.009),radius=p.width*(1+.06*Math.sin(navigationSeconds()*.9)),g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,radius);g.addColorStop(0,'#f6f5e4');g.addColorStop(.035,'#d6eaffd9');g.addColorStop(.16,'#a9caff38');g.addColorStop(1,'#6b9dd000');ctx.globalAlpha=.7*envelope;ctx.fillStyle=g;ctx.fillRect(p.x-radius,p.y-radius,radius*2,radius*2);}
+ if(remnant&&galaxy.seed%3!==0){const p=galacticLandmarkPose(location,camera,[.12,-.06],.065);ctx.globalAlpha=.26*envelope*spaceArtworkReveal(remnantImage.spaceReadyAt);ctx.save();ctx.translate(p.x,p.y);ctx.rotate((galaxy.seed%7-3)*.13);ctx.drawImage(remnant,-p.width/2,-p.width*.3125,p.width,p.width*.625);ctx.restore();}
+ const cluster=galacticLandmarkPose(location,camera,[-.13,.065],.037);ctx.globalAlpha=.36*envelope;ctx.drawImage(stellarClusterArtwork(),cluster.x-cluster.width/2,cluster.y-cluster.width/2,cluster.width,cluster.width);
+ if(galaxy.seed%4<2){const p=galacticLandmarkPose(location,camera,[.11,.10],.009),radius=p.width,g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,radius);g.addColorStop(0,'#f6f5e4');g.addColorStop(.035,'#d6eaffd9');g.addColorStop(.16,'#a9caff38');g.addColorStop(1,'#6b9dd000');ctx.globalAlpha=.38*envelope;ctx.fillStyle=g;ctx.fillRect(p.x-radius,p.y-radius,radius*2,radius*2);}
  ctx.restore();
 }
 
@@ -3120,7 +3148,7 @@ function drawGalaxyTransit(origin,destination,u){
   drawGalaxySystemApproach(origin,1-(u-.18)/.14);
  }else if(phase==='crossing'){
   const route=galaxyCrossingPose(destination,(u-.32)/.26);
-  for(const [g,pose] of [[from,route.outgoing],[to,route.incoming]])galaxy(g,pose.width,pose.alpha,pose.gx,pose.gy);
+  for(const [g,pose] of [[from,route.outgoing],[to,route.incoming]])galaxy(g,pose.width,pose.alpha*galaxyApproachVisibility(0),pose.gx,pose.gy);
 
  }else{
   drawGalaxySystemApproach(destination,(u-.58)/.17);
