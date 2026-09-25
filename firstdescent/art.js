@@ -36,12 +36,21 @@ function sectorArtPreparation(definition){
  ];
 }
 function prepareSectorArt(definition){for(const prepare of sectorArtPreparation(definition))prepare();}
+// One geometry per idle slice; current and next world resources stay retained
+// until another world replaces them, rather than expiring just before arrival.
+function sectorModelPreparation(definition){
+ const names=new Set([...definition.models,'player','player2','player3','wingmate','spore','missile','siphon','cannon','shrapnel','bone','rib','spineChip','chitinChip','skull','orbitalRock']);
+ const jobs=[...names].map(name=>()=>window.gpuModels?.prepare?.([meshes[name]],definition.id));
+ let bossMesh;
+ jobs.push(()=>{bossMesh=sectorBossDesign(definition)?.mesh;},()=>{if(bossMesh)window.gpuModels?.prepare?.([bossMesh],definition.id);});
+ return jobs;
+}
 // Each idle slice warms one retained resource. Entering a world can still
 // complete anything outstanding synchronously; prefetch never changes level.
 const sectorArtJobs=new Map();let sectorArtIdlePending=false;
 function queueSectorArt(definition){
  if(!definition||(!window.requestIdleCallback&&!window.setTimeout))return;
- if(!sectorArtJobs.has(definition.id))sectorArtJobs.set(definition.id,{definition,jobs:sectorArtPreparation(definition)});
+ if(!sectorArtJobs.has(definition.id))sectorArtJobs.set(definition.id,{definition,jobs:[...sectorArtPreparation(definition),...sectorModelPreparation(definition)]});
  scheduleSectorArt();
 }
 function scheduleSectorArt(){
@@ -703,8 +712,11 @@ function planetBossAnatomy(base,definition,palette){
 const bossVariants=new Map();
 function bossDesign(kind=bossIndex()){
  if(kind===1&&typeof isCapitalSiege==='function'&&isCapitalSiege(typeof boss==='undefined'?null:boss))return capitalShipDesign(boss);
- const base=(typeof alienBossDesigns!=='undefined'&&alienBossDesigns[kind])||(typeof machineBossDesigns!=='undefined'&&machineBossDesigns[kind])||null,definition=sectors[level],palette=definition.bossPalette||(definition.biosphere?[1,1,1]:null);
- if(!base||!palette||kind!==bossIndex())return base;
+ return sectorBossDesign(sectors[level],kind);
+}
+function sectorBossDesign(definition,kind=BOSS_KINDS[definition.bossKind]){
+ const base=(typeof alienBossDesigns!=='undefined'&&alienBossDesigns[kind])||(typeof machineBossDesigns!=='undefined'&&machineBossDesigns[kind])||null,palette=definition.bossPalette||(definition.biosphere?[1,1,1]:null);
+ if(!base||!palette||kind!==BOSS_KINDS[definition.bossKind])return base;
  if(!bossVariants.has(definition.id)){while(bossVariants.size>=4)bossVariants.delete(bossVariants.keys().next().value);if(definition.biosphere?.boss){bossVariants.set(definition.id,buildSpeciesBoss(definition.biosphere.boss,base,definition.systemChallenge?.progress||0));}else{const mesh=base.mesh.map(f=>({...f,c:f.c.map((v,i)=>Math.min(255,Math.round(v*palette[i])))}));for(const k of ['skin','dynamic','alienMaterial'])mesh[k]=base.mesh[k];bossVariants.set(definition.id,{...base,mesh});}}
  return bossVariants.get(definition.id);
 }
