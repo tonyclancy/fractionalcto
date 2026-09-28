@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 72968724,
+  "bytes": 72987518,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 451308,
-      "sha256": "6ae0e34d42071ed6c9d268696487c9c610d67822466e357b8ce45e6424ffac5c"
+      "bytes": 453231,
+      "sha256": "6572a55968624ed4f56d5101f1a8029011f42db44e9102bceb3c5268674375df"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1596,8 +1596,8 @@
     },
     {
       "path": "capital-ship.js",
-      "bytes": 45361,
-      "sha256": "b478228b95b4825401684b73e94e444e4654e319d4af69999a23a2892332a95f"
+      "bytes": 46193,
+      "sha256": "40d55a4179cb61fb1f7da9c72dc3b1fe21daa4d64ed8df8c14ad6edf20a1ad21"
     },
     {
       "path": "cloud-config.js",
@@ -1615,19 +1615,24 @@
       "sha256": "9a56558b34607772d31c97d17a82d8c6c4e210cdd4c28e0b8dcfbe4ed54ec648"
     },
     {
+      "path": "ferrum-mission.js",
+      "bytes": 12805,
+      "sha256": "61ba706aca208a0d83cc27561b86c85b7eb7c24a3e5e42bc3950af332af30432"
+    },
+    {
       "path": "game.js",
-      "bytes": 102768,
-      "sha256": "ce0debee7c86de51658c2d244c3a8fcc77dc9b32abd142a970878d36a378315e"
+      "bytes": 103991,
+      "sha256": "9a7e08fbef5f1203188cd8ade0bb93e5112a34c5f2c1825ff6b1882ceb373d7e"
     },
     {
       "path": "index.html",
-      "bytes": 6850,
-      "sha256": "6f0489d35a5457843332c3f7576399301b0810b2c02cd7cf3ca0a8637905e354"
+      "bytes": 6835,
+      "sha256": "f9434cd24bb7889633261c442c4a631e3f1976c375669dc9c262134f8a610707"
     },
     {
       "path": "levels.js",
-      "bytes": 113769,
-      "sha256": "4000525abf85fdb4165073f180f4463c567c075fb7eb6652bdd93a2f946e5f1b"
+      "bytes": 113766,
+      "sha256": "f187105165636538bc359f546f1f14d6f4a4a41aa5f4fea6403f18d4433c092d"
     },
     {
       "path": "manifest.webmanifest",
@@ -1651,8 +1656,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 42172,
-      "sha256": "d8846efa76d06523f4b4d10df0e80ebbd92805169ab6ff4d014b879b8a09281f"
+      "bytes": 42192,
+      "sha256": "354e78a3ed90214f5060bd062bdc0f8dcf70e4aa01bcc63ba1f4a2b3a986cef5"
     },
     {
       "path": "runs.js",
@@ -1671,8 +1676,8 @@
     },
     {
       "path": "style.css",
-      "bytes": 45275,
-      "sha256": "18bd80cb6dbfac699791ee71426bf785c5a89f7accd99807e63d3cb4912664a2"
+      "bytes": 47284,
+      "sha256": "ba47deb8d9a7f1d8462f5f0b6952199f402ffadd90462de0476624e4353e96d2"
     },
     {
       "path": "tide-encounter.js",

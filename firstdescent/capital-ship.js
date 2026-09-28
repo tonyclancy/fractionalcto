@@ -264,7 +264,7 @@ function capitalSiegeHint(b){
  const special=s.nodes.find(n=>n.special)?.special;
  if(special)return special.kind==='purge'?'THRUSTER IGNITION · CLEAR THE EXHAUST':'CAPACITOR DISCHARGE · FOLLOW THE DARK GAP';
  if(s.stage==='batteries')return 'STABILIZER PODS · '+s.nodes.slice(0,2).filter(n=>n.hp>0).length+' REMAIN';
- if(s.nodes.some(n=>capitalNodeActive(b,n)&&n.recovery>0))return 'MACHINERY OVERHEATED · LAND FOLLOW-UP SHOTS FOR EXTRA DAMAGE';
+ if(s.nodes.some(n=>capitalNodeActive(b,n)&&n.recovery>0))return typeof ferrumEngineerAboard==='function'&&ferrumEngineerAboard()?'ENGINEER HOLDING WEAK POINT OPEN · ATTACK NOW':'MACHINERY OVERHEATED · LAND FOLLOW-UP SHOTS FOR EXTRA DAMAGE';
  if(s.stage==='core')return 'COMMAND CORE EXPOSED · ATTACK THE BOW';
  const node=s.nodes[2],p=capitalNodePosition(b,node),tip=bossMount(b,[node.local[0]+20,node.local[1],node.local[2]]),dx=tip.x-p.x,dy=tip.y-p.y;
  if(Math.abs(dx)<Math.hypot(dx,dy)*.7||['turn','resetTurn'].includes(s.maneuver?.stage))return 'AFT REACTOR · FOLLOW THE STERN AS IT TURNS';
@@ -318,6 +318,7 @@ function capitalAdvanceStage(b){
 function capitalDamageNode(b,n,amount){
  if(!capitalNodeActive(b,n))return;const lost=Math.min(n.hp,Math.max(0,amount));n.hp-=lost;b.hp=b.siege.nodes.reduce((sum,node)=>sum+node.hp,0);n.hit=.1;const p=capitalNodePosition(b,n);
  if(n.hp<=0){n.warning=0;n.burst=0;n.muzzle=0;n.special=null;explode(p.x,p.y,'#ffc27e',n.id==='core'?2.1:1.55,false);if(n.id==='core')for(const local of [[-45,-20,-10],[20,10,-10],[62,-25,-10]]){const breach=bossMount(b,local);explode(breach.x,breach.y,'#ffb869',1.35,false);}score+=n.id==='dorsal'||n.id==='ventral'?450:700;capitalAdvanceStage(b);
+   if(sectors[level].id==='ember-forge'&&b.siege.stage==='batteries')announce(n.id==='dorsal'?'UPPER STABILIZER LOST':'LOWER STABILIZER LOST','THRUST REDUCED · THE OTHER BATTERY IS STILL ARMED');
    // A successful dismantling interrupts queued volleys, but never erases rounds
    // already in flight. Every new section must give its normal firing warning.
    b.siege.stagger=.95;for(const other of b.siege.nodes){other.warning=0;other.burst=0;other.muzzle=0;other.target=null;other.clock=.45;}
@@ -349,9 +350,15 @@ function capitalNovaDamage(b,amount){
 // pilot clearance. Reserve a continuous outer route during every attack pose.
 // Horizontal charges and reversals provide mobility without sealing that route.
 function capitalFlightHeight(y){return clamp(y,H*.5-10,H*.5+10);}
+function capitalDriveCondition(b){
+ if(sectors[level].id!=='ember-forge')return {thrust:1,lean:0};
+ const nodes=initCapitalSiege(b).nodes,upper=nodes[0].hp<=0?1:0,lower=nodes[1].hp<=0?1:0;
+ return {thrust:1-.22*(upper+lower),lean:(upper-lower)*.075};
+}
 function moveCapitalShip(b,dt){
+ const condition=capitalDriveCondition(b);
  const siege=initCapitalSiege(b),oldX=b.x,oldY=b.y,age=b.age||0,phase=siege.stage==='core'?1.6:siege.stage==='reactor'?1.3:1;
- if(!siege.maneuver){const roll=.12+Math.sin(age*1.8)*.06;b.maneuverRoll=(b.maneuverRoll||0)+(roll-(b.maneuverRoll||0))*(1-Math.exp(-dt*7));}b.turnYaw??=0;b.barrelRoll??=0;
+ if(!siege.maneuver){const roll=.12+condition.lean+Math.sin(age*1.8)*.06;b.maneuverRoll=(b.maneuverRoll||0)+(roll-(b.maneuverRoll||0))*(1-Math.exp(-dt*7));}b.turnYaw??=0;b.barrelRoll??=0;
  const active=siege.nodes.filter(n=>capitalNodeArmed(b,n)),weaponsBusy=active.some(n=>n.special||n.warning>0||n.burst>0);
  if(!siege.maneuver){
   siege.maneuverClock-=dt*phase;
@@ -359,20 +366,20 @@ function moveCapitalShip(b,dt){
  }
  const m=siege.maneuver,next=(stage,duration,toX=b.x,toY=b.y)=>{m.stage=stage;m.age=0;m.duration=duration;m.fromX=b.x;m.fromY=b.y;m.toX=toX;m.toY=toY;m.fromRoll=b.maneuverRoll;m.fromBarrel=b.barrelRoll;};
  if(m){
-  m.age+=dt;const u=clamp(m.age/m.duration,0,1),ease=u*u*(3-2*u);
+  m.age+=dt*(['lunge','return','turn','resetTurn'].includes(m.stage)?condition.thrust:1);const u=clamp(m.age/m.duration,0,1),ease=u*u*(3-2*u);
   if(m.stage==='warn'){b.navVX*=Math.exp(-dt*5);b.navVY*=Math.exp(-dt*5);b.x+=b.navVX*dt;b.y+=b.navVY*dt;b.actionLoad=Math.max(b.actionLoad||0,u);if(u>=1)next('lunge',1.05,520,m.attackY);}
-  else if(m.stage==='lunge'){b.x=m.fromX+(m.toX-m.fromX)*ease;b.y=m.fromY+(m.toY-m.fromY)*ease;b.attackDrive=1;b.propulsion=1;if(u>=1)next('turn',1.05,b.x,b.y);}
+  else if(m.stage==='lunge'){b.x=m.fromX+(m.toX-m.fromX)*ease;b.y=m.fromY+(m.toY-m.fromY)*ease;b.attackDrive=1;b.propulsion=condition.thrust;if(u>=1)next('turn',1.05,b.x,b.y);}
   else if(m.stage==='turn'){b.turnYaw=Math.PI*ease;b.barrelRoll=m.fromBarrel;if(u>=1){next('rear',siege.stage==='batteries'?3.5:6.25,b.x,m.attackY);for(const n of active){n.target={x:ship.x,y:ship.y};n.warning=Math.min(n.warning||Infinity,.32);n.burst=0;}}}
   // Complete the roll, then hold the heading while firing: even a stock
   // pilot has time to traverse the hull and attack before another reversal.
   else if(m.stage==='rear'){b.y=m.fromY+(m.toY-m.fromY)*ease;b.turnYaw=Math.PI;const rollU=clamp(m.age/1.75,0,1);b.barrelRoll=m.fromBarrel+TAU*rollU*rollU*(3-2*rollU);b.propulsion=.7;if(u>=1)next('return',1.18,900,H*.5);}
-  else if(m.stage==='return'){b.x=m.fromX+(m.toX-m.fromX)*ease;b.y=m.fromY+(m.toY-m.fromY)*ease;b.turnYaw=Math.PI;b.attackDrive=1;b.propulsion=1;if(u>=1)next('resetTurn',1.25,b.x,b.y);}
+  else if(m.stage==='return'){b.x=m.fromX+(m.toX-m.fromX)*ease;b.y=m.fromY+(m.toY-m.fromY)*ease;b.turnYaw=Math.PI;b.attackDrive=1;b.propulsion=condition.thrust;if(u>=1)next('resetTurn',1.25,b.x,b.y);}
   else if(m.stage==='resetTurn'){b.turnYaw=Math.PI*(1-ease);b.barrelRoll=m.fromBarrel;if(u>=1){b.turnYaw=0;siege.maneuver=null;siege.maneuverClock=(siege.stage==='batteries'?6.5:8.5)*phase;}}
   b.navVX=(b.x-oldX)/dt;b.navVY=(b.y-oldY)/dt;
  }else{
   // Destroyed sections make the patrol tighter and more urgent.
   const orbit=age*.82*phase,thrust=Math.max(0,Math.sin(age*.9*phase))**6,targetX=805+Math.cos(orbit)*98-thrust*(siege.stage==='core'?110:58),targetY=capitalFlightHeight(H*.5+Math.sin(orbit*2)*10);
-  b.navVX=clamp((b.navVX||0)+((targetX-b.x)*2.35-(b.navVX||0)*3)*dt,-185,120);
+  b.navVX=clamp((b.navVX||0)+((targetX-b.x)*2.35-(b.navVX||0)*3)*dt,-185*condition.thrust,120*condition.thrust);
   b.navVY=clamp((b.navVY||0)+((targetY-b.y)*2.9-(b.navVY||0)*3.25)*dt,-78,78);b.x+=b.navVX*dt;b.y+=b.navVY*dt;
  }
  updateBossAttitude(b,dt,(b.x-oldX)/dt,(b.y-oldY)/dt);
@@ -399,7 +406,7 @@ function updateCapitalDischarges(b,dt){
  for(const node of siege.nodes){const a=node.special;if(!a||!capitalNodeActive(b,node))continue;const previous=a.age;a.age+=dt;
   if(previous<a.warning&&a.age>=a.warning){const frame=capitalDischargeFrame(b,a.kind);if(a.kind==='purge')window.flightAudio?.thrusterBurst?.(a.duration);else window.flightAudio?.laserBeam(.35);if(a.kind==='pulse')siege.pulses.push({...frame,age:0,r:28,width:18,gap:a.gap,life:1.9});}
   if(a.kind==='purge'&&a.age>=a.warning&&a.age<a.warning+a.duration&&capitalPurgeContact(capitalDischargeFrame(b,a.kind),ship.x,ship.y))damage();
-  if(a.age>=a.warning+a.duration){node.special=null;node.recovery=2.4;}
+  if(a.age>=a.warning+a.duration){node.special=null;node.recovery=typeof ferrumEngineerAboard==='function'&&ferrumEngineerAboard()?3.8:2.4;}
  }
  for(const pulse of siege.pulses){pulse.age+=dt;pulse.r=28+pulse.age*510;if(capitalPulseContact(pulse,ship.x,ship.y))damage();}
  siege.pulses=siege.pulses.filter(p=>p.age<p.life);
