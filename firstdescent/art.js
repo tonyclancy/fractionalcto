@@ -3040,6 +3040,9 @@ function drawGalaxyObservationCredit(c,galaxy,alpha){
  const y=H-24-lines.length*14;for(let i=0;i<lines.length;i++)c.fillText(lines[i],38,y+i*14);c.restore();
 }
 function paintRotatingGalaxy(c,galaxy,x,y,width,alpha=1,seconds=navigationSeconds()){
+ // Canvas ignores out-of-range alpha and retains the previous opacity. A
+ // negative rounding residue must never redraw a faded galaxy at full strength.
+ if(!Number.isFinite(alpha)||alpha<=0)return;alpha=Math.min(1,alpha);
  const artwork=galaxyArtwork(galaxy);
  if(artwork){c.save();c.globalAlpha*=alpha*spaceArtworkReveal(artwork.photoReadyAt);c.globalCompositeOperation='screen';c.translate(x,y);c.rotate(galaxyRotation(galaxy,seconds));c.drawImage(artwork,-width/2,-width*.3125,width,width*.625);c.restore();}
  if(galaxy.centralBlackHole){c.save();c.globalAlpha*=alpha;paintNavigationBlackHole(c,x,y,width*.025);c.restore();}
@@ -3175,7 +3178,12 @@ function drawNavigationGalacticField(){
 // One reversible camera: chart position → complete globe → curved horizon →
 // local scenery. Departure uses the same path backwards, with the real outgoing
 // scenery retained until the horizon is visible. No mid-flight planet swap.
-function navigationEase(value){const t=clamp(value,0,1);return t*t*t*(t*(t*6-15)+10);}
+function navigationEase(value){
+ const t=clamp(value,0,1);
+ // The polynomial can round just above 1 near its endpoint. Bound the result
+ // as well as the input, since its complement is used directly as Canvas alpha.
+ return clamp(t*t*t*(t*(t*6-15)+10),0,1);
+}
 function planetSurfaceBlend(progress){return clamp((progress-.82)/.16,0,1);}
 function planetCameraPose(location,progress){
  const t=clamp(progress,0,1),ease=navigationEase(t),system=expeditionSystem(location),layout=systemOrbitLayout(system,navigationOrbitTime()),target=layout.find(p=>p.destination.id===location.destinationId)||{x:400,y:272};

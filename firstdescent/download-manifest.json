@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 73016836,
+  "bytes": 73020747,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 453923,
-      "sha256": "d496be4a32465623cb453bdb298a0b08bb5020506c6e7d4cf60302745571e0a4"
+      "bytes": 454323,
+      "sha256": "9192b96351d70b95353d203816022ffd3e07468bba559db9dbb45f84f6234ea8"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1627,7 +1627,7 @@
     {
       "path": "index.html",
       "bytes": 6730,
-      "sha256": "ca37e0e86966e9ea6df336e97e2f19d98ba3b90d11be5eeeed70b24e9c4e423f"
+      "sha256": "cbb4b3a4452871f93696d09bf55fb8c4b8fdf04b9f5c6bb2810d0d5974b318a5"
     },
     {
       "path": "levels.js",
@@ -1676,8 +1676,8 @@
     },
     {
       "path": "story-campaign.js",
-      "bytes": 18249,
-      "sha256": "8813faa37331e32fa2b5e6e47ea25e2d5992b55f6485874318243af96bfd99c6"
+      "bytes": 21760,
+      "sha256": "9d425d45ab29a384bc8c2ab2b7035955e5baae556d5caa30ab691ce3ea6f9e22"
     },
     {
       "path": "style.css",

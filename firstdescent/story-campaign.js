@@ -15,7 +15,7 @@ function migrateStoryVictories(){for(const m of STORY_ROUTE.slice(0,2))if(origin
 function storyIndex(){return flightRun?.story===STORY_DEFINITION.id?STORY_ROUTE.findIndex(m=>m.id===sectors[level].id):-1;}
 function storyActive(){return storyIndex()>=0;}
 function storyNextLevel(){const next=STORY_ROUTE[storyIndex()+1];return next?sectors.findIndex(s=>s.id===next.id):-1;}
-function prepareStoryMission(){const i=storyIndex();storyMission=i<0?null:{index:i,done:0,charge:0,node:null,guardian:false,complete:false,age:0,extract:null};if(i>=0){const kind=STORY_ROUTE[i].kind;if(kind!=='guardian')window.gpuModels?.prepare([storyMesh(kind==='extraction'?'beacon':kind),...(kind==='extraction'?[storyMesh('raider')]:[])],sectors[level].id);}}
+function prepareStoryMission(){const i=storyIndex();storyMission=i<0?null:{index:i,done:0,charge:0,node:null,guardian:false,complete:false,age:0,extract:null,relayEchoes:[]};if(i>=0){const kind=STORY_ROUTE[i].kind;if(kind!=='guardian')window.gpuModels?.prepare([storyMesh(kind==='extraction'?'beacon':kind),...(kind==='extraction'?[storyMesh('raider')]:[])],sectors[level].id);}}
 function storyCheckpoint(){if(!storyActive()||!storyMission)return null;return{index:storyMission.index,done:storyMission.done,guardian:storyMission.guardian,extract:!!storyMission.extract};}
 function restoreStoryCheckpoint(saved){if(!storyActive()||saved?.index!==storyIndex())return;storyMission.done=Math.max(0,Math.min(3,saved.done||0));storyMission.guardian=!!saved.guardian;if(saved.guardian){bossDefeated=true;transition=4;time=Math.max(time,sectors[level].duration+.01);world=time*SCROLL_SPEED;}if(saved.extract)beginStoryExtraction();}
 function storyObjective(){const m=storyMission,d=STORY_ROUTE[storyIndex()];if(!d||!m)return '';if(m.complete)return 'SIGNAL SHARD SECURED · ROUTE UPDATED';if(m.extract)return `PROTECT BEACON · ${Math.ceil(Math.max(0,32-m.extract.age))}s · INTEGRITY ${m.extract.hp}/6`;
@@ -31,14 +31,14 @@ function storyTarget(){return storyActive()&&STORY_ROUTE[storyIndex()].kind==='s
 const STORY_NO_TARGETS=Object.freeze([]);
 function storyTargets(){if(!storyActive())return STORY_NO_TARGETS;const n=storyTarget();return [...(n&&n.hp>0?[n]:[]),...(storyMission?.extract?.raiders||[]).filter(r=>r.hp>0)];}
 function storyHitTarget(s,target){target.hp-=s.damage;s.seen.add(target);s.spent=true;burst(target.x,target.y,target.storySeal?'#bcefff':'#ffab79',5);if(target.hp<=0){explode(target.x,target.y,target.storySeal?'#bcefff':'#ffa265',target.storySeal?1:.65,false);if(target.storySeal)finishStoryNode();}}
-function finishStoryNode(){const m=storyMission;if(!m||m.done>=3)return;m.done++;m.node=null;m.charge=0;window.flightAudio?.engineerCue?.('link',ship.x);announce(m.done===3?'LINK COMPLETE':`NODE ${m.done} / 3 SECURED`,m.done===3?'RECOVER THE GUARDIAN’S SIGNAL':'NEXT SIGNAL LOCATED',1);saveCheckpoint();}
+function finishStoryNode(){const m=storyMission;if(!m||m.done>=3)return;if(STORY_ROUTE[m.index].kind==='relay'&&m.node)m.relayEchoes.push({...m.node,age:0,number:m.done+1});m.done++;m.node=null;m.charge=0;window.flightAudio?.engineerCue?.('link',ship.x);announce(m.done===3?'LINK COMPLETE':`NODE ${m.done} / 3 SECURED`,m.done===3?'RECOVER THE GUARDIAN’S SIGNAL':'NEXT SIGNAL LOCATED',1);saveCheckpoint();}
 function storyNodePosition(n,dt){
  // Repeating approaches prevent a missed object from blocking the mission.
  n.x-=dt*48;if(n.x< -130)n.x=W+130;
  const solids=obstacles.flatMap(obstacleSolids);let target=n.baseY;const clear=y=>!sceneryBorderContact(n.x,y,78,70)&&solids.every(r=>n.x+78<r.x||n.x-78>r.x+r.w||y+70<r.y||y-70>r.y+r.h);
  if(!clear(target))target=[H/2,250,510,310,450].find(clear)??H/2;n.y+=(target-n.y)*Math.min(1,dt*3);
 }
-function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playing'||sectorBlend)return;const m=storyMission,d=STORY_ROUTE[m.index];m.age+=dt;if(m.complete)return;
+function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playing'||sectorBlend)return;const m=storyMission,d=STORY_ROUTE[m.index];m.age+=dt;for(const echo of m.relayEchoes){echo.age+=dt;echo.x-=48*dt;}m.relayEchoes=m.relayEchoes.filter(e=>e.age<2.2);if(m.complete)return;
  if(['relay','seal','furnace'].includes(d.kind)&&m.done<3&&time>(d.kind==='furnace'?sectors[level].duration:12)){
   if(!m.node){const y=[250,500,360][m.done];m.node={x:W-300,y,baseY:y,hp:42,r:32,storySeal:d.kind==='seal'};}
   storyNodePosition(m.node,dt);
@@ -74,12 +74,45 @@ function storyMesh(kind){
 }
 function drawStoryMission(){
  if(!storyActive()||!storyMission||sectorBlend)return;const m=storyMission,d=STORY_ROUTE[m.index],n=m.node,e=m.extract;
- if(n)drawModel(storyMesh(d.kind),n.x,n.y,1,.12*Math.sin(m.age*.7),.05*Math.sin(m.age),0,m.age,0);
+ if(n)drawModel(storyMesh(d.kind),n.x,n.y,1,(d.kind==='relay'?.3:.12)*Math.sin(m.age*.7),.05*Math.sin(m.age),0,m.age,0);
+ for(const echo of m.relayEchoes){ctx.save();ctx.globalAlpha*=1-navigationEase((echo.age-.65)/1.55);drawModel(storyMesh('relay'),echo.x,echo.y,1,.3*Math.sin(m.age*.7),.05*Math.sin(m.age),0,m.age,0);ctx.restore();}
  if(e){drawModel(storyMesh('beacon'),e.x,e.y,1.3,.1*Math.sin(m.age),0,0,m.age,0);for(const r of e.raiders)drawModel(storyMesh('raider'),r.x,r.y,1,0,0,Math.atan2(e.y-r.y,e.x-r.x),r.age,0);}
  window.gpuModels?.flush(ctx);ctx.save();
- if(n){const c=d.kind==='furnace'?'#ffbe75':'#8de5ee';const halo=ctx.createRadialGradient(n.x,n.y,10,n.x,n.y,100);halo.addColorStop(0,c+'28');halo.addColorStop(1,c+'00');ctx.fillStyle=halo;ctx.fillRect(n.x-100,n.y-100,200,200);ctx.strokeStyle=c+'70';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(n.x,n.y,112,0,TAU);ctx.stroke();ctx.strokeStyle=c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(n.x,n.y,112,-Math.PI/2,-Math.PI/2+TAU*(d.kind==='seal'?1-n.hp/42:m.charge/1.5));ctx.stroke();ctx.fillStyle='#081923dc';ctx.fillRect(n.x-158,n.y+123,316,26);ctx.fillStyle='#e7f8ff';ctx.font='600 14px system-ui';ctx.textAlign='center';ctx.fillText(d.kind==='seal'?'ARCHIVE SEAL · SHOOT':d.kind==='furnace'?'DIVERSION CONTROL · HOLD NEAR':'RELAY · HOLD NEAR',n.x,n.y+142);}
+ for(const echo of m.relayEchoes)drawRelayActivation(echo);
+ if(n&&d.kind==='relay')drawRelaySignal(n,m);
+ if(n&&d.kind!=='relay'){const c=d.kind==='furnace'?'#ffbe75':'#8de5ee';const halo=ctx.createRadialGradient(n.x,n.y,10,n.x,n.y,100);halo.addColorStop(0,c+'28');halo.addColorStop(1,c+'00');ctx.fillStyle=halo;ctx.fillRect(n.x-100,n.y-100,200,200);ctx.strokeStyle=c+'70';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(n.x,n.y,112,0,TAU);ctx.stroke();ctx.strokeStyle=c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(n.x,n.y,112,-Math.PI/2,-Math.PI/2+TAU*(d.kind==='seal'?1-n.hp/42:m.charge/1.5));ctx.stroke();ctx.fillStyle='#081923dc';ctx.fillRect(n.x-158,n.y+123,316,26);ctx.fillStyle='#e7f8ff';ctx.font='600 14px system-ui';ctx.textAlign='center';ctx.fillText(d.kind==='seal'?'ARCHIVE SEAL · SHOOT':d.kind==='furnace'?'DIVERSION CONTROL · HOLD NEAR':'RELAY · HOLD NEAR',n.x,n.y+142);}
  if(e){ctx.strokeStyle='#8df6d7';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,55+Math.sin(m.age*2)*3,0,TAU);ctx.stroke();ctx.fillStyle='#b7ffe8';ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.fillText(`EXTRACTION · ${e.hp}/6`,e.x,e.y+80);for(const r of e.raiders){ctx.strokeStyle='#ffc590';ctx.lineWidth=3;const a=Math.atan2(e.y-r.y,e.x-r.x);ctx.beginPath();ctx.moveTo(r.x-Math.cos(a)*22,r.y-Math.sin(a)*22);ctx.lineTo(r.x-Math.cos(a)*(36+Math.sin(r.age*36)*5),r.y-Math.sin(a)*36);ctx.stroke();}}
  ctx.restore();
+}
+
+// Motion uses simulation time, so pause/travel freeze the signal and its packets.
+// A few paths and dots share the retained relay model; no per-frame asset baking.
+function drawRelaySignal(n,m){
+ const t=m.age,charge=clamp(m.charge/1.5,0,1),near=Math.hypot(ship.x-n.x,ship.y-n.y)<112;
+ ctx.save();ctx.translate(n.x,n.y);
+ const pulse=.5+.5*Math.sin(t*3.4),glow=ctx.createRadialGradient(0,0,6,0,0,70);
+ glow.addColorStop(0,`rgba(157,247,241,${.18+pulse*.12+charge*.18})`);glow.addColorStop(1,'#8de5ee00');ctx.fillStyle=glow;ctx.fillRect(-70,-70,140,140);
+ // Rotating broken bands and outgoing sonar rings make the idle node readable.
+ ctx.lineWidth=2;ctx.strokeStyle='#a3eee9b0';
+ for(let i=0;i<3;i++){const a=t*.8+i*TAU/3;ctx.beginPath();ctx.ellipse(0,0,43,36,.18*Math.sin(t*.7),a,a+.8);ctx.stroke();}
+ for(let i=0;i<2;i++){const u=(t*.48+i*.5)%1;ctx.globalAlpha=(1-u)*.32;ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(0,0,45+u*65,0,TAU);ctx.stroke();}
+ ctx.globalAlpha=1;ctx.strokeStyle=near?'#b6fff18c':'#8de5ee48';ctx.lineWidth=1;ctx.beginPath();ctx.arc(0,0,112,0,TAU);ctx.stroke();
+ ctx.strokeStyle='#c0fff1';ctx.lineWidth=3.5;ctx.beginPath();ctx.arc(0,0,112,-Math.PI/2,-Math.PI/2+TAU*charge);ctx.stroke();
+ ctx.restore();
+ if(near){
+  const ax=n.x,ay=n.y,bx=ship.x,by=ship.y,cx=(ax+bx)/2,cy=(ay+by)/2-18;
+  ctx.save();ctx.strokeStyle='#9cf9e64d';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(ax,ay);ctx.quadraticCurveTo(cx,cy,bx,by);ctx.stroke();ctx.strokeStyle='#baffebc0';ctx.lineWidth=1.3;ctx.stroke();
+  ctx.fillStyle='#e3fff4';for(let i=0;i<4;i++){const u=(t*1.4+i*.25)%1,x=(1-u)**2*ax+2*(1-u)*u*cx+u*u*bx,y=(1-u)**2*ay+2*(1-u)*u*cy+u*u*by;ctx.beginPath();ctx.arc(x,y,2.4,0,TAU);ctx.fill();}ctx.restore();
+ }
+ ctx.save();ctx.fillStyle='#081923ce';ctx.fillRect(n.x-171,n.y+126,342,40);ctx.textAlign='center';ctx.fillStyle='#e7fff7';ctx.font='600 13px system-ui';ctx.fillText(near?`RECONNECTING · ${Math.floor(charge*100)}%`:'EXPEDITION RELAY · HOLD INSIDE RING',n.x,n.y+142);ctx.fillStyle='#9bc5ca';ctx.font='10px system-ui';ctx.fillText(`RECOVER THE TRANSMISSION · ${m.done}/3 LINKED`,n.x,n.y+158);ctx.restore();
+}
+function drawRelayActivation(e){
+ const u=clamp(e.age/2.2,0,1),fade=1-navigationEase(u);
+ ctx.save();ctx.translate(e.x,e.y);ctx.globalAlpha=fade;ctx.strokeStyle='#baffdf';ctx.lineWidth=3*(1-u)+.5;
+ for(let i=0;i<2;i++){const p=clamp((e.age-i*.18)/1.4,0,1);if(p<=0||p>=1)continue;ctx.globalAlpha=fade*(1-p);ctx.beginPath();ctx.arc(0,0,36+p*125,0,TAU);ctx.stroke();}
+ ctx.globalAlpha=fade;ctx.strokeStyle='#c8ffdf';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,43,0,TAU);ctx.stroke();
+ ctx.fillStyle='#defff0';for(let i=0;i<10;i++){const a=i*2.39996,r=34+u*(55+i%3*15);ctx.beginPath();ctx.arc(Math.cos(a)*r,Math.sin(a)*r,1.8*(1-u)+.3,0,TAU);ctx.fill();}
+ ctx.fillStyle='#baffdf';ctx.textAlign='center';ctx.font='600 13px system-ui';ctx.fillText(`RELAY ${e.number} CONNECTED`,0,135-u*16);ctx.restore();
 }
 
 function updateStoryRecovery(r,phase){
