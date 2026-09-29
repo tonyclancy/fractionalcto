@@ -958,7 +958,7 @@ function drawHazards(){if(boss){drawBreath(boss);drawArsenalCharge(boss);}for(co
  if(armed){const angle=h.angle??Math.atan2(h.y-h.startY,-h.x),length=Math.hypot(W,H)+300;ctx.translate(h.x,h.startY);ctx.rotate(angle);glow(c,24);ctx.globalAlpha=.8;poly([[0,-h.width/4],[180,-h.width/2],[length,-h.width/2],[length,h.width/2],[180,h.width/2],[0,h.width/4]],c);ctx.globalAlpha=.95;ctx.strokeStyle='#edfff9';ctx.lineWidth=h.kind==='tech'?22:13;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(length,0);ctx.stroke();orb(0,0,h.kind==='tech'?39:28,'#eee4ff',.7);if(h.kind==='tech')for(let i=0;i<4;i++){const travel=(h.age*2.6+i*.25)%1;orb(length*travel,0,8+travel*4,'#f1eaff',.38);}}
  ctx.restore();}if(boss){if(!bossDesign()&&!bossOrganic()&&bossIndex()!==4)drawBossChamber(boss);drawSpecialWarning(boss)}}
 function moveShot(s,dt){s.age+=dt;s.trail.push({x:s.x,y:s.y});if(s.trail.length>12)s.trail.shift();
- if(s.kind==='missile'){const direction=s.direction||1;let target=typeof isCapitalSiege==='function'&&isCapitalSiege(boss)?capitalShotTarget(s):(boss&&(boss.x-s.x)*direction>0?boss:null);for(const e of enemies){if(e.hp>0&&(e.x-s.x)*direction>-40&&(!target||Math.hypot(e.x-s.x,e.y-s.y)<Math.hypot(target.x-s.x,target.y-s.y)))target=e}if(target){const a=Math.atan2(target.y-s.y,target.x-s.x);s.vx+=(Math.cos(a)*600-s.vx)*Math.min(1,dt*5);s.vy+=(Math.sin(a)*600-s.vy)*Math.min(1,dt*5)}}
+ if(s.kind==='missile'){const direction=s.direction||1;let target=typeof isCapitalSiege==='function'&&isCapitalSiege(boss)?capitalShotTarget(s):(boss&&(boss.x-s.x)*direction>0?boss:null);for(const e of enemies){if(e.hp>0&&(e.x-s.x)*direction>-40&&(!target||Math.hypot(e.x-s.x,e.y-s.y)<Math.hypot(target.x-s.x,target.y-s.y)))target=e}if(typeof storyHomingTarget==='function')target=storyHomingTarget(s,target);if(target){const a=Math.atan2(target.y-s.y,target.x-s.x);s.vx+=(Math.cos(a)*600-s.vx)*Math.min(1,dt*5);s.vy+=(Math.sin(a)*600-s.vy)*Math.min(1,dt*5)}}
  s.x+=s.vx*dt;s.base+=s.vy*dt;s.y=s.kind==='helix'?s.base+Math.sin(s.age*17)*s.side*(23+power*5):s.base;
 }
 function drawProjectile(s){ctx.save();const c=s.c;
@@ -3205,13 +3205,23 @@ function captureNavigationLandscape(){
  if(!navigationLandscapeSnapshot){navigationLandscapeSnapshot=document.createElement('canvas');navigationLandscapeSnapshot.width=W;navigationLandscapeSnapshot.height=H;}
  const c=navigationLandscapeSnapshot.getContext('2d');c.clearRect(0,0,W,H);c.drawImage(ctx.canvas,0,0,W,H);return navigationLandscapeSnapshot;
 }
-function drawPlanetCamera(location,progress,scene=null,pose=null){
+function drawApproachingSystem(location,progress,pose){
+ // Keep the orbital view attached to the planet camera while it gains scale.
+ // Fading a stationary chart immediately exposed bare stars before the slow
+ // start of the planet zoom, producing an apparent flash back to the galaxy.
+ const alpha=1-navigationEase((progress-.12)/.34);if(alpha<=0)return;
+ const anchor=planetCameraPose(location,0),scale=pose.r/anchor.r;
+ ctx.save();ctx.globalAlpha*=alpha;ctx.translate(pose.x,pose.y);ctx.scale(scale,scale);ctx.translate(-anchor.x,-anchor.y);
+ drawMovingSystemChart(expeditionSystem(location),location.destinationId,false);ctx.restore();
+}
+function drawPlanetCamera(location,progress,scene=null,pose=null,approachingSystem=false){
  const p=pose||planetCameraPose(location,progress),surface=p.surface*p.surface*(3-2*p.surface);
  // Composite the complete navigation view once. Fading each of its layers
  // independently let bright scenery bleed through the planet and tint the screen.
  const landscape=surface>0?(scene||captureNavigationLandscape()):null;
- ctx.save();ctx.fillStyle='#020914';ctx.fillRect(0,0,W,H);
+ ctx.save();ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);
  drawNavigationStars();
+ if(approachingSystem)drawApproachingSystem(location,progress,p);
  if(location.centralBlackHole){const t=navigationEase(progress);paintNavigationBlackHole(ctx,W*.5+(W*.78-W*.5)*t,H*.52+(H*.19-H*.52)*t,32+4*t);}
  const anomaly=navigationAnomaly(location);if(anomaly){const t=navigationEase(progress),near=location.anomaly==='black-hole';paintNavigationBlackHole(ctx,W*.5+319*(1-t)+(W*.712-W*.5)*t,H*.52-129*(1-t)+(H*.33-H*.52)*t,24+(near?W*.082-24:4)*t);}
  // Only the selected world is magnified. Its complete disc stays visible long
@@ -3223,8 +3233,8 @@ function drawPlanetCamera(location,progress,scene=null,pose=null){
 }
 function drawPlanetApproach(location,u,showChart=true){
  const smooth=v=>{v=clamp(v,0,1);return v*v*(3-2*v);},system=expeditionSystem(location),dive=clamp((u-.2)/.8,0,1);
- if(u<.2){ctx.save();ctx.fillStyle='#020914';ctx.fillRect(0,0,W,H);drawNavigationStars();drawMovingSystemChart(system,location.destinationId);ctx.restore();}
- else{drawPlanetCamera(location,dive);if(showChart&&dive<.09){ctx.save();ctx.globalAlpha=1-smooth(dive/.09);drawMovingSystemChart(system,location.destinationId);ctx.restore();}}
+ if(u<.2){ctx.save();ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);drawNavigationStars();drawMovingSystemChart(system,location.destinationId);ctx.restore();}
+ else drawPlanetCamera(location,dive,null,null,showChart);
  ctx.save();ctx.globalAlpha*=1-smooth((u-.87)/.10);ctx.fillStyle='#dcfff1';ctx.font='bold 27px monospace';ctx.fillText(u<.2?'ENTERING '+system.name+' SYSTEM':dive>.64?'ENTERING '+location.destinationName+(location.destinationKind==='star'?' CORONA':' ATMOSPHERE'):'DESCENDING TO '+location.destinationName,64,74);ctx.font='13px monospace';ctx.fillStyle='#9abcc6';ctx.fillText(u<.2?systemFocus(system).name+' · '+systemCensusLabel(system):(location.destinationKind==='star'?'STELLAR ORBIT → OUTER CORONA':'ORBIT → ATMOSPHERE → '+(sectors[level].stratum||'SURFACE')),65,102);ctx.restore();
 }
 function drawPlanetDeparture(location,u,showChart=true){
@@ -3370,7 +3380,7 @@ function drawTravelViewport(u){
 function drawPlanetTransit(location,u){
  const origin=sectorBlend?.origin;if(!origin){drawInitialGalaxyEntry(location,u);return;}if(origin.galaxyId!==location.galaxyId){drawGalaxyTransit(origin,location,u);return;}
  if(u<.34){drawPlanetDeparture(origin,u/.34);return;}
- if(u<.53){ctx.save();ctx.fillStyle='#020914';ctx.fillRect(0,0,W,H);drawNavigationStars();drawMovingSystemChart(expeditionSystem(location),location.destinationId);drawTransitRoute(location,origin,.24+(u-.34)/.19*.30);ctx.fillStyle='#dffff1';ctx.font='bold 27px monospace';ctx.fillText(origin.destinationName+'  →  '+location.destinationName,64,74);ctx.restore();return;}
+ if(u<.53){ctx.save();ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);drawNavigationStars();drawMovingSystemChart(expeditionSystem(location),location.destinationId);drawTransitRoute(location,origin,.24+(u-.34)/.19*.30);ctx.fillStyle='#dffff1';ctx.font='bold 27px monospace';ctx.fillText(origin.destinationName+'  →  '+location.destinationName,64,74);ctx.restore();return;}
  // Skip the redundant opening map: it is already on-screen from the route.
  drawPlanetApproach(location,.2+(u-.53)/.47*.8);
 }

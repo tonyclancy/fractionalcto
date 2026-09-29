@@ -11,7 +11,7 @@ const relayStore=createRelayStore(missionPreview?null:runStorage);
 let ferrumMission=null,relayLoadout='standard',relayDebrief=null,relayContinueFlight=null;
 const inFerrumMission=()=>sectors[level].id===FERRUM_RELAY.world;
 function relayLoadoutMarkup(){const unlocked=relayStore.snapshot().unlocked;return `<div class="relay-loadouts" role="group" aria-label="Starting equipment"><button data-relay-loadout="standard" aria-pressed="${relayLoadout==='standard'}">STRIKE KIT <small>3 novas · standard hull</small></button><button data-relay-loadout="support" aria-pressed="${relayLoadout==='support'}" ${unlocked?'':'disabled'}>RECOVERY KIT <small>${unlocked?'2 novas · one emergency hull restore':'Establish the Ferrum relay to unlock'}</small></button></div>`;}
-function relayMissionCard(){const p=relayStore.snapshot();return `<section class="relay-card"><div><span class="eyebrow mint">FERRUM · OPTIONAL MISSION</span><h3>THE LAST ENGINEER</h3><p>Rescue the engineer to keep the Dreadnought’s vulnerable sections open longer: 3.8 seconds instead of 2.4. Win with the engineer aboard to unlock the recovery kit for future flights.</p><div class="relay-route" aria-label="Mission route"><span>01 · RESCUE</span><i>→</i><span>02 · DISMANTLE</span><i>→</i><span class="${p.unlocked?'relay-earned':''}">03 · ${p.unlocked?'RELAY ONLINE':'RESTORE RELAY'}</span></div></div><div><strong>${p.unlocked?'SUPPORT RELAY ONLINE':'A VOICE IN THE FOUNDRY'}</strong><p>${p.unlocked?'Recovery kit available on future flights. A safety net in exchange for one nova.':'Fly into the pod’s green ring to teleport the engineer aboard. No hovering or extra button. Keep flying past to skip the rescue.'}</p>${relayLoadoutMarkup()}${relayContinueFlight?'<button id="relayResume" class="primary">CONTINUE FLIGHT TO NACRE ↗</button>':''}<button id="relayLaunch" class="primary">${p.unlocked?'REPLAY MISSION':'ANSWER THE CALL'} ↗</button><small>${missionPreview?'Local preview · rewards reset on reload':p.durable?'Relay reward saves on this device only.':'Relay reward lasts this session; device saving is unavailable.'}</small></div></section>`;}
+function relayMissionCard(){const p=relayStore.snapshot();return `<section class="relay-card"><div><span class="eyebrow mint">FERRUM · OPTIONAL MISSION</span><h3>THE LAST ENGINEER</h3><p>Rescue the engineer to launch a sabotage drone. It hacks one boss weapon, interrupts its next attack and creates a 4.5-second opening for bonus damage. Win with the engineer aboard to unlock the recovery kit for future flights.</p><div class="relay-route" aria-label="Mission route"><span>01 · RESCUE</span><i>→</i><span>02 · DISMANTLE</span><i>→</i><span class="${p.unlocked?'relay-earned':''}">03 · ${p.unlocked?'RELAY ONLINE':'RESTORE RELAY'}</span></div></div><div><strong>${p.unlocked?'SUPPORT RELAY ONLINE':'A VOICE IN THE FOUNDRY'}</strong><p>${p.unlocked?'Recovery kit available on future flights. A safety net in exchange for one nova.':'Fly into the pod’s green ring to teleport the engineer aboard. No hovering or extra button. Keep flying past to skip the rescue.'}</p>${relayLoadoutMarkup()}${relayContinueFlight?'<button id="relayResume" class="primary">CONTINUE FLIGHT TO NACRE ↗</button>':''}<button id="relayLaunch" class="primary">${p.unlocked?'REPLAY MISSION':'ANSWER THE CALL'} ↗</button><small>${missionPreview?'Local preview · rewards reset on reload':p.durable?'Relay reward saves on this device only.':'Relay reward lasts this session; device saving is unavailable.'}</small></div></section>`;}
 function bindRelayMission(){
  const resume=$('#relayResume');if(resume&&relayContinueFlight)resume.onclick=relayContinueFlight;
  const launch=$('#relayLaunch');if(launch)launch.onclick=()=>beginDescent(sectors.findIndex(s=>s.id===FERRUM_RELAY.world));
@@ -20,7 +20,7 @@ function bindRelayMission(){
 function applyRelayLoadout(){if(relayLoadout==='support'&&relayStore.snapshot().unlocked){novas=2;rescueCharge=1;if(flightRun)flightRun.loadout='relay-recovery';}else if(flightRun)flightRun.loadout='strike';}
 function prepareFerrumMission(){
  relayDebrief=null;relayContinueFlight=null;ferrumMission=null;if(!inFerrumMission())return;
- getRescuePodMesh();
+ getRescuePodMesh();getEngineerDroneMesh();
  const now=time;let route=null;
  // Build a terrain-safe pickup corridor once before flight, never per frame.
  try{time=FERRUM_RELAY.at;route=planRecoveryRoute({x:W+72,y:190,drift:95});}finally{time=now;}
@@ -30,10 +30,10 @@ function ferrumCheckpoint(){return ferrumMission?{status:ferrumMission.boarded?'
 function restoreFerrumCheckpoint(saved){if(!ferrumMission)return;Object.assign(ferrumMission,saved||{});if(time>FERRUM_RELAY.at+18&&!ferrumMission.boarded)ferrumMission.status='missed';}
 function updateFerrumMission(dt){
  const m=ferrumMission;if(!m||!inFerrumMission()||m.complete)return;
- if(!m.warned&&time>=16){m.warned=true;announce('DISTRESS CALL · ENGINEER STRANDED','FLY INTO THE GREEN RING · LONGER BOSS ATTACK WINDOWS',1);}
+ if(!m.warned&&time>=16){m.warned=true;announce('DISTRESS CALL · ENGINEER STRANDED','FLY INTO THE GREEN RING · GAIN A BOSS SABOTAGE DRONE',1);}
  if(m.status==='boarding'){
   m.age+=dt;const u=clamp(m.age/FERRUM_RELAY.boarding,0,1);m.x=m.fromX-95*m.age;m.y=m.fromY;
-  if(u===1){m.status='aboard';burst(ship.x,ship.y,'#b8ffe4',14);window.flightAudio?.signalRecovered?.(.3,false);announce('ENGINEER ABOARD','BOSS WEAK POINTS STAY OPEN LONGER · WIN TO UNLOCK THE RECOVERY KIT',1);}return;
+  if(u===1){m.status='aboard';burst(ship.x,ship.y,'#b8ffe4',14);window.flightAudio?.signalRecovered?.(.3,false);announce('ENGINEER ABOARD','SABOTAGE DRONE READY · ONE BOSS WEAPON CAN BE JAMMED',1);}return;
  }
  if(m.boarded||m.status==='missed'||time<FERRUM_RELAY.at)return;
  m.status='active';m.age=time-FERRUM_RELAY.at;
@@ -65,7 +65,7 @@ function drawFerrumMission(){
  if(ctx.globalAlpha>0){drawModel(getRescuePodMesh(),m.x,m.y,1.25,0,.04*Math.sin(time*2),-.05,time,0);window.gpuModels?.flush(ctx);}ctx.restore();
  if(boarding){drawEngineerTeleport(m.x,m.y,clamp(u/.72,0,1),false);return;}
  ctx.save();ctx.strokeStyle=m.available===false?'#82939a':'#a9f4d4';ctx.lineWidth=2;ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(m.x,m.y,FERRUM_RELAY.radius,0,TAU);ctx.stroke();
- const x=clamp(m.x,160,W-160),y=clamp(m.y+FERRUM_RELAY.radius+23,75,H-48);ctx.globalAlpha=.94;ctx.fillStyle='#081d25';ctx.fillRect(x-153,y-16,306,42);ctx.font='bold 13px sans-serif';ctx.fillStyle='#c8ffe7';ctx.textAlign='center';ctx.fillText(m.available===false?'ENGINEER · WAIT FOR CLEARANCE':'ENGINEER · ENTER RING TO TELEPORT',x,y);ctx.font='12px sans-serif';ctx.fillText('Keeps boss weak points open longer',x,y+18);ctx.restore();
+ const x=clamp(m.x,160,W-160),y=clamp(m.y+FERRUM_RELAY.radius+23,75,H-48);ctx.globalAlpha=.94;ctx.fillStyle='#081d25';ctx.fillRect(x-153,y-16,306,42);ctx.font='bold 13px sans-serif';ctx.fillStyle='#c8ffe7';ctx.textAlign='center';ctx.fillText(m.available===false?'ENGINEER · WAIT FOR CLEARANCE':'ENGINEER · ENTER RING TO TELEPORT',x,y);ctx.font='12px sans-serif';ctx.fillText('Drone jams a boss weapon · attack the opening',x,y+18);ctx.restore();
 }
 // Bounded, deterministic motes: no particle allocation or random flicker per frame.
 function drawEngineerTeleport(x,y,phase,arrival){
@@ -89,12 +89,74 @@ function drawFerrumSupport(){
  const m=ferrumMission;if(!m||m.complete||sectorBlend||!['playing','paused'].includes(state))return;
  if(m.status==='boarding'){drawEngineerTeleport(ship.x,ship.y,clamp((m.age/FERRUM_RELAY.boarding-.28)/.72,0,1),true);return;}
  if(!m.boarded)return;
- let recovery=0;if(boss?.siege)for(const n of boss.siege.nodes)if(capitalNodeActive(boss,n))recovery=Math.max(recovery,n.recovery||0);
+ const support=boss?.siege?.engineer,node=support&&boss.siege.nodes.find(n=>n.id===support.target),phase=support?.phase||'ready';
+ drawEngineerDrone(boss,support);
+ const title={ready:'ENGINEER · SABOTAGE DRONE READY',deploying:'ENGINEER · DRONE APPROACHING WEAPON',hacking:'ENGINEER · HACKING WEAPON',armed:'ENGINEER · WAITING TO INTERRUPT ATTACK',disabled:'ENGINEER · WEAPON JAMMED — ATTACK NOW',returning:'ENGINEER · DRONE RETURNING',spent:'ENGINEER · SABOTAGE COMPLETE'}[phase];
+ const detail=phase==='disabled'?'Bonus damage · '+Math.max(0,node?.sabotage||0).toFixed(1)+'s remaining':phase==='hacking'?'Link established · '+Math.floor(clamp(support.age/1.4,0,1)*100)+'%':phase==='spent'?'One intervention used · win to unlock the Recovery Kit':'One weapon interruption · other boss weapons remain active';
  const x=24,y=H-104;
- ctx.save();ctx.fillStyle='rgba(5,22,28,.82)';ctx.fillRect(x,y,356,62);ctx.fillStyle=recovery>0?'#c8ffe7':'#92cbb8';ctx.fillRect(x,y,3,62);ctx.textAlign='left';ctx.font='bold 13px sans-serif';ctx.fillText(recovery>0?'ENGINEER · WEAK POINT HELD OPEN':'ENGINEER ABOARD',x+14,y+21);ctx.font='12px sans-serif';ctx.fillText(recovery>0?'Attack now · '+recovery.toFixed(1)+'s remaining':'Boss attack windows: 3.8s instead of 2.4s',x+14,y+41);ctx.restore();
+ ctx.save();ctx.fillStyle='rgba(5,22,28,.82)';ctx.fillRect(x,y,390,62);ctx.fillStyle=phase==='disabled'?'#c8ffe7':'#92cbb8';ctx.fillRect(x,y,3,62);ctx.textAlign='left';ctx.font='bold 13px sans-serif';ctx.fillText(title,x+14,y+21);ctx.font='12px sans-serif';ctx.fillText(detail,x+14,y+41);ctx.restore();
 }
 
 function ferrumEngineerAboard(){return !!ferrumMission?.boarded&&inFerrumMission();}
+// One intervention per encounter. The siege owns this transient state, so a
+// checkpoint retry restarts the fight without granting permanent combat buffs.
+function updateEngineerSabotage(b,dt){
+ if(!ferrumEngineerAboard()||ferrumMission.complete||state!=='playing'||sectorBlend||b.entry||b.hp<=0)return;
+ const siege=b.siege;if(!siege)return;
+ let d=siege.engineer;
+ if(!d){
+  const candidates=siege.nodes.filter(n=>capitalNodeActive(b,n));
+  const target=candidates.sort((a,z)=>Math.hypot(capitalNodePosition(b,a).x-ship.x,capitalNodePosition(b,a).y-ship.y)-Math.hypot(capitalNodePosition(b,z).x-ship.x,capitalNodePosition(b,z).y-ship.y))[0];
+  if(!target||b.x>W-80)return;
+  d=siege.engineer={phase:'deploying',target:target.id,age:0,x:ship.x,y:ship.y-36,fromX:ship.x,fromY:ship.y-36,used:false};
+  window.flightAudio?.engineerCue?.('launch',ship.x);
+ }
+ if(d.phase==='spent')return;
+ const n=siege.nodes.find(n=>n.id===d.target);d.age+=dt;
+ if(d.phase!=='returning'&&(!n||!capitalNodeActive(b,n))){d.phase='returning';d.age=0;d.fromX=d.x;d.fromY=d.y;}
+ if(d.phase==='returning'){
+  const t=navigationEase(d.age/1.1);d.x=d.fromX+(ship.x-d.fromX)*t;d.y=d.fromY+(ship.y-d.fromY)*t-40*Math.sin(t*Math.PI);
+  if(d.age>=1.1){if(d.used)d.phase='spent';else siege.engineer=null;}return;
+ }
+ const p=capitalNodePosition(b,n);
+ if(d.phase==='deploying'){
+  const t=navigationEase(d.age/1.25);d.x=d.fromX+(p.x-d.fromX)*t;d.y=d.fromY+(p.y-d.fromY)*t-75*Math.sin(t*Math.PI);
+  if(d.age>=1.25){d.phase='hacking';d.age=0;window.flightAudio?.engineerCue?.('link',p.x);}return;
+ }
+ d.x=p.x;d.y=p.y;
+ if(d.phase==='hacking'&&d.age>=1.4){d.phase='armed';d.age=0;}
+ // Intercept queued attacks before the gun/discharge update. Rounds already
+ // flying and all other weapons are untouched; sealed armor stays sealed.
+ if(d.phase==='armed'&&(n.warning>0||n.burst>0||n.special)){
+  n.warning=0;n.burst=0;n.muzzle=0;n.special=null;n.target=null;n.sabotage=4.5;n.clock=.7;
+  d.phase='disabled';d.age=0;d.used=true;burst(p.x,p.y,'#9dffe1',20);
+  window.flightAudio?.engineerCue?.('jam',p.x);updateHUD();
+ }else if(d.phase==='disabled'&&!(n.sabotage>0)){
+  d.phase='returning';d.age=0;d.fromX=d.x;d.fromY=d.y;window.flightAudio?.engineerCue?.('return',p.x);
+ }
+}
+let engineerDroneMesh=null;
+function getEngineerDroneMesh(){
+ if(engineerDroneMesh)return engineerDroneMesh;const m=meshBuilder();
+ m.ellipsoid(0,0,0,15,9,8,[103,133,144],0,16,10);
+ m.ellipsoid(-3,-2,-7,8,5,3,[43,73,86],.1,12,8);
+ m.ellipsoid(7,0,-8,3,3,2,[122,255,213],.65,8,6);
+ for(const side of [-1,1]){m.tube([[-9,side*5,0],[-17,side*13,0],[-5,side*17,-6],[4,side*12,-10]],1.8,[189,178,142]);m.ellipsoid(-12,side*6,2,3,3,3,[67,202,230],.6,8,6);}
+ engineerDroneMesh=m.faces;engineerDroneMesh.industrial=true;return engineerDroneMesh;
+}
+function drawEngineerDrone(b,d){
+ if(d?.phase==='spent')return;
+ const attached=d&&['hacking','armed','disabled'].includes(d.phase),n=attached&&b.siege.nodes.find(n=>n.id===d.target),p=n?capitalNodePosition(b,n):d||{x:ship.x-30*shipDirection(),y:ship.y-47+Math.sin(time*3)*4};
+ const docking=d?.phase==='returning'?1-.65*clamp(d.age/1.1,0,1):1,pose=attached?bossFlightPose(b):{yaw:0,roll:0,pitch:.1*Math.sin(time*4)};
+ drawModel(getEngineerDroneMesh(),p.x,p.y,1.25*docking,pose.yaw,pose.roll,pose.pitch,time,0);window.gpuModels?.flush(ctx);
+ ctx.save();ctx.strokeStyle='#a3ffe3';ctx.lineWidth=2;
+ if(attached){
+  const progress=d.phase==='hacking'?clamp(d.age/1.4,0,1):d.phase==='disabled'?clamp(n.sabotage/4.5,0,1):1;
+  ctx.globalAlpha=.8;ctx.beginPath();ctx.arc(p.x,p.y,29,-Math.PI/2,-Math.PI/2+TAU*progress);ctx.stroke();
+  if(d.phase==='hacking'||d.phase==='disabled')for(let i=0;i<6;i++){const t=(d.age*1.6+i/6)%1,a=i*2.399;ctx.globalAlpha=(1-t)*.75;const r=19+t*28;ctx.beginPath();ctx.moveTo(p.x+Math.cos(a)*r,p.y+Math.sin(a)*r);ctx.lineTo(p.x+Math.cos(a)*(r+6),p.y+Math.sin(a)*(r+6));ctx.stroke();}
+ }
+ ctx.restore();
+}
 function finishFerrumMission(b){
  const m=ferrumMission;if(!m||m.complete||!inFerrumMission()||b!==boss||b.hp>0)return;
  m.complete=true;const earned=m.boarded&&!!flightRun,fresh=earned?relayStore.unlock():false;

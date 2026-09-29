@@ -260,11 +260,12 @@ function capitalNodeActive(b,n){const siege=initCapitalSiege(b);return n.hp>0&&(
 function capitalNodeArmed(b,n){return n.hp>0&&(capitalNodeActive(b,n)||n.id==='core'&&b.siege.nodes.slice(0,2).some(p=>p.hp<=0));}
 function capitalSiegeHint(b){
  const s=initCapitalSiege(b);
+ if(s.nodes.some(n=>n.sabotage>0&&capitalNodeActive(b,n)))return 'ENGINEER JAMMED A WEAPON · ATTACK THE MARKED ASSEMBLY';
  if(s.stagger>0)return 'SECTION RUPTURED · REPOSITION WHILE GUNS REBOOT';
  const special=s.nodes.find(n=>n.special)?.special;
  if(special)return special.kind==='purge'?'THRUSTER IGNITION · CLEAR THE EXHAUST':'CAPACITOR DISCHARGE · FOLLOW THE DARK GAP';
  if(s.stage==='batteries')return 'STABILIZER PODS · '+s.nodes.slice(0,2).filter(n=>n.hp>0).length+' REMAIN';
- if(s.nodes.some(n=>capitalNodeActive(b,n)&&n.recovery>0))return typeof ferrumEngineerAboard==='function'&&ferrumEngineerAboard()?'ENGINEER HOLDING WEAK POINT OPEN · ATTACK NOW':'MACHINERY OVERHEATED · LAND FOLLOW-UP SHOTS FOR EXTRA DAMAGE';
+ if(s.nodes.some(n=>capitalNodeActive(b,n)&&n.recovery>0))return 'MACHINERY OVERHEATED · LAND FOLLOW-UP SHOTS FOR EXTRA DAMAGE';
  if(s.stage==='core')return 'COMMAND CORE EXPOSED · ATTACK THE BOW';
  const node=s.nodes[2],p=capitalNodePosition(b,node),tip=bossMount(b,[node.local[0]+20,node.local[1],node.local[2]]),dx=tip.x-p.x,dy=tip.y-p.y;
  if(Math.abs(dx)<Math.hypot(dx,dy)*.7||['turn','resetTurn'].includes(s.maneuver?.stage))return 'AFT REACTOR · FOLLOW THE STERN AS IT TURNS';
@@ -339,7 +340,7 @@ function hitCapitalSection(s,limit=1,start){
 }
 // Exhaust/discharge leaves the exposed machinery hot. Accurate follow-up fire
 // earns faster progress; total authored health and nova damage stay unchanged.
-function capitalSectionDamageScale(n){return n.recovery>0?1.75:1;}
+function capitalSectionDamageScale(n){return n.recovery>0||n.sabotage>0?1.75:1;}
 function capitalBodyDamage(){return 0;}
 function capitalNovaDamage(b,amount){
  if(!isCapitalSiege(b))return false;initCapitalSiege(b);const targets=b.siege.nodes.filter(n=>capitalNodeActive(b,n));
@@ -406,18 +407,19 @@ function updateCapitalDischarges(b,dt){
  for(const node of siege.nodes){const a=node.special;if(!a||!capitalNodeActive(b,node))continue;const previous=a.age;a.age+=dt;
   if(previous<a.warning&&a.age>=a.warning){const frame=capitalDischargeFrame(b,a.kind);if(a.kind==='purge')window.flightAudio?.thrusterBurst?.(a.duration);else window.flightAudio?.laserBeam(.35);if(a.kind==='pulse')siege.pulses.push({...frame,age:0,r:28,width:18,gap:a.gap,life:1.9});}
   if(a.kind==='purge'&&a.age>=a.warning&&a.age<a.warning+a.duration&&capitalPurgeContact(capitalDischargeFrame(b,a.kind),ship.x,ship.y))damage();
-  if(a.age>=a.warning+a.duration){node.special=null;node.recovery=typeof ferrumEngineerAboard==='function'&&ferrumEngineerAboard()?3.8:2.4;}
+  if(a.age>=a.warning+a.duration){node.special=null;node.recovery=2.4;}
  }
  for(const pulse of siege.pulses){pulse.age+=dt;pulse.r=28+pulse.age*510;if(capitalPulseContact(pulse,ship.x,ship.y))damage();}
  siege.pulses=siege.pulses.filter(p=>p.age<p.life);
 }
 function updateCapitalSiege(b,dt){
  const s=initCapitalSiege(b);s.age+=dt;b.charge=0;b.attack=null;b.special=Infinity;
- for(const n of s.nodes)n.recovery=Math.max(0,(n.recovery||0)-dt);
+ for(const n of s.nodes){n.recovery=Math.max(0,(n.recovery||0)-dt);const disabled=n.sabotage>0;n.sabotage=Math.max(0,(n.sabotage||0)-dt);if(disabled&&n.sabotage===0){n.warning=0;n.burst=0;n.special=null;n.target=null;n.clock=.7;}}
+ if(typeof updateEngineerSabotage==='function')updateEngineerSabotage(b,dt);
  updateCapitalDischarges(b,dt);
  if(s.stagger>0){s.stagger=Math.max(0,s.stagger-dt);b.siegeLoad=0;b.siegeStrike=false;return;}
  if(s.maneuver?.stage==='lunge'){b.siegeLoad=1;b.siegeStrike=false;return;}
- for(const n of s.nodes){n.hit=Math.max(0,n.hit-dt);n.muzzle=Math.max(0,n.muzzle-dt);if(!capitalNodeArmed(b,n)||(b.x<0||b.x>W)||n.special)continue;const covering=!capitalNodeActive(b,n),lastBattery=s.stage==='batteries'&&s.nodes.slice(0,2).filter(p=>p.hp>0).length===1;
+ for(const n of s.nodes){n.hit=Math.max(0,n.hit-dt);n.muzzle=Math.max(0,n.muzzle-dt);if(!capitalNodeArmed(b,n)||n.sabotage>0||(b.x<0||b.x>W)||n.special)continue;const covering=!capitalNodeActive(b,n),lastBattery=s.stage==='batteries'&&s.nodes.slice(0,2).filter(p=>p.hp>0).length===1;
   if(n.target){const gun=capitalGunMounts(b,n)[0],axis=gun.heading-(n.aimOffset||0),desired=Math.atan2(n.target.y-gun.baseY,n.target.x-gun.baseX),offset=clamp(Math.atan2(Math.sin(desired-axis),Math.cos(desired-axis)),-.65,.65);n.aimOffset=(n.aimOffset||0)+clamp(offset-(n.aimOffset||0),-dt*2,dt*2);}
   if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=covering?3:n.id==='core'||lastBattery?6:4;n.burstClock=0;}}
   if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){n.muzzle=.17;const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?920:n.id==='reactor'?820:850,seeking=n.id!=='reactor'&&n.cycle%3===0&&n.burst===1;
@@ -428,7 +430,7 @@ function updateCapitalSiege(b,dt){
     else{n.target={x:ship.x,y:ship.y};n.warning=covering?1:.8;}
    }}
  }
- const active=s.nodes.filter(n=>capitalNodeArmed(b,n));b.siegeLoad=active.reduce((load,n)=>Math.max(load,n.special?Math.min(1,n.special.age/n.special.warning):n.warning>0?1-n.warning/.8:n.burst>0?1:0),0);b.siegeStrike=active.some(n=>n.burst>0||n.special&&n.special.age>=n.special.warning);
+ const active=s.nodes.filter(n=>capitalNodeArmed(b,n)&&!(n.sabotage>0));b.siegeLoad=active.reduce((load,n)=>Math.max(load,n.special?Math.min(1,n.special.age/n.special.warning):n.warning>0?1-n.warning/.8:n.burst>0?1:0),0);b.siegeStrike=active.some(n=>n.burst>0||n.special&&n.special.age>=n.special.warning);
 }
 function capitalIgnitionFlash(a){const remaining=a.warning-a.age;return remaining>0&&remaining<.24?Math.sin((.24-remaining)/.24*Math.PI)**2:0;}
 function drawCapitalDischarges(b){
@@ -526,11 +528,11 @@ function drawCapitalSiege(b){
  for(const n of s.nodes){if(n.hp<=0)continue;const p=capitalNodePosition(b,n),active=capitalNodeActive(b,n);
   if(active){
    const above=n.id==='dorsal'||n.id==='core',yy=clamp(p.y+(above?-1:1)*(n.radius+22),35,H-40),label=n.id==='dorsal'?'UPPER STABILIZER':n.id==='ventral'?'LOWER STABILIZER':n.id==='reactor'?'AFT REACTOR':'COMMAND CORE';
-   const labelY=yy+(above?-9:19),labelX=clamp(p.x,86,W-86);
+   const nearHeader=above&&yy<125,barY=nearHeader?Math.max(138,p.y-15):yy,labelY=barY+(above?-9:19),labelX=clamp(p.x+(nearHeader?n.radius+118:0),86,W-86);
    if(n.recovery>0)orb(p.x,p.y,n.radius*.7,'#93ffdd',.28+.1*Math.sin(b.age*14));
    ctx.fillStyle='rgba(3,15,23,.87)';ctx.fillRect(labelX-81,labelY-13,162,19);
-   ctx.font='bold 12px "DM Sans",sans-serif';ctx.fillStyle='#d4fff0';ctx.fillText(n.recovery>0?'OVERHEATED · FIRE':label,labelX,labelY);
-   healthBar(labelX,yy,92,n.hp,n.max,'#8fffd5');
+   ctx.font='bold 12px "DM Sans",sans-serif';ctx.fillStyle='#d4fff0';ctx.fillText(n.sabotage>0?'JAMMED · FIRE':n.recovery>0?'OVERHEATED · FIRE':label,labelX,labelY);
+   healthBar(labelX,barY,92,n.hp,n.max,'#8fffd5');
    // Short corners mark the physical target without another spinning ring.
    // Mint means vulnerable; amber muzzle light remains the attack warning.
    const r=n.radius+9;ctx.strokeStyle='#91ffdb';ctx.lineWidth=2;ctx.globalAlpha=.85;

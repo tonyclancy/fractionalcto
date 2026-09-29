@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 72987518,
+  "bytes": 73016836,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 453231,
-      "sha256": "6572a55968624ed4f56d5101f1a8029011f42db44e9102bceb3c5268674375df"
+      "bytes": 453923,
+      "sha256": "d496be4a32465623cb453bdb298a0b08bb5020506c6e7d4cf60302745571e0a4"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1576,8 +1576,8 @@
     },
     {
       "path": "audio.js",
-      "bytes": 84353,
-      "sha256": "24b4b739dfe0e64d21bfb9310b5408169a1d24773fd45474b9962d0945218755"
+      "bytes": 85142,
+      "sha256": "3e718e4f8d2fa8e928a59a78a98c0338810da86d5613bd9f1913f0097eccf3a2"
     },
     {
       "path": "authored-assets.js",
@@ -1596,8 +1596,8 @@
     },
     {
       "path": "capital-ship.js",
-      "bytes": 46193,
-      "sha256": "40d55a4179cb61fb1f7da9c72dc3b1fe21daa4d64ed8df8c14ad6edf20a1ad21"
+      "bytes": 46546,
+      "sha256": "b050b8185428bda29366068234bede50cfe2b891ea8e9ea4382c909778583e08"
     },
     {
       "path": "cloud-config.js",
@@ -1606,33 +1606,33 @@
     },
     {
       "path": "collection-sync.js",
-      "bytes": 8555,
-      "sha256": "6e3ec719036aba10373d4805ad37edc37352586b5f66c6f6aa539bb7d4797e2b"
+      "bytes": 8964,
+      "sha256": "119319ad129e5a183a77e5299d68a083dcd905aa90f632e8dd3c3f622c1c304e"
     },
     {
       "path": "collection-ui.js",
-      "bytes": 5747,
-      "sha256": "9a56558b34607772d31c97d17a82d8c6c4e210cdd4c28e0b8dcfbe4ed54ec648"
+      "bytes": 6050,
+      "sha256": "d43431df8b5348de033fef04fd667bb9fd063326f63adb0432c8ae7bfeb4998f"
     },
     {
       "path": "ferrum-mission.js",
-      "bytes": 12805,
-      "sha256": "61ba706aca208a0d83cc27561b86c85b7eb7c24a3e5e42bc3950af332af30432"
+      "bytes": 17318,
+      "sha256": "3315f807651fc87688ed56b59a0bd7692fa643798d351e83b2720d23be3ae3d1"
     },
     {
       "path": "game.js",
-      "bytes": 103991,
-      "sha256": "9a7e08fbef5f1203188cd8ade0bb93e5112a34c5f2c1825ff6b1882ceb373d7e"
+      "bytes": 106536,
+      "sha256": "e8ef861275febbe382400ad95fb83612f3ab4f262808b0d7aff07f7165319838"
     },
     {
       "path": "index.html",
-      "bytes": 6835,
-      "sha256": "f9434cd24bb7889633261c442c4a631e3f1976c375669dc9c262134f8a610707"
+      "bytes": 6730,
+      "sha256": "ca37e0e86966e9ea6df336e97e2f19d98ba3b90d11be5eeeed70b24e9c4e423f"
     },
     {
       "path": "levels.js",
-      "bytes": 113766,
-      "sha256": "f187105165636538bc359f546f1f14d6f4a4a41aa5f4fea6403f18d4433c092d"
+      "bytes": 113769,
+      "sha256": "01d02671fa49e874de0e8e1cb4efa0084ac40f1ed5c2741b256a672daa24cf96"
     },
     {
       "path": "manifest.webmanifest",
@@ -1656,8 +1656,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 42192,
-      "sha256": "354e78a3ed90214f5060bd062bdc0f8dcf70e4aa01bcc63ba1f4a2b3a986cef5"
+      "bytes": 42212,
+      "sha256": "ebe0eaf68dd006429f78c88ce9f56c7f99349d93e78e5349c11b384f8307bac1"
     },
     {
       "path": "runs.js",
@@ -1675,9 +1675,14 @@
       "sha256": "8cce157d269278dffa880662e3662d3d278e4d6de13c7c49c5933a87398d8316"
     },
     {
+      "path": "story-campaign.js",
+      "bytes": 18249,
+      "sha256": "8813faa37331e32fa2b5e6e47ea25e2d5992b55f6485874318243af96bfd99c6"
+    },
+    {
       "path": "style.css",
-      "bytes": 47284,
-      "sha256": "ba47deb8d9a7f1d8462f5f0b6952199f402ffadd90462de0476624e4353e96d2"
+      "bytes": 48831,
+      "sha256": "766ace6e7ec766252053aed71286b38d65fc4c0d96506581369acfba20572f39"
     },
     {
       "path": "tide-encounter.js",

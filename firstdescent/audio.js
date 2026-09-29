@@ -832,6 +832,18 @@ window.flightAudio=(()=>{
   for(let i=0;i<3;i++)noise({priority:5,duration:.024+i*.007,gain:.05-i*.01,cutoff:1900-i*300,end:500,pan,offset:.075+i*.045});
  }
  function setSignalProgress(value){signalProgress=Math.max(0,Math.min(1,Number(value)||0));}
+ function engineerCue(kind,x=720){
+  if(!enabled||!context||context.state!=='running')return;
+  const pan=Math.max(-.7,Math.min(.7,(x/1440-.5)*1.4));
+  if(kind==='jam'){
+   duckMusic(.78,.35);
+   noise({duration:.24,gain:.10,cutoff:2200,end:420,body:true,pan,priority:5});
+   note({frequency:230,end:58,duration:.55,gain:.14,type:'triangle',cutoff:1100,pan,priority:5});
+   for(let i=0;i<2;i++)note({frequency:660+i*220,duration:.18,gain:.05,type:'sine',offset:.08+i*.13,pan,priority:5});
+  }else if(kind==='link'){
+   for(let i=0;i<3;i++)note({frequency:330+i*110,duration:.13,gain:.04,type:'sine',offset:i*.17,pan,priority:5});
+  }else note({frequency:kind==='launch'?110:440,end:kind==='launch'?390:180,duration:.4,gain:.075,type:'triangle',cutoff:1700,pan,priority:5});
+ }
  function signalRecovered(progress=0,systemComplete=false){
   if(!enabled||!context||context.state!=='running')return;
   const chord=sectorTrack<0?[52,55,59]:currentSectorTheme().chords[0];duckMusic(.72,.65);
@@ -890,5 +902,5 @@ window.flightAudio=(()=>{
   noise({duration:profile.length*.85,hold:.065,gain:.10+force*.02,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
   noise({duration:.30,gain:.028,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
- return{init,setSignalProgress,signalRecovered,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,impact,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,status:()=>({enabled,musicEnabled,musicPlaying:musicTimer!==null,state:context?.state||'locked'}),stats:()=>{sweepVoices();let musicVoices=0;const byPriority=[0,0,0,0,0,0,0];for(const group of [voices,releasing])for(const v of group){if(v.music)musicVoices++;byPriority[v.priority]++;}const total=voices.size+releasing.size;return{mixVersion:16,musicTheme:currentBuffer?'Dark Current':'synthesized',musicAssetState:currentLoad,musicLoopSeconds:currentBuffer?Math.min(currentLoopSeconds,currentBuffer.duration):0,musicPosition:currentSource?(currentOffset+context.currentTime-currentStarted)%currentSource.loopEnd:currentOffset,musicBpm:currentBuffer?currentBpm:sectorTrack<0?148:currentSectorTheme().bpm,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:total,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices,effectsVoices:total-musicVoices,voiceLimit,musicLimit,byPriority,...voiceCounters}}};
+ return{init,setSignalProgress,signalRecovered,engineerCue,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,swim,wingbeat,note,explosion,pickup,shipHit,impact,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,status:()=>({enabled,musicEnabled,musicPlaying:musicTimer!==null,state:context?.state||'locked'}),stats:()=>{sweepVoices();let musicVoices=0;const byPriority=[0,0,0,0,0,0,0];for(const group of [voices,releasing])for(const v of group){if(v.music)musicVoices++;byPriority[v.priority]++;}const total=voices.size+releasing.size;return{mixVersion:16,musicTheme:currentBuffer?'Dark Current':'synthesized',musicAssetState:currentLoad,musicLoopSeconds:currentBuffer?Math.min(currentLoopSeconds,currentBuffer.duration):0,musicPosition:currentSource?(currentOffset+context.currentTime-currentStarted)%currentSource.loopEnd:currentOffset,musicBpm:currentBuffer?currentBpm:sectorTrack<0?148:currentSectorTheme().bpm,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:total,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices,effectsVoices:total-musicVoices,voiceLimit,musicLimit,byPriority,...voiceCounters}}};
 })();
