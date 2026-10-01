@@ -65,6 +65,7 @@ function drawFerrumMission(){
  if(ctx.globalAlpha>0){drawModel(getRescuePodMesh(),m.x,m.y,1.25,0,.04*Math.sin(time*2),-.05,time,0);window.gpuModels?.flush(ctx);}ctx.restore();
  if(boarding){drawEngineerTeleport(m.x,m.y,clamp(u/.72,0,1),false);return;}
  ctx.save();ctx.strokeStyle=m.available===false?'#82939a':'#a9f4d4';ctx.lineWidth=2;ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(m.x,m.y,FERRUM_RELAY.radius,0,TAU);ctx.stroke();
+ if(typeof openingMissionPlan==='function'&&openingMissionPlan()&&$('#rescueTarget')){ctx.restore();return;}
  const x=clamp(m.x,160,W-160),y=clamp(m.y+FERRUM_RELAY.radius+23,75,H-48);ctx.globalAlpha=.94;ctx.fillStyle='#081d25';ctx.fillRect(x-153,y-16,306,42);ctx.font='bold 13px sans-serif';ctx.fillStyle='#c8ffe7';ctx.textAlign='center';ctx.fillText(m.available===false?'ENGINEER · WAIT FOR CLEARANCE':'ENGINEER · ENTER RING TO TELEPORT',x,y);ctx.font='12px sans-serif';ctx.fillText('Drone jams a boss weapon · attack the opening',x,y+18);ctx.restore();
 }
 // Bounded, deterministic motes: no particle allocation or random flicker per frame.

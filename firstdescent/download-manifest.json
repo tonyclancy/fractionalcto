@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 73049385,
+  "bytes": 73313705,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 464023,
-      "sha256": "feedf63a13581531af6a63f6e4bcb7f6adde37b4ec14aeb38179104691396102"
+      "bytes": 464153,
+      "sha256": "d5c972995f3fe2292f7ed77f17fe0c902cf971b39e52e44845f18d5108b65840"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -573,6 +573,11 @@
       "path": "assets/planet-veyra-v2.webp",
       "bytes": 318340,
       "sha256": "119749bef0ddf235fc8c391251079c6a1d9fccd1de1cbc6370e8b7f084995137"
+    },
+    {
+      "path": "assets/portal-home-v170.webp",
+      "bytes": 229812,
+      "sha256": "e423833a393c1a739ed67cf6ec4d2ea43385ab3e9819a89cc0f7d604060c790b"
     },
     {
       "path": "assets/reef-descent-thumb.webp",
@@ -1576,8 +1581,8 @@
     },
     {
       "path": "audio.js",
-      "bytes": 85142,
-      "sha256": "3e718e4f8d2fa8e928a59a78a98c0338810da86d5613bd9f1913f0097eccf3a2"
+      "bytes": 88426,
+      "sha256": "039bd91ca5a648dd6e563b879d69ce9ee6a90c0c38d27e57c477fb17e322ce63"
     },
     {
       "path": "authored-assets.js",
@@ -1616,23 +1621,23 @@
     },
     {
       "path": "ferrum-mission.js",
-      "bytes": 17318,
-      "sha256": "3315f807651fc87688ed56b59a0bd7692fa643798d351e83b2720d23be3ae3d1"
+      "bytes": 17427,
+      "sha256": "dde004db198c23aa862f86ab589594f14f8042dcf43c4a03efd8ac1ed8532ea3"
     },
     {
       "path": "game.js",
-      "bytes": 108885,
-      "sha256": "1477e4595ee2ab3c22c218068669bf2cb8567eaaeb2f7701ee23b30ac485bb26"
+      "bytes": 110063,
+      "sha256": "50eb874ab9c6f6fbc21f776f14ff2f580e70dc224eaa5f942a2d670bf532d030"
     },
     {
       "path": "index.html",
-      "bytes": 6727,
-      "sha256": "426fc8d2c4d20ebb24aac09e5f5a08217572ee1bd8c4f59a158aa61354f86b73"
+      "bytes": 7251,
+      "sha256": "53ac6024d662da9a80d76117407968a9c4f668d86b619e4c1afec6b31b5ba39e"
     },
     {
       "path": "levels.js",
       "bytes": 113769,
-      "sha256": "3149e3ce362ed0e50e1d9ed4a4d236c3285e3b80ac949ec95ce55957a014419b"
+      "sha256": "dfad7d294bb37ab188e8d4e7fb455791a2bd6eb0928954e13cc428350d50a5d8"
     },
     {
       "path": "manifest.webmanifest",
@@ -1676,13 +1681,13 @@
     },
     {
       "path": "story-campaign.js",
-      "bytes": 31909,
-      "sha256": "233639aab186714d58978ead7813f2c13adf01963cb87566be2bbd44cc09f592"
+      "bytes": 55199,
+      "sha256": "8f612032cd09d4b4bac0168af11133053b98d8e9ade7cac58f7d1d8e2fd67f0b"
     },
     {
       "path": "style.css",
-      "bytes": 55274,
-      "sha256": "472a64d5f5d3bb865710fae74be6dff253b37766feb19f8dafd10c421ea05712"
+      "bytes": 61267,
+      "sha256": "82967d48da0ad2baba404d6bb40ce5047ee51e1499e1594302c1ec872cc192ba"
     },
     {
       "path": "tide-encounter.js",

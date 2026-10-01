@@ -49,7 +49,7 @@ function bossArsenal(definition){return BOSS_ARSENALS[definition.arsenal||bossEn
 // Shared tuning keeps future encounters within the same learnable combat rhythm.
 const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.05,specialRest:1,hitGrace:1.25,shieldGrace:.85,enemySpeed:1.14,enemyCadence:.82,enemyProjectileSpeed:1.10,breathTracking:.55,enemyWindup:.48,enemyShotClearance:180});
 const WATER_HANDLING=freezeContent({pilotSpeed:.9,acceleration:.065,braking:.09,reversal:.05,touchBuffer:.04,enemyMotion:.78,bossMotion:.84});
-const GAME_RULESET='2026-09-origin-campaign-v166';
+const GAME_RULESET='2026-10-homeward-finale-v170';
 const CAMPAIGN_ID='vanguard-main';
 function validateLevels(definitions){
  const ids=new Set(),loot=new Set(['orb','speed','power','helix','wave','beam','missile','spread','companion','shield','frontShield','repair','nova','rescue']);

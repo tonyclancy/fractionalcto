@@ -401,7 +401,7 @@ function healthBar(x,y,w,hp,max,color){
 }
 // Route against authored scenery even before either actor enters the viewport.
 let routeCache=null;
-function routeObstacles(){if(routeCache?.time===time&&routeCache.level===level&&routeCache.source===obstacles&&routeCache.length===obstacles.length)return routeCache.value;const all=themeIndex()===0?obstacles.map(o=>({...o,navigation:true,solidCache:null})):obstacles.slice();const c=sectors[level].challenge;if(c&&c.at-4>time&&c.at-4<time+9)all.push({at:c.at-4,x:W+100-(time-c.at+4)*SCROLL_SPEED,shutters:true});for(const [id,p] of gatePlans[level].entries())if(p.at>time&&p.at<time+9)all.push({...p,id,navigation:themeIndex()===0,x:W+100-(time-p.at)*SCROLL_SPEED,w:p.width});routeCache={time,level,source:obstacles,length:obstacles.length,value:all};return all;}
+function routeObstacles(){if(routeCache?.time===time&&routeCache.level===level&&routeCache.source===obstacles&&routeCache.length===obstacles.length)return routeCache.value;const all=themeIndex()===0?obstacles.map(o=>({...o,navigation:true,solidCache:null})):obstacles.slice();const c=typeof openingMissionPlan==='function'&&openingMissionPlan()?null:sectors[level].challenge;if(c&&c.at-4>time&&c.at-4<time+9)all.push({at:c.at-4,x:W+100-(time-c.at+4)*SCROLL_SPEED,shutters:true});for(const [id,p] of gatePlans[level].entries())if(p.at>time&&p.at<time+9)all.push({...p,id,navigation:themeIndex()===0,x:W+100-(time-p.at)*SCROLL_SPEED,w:p.width});routeCache={time,level,source:obstacles,length:obstacles.length,value:all};return all;}
 // Look ahead through the shoreline in its moving frame, allowing the existing
 // velocity steering time to clear a headland before it reaches the creature.
 function enemyShoreCorridor(e,vertical,radius){
@@ -430,7 +430,7 @@ function steerFormationEnemy(e,x,y,dt){
  e.routeY=e.y;e.routeVY=e.formationVY;
 }
 function prepareEnemyEntry(e,wave,n){
- const authored=sectors[level].encounterWaves?.[wave];
+ const authored=typeof flightAuthoredWave==='function'?flightAuthoredWave(wave):sectors[level].encounterWaves?.[wave];
  if(!authored&&wave%4===2&&!e.elite&&prepareShoreEntry(e,wave,n))return;
  const advanced=sectors[level].entrySides||['right'],flanking=sectors[level].flankWaves?.includes(wave);e.entry=authored?(authored.side||'right'):flanking?'left':advanced[wave%advanced.length];e.direction=e.entry==='left'?1:-1;
  if(sectors[level].scrollAxis){e.entry=(flanking||wave%5===4)?(sectors[level].scrollAxis==='down'?'top':'bottom'):(sectors[level].scrollAxis==='down'?'bottom':'top');e.verticalTravel=true;e.verticalDirection=e.entry==='top'?1:-1;e.baseX=clamp(W*.5+Math.sin(wave*1.7)*240+(n-2)*60,200,W-200);e.y=e.entry==='top'?-180-n*96:H+180+n*96;e.x=enemyRouteX(e,e.baseX);e.routeX=e.x;e.direction=e.x<W/2?1:-1;return;}
