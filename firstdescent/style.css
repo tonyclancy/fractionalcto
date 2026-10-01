@@ -337,6 +337,26 @@ body.game-expanded{overscroll-behavior:none}
 
 /* Portal instructions retain readable screen-sized type as the world pans. */
 .stage:has(.overlay.title-screen,.overlay.story-transmission) .expand-game{display:none}
+.overlay.campaign-intro{padding:4%;background:transparent}
+.campaign-intro .campaign-brief{position:relative;width:43%;max-width:460px;flex:none;background:linear-gradient(145deg,#082733ee,#061621f2);border-color:#a1ead761;box-shadow:0 12px 45px #0006}
+.campaign-scene{position:absolute;left:5.5%;top:12%;bottom:10%;width:42%;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;text-shadow:0 2px 12px #03101b}
+.campaign-scene-heading .eyebrow{font-size:9px;letter-spacing:1.6px;color:#d1eee4;display:flex;align-items:center;gap:9px}
+.campaign-scene-heading .eyebrow i{width:6px;height:6px;border-radius:50%;background:#b4ffe4;box-shadow:0 0 12px #79ffc5;animation:campaign-signal 2.5s ease-in-out infinite}
+.campaign-scene-heading h3{font:600 clamp(34px,5vw,62px)/1 'Barlow Condensed',sans-serif;letter-spacing:1px;margin:12px 0 7px;text-transform:uppercase;color:#f0fff7}
+.campaign-scene-heading p{font-size:12px;color:#c3e0de;margin:0}
+.campaign-scene-route>.eyebrow{font-size:8px;letter-spacing:1.5px;color:#b4d7ce}
+.campaign-scene-route ol{display:flex;list-style:none;margin:14px 0 16px;padding:0;gap:0}
+.campaign-scene-route li{position:relative;flex:1;color:#c1d7d5;font-size:9px;text-align:center}
+.campaign-scene-route li:not(:last-child):after{content:'';position:absolute;height:1px;left:63%;right:-37%;top:9px;background:#9acbbc50}
+.campaign-scene-route li i{display:block;font:17px/20px sans-serif;font-style:normal;margin-bottom:5px}
+.campaign-scene-route li.secured{color:#adf4d4}.campaign-scene-route li.next{color:#edfff6;font-weight:700}.campaign-scene-route li.next i{text-shadow:0 0 14px #b5ffe7}
+.campaign-scene-route p{font:12px/1.5 system-ui;color:#d5e9e7;max-width:330px;margin:0}
+@keyframes campaign-signal{50%{opacity:.55;box-shadow:0 0 18px #79ffc5}}
+@container(max-width:900px){.campaign-intro .campaign-brief{padding:13px 15px}.campaign-intro .brief-goals li{grid-template-columns:65px 1fr;font-size:11px}.campaign-intro .transmission-heading .eyebrow,.campaign-intro .campaign-brief>.eyebrow{font-size:8px;letter-spacing:1px}.campaign-intro .campaign-brief h2{font-size:21px}.campaign-scene{left:5%;width:42%;top:11%;bottom:9%}.campaign-scene-heading h3{font-size:37px}.campaign-scene-heading p{font-size:10px}.campaign-scene-route li{font-size:8px}.campaign-scene-route p{font-size:10px}}
+@container(max-width:700px){.overlay.campaign-intro{padding:10px 16px;justify-content:center;background:#04111c88}.campaign-intro .campaign-brief{width:min(450px,100%)}.campaign-scene{display:none}}
+@container(max-height:310px){.campaign-intro .brief-goals li{font-size:10px}.campaign-scene-heading h3{font-size:30px}.campaign-scene-route p{display:none}.campaign-scene-route ol{margin-bottom:0}}
+@container(max-height:250px){.overlay.campaign-intro{padding:8px 14px;justify-content:center;background:#04111c88}.campaign-intro .campaign-brief{width:min(600px,100%)}.campaign-scene{display:none}}
+@media(prefers-reduced-motion:reduce){.campaign-scene-heading .eyebrow i{animation:none}}
 .portal-objective{position:absolute;z-index:6;transform:translate(-50%,0);width:max-content;max-width:84%;padding:9px 14px;border:1px solid #8dd5e066;border-radius:7px;background:#071722e8;color:#d8fff4;text-align:center;pointer-events:none;box-shadow:0 5px 20px #02070c50}
 .portal-objective strong,.portal-objective span{display:block}.portal-objective strong{font:700 11px system-ui;letter-spacing:.35px}.portal-objective span{margin-top:4px;font:10px system-ui;color:#acd2d7}.portal-objective[hidden]{display:none}
 .brief-goals{list-style:none;margin:15px 0;padding:0;display:grid;gap:12px}.brief-goals li{display:grid;grid-template-columns:100px 1fr;gap:10px;font:12px/1.4 system-ui}.brief-goals b{color:#bdffec}.brief-goals span{color:#bbd1d5}.campaign-brief h2{margin-top:12px}.atlas-button{font-size:9px;opacity:.8}

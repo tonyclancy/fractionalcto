@@ -364,8 +364,8 @@ function drawWaterWakes(){
 // Software-projected solid geometry: yaw reveals the nose and side faces.
 function projectHull(v,yaw,roll,pitch){let [x,y,z]=v;let xx=x*Math.cos(yaw)+z*Math.sin(yaw),zz=-x*Math.sin(yaw)+z*Math.cos(yaw);let yy=y*Math.cos(roll)-zz*Math.sin(roll);zz=y*Math.sin(roll)+zz*Math.cos(roll);const f=340/(340+zz);return{x:(xx*Math.cos(pitch)-yy*Math.sin(pitch))*f,y:(xx*Math.sin(pitch)+yy*Math.cos(pitch))*f,z:zz}}
 function projectPilotHull(v,yaw,roll,pitch){const p=rotateVertex(v,yaw,roll,pitch,0,0),f=window.gpuModels?1:460/(460+p[2]);return{x:p[0]*f,y:p[1]*f,z:p[2]};}
-function drawShip(x,y,scale=1,preview=false){
- const pose=pilotFlightPose(),yaw=preview?Math.sin(world*.004)*.12:pose.yaw,roll=preview?PILOT_SIDE_ROLL+Math.sin(world*.003)*.08:pose.roll,pitch=preview?-.06:pose.pitch,thrust=preview?.45:flightPose.thrust;
+function drawShip(x,y,scale=1,preview=false,previewSeconds=world*.01){
+ const age=preview?previewSeconds:world*.01,pose=pilotFlightPose(),yaw=preview?Math.sin(age*.4)*.12:pose.yaw,roll=preview?PILOT_SIDE_ROLL+Math.sin(age*.3)*.08:pose.roll,pitch=preview?-.06:pose.pitch,thrust=preview?.45:flightPose.thrust;
  const project=v=>projectPilotHull(v,yaw,roll,pitch);const tier=preview?2:power;
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
  // Twin plumes originate inside the modeled nozzle recesses. Their brightness
@@ -378,7 +378,7 @@ function drawShip(x,y,scale=1,preview=false){
   ctx.fillStyle=plume;const width=3.1+thrust*1.5;ctx.beginPath();ctx.moveTo(0,-width);ctx.bezierCurveTo(length*.3,-width*.8,length*.7,-1,length,0);ctx.bezierCurveTo(length*.7,1,length*.3,width*.8,0,width);ctx.closePath();ctx.fill();
   ctx.strokeStyle='#cdfbff66';ctx.lineWidth=.8;for(let i=1;i<4;i++){const d=i*length*.17;ctx.beginPath();ctx.moveTo(d-2,0);ctx.lineTo(d,1.8);ctx.lineTo(d+2,0);ctx.lineTo(d,-1.8);ctx.closePath();ctx.stroke();}ctx.restore();
  }
- drawModel(meshes[tier===3?'player3':tier===2?'player2':'player'],0,0,1,yaw,roll,pitch,world*.01);
+ drawModel(meshes[tier===3?'player3':tier===2?'player2':'player'],0,0,1,yaw,roll,pitch,age);
  if(muzzleFlash>0&&!preview){const ports=tier===3?[[52,0,-2]]:[...[ -1,1].map(side=>[tier===2?45:44,side*(tier===2?27:8),-2])];for(const v of ports){const p=project(v);orb(p.x,p.y,5,'#bffff3',clamp(muzzleFlash/.07,0,1)*.38)}}
  ctx.restore();
 }

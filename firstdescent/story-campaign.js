@@ -439,10 +439,45 @@ function updateStoryPortalHUD(){
  hudText('#portalObjective strong',e.returning?(e.returnAge<2.5?'PORTAL SECURED · OPENING HOME':'BRINGING YOUR PEOPLE HOME'):'DEFEND THE PORTAL · SAVE YOUR PEOPLE');
  hudText('#portalObjective span',e.returning?`FRIENDLY CARRIERS ${e.evacuated}/5 · WEAPONS SAFE`:`BOTH SIDES · INTEGRITY ${e.hp}/${e.max}${e.age<32?' · '+Math.ceil(32-e.age)+'s':' · CLEAR THE APPROACH'}`);
 }
+let campaignBriefView=null;
+function campaignBriefVisible(){return state==='title'&&atlasOpen&&!!campaignBriefView&&$('#overlay').classList.contains('campaign-intro');}
+function prepareCampaignBrief(index){
+ const mission=STORY_ROUTE[index],definition=sectors.find(s=>s.id===mission.id);
+ campaignBriefView={index,definition,image:loadArt(definition.background),cloud:definition.medium==='air'&&!definition.stellar&&definition.theme!=='forge'?loadArt('shoreCloud'):null,startedAt:navigationSeconds(),reducedMotion:typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches};
+ window.gpuModels?.prepare?.([meshes.player2],definition.id);
+ return campaignBriefView;
+}
+function campaignBriefPose(view=campaignBriefView,seconds=navigationSeconds()){
+ const t=view.reducedMotion?0:Math.max(0,seconds-view.startedAt);
+ return{t,x:W*.25+Math.sin(t*.32)*22,y:H*.47+Math.sin(t*.7)*12,panX:Math.sin(t*.07)*W*.025,panY:Math.sin(t*.05)*H*.015};
+}
+function drawCampaignBriefScene(){
+ const view=campaignBriefView;if(!view)return;const {definition:d,image,cloud}=view,p=campaignBriefPose(),t=p.t,water=d.medium==='water',hot=d.stellar||d.theme==='forge',ice=d.worldIdentity?.habitat==='ice';
+ window.gpuModels?.setEnvironment?.(sceneryLighting(d));
+ ctx.save();
+ // The destination painting and ship move at different depths. Only the
+ // current preview is loaded; no combat state or world position is changed.
+ if(imageReady(image)){const scale=Math.max(W*.84/image.naturalWidth,H/image.naturalHeight)*1.08,w=image.naturalWidth*scale,h=image.naturalHeight*scale;ctx.drawImage(image,(W*.84-w)*.5+p.panX,(H-h)*.5+p.panY,w,h);}
+ else{const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,water?'#154857':hot?'#542f22':'#355367');sky.addColorStop(1,'#061623');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);}
+ const shade=ctx.createLinearGradient(0,0,W*.9,0);shade.addColorStop(0,'#05111c14');shade.addColorStop(.46,'#05111c22');shade.addColorStop(.72,'#05111cbb');shade.addColorStop(1,'#030c15');ctx.fillStyle=shade;ctx.fillRect(0,0,W,H);
+ const vignette=ctx.createLinearGradient(0,0,0,H);vignette.addColorStop(0,'#03101b80');vignette.addColorStop(.25,'#03101b00');vignette.addColorStop(.58,'#03101b00');vignette.addColorStop(1,'#03101be8');ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
+ if(water){
+  ctx.save();ctx.globalCompositeOperation='screen';for(let i=0;i<4;i++){const x=W*(.08+i*.12)+Math.sin(t*.16+i)*12;ctx.save();ctx.translate(x,-H*.03);ctx.rotate(-.16);ctx.scale(42,H*.85);const g=ctx.createRadialGradient(0,0,0,0,0,1);g.addColorStop(0,'#b4e8ef25');g.addColorStop(.45,'#82e6e910');g.addColorStop(1,'#82e6e900');ctx.fillStyle=g;ctx.fillRect(-1,0,2,1);ctx.restore();}ctx.restore();
+ }
+ if(imageReady(cloud)){ctx.save();ctx.globalAlpha=.24;for(let i=0;i<3;i++){const x=W*(.07+i*.19)+Math.sin(t*.045+i)*35,y=H*(.39+i*.13),w=W*(.20+i*.035);ctx.drawImage(cloud,x-w/2,y,w,w*.43);}ctx.restore();}
+ // Persistent drifting motes use edge fades instead of sudden expiry.
+ for(let i=0;i<38;i++){const depth=.25+(i%5)*.18,u=((i*.618+t*(hot?.026:water?.011:.004)*(1+depth))%1+1)%1,x=W*(.025+(i*.381966%1)*.57)+Math.sin(t*.35+i)*7*depth,y=H*(1-u),alpha=Math.sin(u*Math.PI)*(.13+depth*.21);ctx.globalAlpha=alpha;ctx.strokeStyle=ice?'#d9f0ff':hot?'#ffd5a0':water?'#c0f1ed':'#effaf4';ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=.8;ctx.beginPath();if(water&&!ice){ctx.arc(x,y,1.5+depth*2.4,0,TAU);ctx.stroke();}else{ctx.ellipse(x,y,hot?1.2:1.6,hot?3.5:1.6,0,0,TAU);ctx.fill();}}
+ ctx.globalAlpha=1;
+ const light=ctx.createRadialGradient(p.x,p.y,12,p.x,p.y,200);light.addColorStop(0,hot?'#ffb27c14':'#9dedff18');light.addColorStop(1,'#80dfff00');ctx.fillStyle=light;ctx.fillRect(p.x-200,p.y-200,400,400);
+ drawShip(p.x,p.y,3.2,true,t);window.gpuModels?.flush(ctx);
+ // Nearby spray/embers cross the ship at a faster depth than the landscape.
+ ctx.globalAlpha=.3;ctx.strokeStyle=water?'#b9f3ed':hot?'#ffd1a1':'#e7faf8';ctx.lineWidth=1;ctx.beginPath();for(let i=0;i<10;i++){const u=(i*.618+t*.055)%1,x=W*.57-u*W*.6,y=H*(.31+(i*.271%1)*.35);ctx.moveTo(x,y);ctx.lineTo(x+7,y+1);}ctx.stroke();ctx.restore();
+}
 function showCampaignBrief(){
  if(state!=='title')return;migrateStoryVictories();const p=storyStore.snapshot(),index=p.complete?0:Math.max(0,STORY_ROUTE.findIndex(m=>m.id===p.next)),next=STORY_ROUTE[index];atlasOpen=true;
- const overlay=$('#overlay');overlay.className='overlay story-transmission';overlay.innerHTML=`<section class="transmission-card campaign-brief" aria-labelledby="campaignBriefTitle"><span class="eyebrow mint">SIX MISSIONS · THREE SOLAR SYSTEMS</span><h2 id="campaignBriefTitle">Bring them home.</h2><p class="transmission-task">Follow the Origin Signal. Recover six shards to reopen their route home.</p><ul class="brief-goals"><li><b>Find them</b><span>Rescue the engineer. Follow their transmissions.</span></li><li><b>Open the way</b><span>Recover six shards. Restore the relays and rescue gate.</span></li><li><b>Bring them home</b><span>Defend the final portal while your people escape.</span></li></ul><p class="transmission-service">${p.count?'RESUMING':'FIRST DESTINATION'} · ${next.world.toUpperCase()} · ${next.title}</p><div class="transmission-actions"><button id="campaignTakeoff" class="primary">${p.count&&!p.complete?'CONTINUE':'BEGIN'} CAMPAIGN ↗</button><button id="storyBack" class="transmission-secondary">Back</button></div></section>`;
- $('#storyBack').onclick=showTitleScreen;$('#campaignTakeoff').onclick=()=>{atlasOpen=false;beginStory(index);};$('#campaignTakeoff').focus({preventScroll:true});
+ prepareCampaignBrief(index);
+ const overlay=$('#overlay');overlay.className='overlay story-transmission campaign-intro';overlay.innerHTML=`<section class="campaign-scene" aria-label="Next mission preview: ${next.world}"><div class="campaign-scene-heading"><span class="eyebrow"><i aria-hidden="true"></i>${p.count&&!p.complete?'YOUR JOURNEY CONTINUES':'YOUR JOURNEY BEGINS'}</span><h3>${next.world}</h3><p>${next.system} · ${next.title}</p></div><div class="campaign-scene-route"><span class="eyebrow">THE ROUTE HOME · ${p.complete?0:p.count} / 6 SIGNALS</span><ol>${STORY_ROUTE.map((m,i)=>`<li class="${i<index?'secured':i===index?'next':''}"><i aria-hidden="true">${i<index?'◆':'◇'}</i><span>${m.world}</span></li>`).join('')}</ol><p>${['Beyond the clouds, their signal is still alive.','One engineer. One chance to reopen the way.','Their voices are waiting beneath the ocean.','The frozen archive holds the way forward.','Power the gate. The expedition is almost home.','This is the last signal. Bring them home.'][index]}</p></div></section><section class="transmission-card campaign-brief" aria-labelledby="campaignBriefTitle"><span class="eyebrow mint">SIX MISSIONS · THREE SOLAR SYSTEMS</span><h2 id="campaignBriefTitle">Bring them home.</h2><p class="transmission-task">Follow the Origin Signal. Recover six shards to reopen their route home.</p><ul class="brief-goals"><li><b>Find them</b><span>Rescue the engineer. Follow their transmissions.</span></li><li><b>Open the way</b><span>Recover six shards. Restore the relays and rescue gate.</span></li><li><b>Bring them home</b><span>Defend the final portal while your people escape.</span></li></ul><p class="transmission-service">${p.count&&!p.complete?'RESUMING':'FIRST DESTINATION'} · ${next.world.toUpperCase()} · ${next.title}</p><div class="transmission-actions"><button id="campaignTakeoff" class="primary">${p.count&&!p.complete?'CONTINUE':'BEGIN'} CAMPAIGN ↗</button><button id="storyBack" class="transmission-secondary">Back</button></div></section>`;
+ $('#storyBack').onclick=showTitleScreen;$('#campaignTakeoff').onclick=()=>{campaignBriefView=null;atlasOpen=false;beginStory(index);};$('#campaignTakeoff').focus({preventScroll:true});
 }
 
 function readFlightMarkerLayout(){
