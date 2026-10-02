@@ -18,7 +18,7 @@ function storyNextLevel(){const next=STORY_ROUTE[storyIndex()+1];return next?sec
 function prepareStoryMission(){const i=storyIndex();storyMission=i<0?null:{index:i,done:0,charge:0,node:null,guardian:false,complete:false,age:0,extract:null,relayEchoes:[],bossPhase:-1,pendingPhase:false};if(i>=0){if(flightRun.storyEngineer===undefined)flightRun.storyEngineer=i>1&&relayStore.snapshot().unlocked;const kind=STORY_ROUTE[i].kind;if(kind==='extraction')prepareStoryPortal();if(kind!=='guardian')window.gpuModels?.prepare([storyMesh(kind==='extraction'?'beacon':kind),...(kind==='extraction'?[storyMesh('raider'),storyMesh('carrier')]:[])],sectors[level].id);}}
 function storyCheckpoint(){if(!storyActive()||!storyMission)return null;return{index:storyMission.index,done:storyMission.done,guardian:storyMission.guardian,complete:storyMission.complete,reward:storyMission.reward,engineer:!!flightRun.storyEngineer,extract:!!storyMission.extract};}
 function restoreStoryCheckpoint(saved){if(!storyActive()||saved?.index!==storyIndex())return;storyMission.done=Math.max(0,Math.min(3,saved.done||0));storyMission.guardian=!!saved.guardian;storyMission.complete=!!saved.complete;storyMission.reward=saved.reward;flightRun.storyEngineer=!!saved.engineer;if(saved.guardian){bossDefeated=true;transition=4;time=Math.max(time,sectors[level].duration+.01);world=time*SCROLL_SPEED;}if(saved.extract&&!saved.complete)beginStoryExtraction();}
-function storyObjective(){const m=storyMission,d=STORY_ROUTE[storyIndex()];if(!d||!m)return '';if(m.complete)return 'SIGNAL SHARD SECURED · ROUTE UPDATED';if(m.extract){const e=m.extract;return e.returning?`RESCUING EXPEDITION ${e.evacuated}/5 · FRIENDLY CARRIERS · WEAPONS SAFE`:`DEFEND PORTAL · SAVE YOUR PEOPLE · ${e.age>=32?'CLEAR THE APPROACH':Math.ceil(32-e.age)+'s'} · INTEGRITY ${e.hp}/${e.max}${e.engineer&&!e.repaired?' · ENGINEER ON STANDBY':''}`;}
+function storyObjective(){const m=storyMission,d=STORY_ROUTE[storyIndex()];if(!d||!m)return '';if(m.complete)return 'SIGNAL SHARD SECURED · ROUTE UPDATED';if(m.extract){const e=m.extract;return e.returning&&e.returnAge>=storyPilotCrossingAge()?`EXPEDITION SAFE · WELCOME HOME`:e.returning&&e.returnAge>=storyPilotLaunchAge()?`EXPEDITION 5/5 SAFE · HEADING HOME`:e.returning?`RESCUING EXPEDITION ${e.evacuated}/5 · FRIENDLY CARRIERS · WEAPONS SAFE`:`DEFEND PORTAL · SAVE YOUR PEOPLE · ${e.age>=32?'CLEAR THE APPROACH':Math.ceil(32-e.age)+'s'} · INTEGRITY ${e.hp}/${e.max}${e.engineer&&!e.repaired?' · ENGINEER ON STANDBY':''}`;}
  const opening=openingMissionTask();if(opening&&!m.guardian)return `${m.index+1}/6 · ${opening.title}`;
  const task=d.kind==='relay'?`LINK RELAYS ${m.done}/3 · HOLD INSIDE RING`:d.kind==='seal'?`BREAK SEALS ${m.done}/3 · SHOOT THE CORE`:d.kind==='furnace'?`DIVERT ENERGY ${m.done}/3 · HOLD INSIDE RING`:d.kind==='extraction'?'DEFEAT GUARDIAN · THEN DEFEND THE PORTAL':d.world==='Ferrum'?'DEFEAT DREADNOUGHT · ENGINEER RESCUE OPTIONAL':'DEFEAT GUARDIAN · RECOVER SIGNAL';return `${m.index+1}/6 · ${m.done===3?'OBJECTIVE COMPLETE · DEFEAT GUARDIAN':task}${m.guardian?' · GUARDIAN DOWN':''}`;}
 function beginStory(target){migrateStoryVictories();const p=storyStore.snapshot();const index=target===undefined?(p.complete?0:STORY_ROUTE.findIndex(m=>m.id===p.next)):target;if(!Number.isInteger(index)||index<0||index>=6)return;if(STORY_ROUTE.slice(0,index).some(m=>!storyStore.has(m.id)))return;beginDescent(sectors.findIndex(s=>s.id===STORY_ROUTE[index].id),'story');}
@@ -48,23 +48,82 @@ function repairStoryBeacon(e){
  if(e.engineer&&!e.repaired&&e.hp<=3&&e.hp>0){e.repaired=true;e.hp=Math.min(e.max,e.hp+3);e.repairGlow=2;burst(e.x,e.y,'#b8ffe4',20);announce('ENGINEER · BEACON REPAIRED','INTEGRITY +3 · REPAIR CHARGE USED',3);window.flightAudio?.pickup?.(e.x,'repair');}
 }
 function beginStoryReturn(e){
- e.returning=true;e.portalStamp=null;e.returnAge=0;e.sceneWorld=world;e.escortStart={x:ship.x,y:ship.y};e.raiders=[];shots=[];muzzleFlash=0;explosions=[];hostile=[];hazards=[];acidClouds=[];enemies=[];ship.inv=Math.max(ship.inv,8);
+ e.returning=true;e.portalStamp=null;e.returnAge=0;flash=shake=0;particles=[];rings=[];pickupEffects=[];e.sceneWorld=world;e.escortStart={x:ship.x,y:ship.y};e.raiders=[];shots=[];muzzleFlash=0;explosions=[];hostile=[];hazards=[];acidClouds=[];enemies=[];ship.inv=Math.max(ship.inv,8);
  keys.clear();pointer=null;announce('PORTAL SECURED','OPENING THE WAY HOME · WEAPONS SAFE',3);window.flightAudio?.setBossApproach?.(0);window.flightAudio?.setRescueCelebration?.(true);window.flightAudio?.setMusicActive(true);
 }
-const STORY_RETURN_FLIGHT=Object.freeze({launch:3,spacing:.7,approach:3.4,beyond:3.5,settle:.45});
+const STORY_RETURN_FLIGHT=Object.freeze({launch:3,spacing:.7,approach:3.4,settle:.45});
 function storyCarrierCrossingAge(i){return STORY_RETURN_FLIGHT.launch+i*STORY_RETURN_FLIGHT.spacing+STORY_RETURN_FLIGHT.approach;}
-function storyRescueFinishAge(){return storyCarrierCrossingAge(4)+STORY_RETURN_FLIGHT.beyond+STORY_RETURN_FLIGHT.settle;}
+const STORY_PILOT_RETURN=Object.freeze({delay:.65,approach:2.8,window:2.8,arrival:4});
+function storyPilotLaunchAge(){return storyCarrierCrossingAge(4)+STORY_PILOT_RETURN.delay;}
+function storyPilotCrossingAge(){return storyPilotLaunchAge()+STORY_PILOT_RETURN.approach;}
+function storyRescueFinishAge(){return storyPilotCrossingAge()+STORY_PILOT_RETURN.window+STORY_PILOT_RETURN.arrival;}
 function storyCarrierEntry(e,i){const localX=104*.55,localY=104*(.08+Math.sin(i*1.7)*.08),point=storyPortalProject(e,localX,localY,5);return{...point,localX,localY,scale:1.15};}
 function storyCarrierPosition(e,i){
  const u=clamp((e.returnAge-STORY_RETURN_FLIGHT.launch-i*STORY_RETURN_FLIGHT.spacing)/STORY_RETURN_FLIGHT.approach,0,1),gate=storyGatePosition(e),entry=storyCarrierEntry(e,i),start=W+100+i*30;
  return{x:start+(gate.x+entry.x-start)*navigationEase(u),y:gate.y+entry.y+Math.sin(i*1.7)*120*(1-u)+Math.sin(u*Math.PI)*45,scale:entry.scale,u};
 }
-function storyCarrierBeyond(e,i){
- const elapsed=e.returnAge-storyCarrierCrossingAge(i),u=clamp(elapsed/STORY_RETURN_FLIGHT.beyond,0,1),entry=storyCarrierEntry(e,i),perspective=1/(1+18*u*u*(3-2*u)),target=storyPortalProject(e,104*(.08+(i-2)*.025),104*(-.27+(i%2)*.025),5);
- // One continuous hull crosses the window, turns away, then follows the
- // lake toward the city. Perspective, not an early dissolve, makes it small.
- return{x:target.x+(entry.x-target.x)*perspective,y:target.y+(entry.y-target.y)*perspective,scale:entry.scale*perspective,yaw:Math.PI*.5*navigationEase(elapsed/.8),alpha:1-navigationEase((u-.84)/.16),elapsed,u,visible:elapsed>=0&&u<1};
+function storyCarrierArrivalAge(i){return storyRescueFinishAge()-1.4-(4-i)*.12;}
+function storyReturnFlight(e,entry,target,elapsed,duration){
+ const u=clamp(elapsed/duration,0,1),depth=1/(1+9*u*u),localX=target.x+(entry.localX-target.x)*depth,localY=target.y+(entry.localY-target.y)*depth,point=storyPortalProject(e,localX,localY,5);
+ return{...point,localX,localY,target,scale:entry.scale*depth,alpha:1-navigationEase((u-.88)/.12),elapsed,u,visible:elapsed>=0&&u<1};
 }
+function storyCarrierBeyond(e,i){
+ const elapsed=e.returnAge-storyCarrierCrossingAge(i),target={x:18+(i-2)*6,y:-32+(i%2)*3};
+ return{...storyReturnFlight(e,storyCarrierEntry(e,i),target,elapsed,storyCarrierArrivalAge(i)-storyCarrierCrossingAge(i)),yaw:0};
+}
+function storyPilotEntry(e){const localX=40,localY=17;return{...storyPortalProject(e,localX,localY,5),localX,localY,scale:1};}
+function storyPilotPosition(e){
+ const u=clamp((e.returnAge-storyPilotLaunchAge())/STORY_PILOT_RETURN.approach,0,1),gate=storyGatePosition(e),entry=storyPilotEntry(e),s=navigationEase(u);
+ return{x:W*.80+(gate.x+entry.x-W*.80)*s,y:H*.79+(gate.y+entry.y-H*.79)*s-Math.sin(u*Math.PI)*40,scale:entry.scale,u};
+}
+function storyPilotBeyond(e){
+ const elapsed=e.returnAge-storyPilotCrossingAge();
+ return storyReturnFlight(e,storyPilotEntry(e),{x:19,y:-31},elapsed,STORY_PILOT_RETURN.window+STORY_PILOT_RETURN.arrival);
+}
+function storyHomecomingImageSize(){return Math.max(W,H)*1.4;}
+function storyHomecoming(e){
+ const age=e.returnAge-storyPilotCrossingAge(),u=clamp(age/STORY_PILOT_RETURN.window,0,1),arrival=Math.max(0,age-STORY_PILOT_RETURN.window);
+ const progress=navigationEase(u),finalZoom=storyHomecomingImageSize()/(208*storyPortalPhase(e).scale);
+ return{age,u,turn:navigationEase(age/1.5),zoom:1+(finalZoom-1)*progress,reveal:progress,arrival};
+}
+// One camera basis drives the chassis, aperture, rotor and ships. The view
+// straightens toward the gate's normal as we advance through its throat.
+function storyHomecomingProjection(e,h){
+ const cached=e.homeProjection;if(cached?.age===h.age&&cached.turn===h.turn)return cached;
+ const gate=storyPortalPose(e),remaining=1-h.turn,pose={yaw:gate.yaw*remaining,roll:gate.roll*remaining,pitch:gate.pitch*remaining},scale=storyPortalPhase(e).scale;
+ const axes={u:rotateVertex([1,0,0],pose.yaw,pose.roll,pose.pitch,0,0),v:rotateVertex([0,1,0],pose.yaw,pose.roll,pose.pitch,0,0),n:rotateVertex([0,0,1],pose.yaw,pose.roll,pose.pitch,0,0)};
+ return e.homeProjection={age:h.age,turn:h.turn,pose,axes,scale,plane:{a:axes.u[0]*scale,b:axes.u[1]*scale,c:axes.v[0]*scale,d:axes.v[1]*scale,x:axes.n[0]*5*scale,y:axes.n[1]*5*scale}};
+}
+function storyHomecomingView(e,h){
+ // The photo and circular doorway share one camera scale. Blending two
+ // separately zoomed pictures made the vista overshoot, then shrink back.
+ const plane=storyHomecomingProjection(e,h).plane,gate=storyGatePosition(e),travel=navigationEase(h.u),size=storyHomecomingImageSize(),cx=gate.x+(W*.5-gate.x)*travel,cy=gate.y+(H*.35+size*.15-gate.y)*travel,z=h.zoom;
+ return{a:plane.a*z,b:plane.b*z,c:plane.c*z,d:plane.d*z,x:cx+plane.x*z,y:cy+plane.y*z,cx,cy};
+}
+function storyHomecomingPoint(e,p,h){
+ const from=storyPortalPlane(e),to=storyHomecomingProjection(e,h).plane,det=from.a*from.d-from.b*from.c,x=p.x-from.x,y=p.y-from.y,lx=(from.d*x-from.c*y)/det,ly=(from.a*y-from.b*x)/det;
+ return{...p,x:to.a*lx+to.c*ly+to.x,y:to.b*lx+to.d*ly+to.y};
+}
+function storyHomecomingCraft(e,p,h,view=storyHomecomingView(e,h)){
+ const original=storyPortalPlane(e),scale=Math.sqrt((view.a*view.d-view.b*view.c)/(original.a*original.d-original.b*original.c)),x=view.a*p.localX+view.c*p.localY+view.x,y=view.b*p.localX+view.d*p.localY+view.y,tx=view.a*p.target.x+view.c*p.target.y+view.x,ty=view.b*p.target.x+view.d*p.target.y+view.y;
+ return{...p,x,y,scale:p.scale*scale,wake:Math.atan2(y-ty,x-tx)};
+}
+function storyCarrierTransitPose(e,i,cameraTurn=0){
+ const t=navigationEase((storyCarrierPosition(e,i).u-.55)/.45),axes=storyHomecomingProjection(e,{age:e.returnAge-storyPilotCrossingAge(),turn:cameraTurn}).axes;
+ return{yaw:Math.atan2(-axes.n[2],axes.v[2])*t,roll:Math.asin(clamp(axes.u[2],-1,1))*t,pitch:Math.PI+(Math.atan2(-axes.u[0],axes.u[1])+Math.PI)*t};
+}
+function storyCarrierMesh(i){return storyMesh(i%3?'carrier-'+i%3:'carrier');}
+
+function storyPilotTransitPose(e,cameraTurn=0){
+ const approach=storyPilotPosition(e).u,bank=navigationEase((approach-.3)/.7),camera=storyHomecomingProjection(e,{age:e.returnAge-storyPilotCrossingAge(),turn:cameraTurn}),b=camera.axes;
+ // The nose follows the gate normal while the wings bank into its plane.
+ // Looking through the doorway then gives a true rear view, with horizontal
+ // wings, instead of rotating a side-on sprite or reversing its heading.
+ const target={yaw:(Math.atan2(-b.n[2],b.v[2])+TAU)%TAU,roll:Math.asin(clamp(b.u[2],-1,1)),pitch:Math.atan2(-b.u[0],b.u[1])};
+ return{yaw:Math.PI+(target.yaw-Math.PI)*bank,roll:(PILOT_SIDE_ROLL+Math.PI)*(1-bank)+target.roll*bank,pitch:target.pitch*bank};
+}
+function storyPilotInCinematic(){const e=storyActive()?storyMission?.extract:null;return !!e?.returning&&e.returnAge>=storyPilotLaunchAge();}
+function storyHomeSceneOpaque(){const e=storyActive()?storyMission?.extract:null;return !!e?.returning&&e.returnAge>=storyPilotCrossingAge()+STORY_PILOT_RETURN.window;}
 function storyGatePosition(e){return{x:e.x-storyRescuePan(e),y:e.y};}
 function storyMayFire(){return storyActive()&&!storyMission?.complete&&!storyMission?.extract?.returning;}
 function playerWeaponsActive(){return typeof storyActive==='function'&&storyActive()?storyMayFire():!bossDefeated;}
@@ -124,6 +183,11 @@ function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playi
   if(e.hp<=0){announce('EXTRACTION INTERRUPTED','RETRY THE BEACON DEFENSE',3);end(false);return;}if(e.age<32||e.spawned<18||e.raiders.length)return;beginStoryReturn(e);return;
   }
  }else if(['relay','seal','furnace'].includes(d.kind)&&m.done<3)return;
+ if(d.kind==='extraction'){
+  m.complete=true;m.reward={hull:0,novas:0};originRecovery=null;transition=.3;
+  if(flightRun.storyOwner===storyStore.account())storyStore.collect(d.id);
+  saveCheckpoint();updateHUD();return;
+ }
  m.complete=true;const hullBefore=ship.hp,novaBefore=novas;ship.hp=Math.min(5,ship.hp+1);novas=Math.min(3,novas+1);m.reward={hull:ship.hp-hullBefore,novas:novas-novaBefore};queuePickupEffect('rescue',{title:'MISSION REWARD · SIGNAL SECURED',detail:`HULL +${ship.hp-hullBefore} · NOVA +${novas-novaBefore} · ROUTE UPDATED`},m.shardSource||ship);ship.inv=Math.max(ship.inv,ORIGIN_RECOVERY_DURATION+1);saveCheckpoint();if(flightRun.storyOwner===storyStore.account())storyStore.collect(d.id);transition=3.4;originRecovery={story:true,index:m.index,x:clamp(m.shardSource?.x??ship.x+220,70,W-70),y:clamp(m.shardSource?.y??ship.y,90,H-90),kind:originEntry(d.id)?.kind||'core',age:0,phase:-1};updateOriginRecovery(0);annTimer=0;$('#announcement').style.opacity=0;updateHUD();
 }
 function finishStorySector(){if(!storyActive())return false;if(!storyMission?.complete){transition=1;return true;}showStoryDebrief();return true;}
@@ -162,9 +226,19 @@ function showStoryDebrief(){
 const storyMeshes=new Map();
 function storyMesh(kind){
  if(storyMeshes.has(kind))return storyMeshes.get(kind);const m=meshBuilder(),hot=kind==='furnace',light=hot?[255,165,72]:[126,229,232];
- if(kind==='carrier'){
-  m.ellipsoid(0,0,0,25,9,8,[160,185,189],0,14,8);m.ellipsoid(12,-2,-7,6,3,2,[109,232,219],.5,10,6);
-  for(const side of [-1,1]){m.wedge([6,side*4,0],[-21,side*14,3],[-14,side*4,-5],2,[89,115,137]);m.ellipsoid(-18,side*8,1,4,3,3,[117,245,223],.7,8,6);}
+ if(kind.startsWith('carrier')){
+  const variant=Number(kind.split('-')[1]||0),panel=[[185,207,215],[198,184,149],[146,187,199]][variant],length=variant===1?33:29;
+  m.ellipsoid(0,0,0,length,11,10,panel,0,18,10);m.ellipsoid(16,-2,-9,9,4,3,[27,69,83],0,12,6);
+  for(const side of [-1,1]){
+   m.wedge([10,side*7,1],[-24,side*(variant===2?25:21),3],[-18,side*7,-6],3,[72,103,123]);
+   m.ellipsoid(-18,side*13,2,15,5,5,[64,85,103],0,12,6);
+   m.ellipsoid(-32,side*13,2,2,4,4,[199,244,255],.85,10,6);
+   m.tube([[-29,side*13,2],[-24,side*13,2]],5.4,[32,48,60],0,0,8,2);
+   for(let j=0;j<4;j++){const x=-15+j*8;m.wedge([x,side*7,-8],[x+5,side*9,-6],[x+5,side*5,-10],.7,[92,121,141]);m.ellipsoid(x,side*10,-3,1.2,1.3,1,[190,239,248],.5,6,4);}
+   m.tube([[-22,side*19,1],[-12,side*17,-2]],.8,[226,200,143]);
+   m.ellipsoid(-22,side*21,1,1.5,1.5,1.5,side<0?[116,242,213]:[252,148,112],.7,6,4);
+  }
+  for(const x of [-19,-7,5])m.tube([[x,-8,-6],[x,-4,-10],[x,4,-10],[x,8,-6]],.65,[74,98,117],0,0,6,2);
  }else if(kind==='raider'){return storyRaiderMesh();
  }else{
   m.ellipsoid(0,0,2,26,30,17,[43,65,77],0,16,10);
@@ -184,7 +258,7 @@ function drawStoryMission(){
  for(const echo of m.relayEchoes)drawRelayActivation(echo);
  if(n&&d.kind==='relay')drawRelaySignal(n,m);
  if(n&&d.kind!=='relay')drawStoryNodeSignal(n,m,d.kind);
- if(e)drawStoryGate(e);if(e?.returning)drawStoryApproachingCarriers(e);
+ if(e&&!e.returning)drawStoryGate(e);
  if(e)drawStoryRaiderEffects(e);
  ctx.restore();
 }
@@ -227,9 +301,16 @@ function storyInteractionHint(){
 }
 function updateStoryInteractionHUD(){
  const marker=$('#missionTarget');if(!marker)return;const hint=storyInteractionHint(),visible=!!hint&&state==='playing'&&!sectorBlend&&!storyMission.complete&&hint.n.x>0&&hint.n.x<W;marker.hidden=!visible;if(!visible)return;
+ hudText('#missionTarget strong',hint.title);hudText('#missionTarget span',hint.action+' · '+hint.count+'/3');hudWidth('#missionTarget i',Math.round(hint.progress*100)+'%');
+ positionStoryInteractionMarker();
+}
+function positionStoryInteractionMarker(){
+ const marker=hudElement('#missionTarget'),m=storyMission,n=m?.node;
+ if(!marker||marker.hidden)return;
+ if(!n||state!=='playing'||sectorBlend||m.complete||n.x<=0||n.x>=W){marker.hidden=true;return;}
  const b=readFlightMarkerLayout();if(!b)return;
- const x=b.left+clamp(hint.n.x/W*b.width,105,b.width-105),y=b.top+clamp((hint.n.y+135)/H*b.height,35,b.height-74);
- marker.style.left=x/b.frameWidth*100+'%';marker.style.top=y/b.frameHeight*100+'%';hudText('#missionTarget strong',hint.title);hudText('#missionTarget span',hint.action+' · '+hint.count+'/3');hudWidth('#missionTarget i',Math.round(hint.progress*100)+'%');
+ const x=b.left+clamp(n.x/W*b.width,105,b.width-105),y=b.top+clamp((n.y+135)/H*b.height,35,b.height-74);
+ marker.style.transform=`translate3d(${x}px,${y}px,0) translateX(-50%)`;
 }
 function drawRelayActivation(e){
  const u=clamp(e.age/2.2,0,1),fade=1-navigationEase(u);
@@ -389,17 +470,31 @@ function updateOpeningRescueMarker(){
  const visible=storyIndex()===1&&state==='playing'&&!sectorBlend&&m?.status==='active'&&m.x>0&&m.x<W;
  marker.hidden=!visible;if(!visible)return;
  hudText('#rescueTarget strong',m.available===false?'ENGINEER · WAIT FOR CLEARANCE':'RESCUE THE ENGINEER');hudText('#rescueTarget span',m.available===false?'Approach through a clear gap':'Enter green ring · gain a sabotage drone');
- const layout=readFlightMarkerLayout();if(!layout)return;
- const b=layout,x=b.left+clamp(m.x/W*b.width,98,b.width-98),y=b.top+clamp((m.y+FERRUM_RELAY.radius+68)/H*b.height,45,b.height-35);
-marker.style.left=x/b.frameWidth*100+'%';marker.style.top=y/b.frameHeight*100+'%';
+ positionOpeningRescueMarker();
+}
+// Follow the rendered pod every frame; instruction text keeps its slower HUD
+// cadence. A transform avoids laying out and repainting scrolling text.
+function positionOpeningRescueMarker(){
+ const marker=hudElement('#rescueTarget'),m=ferrumMission;if(!marker||marker.hidden||!m)return;
+ if(state!=='playing'||sectorBlend||m.status!=='active'||m.x<=0||m.x>=W){marker.hidden=true;return;}
+ const b=readFlightMarkerLayout();if(!b)return;
+ const x=b.left+clamp(m.x/W*b.width,98,b.width-98),y=b.top+clamp((m.y+FERRUM_RELAY.radius+68)/H*b.height,45,b.height-35);
+ marker.style.transform=`translate3d(${x}px,${y}px,0) translate(-50%,-50%)`;
 }
 
 // The final defense and rescue share one centered portal. Only the rescue
 // camera moves it; combat coordinates remain anchored while the gate charges.
 function storyRescuePan(e){return e.returning?W*.22*navigationEase(e.returnAge/2.4):0;}
 function storyRescueWorld(){const e=storyActive()?storyMission?.extract:null;return e?.returning?(e.sceneWorld??world)+storyRescuePan(e):null;}
-function storyPortalPhase(e){return{open:e.returning?navigationEase((e.returnAge-1.3)/1.15):0,scale:1+(e.returning?.85*navigationEase(e.returnAge/2.4):0),spin:e.returning?e.age*.28+Math.min(e.returnAge,1.6)*2.8:e.age*.28,charge:e.returning?1:clamp(e.age/32,0,1)};}
-function updateStoryEscort(e){const u=navigationEase(e.returnAge/2.4),start=e.escortStart||ship;ship.x=(start.x-storyRescuePan(e))*(1-u)+W*.80*u;ship.y=start.y*(1-u)+H*.79*u;ship.inv=Math.max(ship.inv,2);pilotTurn.target=Math.PI;}
+function storyPortalPhase(e){return{open:e.returning?navigationEase((e.returnAge-1.5)/1.3):0,scale:1+(e.returning?.85*navigationEase(e.returnAge/2.4):0),spin:e.returning?e.age*.28+Math.min(e.returnAge,1.6)*2.8:e.age*.28,charge:e.returning?1:clamp(e.age/32,0,1)};}
+function updateStoryEscort(e){
+ const u=navigationEase(e.returnAge/2.4),start=e.escortStart||ship;
+ if(e.returnAge>=storyPilotLaunchAge()){const p=storyPilotPosition(e);ship.x=p.x;ship.y=p.y;}
+ else{ship.x=(start.x-storyRescuePan(e))*(1-u)+W*.80*u;ship.y=start.y*(1-u)+H*.79*u;}
+ ship.inv=Math.max(ship.inv,2);pilotTurn.target=Math.PI;
+ if(!e.pilotCrossed&&e.returnAge>=storyPilotCrossingAge()){e.pilotCrossed=true;annTimer=0;$('#announcement').style.opacity=0;window.flightAudio?.homecomingCue?.('cross');}
+ if(!e.homeArrived&&e.returnAge>=storyPilotCrossingAge()+STORY_PILOT_RETURN.window){e.homeArrived=true;window.flightAudio?.setEnvironment?.('air','verdant');window.flightAudio?.homecomingCue?.('home');}
+}
 function makeStoryRaider(i){
  const kind=i%5===4?'breaker':i%3===1?'lancer':'skirmisher',heavy=kind==='breaker',left=i%2===1;
  return{storyRaider:true,kind,x:left?-85:W+85,y:125+(i*197)%510,hp:heavy?60:kind==='lancer'?38:28,max:heavy?60:kind==='lancer'?38:28,r:heavy?43:35,scale:heavy?1.18:.94,age:0,seed:i,shotAt:1.4+i%3*.22,shotCount:0,hit:0,contactCooldown:0};
@@ -467,7 +562,10 @@ function storyPortalUndoPlane(e){const m=storyPortalPlane(e),det=m.a*m.d-m.b*m.c
 function storyPortalRotorPose(e,spin){
  // Rotate the circular rotor in its own plane before tilting the entire
  // machine. A screen-space rotation would make an oval orbit the frame.
- const b=storyPortalAxes(e),c=Math.cos(spin),s=Math.sin(spin),u=b.u.map((n,i)=>n*c+b.v[i]*s),v=b.v.map((n,i)=>-b.u[i]*s+n*c);
+ return storyPortalRotorBasisPose(storyPortalAxes(e),spin);
+}
+function storyPortalRotorBasisPose(b,spin){
+ const c=Math.cos(spin),s=Math.sin(spin),u=b.u.map((n,i)=>n*c+b.v[i]*s),v=b.v.map((n,i)=>-b.u[i]*s+n*c);
  return{roll:Math.asin(clamp(v[2],-1,1)),yaw:Math.atan2(-u[2],b.n[2]),pitch:Math.atan2(-v[0],v[1])};
 }
 function storyPortalLathe(profile,segments,colors){
@@ -533,42 +631,158 @@ function drawStoryApproachingCarriers(e){
  ctx.save();
  for(let i=0;i<5;i++){
   const p=storyCarrierPosition(e,i);if(p.u<=0||p.u>=1)continue;
-  for(const side of [-1,1]){const x=p.x+19*p.scale,y=p.y+side*8*p.scale,length=(24+Math.sin(e.returnAge*25+i)*3)*p.scale,g=ctx.createLinearGradient(x,y,x+length,y);g.addColorStop(0,'#eafff4d0');g.addColorStop(.25,'#86ffda80');g.addColorStop(1,'#62dff500');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x,y-2.5*p.scale);ctx.lineTo(x+length,y);ctx.lineTo(x,y+2.5*p.scale);ctx.fill();}
-  drawModel(storyMesh('carrier'),p.x,p.y,p.scale,0,.12*Math.sin(e.returnAge+i),Math.PI,e.returnAge,0);
+  window.gpuModels?.setEnvironmentBlend?.(sceneryLighting(sectors[level]),'daylight',navigationEase((p.u-.65)/.35));
+  const pose=storyCarrierTransitPose(e,i),nose=rotateVertex([1,0,0],pose.yaw,pose.roll,pose.pitch,0,0);
+  drawStoryReturnEngines(e,{...p,wake:Math.atan2(-nose[1],-nose[0])},pose,false);
+  drawModel(storyCarrierMesh(i),p.x,p.y,p.scale,pose.yaw,pose.roll,pose.pitch,e.returnAge,0);window.gpuModels?.flush(ctx);
  }
- window.gpuModels?.flush(ctx);
+ window.gpuModels?.flush(ctx);window.gpuModels?.setEnvironment?.(sceneryLighting(sectors[level]));
  for(let i=0;i<5;i++){const p=storyCarrierPosition(e,i);if(p.u<=0||p.u>=.9)continue;ctx.globalAlpha=1-navigationEase((p.u-.72)/.18);ctx.fillStyle='#071b28cf';ctx.fillRect(p.x-37,p.y+20,74,16);ctx.fillStyle='#c4fff0';ctx.font='600 9px system-ui';ctx.textAlign='center';ctx.fillText('FRIENDLY',p.x,p.y+31);}
+ const pilot=storyPilotPosition(e);if(e.returnAge>=storyPilotLaunchAge()&&pilot.u<1){ctx.globalAlpha=1;window.gpuModels?.setEnvironmentBlend?.(sceneryLighting(sectors[level]),'daylight',navigationEase(pilot.u));drawStoryHomewardPilot(e,pilot);window.gpuModels?.flush(ctx);window.gpuModels?.setEnvironment?.(sceneryLighting(sectors[level]));}
  ctx.restore();
 }
+function drawStoryHomewardPilot(e,p,cameraTurn=0){
+ const pose=storyPilotTransitPose(e,cameraTurn);drawStoryReturnEngines(e,p,pose,true);
+ drawModel(meshes[power===3?'player3':power===2?'player2':'player'],p.x,p.y,p.scale,pose.yaw,pose.roll,pose.pitch,e.returnAge,0);
+}
+function storyPassageEnvelope(age){return Math.sin(Math.PI*clamp(age/1.25,0,1))**2;}
 function storyPortalPassages(e){
  if(!e.returning)return[];const passages=[];
- for(let i=0;i<5;i++){const age=e.returnAge-storyCarrierCrossingAge(i);if(age>=0&&age<1.25)passages.push({x:storyCarrierEntry(e,i).localX,y:storyCarrierEntry(e,i).localY,age,life:1-age/1.25});}
+ for(let i=0;i<5;i++){const age=e.returnAge-storyCarrierCrossingAge(i);if(age>=0&&age<1.25)passages.push({x:storyCarrierEntry(e,i).localX,y:storyCarrierEntry(e,i).localY,age,life:1-age/1.25,strength:storyPassageEnvelope(age)});}
+ const age=e.returnAge-storyPilotCrossingAge();if(age>=0&&age<1.25){const p=storyPilotEntry(e);passages.push({x:p.localX,y:p.localY,age,life:1-age/1.25,strength:storyPassageEnvelope(age)});}
  return passages;
 }
 function drawStoryCarriersBeyond(e,open){
  if(!e.returning||!open)return;ctx.save();storyPortalUndoPlane(e);window.gpuModels?.setEnvironment?.('daylight');
- for(let i=0;i<5;i++){
-  const p=storyCarrierBeyond(e,i);if(!p.visible)continue;
-  ctx.globalAlpha=p.alpha*open;
-  for(const side of [-1,1]){const x=p.x+18*p.scale*Math.cos(p.yaw),y=p.y+side*7*p.scale,length=22*p.scale,dx=Math.cos(p.yaw)*length,dy=Math.sin(p.yaw)*length,g=ctx.createLinearGradient(x,y,x+dx,y+dy);g.addColorStop(0,'#f4fff5d0');g.addColorStop(.25,'#8cecd48a');g.addColorStop(1,'#99efff00');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x-1.4*p.scale*Math.sin(p.yaw),y+1.4*p.scale*Math.cos(p.yaw));ctx.lineTo(x+dx,y+dy);ctx.lineTo(x+1.4*p.scale*Math.sin(p.yaw),y-1.4*p.scale*Math.cos(p.yaw));ctx.fill();}
-  drawModel(storyMesh('carrier'),p.x,p.y,p.scale,p.yaw,.12*Math.sin(e.returnAge+i)*(1-p.yaw/(Math.PI*.5)),Math.PI,e.returnAge,0);
+ for(let i=0;i<5;i++){const p=storyCarrierBeyond(e,i);if(!p.visible)continue;ctx.globalAlpha=p.alpha*open;drawStoryReturningCarrier(e,p,i);}
+ const pilot=storyPilotBeyond(e);if(pilot.visible){ctx.globalAlpha=pilot.alpha*open;drawStoryHomewardPilot(e,pilot);}
+ window.gpuModels?.flush(ctx);window.gpuModels?.setEnvironment?.(sceneryLighting(sectors[level]));ctx.restore();
+}
+function drawStoryReturnEngines(e,p,pose,pilot){
+ const span=pilot?19:13,tail=pilot?-42:-32;
+ for(const side of [-1,1]){
+  const nozzle=rotateVertex([tail,side*span,pilot?0:2],pose.yaw,pose.roll,pose.pitch,0,0),x=p.x+nozzle[0]*p.scale,y=p.y+nozzle[1]*p.scale,length=(pilot?58:34)*p.scale,angle=p.wake??Math.atan2(p.y-storyPortalProject(e,19,-31).y,p.x-storyPortalProject(e,19,-31).x),tx=x+Math.cos(angle)*length,ty=y+Math.sin(angle)*length;
+  const plume=ctx.createLinearGradient(x,y,tx,ty);plume.addColorStop(0,'#f3fcffde');plume.addColorStop(.2,'#a4e4ffa0');plume.addColorStop(1,'#88dfff00');ctx.fillStyle=plume;ctx.beginPath();ctx.moveTo(x-Math.sin(angle)*3*p.scale,y+Math.cos(angle)*3*p.scale);ctx.lineTo(tx,ty);ctx.lineTo(x+Math.sin(angle)*3*p.scale,y-Math.cos(angle)*3*p.scale);ctx.fill();
+  const r=5.5*p.scale,glow=ctx.createRadialGradient(x,y,0,x,y,r);glow.addColorStop(0,'#f5ffffef');glow.addColorStop(.25,'#b9ecffb0');glow.addColorStop(1,'#7ed4ff00');ctx.fillStyle=glow;ctx.fillRect(x-r,y-r,r*2,r*2);
  }
- // Flush while the aperture's real Canvas clip is active. Carriers cannot
- // bleed across the frame or exist outside the destination after crossing.
- window.gpuModels?.flush(ctx);window.gpuModels?.setEnvironment?.(sceneryLighting(sectors[level]));
- for(let i=0;i<5;i++){const p=storyCarrierBeyond(e,i);if(!p.visible)continue;ctx.globalAlpha=p.alpha*open;ctx.fillStyle='#effff0';for(const side of [-1,1]){ctx.beginPath();ctx.arc(p.x+18*p.scale*Math.cos(p.yaw),p.y+side*7*p.scale,Math.max(.45,1.5*p.scale),0,TAU);ctx.fill();}}
+}
+function drawStoryReturningCarrier(e,p,i,cameraTurn=0){
+ const pose=storyCarrierTransitPose(e,i,cameraTurn);drawStoryReturnEngines(e,p,pose,false);drawModel(storyCarrierMesh(i),p.x,p.y,p.scale,pose.yaw,pose.roll,pose.pitch,e.returnAge,0);
+}
+let storyPortalFilm=null,storyPortalRevealCanvas=null,storyPortalSurfaceCanvas=null,storyPortalSurfaceBrush=null,storyPortalSurfaceAge=null,storyPortalSurfaceOwner=null,storyPortalSurfaceSource=null;
+function prepareStoryPortalFilm(){
+ if(storyPortalFilm)return storyPortalFilm;
+ const c=document.createElement('canvas');c.width=c.height=256;const v=c.getContext('2d'),pixels=v.createImageData(256,256);
+ for(let y=0;y<256;y++)for(let x=0;x<256;x++){
+  const field=Math.sin(x*.035+Math.sin(y*.046)*2.4)+Math.sin(y*.041+Math.cos(x*.027)*3.1)+.45*Math.sin((x+y)*.083),wave=(.5+.5*Math.sin(field*3+Math.hypot(x-128,y-128)*.063))**3,light=(.5+.5*Math.sin(field*1.7))*.35,index=(y*256+x)*4;
+  pixels.data[index]=9+wave*80+light*34;pixels.data[index+1]=31+wave*122+light*55;pixels.data[index+2]=61+wave*150+light*70;pixels.data[index+3]=255;
+ }
+ v.putImageData(pixels,0,0);return storyPortalFilm=c;
+}
+function storyPortalSurfaceState(e){
+ const open=storyPortalPhase(e).open,age=e.returnAge,arrival=Math.max(0,age-storyPilotCrossingAge());
+ return{open,charge:navigationEase((age-.35)/.85),surge:Math.sin(Math.PI*clamp((age-.65)/1.65,0,1))**2,veil:(.035+.82*(1-open)**1.7)*(1-navigationEase(arrival/2.8)),distortion:(1-open)*3.5};
+}
+function drawStoryPortalSurface(e,ctx){
+ const t=e.returnAge,s=storyPortalSurfaceState(e),film=prepareStoryPortalFilm(),photo=storyPortalDestination?.complete&&storyPortalDestination.naturalWidth?storyPortalDestination:storyPortalVista;
+ ctx.save();ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.fillStyle='#071b31';ctx.fillRect(-104,-104,208,208);
+ // The home vista emerges through the membrane from its center, with a
+ // soft edge. The same surface is used before and during the camera turn.
+ if(s.open>0){
+  let panorama=photo;
+  if(s.open<1){
+   if(!storyPortalRevealCanvas){storyPortalRevealCanvas=document.createElement('canvas');storyPortalRevealCanvas.width=storyPortalRevealCanvas.height=768;}
+   const c=storyPortalRevealCanvas,v=c.getContext('2d'),edge=s.open*630,inner=Math.max(0,edge-135);v.clearRect(0,0,768,768);v.globalCompositeOperation='source-over';v.drawImage(photo,0,0,768,768);
+   const reveal=v.createRadialGradient(384,384,inner,384,384,edge+75);reveal.addColorStop(0,'#ffffff');reveal.addColorStop(.5,'#ffffffd0');reveal.addColorStop(1,'#ffffff00');v.globalCompositeOperation='destination-in';v.fillStyle=reveal;v.fillRect(0,0,768,768);v.globalCompositeOperation='source-over';panorama=c;
+  }
+  ctx.globalAlpha=1;ctx.drawImage(panorama,-104,-104,208,208);
+  if(s.distortion>0){const sourceW=panorama.naturalWidth||panorama.width,sourceH=panorama.naturalHeight||panorama.height;ctx.globalAlpha=.3*s.open*(1-s.open);for(let i=0;i<24;i++){const shift=Math.sin(i*.61-t*1.9)*s.distortion;ctx.drawImage(panorama,0,i*sourceH/24,sourceW,sourceH/24,-104+shift,-104+i*208/24,208,208/24+.5);}}
+ }
+ if(s.veil>0){
+  ctx.globalAlpha=s.veil*(.32+s.charge*.68);ctx.save();ctx.rotate(t*.22);ctx.drawImage(film,-155,-155,310,310);ctx.restore();
+  ctx.globalCompositeOperation='screen';ctx.globalAlpha=s.veil*.32;ctx.save();ctx.rotate(-t*.31+.8);ctx.transform(1,.12,-.07,1,0,0);ctx.drawImage(film,-160,-160,320,320);ctx.restore();
+  // Continuous contours do not wrap or restart at full brightness.
+  for(let i=0;i<9;i++){const radius=12+i*11,glint=.5+.5*Math.sin(t*1.6-i*.7);ctx.globalAlpha=s.veil*(.035+glint*.065);ctx.lineWidth=1.1;ctx.strokeStyle=i%2?'#97dbef':'#8fafe6';ctx.beginPath();for(let j=0;j<=72;j++){const a=j/72*TAU,r=radius+(3+s.surge*7)*Math.sin(a*3-t*1.4+i*.5)+2*Math.sin(a*7+t*.7);const x=Math.cos(a)*r,y=Math.sin(a)*r;j?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.stroke();}
+  // Offset light and shadow give the fluid dome depth as it energizes.
+  const light=ctx.createRadialGradient(-28,-35,4,0,0,115);light.addColorStop(0,'#caf9ff70');light.addColorStop(.4,'#7edeee30');light.addColorStop(1,'#061a3d00');ctx.globalAlpha=s.veil*(.45+s.surge*.5);ctx.fillStyle=light;ctx.fillRect(-104,-104,208,208);
+ }
  ctx.restore();
 }
-function drawStoryPortalPassageShimmer(passages,scale){
- ctx.save();ctx.globalCompositeOperation='screen';
- for(const p of passages){
-  ctx.globalAlpha=1;const radius=(13+p.age*38)*scale,g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,radius);g.addColorStop(0,`rgba(219,255,245,${p.life*.36})`);g.addColorStop(.3,`rgba(115,229,255,${p.life*.22})`);g.addColorStop(1,'#83dfff00');ctx.fillStyle=g;ctx.fillRect(p.x-radius,p.y-radius,radius*2,radius*2);
-  for(let i=0;i<3;i++){const age=p.age-i*.13;if(age<0)continue;const r=(6+age*115)*scale;ctx.globalAlpha=p.life*p.life*(.7-i*.13);ctx.strokeStyle=i%2?'#a6f4ff':'#e0fff4';ctx.lineWidth=(2.5-i*.5)*scale;ctx.beginPath();for(let j=0;j<=64;j++){const a=j/64*TAU,w=1+.045*Math.sin(a*7-p.age*13+i),x=p.x+Math.cos(a)*r*w,y=p.y+Math.sin(a)*r*1.2*w;j?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.stroke();}
+// Rasterize the water, image and entry shimmer in a local opaque surface.
+// Keep the photo and faint ripples in local pixels before projecting them.
+// The recorded white frames occurred while compositing this transformed view.
+function drawStoryPortalPane(e){
+ if(!storyPortalSurfaceCanvas){
+  storyPortalSurfaceCanvas=document.createElement('canvas');storyPortalSurfaceCanvas.width=storyPortalSurfaceCanvas.height=768;
+  storyPortalSurfaceBrush=storyPortalSurfaceCanvas.getContext('2d',{alpha:false,willReadFrequently:true});
  }
+ // Paused frames reuse the same bitmap; active frames share one surface clock.
+ const passages=storyPortalPassages(e),surface=storyPortalSurfaceState(e),ageKey=surface.open===1&&surface.veil===0&&passages.length===0?'home':e.returnAge,source=storyPortalDestination?.complete&&storyPortalDestination.naturalWidth?storyPortalDestination:storyPortalVista;
+ if(storyPortalSurfaceOwner!==e||storyPortalSurfaceAge!==ageKey||storyPortalSurfaceSource!==source){
+  const c=storyPortalSurfaceBrush,scale=768/208;c.setTransform(scale,0,0,scale,384,384);c.globalAlpha=1;c.globalCompositeOperation='source-over';
+  drawStoryPortalSurface(e,c);drawStoryPortalPassageShimmer(passages,1,c);storyPortalSurfaceAge=ageKey;storyPortalSurfaceOwner=e;storyPortalSurfaceSource=source;
+ }
+ ctx.save();ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.shadowBlur=0;ctx.filter='none';ctx.drawImage(storyPortalSurfaceCanvas,-104,-104,208,208);ctx.restore();
+}
+// The camera follows the pilot through the same projected aperture. The
+// expanding window masks the old world before revealing the home panorama.
+// Everything uses the rescue clock, so pausing holds the entire finale.
+function drawStoryHomecoming(e){
+ if(!e?.returning)return;
+ if(!storyPortalFrame)prepareStoryPortal();
+ const h=storyHomecoming(e),gate=storyGatePosition(e),plane=storyHomecomingProjection(e,h).plane,view=storyHomecomingView(e,h),cx=view.cx,cy=view.cy,z=h.zoom;
+ // Keep the actual machine around the aperture during the camera push.
+ // Its near and far rim share the window's exact scale and center, and
+ // leave the viewport only when the camera has physically passed through.
+ if(h.u<1)drawStoryHomecomingFrame(e,h,cx,cy,false);
+ ctx.save();ctx.beginPath();
+ for(let i=0;i<=80;i++){const a=i/80*TAU,x=104*Math.cos(a),y=104*Math.sin(a),px=cx+(plane.a*x+plane.c*y+plane.x)*z,py=cy+(plane.b*x+plane.d*y+plane.y)*z;i?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.closePath();ctx.clip();
+ ctx.save();ctx.transform(view.a,view.b,view.c,view.d,view.x,view.y);
+ drawStoryPortalPane(e);ctx.restore();
+ // Animated reflections anchor the arrival in the lake, rather than a still
+ // postcard. A bounded set of ripples avoids allocating a particle system.
+ ctx.globalAlpha=h.reveal*.20;ctx.strokeStyle='#e2fff7';ctx.lineWidth=1;
+ for(let i=0;i<22;i++){const y=H*(.48+i*.024),x=W*(.48+Math.sin(i*2.39+h.age*.4)*.08),w=W*(.015+i*.0015);ctx.beginPath();ctx.moveTo(x-w,y);ctx.quadraticCurveTo(x,y+Math.sin(h.age*3+i)*2,x+w,y);ctx.stroke();}
+ window.gpuModels?.setEnvironment?.('daylight');
+ for(let i=0;i<5;i++){const p=storyHomecomingCraft(e,storyCarrierBeyond(e,i),h,view);if(p.visible){ctx.globalAlpha=p.alpha;drawStoryReturningCarrier(e,p,i,h.turn);}}
+ const pilot=storyHomecomingCraft(e,storyPilotBeyond(e),h,view);if(pilot.visible){ctx.globalAlpha=pilot.alpha;drawStoryHomewardPilot(e,pilot,h.turn);}
+ window.gpuModels?.flush(ctx);window.gpuModels?.setEnvironment?.(sceneryLighting(sectors[level]));
+ const title=navigationEase((h.arrival-.5)/1.2);if(title>0){
+  ctx.globalAlpha=title;const shade=ctx.createLinearGradient(0,H*.57,0,H);shade.addColorStop(0,'#0b233800');shade.addColorStop(1,'#061a35b3');ctx.fillStyle=shade;ctx.fillRect(0,H*.57,W,H*.43);
+ }
+
  ctx.restore();
+ if(h.u<1)drawStoryHomecomingFrame(e,h,cx,cy,true);
+ if(e.returnAge<storyPilotCrossingAge())drawStoryApproachingCarriers(e);
+}
+function drawStoryHomecomingFrame(e,h,x,y,front){
+ const p=storyPortalPhase(e),projection=storyHomecomingProjection(e,h),pose=projection.pose,scale=p.scale*h.zoom;
+ ctx.save();ctx.translate(x,y);window.gpuModels?.setEnvironment?.('portal');
+ if(front){
+  const rotor=storyPortalRotorBasisPose(projection.axes,p.spin+p.open*e.returnAge*.25);
+  drawModel(storyPortalFront,0,0,scale,pose.yaw,pose.roll,pose.pitch,e.returnAge,0);
+  drawModel(storyPortalRotor,0,0,scale,rotor.yaw,rotor.roll,rotor.pitch,e.returnAge,0);
+ }else drawModel(storyPortalFrame,0,0,scale,pose.yaw,pose.roll,pose.pitch,e.returnAge,0);
+ window.gpuModels?.flush(ctx);
+ if(front){
+  const b=projection.axes;ctx.transform(b.u[0]*scale,b.u[1]*scale,b.v[0]*scale,b.v[1]*scale,b.n[0]*-8*scale,b.n[1]*-8*scale);
+  ctx.strokeStyle='#c7fff3';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(0,0,107.5,0,TAU);ctx.stroke();
+ }
+ window.gpuModels?.setEnvironment?.(sceneryLighting(sectors[level]));ctx.restore();
+}
+function drawStoryPortalPassageShimmer(passages,scale,brush){
+ const context=brush||ctx;
+ context.save();context.globalCompositeOperation='screen';
+ for(const p of passages){
+  const strength=storyPassageEnvelope(p.age),radius=(13+p.age*38)*scale,g=context.createRadialGradient(p.x,p.y,0,p.x,p.y,radius);
+  g.addColorStop(0,`rgba(174,239,255,${strength*.13})`);g.addColorStop(.4,`rgba(115,229,255,${strength*.09})`);g.addColorStop(1,'#83dfff00');context.globalAlpha=1;context.fillStyle=g;context.fillRect(p.x-radius,p.y-radius,radius*2,radius*2);
+  const r=(3+p.age*75)*scale;context.globalAlpha=strength*.27;context.strokeStyle='#b3efff';context.lineWidth=1.4*scale;context.beginPath();
+  for(let j=0;j<=64;j++){const a=j/64*TAU,w=1+.025*Math.sin(a*7-p.age*5),x=p.x+Math.cos(a)*r*w,y=p.y+Math.sin(a)*r*1.12*w;j?context.lineTo(x,y):context.moveTo(x,y);}context.closePath();context.stroke();
+ }
+ context.restore();
 }
 function drawStoryGate(e){
- if(!storyPortalFrame)prepareStoryPortal();const g=storyGatePosition(e),p=storyPortalPhase(e),pose=storyPortalPose(e),rotor=storyPortalRotorPose(e,p.spin+p.open*(e.returnAge||0)*.25),t=e.returning?e.returnAge:e.age,passages=storyPortalPassages(e),panorama=storyPortalDestination?.complete&&storyPortalDestination.naturalWidth?storyPortalDestination:storyPortalVista,sourceW=panorama.naturalWidth||panorama.width,sourceH=panorama.naturalHeight||panorama.height;
+ if(!storyPortalFrame)prepareStoryPortal();const g=storyGatePosition(e),p=storyPortalPhase(e),pose=storyPortalPose(e),rotor=storyPortalRotorPose(e,p.spin+p.open*(e.returnAge||0)*.25),t=e.returning?e.returnAge:e.age,passages=storyPortalPassages(e),panorama=storyPortalDestination?.complete&&storyPortalDestination.naturalWidth?storyPortalDestination:storyPortalVista,sourceW=panorama.naturalWidth||panorama.width,sourceH=panorama.naturalHeight||panorama.height,surfaceFade=e.returning?1-navigationEase((e.returnAge-storyPilotCrossingAge()+.8)/.8):1;
  ctx.save();ctx.translate(g.x,g.y);
  const radius=175*p.scale,halo=ctx.createRadialGradient(0,0,90*p.scale,0,0,radius);halo.addColorStop(0,`rgba(120,226,247,${.04+p.open*.12})`);halo.addColorStop(1,'#69caff00');ctx.fillStyle=halo;ctx.fillRect(-radius,-radius,radius*2,radius*2);
  window.gpuModels?.setEnvironment?.('portal');drawStoryPortalRear(e,p,pose,t);
@@ -579,16 +793,16 @@ function drawStoryGate(e){
  if(p.open>0){ctx.globalAlpha=p.open;ctx.drawImage(panorama,-ry,-ry,ry*2,ry*2);
   // Subtle whole-window refraction stays transparent enough to reveal the
   // rendered destination. The river has its own visible flowing reflection.
-  for(let i=0;i<18;i++){const y=-ry+i*ry/9;let shift=Math.sin(i*.9-t*2.6)*2*1;for(const hit of passages)shift+=Math.sin((y-hit.y)*.06-hit.age*18)*Math.exp(-Math.abs(y-hit.y)/(38*1))*hit.life*9*1;ctx.globalAlpha=.18*p.open;ctx.drawImage(panorama,0,i*sourceH/18,sourceW,sourceH/18,-ry+shift,y,ry*2,ry/9+1);}
+  for(let i=0;i<18;i++){const y=-ry+i*ry/9;let shift=Math.sin(i*.9-t*2.6)*1.1;for(const hit of passages)shift+=Math.sin((y-hit.y)*.06-hit.age*18)*Math.exp(-Math.abs(y-hit.y)/(38*1))*hit.strength*4;ctx.globalAlpha=.18*p.open*surfaceFade;ctx.drawImage(panorama,0,i*sourceH/18,sourceW,sourceH/18,-ry+shift,y,ry*2,ry/9+1);}
   ctx.save();ctx.beginPath();ctx.moveTo(-rx*.16,-ry*.12);ctx.lineTo(rx*.22,-ry*.12);ctx.lineTo(rx*.70,ry);ctx.lineTo(-rx*.75,ry);ctx.closePath();ctx.clip();
-  for(let i=9;i<24;i++){const u=i/24,shift=Math.sin(u*35-t*3.4)*1.9*1;ctx.globalAlpha=.42*p.open;ctx.drawImage(panorama,0,u*sourceH,sourceW,sourceH/24,-ry+shift,-ry+u*ry*2,ry*2,ry/12+1);}
-  ctx.restore();ctx.globalAlpha=.23*p.open;ctx.strokeStyle='#edfff9';ctx.lineWidth=.8*1;
-  for(const f of [{x:.59,y:.345,h:.10},{x:.72,y:.345,h:.16},{x:.83,y:.31,h:.26},{x:.20,y:.35,h:.18}])for(let i=0;i<5;i++){const u=(t*.75+i/5)%1,x=(f.x-.5)*ry*2+Math.sin(i*2.3)*2*1,y=(f.y-.5+u*f.h)*ry*2;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+.6*1,y+5*1);ctx.stroke();}
+  for(let i=9;i<24;i++){const u=i/24,shift=Math.sin(u*35-t*3.4)*1.9*1;ctx.globalAlpha=.22*p.open*surfaceFade;ctx.drawImage(panorama,0,u*sourceH,sourceW,sourceH/24,-ry+shift,-ry+u*ry*2,ry*2,ry/12+1);}
+  ctx.restore();ctx.strokeStyle='#edfff9';ctx.lineWidth=.8*1;
+  for(const f of [{x:.59,y:.345,h:.10},{x:.72,y:.345,h:.16},{x:.83,y:.31,h:.26},{x:.20,y:.35,h:.18}])for(let i=0;i<5;i++){const u=(t*.75+i/5)%1,x=(f.x-.5)*ry*2+Math.sin(i*2.3)*2*1,y=(f.y-.5+u*f.h)*ry*2;ctx.globalAlpha=.23*p.open*surfaceFade*Math.sin(u*Math.PI)**2;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+.6*1,y+5*1);ctx.stroke();}
   drawStoryCarriersBeyond(e,p.open);
   // Uneven traveling wavefronts move across the glassy aperture, rather
   // than turning the vista into a uniform set of concentric target circles.
-  ctx.globalCompositeOperation='screen';for(let i=0;i<6;i++){const u=(t*.22+i/6)%1,r=Math.max(1,u*rx);ctx.globalAlpha=(1-u)*.16*p.open;ctx.strokeStyle=i%2?'#b4feff':'#c5b7ff';ctx.lineWidth=(1-u)*2+1;ctx.beginPath();for(let j=0;j<=56;j++){const a=j/56*TAU,wave=1+.04*Math.sin(a*5+t*3+i),x=Math.cos(a)*r*wave,y=Math.sin(a)*r*ry/rx*wave;j?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.stroke();}
-  ctx.globalAlpha=.55*p.open;ctx.strokeStyle='#c9ffff';ctx.lineWidth=1;for(let i=0;i<30;i++){const a=i*2.399+t*.18,u=((t*.14+i*.618)%1),r=(.2+u*.8)*rx;ctx.beginPath();ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r*ry/rx);ctx.lineTo(Math.cos(a)*r*(1+.06*u),Math.sin(a)*r*ry/rx*(1+.06*u));ctx.stroke();}
+  ctx.globalCompositeOperation='screen';for(let i=0;i<6;i++){const u=(t*.22+i/6)%1,r=Math.max(1,u*rx);ctx.globalAlpha=Math.sin(u*Math.PI)**2*.16*p.open*surfaceFade;ctx.strokeStyle=i%2?'#b4feff':'#c5b7ff';ctx.lineWidth=(1-u)*2+1;ctx.beginPath();for(let j=0;j<=56;j++){const a=j/56*TAU,wave=1+.04*Math.sin(a*5+t*3+i),x=Math.cos(a)*r*wave,y=Math.sin(a)*r*ry/rx*wave;j?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.stroke();}
+  ctx.strokeStyle='#c9ffff';ctx.lineWidth=1;for(let i=0;i<30;i++){const a=i*2.399+t*.18,u=((t*.14+i*.618)%1),r=(.2+u*.8)*rx;ctx.globalAlpha=.55*p.open*surfaceFade*Math.sin(u*Math.PI)**2;ctx.beginPath();ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r*ry/rx);ctx.lineTo(Math.cos(a)*r*(1+.06*u),Math.sin(a)*r*ry/rx*(1+.06*u));ctx.stroke();}
   drawStoryPortalPassageShimmer(passages,1);
  }
  ctx.restore();ctx.globalAlpha=1;
@@ -612,10 +826,27 @@ function drawStoryGate(e){
 }
 function updateStoryPortalHUD(){
  const marker=$('#portalObjective'),e=storyMission?.extract,visible=storyActive()&&!!e&&state==='playing'&&!sectorBlend&&!storyMission.complete;
- if(!marker)return;marker.hidden=!visible;if(!visible)return;
- const g=storyGatePosition(e),p=storyPortalPhase(e),b=readFlightMarkerLayout();if(!b)return;const x=b.left+g.x/W*b.width,y=clamp(b.top+(g.y+156*p.scale)/H*b.height,0,b.frameHeight-48);marker.style.left=x/b.frameWidth*100+'%';marker.style.top=y/b.frameHeight*100+'%';
- hudText('#portalObjective strong',e.returning?(e.returnAge<2.5?'PORTAL SECURED · OPENING HOME':'BRINGING YOUR PEOPLE HOME'):'DEFEND THE PORTAL · SAVE YOUR PEOPLE');
+ if(!marker)return;marker.hidden=!visible||e.returnAge>=storyPilotCrossingAge();if(marker.hidden)return;
+ hudText('#portalObjective strong',e.returning?(e.returnAge<2.5?'PORTAL SECURED · OPENING HOME':e.returnAge>=storyPilotLaunchAge()?'YOUR TURN · HEADING HOME':'BRINGING YOUR PEOPLE HOME'):'DEFEND THE PORTAL · SAVE YOUR PEOPLE');
  hudText('#portalObjective span',e.returning?`FRIENDLY CARRIERS ${e.evacuated}/5 · WEAPONS SAFE`:`BOTH SIDES · INTEGRITY ${e.hp}/${e.max}${e.age<32?' · '+Math.ceil(32-e.age)+'s':' · CLEAR THE APPROACH'}`);
+ positionStoryPortalMarker();
+}
+function positionStoryPortalMarker(){
+ const marker=hudElement('#portalObjective'),m=storyMission,e=m?.extract;
+ if(!marker||marker.hidden)return;
+ if(!e||state!=='playing'||sectorBlend||m.complete||e.returnAge>=storyPilotCrossingAge()){marker.hidden=true;return;}
+ const g=storyGatePosition(e),p=storyPortalPhase(e),b=readFlightMarkerLayout();if(!b)return;
+ const x=b.left+g.x/W*b.width,y=clamp(b.top+(g.y+156*p.scale)/H*b.height,0,b.frameHeight-48);
+ marker.style.transform=`translate3d(${x}px,${y}px,0) translateX(-50%)`;
+}
+function positionHomecomingCaption(){
+ const caption=hudElement('#homecomingCaption');if(!caption)return;
+ const e=storyActive()?storyMission?.extract:null,visible=e?.returning&&['playing','paused'].includes(state)&&e.returnAge>storyPilotCrossingAge()+STORY_PILOT_RETURN.window+.5;
+ caption.hidden=!visible;if(!visible)return;
+ const progress=navigationEase((storyHomecoming(e).arrival-.5)/1.2);caption.style.opacity=progress;caption.style.transform=`translate3d(0,${(1-progress)*12}px,0)`;
+}
+function positionFlightMarkers(){
+ positionOpeningRescueMarker();positionStoryInteractionMarker();positionStoryPortalMarker();positionHomecomingCaption();
 }
 let campaignBriefView=null;
 function campaignBriefVisible(){return state==='title'&&atlasOpen&&!!campaignBriefView&&$('#overlay').classList.contains('campaign-intro');}
