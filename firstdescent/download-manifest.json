@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 73365022,
+  "bytes": 73364944,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 465312,
-      "sha256": "2679d64c1702ec46ecb0713b6d5b90a6c7c875ac9f82a6aac0fb8709fab64b5d"
+      "bytes": 465230,
+      "sha256": "7da311824dddddfa8ec5c970ae4e087ce08152a54f45a37d748647edcfb5caf4"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1631,8 +1631,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 7352,
-      "sha256": "74af4b93a7489f70c2af499d3e01402877082cf8530ec29ac063bea61daeb0af"
+      "bytes": 7356,
+      "sha256": "250bc5b0fe0313367399887aeb1810352327d65bf40fced43d7e6b501377b6a3"
     },
     {
       "path": "levels.js",
