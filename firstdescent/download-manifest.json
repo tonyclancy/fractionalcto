@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 73321978,
+  "bytes": 73332423,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -1631,8 +1631,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 7251,
-      "sha256": "ac55c151016cf65943ee39661f5a79c807fb014e11d5449f63a70fae16fae497"
+      "bytes": 7245,
+      "sha256": "f417676ed80caecec4b5e7f3312e4621ed11e8d37c7bde8087e682126e71531a"
     },
     {
       "path": "levels.js",
@@ -1651,8 +1651,8 @@
     },
     {
       "path": "models.js",
-      "bytes": 127165,
-      "sha256": "dc2b8dbb9b6edb0e61fd5d36eebb3ca561683b26be39ac0f66f80336ca27dd8b"
+      "bytes": 127188,
+      "sha256": "339f9c5fb87c381efd8264bc6608c40a43600a75fb19d5505650f2122260c825"
     },
     {
       "path": "music/dark-current155.m4a",
@@ -1661,8 +1661,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 42212,
-      "sha256": "ebe0eaf68dd006429f78c88ce9f56c7f99349d93e78e5349c11b384f8307bac1"
+      "bytes": 42492,
+      "sha256": "4ec5da18ae50f17a88e9403a84b11ba6bd1137e23a4e2fbf9e9c74713b4e2e07"
     },
     {
       "path": "runs.js",
@@ -1681,8 +1681,8 @@
     },
     {
       "path": "story-campaign.js",
-      "bytes": 60306,
-      "sha256": "0f32d29bd1ccdb536336d446d2941a028fb8e1be9f385b13180efd6a7c6413d8"
+      "bytes": 70454,
+      "sha256": "36478708651e9e5c94205056122dd005eba5ffbe2220de9f13f5016f28df2f88"
     },
     {
       "path": "style.css",

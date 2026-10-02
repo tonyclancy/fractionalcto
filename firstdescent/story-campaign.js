@@ -51,9 +51,19 @@ function beginStoryReturn(e){
  e.returning=true;e.returnAge=0;e.sceneWorld=world;e.escortStart={x:ship.x,y:ship.y};e.raiders=[];shots=[];muzzleFlash=0;explosions=[];hostile=[];hazards=[];acidClouds=[];enemies=[];ship.inv=Math.max(ship.inv,8);
  keys.clear();pointer=null;announce('PORTAL SECURED','OPENING THE WAY HOME · WEAPONS SAFE',3);window.flightAudio?.setBossApproach?.(0);window.flightAudio?.setRescueCelebration?.(true);window.flightAudio?.setMusicActive(true);
 }
+const STORY_RETURN_FLIGHT=Object.freeze({launch:3,spacing:.7,approach:3.4,beyond:3.5,settle:.45});
+function storyCarrierCrossingAge(i){return STORY_RETURN_FLIGHT.launch+i*STORY_RETURN_FLIGHT.spacing+STORY_RETURN_FLIGHT.approach;}
+function storyRescueFinishAge(){return storyCarrierCrossingAge(4)+STORY_RETURN_FLIGHT.beyond+STORY_RETURN_FLIGHT.settle;}
+function storyCarrierEntry(e,i){const localX=104*.55,localY=104*(.08+Math.sin(i*1.7)*.08),point=storyPortalProject(e,localX,localY,5);return{...point,localX,localY,scale:1.15};}
 function storyCarrierPosition(e,i){
- const u=clamp((e.returnAge-3-i*.7)/3.4,0,1),gate=storyGatePosition(e),start=W+100+i*30;
- return{x:start+(gate.x-start)*navigationEase(u),y:gate.y+Math.sin(i*1.7)*120*(1-u)+Math.sin(u*Math.PI)*45,scale:1-navigationEase((u-.86)/.14),u};
+ const u=clamp((e.returnAge-STORY_RETURN_FLIGHT.launch-i*STORY_RETURN_FLIGHT.spacing)/STORY_RETURN_FLIGHT.approach,0,1),gate=storyGatePosition(e),entry=storyCarrierEntry(e,i),start=W+100+i*30;
+ return{x:start+(gate.x+entry.x-start)*navigationEase(u),y:gate.y+entry.y+Math.sin(i*1.7)*120*(1-u)+Math.sin(u*Math.PI)*45,scale:entry.scale,u};
+}
+function storyCarrierBeyond(e,i){
+ const elapsed=e.returnAge-storyCarrierCrossingAge(i),u=clamp(elapsed/STORY_RETURN_FLIGHT.beyond,0,1),entry=storyCarrierEntry(e,i),perspective=1/(1+18*u*u*(3-2*u)),target=storyPortalProject(e,104*(.08+(i-2)*.025),104*(-.27+(i%2)*.025),5);
+ // One continuous hull crosses the window, turns away, then follows the
+ // lake toward the city. Perspective, not an early dissolve, makes it small.
+ return{x:target.x+(entry.x-target.x)*perspective,y:target.y+(entry.y-target.y)*perspective,scale:entry.scale*perspective,yaw:Math.PI*.5*navigationEase(elapsed/.8),alpha:1-navigationEase((u-.84)/.16),elapsed,u,visible:elapsed>=0&&u<1};
 }
 function storyGatePosition(e){return{x:e.x-storyRescuePan(e),y:e.y};}
 function storyMayFire(){return storyActive()&&!storyMission?.complete&&!storyMission?.extract?.returning;}
@@ -80,7 +90,7 @@ function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playi
   if(!m.extract){if(transition>1)return;beginStoryExtraction();saveCheckpoint();}
   const e=m.extract;
   e.repairGlow=Math.max(0,e.repairGlow-dt);
-  if(e.returning){e.returnAge+=dt;updateStoryEscort(e);if(!e.opened&&e.returnAge>=1.6){e.opened=true;window.flightAudio?.portalOpen?.();announce('THE WAY HOME IS OPEN','FRIENDLY CARRIERS · WEAPONS SAFE',3);}const previous=e.evacuated;e.evacuated=0;for(let i=0;i<5;i++)if(storyCarrierPosition(e,i).u===1)e.evacuated++;if(e.evacuated>previous){const g=storyGatePosition(e);burst(g.x,g.y,'#b8ffe4',10);window.flightAudio?.engineerCue?.('link',g.x);}if(e.returnAge<10.5)return;}
+  if(e.returning){e.returnAge+=dt;updateStoryEscort(e);if(!e.opened&&e.returnAge>=1.6){e.opened=true;window.flightAudio?.portalOpen?.();announce('THE WAY HOME IS OPEN','FRIENDLY CARRIERS · WEAPONS SAFE',3);}const previous=e.evacuated;e.evacuated=0;for(let i=0;i<5;i++)if(storyCarrierPosition(e,i).u===1)e.evacuated++;if(e.evacuated>previous){const g=storyGatePosition(e);for(let i=previous;i<e.evacuated;i++)window.flightAudio?.engineerCue?.('link',g.x+storyCarrierEntry(e,i).x);}if(e.returnAge<storyRescueFinishAge())return;}
   else{
   e.age+=dt;e.next-=dt;window.flightAudio?.setIntensity(.85);
   updateStoryRaiders(e,dt);
@@ -144,13 +154,12 @@ function drawStoryMission(){
  if(!storyActive()||!storyMission||sectorBlend)return;const m=storyMission,d=STORY_ROUTE[m.index],n=m.node,e=m.extract;
  if(n)drawModel(storyMesh(d.kind),n.x,n.y,1,(d.kind==='relay'?.3:.12)*Math.sin(m.age*.7),.05*Math.sin(m.age),0,m.age,0);
  for(const echo of m.relayEchoes){ctx.save();ctx.globalAlpha*=1-navigationEase((echo.age-.65)/1.55);drawModel(storyMesh(echo.kind||'relay'),echo.x,echo.y,1,.3*Math.sin(m.age*.7),.05*Math.sin(m.age),0,m.age,0);ctx.restore();}
- if(e?.returning)for(let i=0;i<5;i++){const p=storyCarrierPosition(e,i);if(p.u<1)drawModel(storyMesh('carrier'),p.x,p.y,p.scale,0,.12*Math.sin(m.age+i),Math.PI,m.age,0);}
  if(e)for(const r of e.raiders)drawModel(storyMesh('raider'),r.x,r.y,r.scale||1,.08*Math.sin(r.age*3),.18*Math.sin(r.age*4),Math.atan2(e.y-r.y,e.x-r.x),r.age,r.hit||0);
  window.gpuModels?.flush(ctx);ctx.save();
  for(const echo of m.relayEchoes)drawRelayActivation(echo);
  if(n&&d.kind==='relay')drawRelaySignal(n,m);
  if(n&&d.kind!=='relay'){const c=d.kind==='furnace'?'#ffbe75':'#8de5ee';const halo=ctx.createRadialGradient(n.x,n.y,10,n.x,n.y,100);halo.addColorStop(0,c+'28');halo.addColorStop(1,c+'00');ctx.fillStyle=halo;ctx.fillRect(n.x-100,n.y-100,200,200);ctx.strokeStyle=c+'70';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(n.x,n.y,112,0,TAU);ctx.stroke();ctx.strokeStyle=c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(n.x,n.y,112,-Math.PI/2,-Math.PI/2+TAU*(d.kind==='seal'?1-n.hp/42:m.charge/1.5));ctx.stroke();ctx.fillStyle='#081923dc';ctx.fillRect(n.x-158,n.y+123,316,26);ctx.fillStyle='#e7f8ff';ctx.font='600 14px system-ui';ctx.textAlign='center';ctx.fillText(d.kind==='seal'?'ARCHIVE SEAL · SHOOT':d.kind==='furnace'?'DIVERSION CONTROL · HOLD NEAR':'RELAY · HOLD NEAR',n.x,n.y+142);}
- if(e)drawStoryGate(e);if(e?.returning){for(let i=0;i<5;i++){const p=storyCarrierPosition(e,i);if(p.u>=1)continue;ctx.strokeStyle='#a4ffdfaa';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(p.x+35*p.scale,p.y);ctx.lineTo(p.x+90*p.scale,p.y);ctx.stroke();ctx.fillStyle='#071b28cf';ctx.fillRect(p.x-37,p.y+20,74,16);ctx.fillStyle='#c4fff0';ctx.font='600 9px system-ui';ctx.textAlign='center';ctx.fillText('FRIENDLY',p.x,p.y+31);}}
+ if(e)drawStoryGate(e);if(e?.returning)drawStoryApproachingCarriers(e);
  if(e)drawStoryRaiderEffects(e);
  ctx.restore();
 }
@@ -383,16 +392,66 @@ function drawStoryRaiderEffects(e){
   if(r.hp<r.max){ctx.fillStyle='#07121c';ctx.fillRect(r.x-25,r.y+50*size,50,4);ctx.fillStyle='#ff997a';ctx.fillRect(r.x-25,r.y+50*size,50*clamp(r.hp/r.max,0,1),4);}
  }
 }
-let storyPortalFrame=null,storyPortalRotor=null,storyPortalVista=null,storyPortalDestination=null;
+let storyPortalFrame=null,storyPortalFront=null,storyPortalRotor=null,storyPortalVista=null,storyPortalDestination=null;
+function storyPortalPose(e){return{yaw:-.73+(e.returning?.08*navigationEase(e.returnAge/2.4):0),roll:.06,pitch:-.09};}
+function storyPortalAxes(e){const p=storyPortalPose(e);return{u:rotateVertex([1,0,0],p.yaw,p.roll,p.pitch,0,0),v:rotateVertex([0,1,0],p.yaw,p.roll,p.pitch,0,0),n:rotateVertex([0,0,1],p.yaw,p.roll,p.pitch,0,0)};}
+function storyPortalProject(e,x,y,z=5){const b=storyPortalAxes(e),s=storyPortalPhase(e).scale;return{x:(b.u[0]*x+b.v[0]*y+b.n[0]*z)*s,y:(b.u[1]*x+b.v[1]*y+b.n[1]*z)*s};}
+function storyPortalPlane(e){const b=storyPortalAxes(e),s=storyPortalPhase(e).scale;return{a:b.u[0]*s,b:b.u[1]*s,c:b.v[0]*s,d:b.v[1]*s,x:b.n[0]*5*s,y:b.n[1]*5*s};}
+function storyPortalUndoPlane(e){const m=storyPortalPlane(e),det=m.a*m.d-m.b*m.c;ctx.transform(m.d/det,-m.b/det,-m.c/det,m.a/det,(m.c*m.y-m.d*m.x)/det,(m.b*m.x-m.a*m.y)/det);}
+function storyPortalRotorPose(e,spin){
+ // Rotate the circular rotor in its own plane before tilting the entire
+ // machine. A screen-space rotation would make an oval orbit the frame.
+ const b=storyPortalAxes(e),c=Math.cos(spin),s=Math.sin(spin),u=b.u.map((n,i)=>n*c+b.v[i]*s),v=b.v.map((n,i)=>-b.u[i]*s+n*c);
+ return{roll:Math.asin(clamp(v[2],-1,1)),yaw:Math.atan2(-u[2],b.n[2]),pitch:Math.atan2(-v[0],v[1])};
+}
+function storyPortalLathe(profile,segments,colors){
+ const faces=[];
+ for(let i=0;i<segments;i++)for(let j=0;j<profile.length-1;j++){
+  const v=(k,p)=>[Math.cos(k/segments*TAU)*p[0],Math.sin(k/segments*TAU)*p[0],p[1]],c=colors[j%colors.length],panel=Math.floor(i/8)%3;
+  faces.push({v:[v(i,profile[j]),v(i+1,profile[j]),v(i+1,profile[j+1]),v(i,profile[j+1])],c:c.map(n=>n+panel*3),em:0,flex:0});
+ }
+ faces.portalMachinery=true;return faces;
+}
+function storyPortalModule(faces,angle,outline,front,back,color){
+ const pt=(p,z)=>[Math.cos(angle)*p[0]-Math.sin(angle)*p[1],Math.sin(angle)*p[0]+Math.cos(angle)*p[1],z];
+ faces.push({v:outline.map(p=>pt(p,front)),c:color,em:0,flex:0},{v:outline.map(p=>pt(p,back)).reverse(),c:color.map(n=>n*.5),em:0,flex:0});
+ for(let i=0;i<outline.length;i++)faces.push({v:[pt(outline[i],front),pt(outline[(i+1)%outline.length],front),pt(outline[(i+1)%outline.length],back),pt(outline[i],back)],c:color.map(n=>n*.65),em:0,flex:0});
+}
 function storyPortalRing(radius,width,depth,segments,rotor=false){
- const faces=[],cross=8;
- const v=(a,b)=>[Math.cos(a)*(radius+Math.cos(b)*width)*(rotor?1:.76),Math.sin(a)*(radius+Math.cos(b)*width),Math.sin(b)*depth];
- for(let i=0;i<segments;i++)for(let j=0;j<cross;j++){const a=i/segments*TAU,b=j/cross*TAU,c=(j+1)/cross*TAU,n=(i+1)/segments*TAU;faces.push({v:[v(a,b),v(n,b),v(n,c),v(a,c)],c:rotor?(i%6===0?[185,158,113]:[95,118,135]):i%8===0?[113,124,131]:[63,77,92],em:0,flex:0});}
- faces.industrial=true;return faces;
+ const z=rotor?-6:0,profile=Array.from({length:9},(_,i)=>{const a=i/8*TAU;return[radius+Math.cos(a)*width,z+Math.sin(a)*depth];});
+ return storyPortalLathe(profile,segments,rotor?[[101,136,150],[179,161,123]]:[[77,93,109],[123,143,156]]);
+}
+function buildStoryPortalMachine(){
+ storyPortalFrame=storyPortalLathe([[111,-8],[127,-8],[131,-5],[131,9],[126,12],[109,12],[107,8],[107,5]],96,[[76,92,105],[112,131,144],[40,53,67],[55,69,83],[113,127,132],[47,64,76],[86,114,123]]);
+ storyPortalFront=storyPortalLathe([[107,5],[109,-6],[113,-11],[127,-11],[131,-7]],96,[[78,108,117],[116,151,164],[152,170,174],[72,95,111]]);
+ const m=meshBuilder();
+ for(let i=0;i<9;i++){
+  const a=i/9*TAU-Math.PI/2,rad=(r,t,z)=>[Math.cos(a)*r-Math.sin(a)*t,Math.sin(a)*r+Math.cos(a)*t,z];
+  storyPortalModule(storyPortalFront,a,[[113,-5],[119,-9],[133,-9],[139,-5],[139,5],[133,9],[119,9],[113,5]],-14,-8,[119,142,155]);
+  storyPortalModule(storyPortalFront,a,[[120,-6],[132,-6],[135,-3],[135,3],[132,6],[120,6]],-15,-14,[31,47,64]);
+  storyPortalModule(storyPortalFront,a,[[114,-2],[121,-3],[125,-2],[125,2],[121,3],[114,2]],-16,-14,[184,151,101]);
+  for(const side of [-1,1]){
+   const p=rad(132,side*7,-15);m.ellipsoid(...p,1.2,1.2,.7,[196,204,200],0,6,4);
+   for(let j=0;j<4;j++)storyPortalModule(storyPortalFront,a,[[125+j*2,side*3],[126+j*2,side*3],[126+j*2,side*5],[125+j*2,side*5]],-15.5,-14,[115,148,164]);
+  }
+  const cable=[];for(let j=0;j<=9;j++){const aa=a+.1+j/9*.48;cable.push([Math.cos(aa)*132,Math.sin(aa)*132,2+Math.sin(j/9*Math.PI)*5]);}m.tube(cable,1.1,[115,92,64],0,0,8,1);
+ }
+ storyPortalFront.push(...m.faces);storyPortalRotor=storyPortalRing(111,1.3,1.5,96,true);
+ // Sparse cut seams and metallic inlays follow the annulus, rather than a
+ // square texture floating across it. Each group lies between the locks.
+ for(let i=0;i<27;i++){
+  const a=(i+.5)/27*TAU-Math.PI/2;
+  storyPortalModule(storyPortalFront,a,[[115,-.3],[126,-.3],[126,.3],[115,.3]],-11.2,-10.8,[39,62,78]);
+  if(i%3===1)storyPortalModule(storyPortalFront,a+.025,[[119,-.4],[125,-.4],[125,.4],[119,.4]],-11.4,-11,[162,147,115]);
+ }
+ for(let i=0;i<24;i++){const a=i/24*TAU;storyPortalModule(storyPortalRotor,a,[[109,-1.2],[113,-1.2],[114,0],[113,1.2],[109,1.2]],-8,-5,i%3?[64,91,108]:[196,157,96]);}
+ // Authored metal shapes provide the panel detail. Suppress the generic
+ // square-grid hull shader; fine abrasion comes from the retained bump map.
+ for(const mesh of [storyPortalFrame,storyPortalFront,storyPortalRotor]){mesh.portalMachinery=true;for(const face of mesh)face.textureWeight=0;}
 }
 function prepareStoryPortal(){
  if(!storyPortalDestination){storyPortalDestination=new Image();storyPortalDestination.src='assets/portal-home-v170.webp';storyPortalDestination.decode?.().catch(()=>{});}
- if(!storyPortalFrame){storyPortalFrame=storyPortalRing(132,13,19,72);storyPortalRotor=storyPortalRing(111,6,9,64,true);}
+ if(!storyPortalFrame)buildStoryPortalMachine();
  if(!storyPortalVista){
   const c=document.createElement('canvas');c.width=c.height=512;const v=c.getContext('2d'),sky=v.createLinearGradient(0,0,512,512);sky.addColorStop(0,'#080c30');sky.addColorStop(.4,'#173d65');sky.addColorStop(1,'#020920');v.fillStyle=sky;v.fillRect(0,0,512,512);
   for(let i=0;i<38;i++){const x=256+Math.cos(i*2.399)*Math.sqrt(i/38)*225,y=260+Math.sin(i*2.399)*95,r=22+(i%7)*12,g=v.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,i%2?'#a58de938':'#7dfff84a');g.addColorStop(1,'#294f8e00');v.fillStyle=g;v.fillRect(x-r,y-r,r*2,r*2);}
@@ -401,41 +460,90 @@ function prepareStoryPortal(){
   // image is queued when entering Aureus, before the final guardian fight.
   storyPortalVista=c;
  }
- window.gpuModels?.prepare([storyPortalFrame,storyPortalRotor,storyRaiderMesh()],sectors[level].id);
+ window.gpuModels?.prepare([storyPortalFrame,storyPortalFront,storyPortalRotor,storyRaiderMesh()],sectors[level].id);
+}
+function drawStoryApproachingCarriers(e){
+ ctx.save();
+ for(let i=0;i<5;i++){
+  const p=storyCarrierPosition(e,i);if(p.u<=0||p.u>=1)continue;
+  for(const side of [-1,1]){const x=p.x+19*p.scale,y=p.y+side*8*p.scale,length=(24+Math.sin(e.returnAge*25+i)*3)*p.scale,g=ctx.createLinearGradient(x,y,x+length,y);g.addColorStop(0,'#eafff4d0');g.addColorStop(.25,'#86ffda80');g.addColorStop(1,'#62dff500');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x,y-2.5*p.scale);ctx.lineTo(x+length,y);ctx.lineTo(x,y+2.5*p.scale);ctx.fill();}
+  drawModel(storyMesh('carrier'),p.x,p.y,p.scale,0,.12*Math.sin(e.returnAge+i),Math.PI,e.returnAge,0);
+ }
+ window.gpuModels?.flush(ctx);
+ for(let i=0;i<5;i++){const p=storyCarrierPosition(e,i);if(p.u<=0||p.u>=.9)continue;ctx.globalAlpha=1-navigationEase((p.u-.72)/.18);ctx.fillStyle='#071b28cf';ctx.fillRect(p.x-37,p.y+20,74,16);ctx.fillStyle='#c4fff0';ctx.font='600 9px system-ui';ctx.textAlign='center';ctx.fillText('FRIENDLY',p.x,p.y+31);}
+ ctx.restore();
+}
+function storyPortalPassages(e){
+ if(!e.returning)return[];const passages=[];
+ for(let i=0;i<5;i++){const age=e.returnAge-storyCarrierCrossingAge(i);if(age>=0&&age<1.25)passages.push({x:storyCarrierEntry(e,i).localX,y:storyCarrierEntry(e,i).localY,age,life:1-age/1.25});}
+ return passages;
+}
+function drawStoryCarriersBeyond(e,open){
+ if(!e.returning||!open)return;ctx.save();storyPortalUndoPlane(e);window.gpuModels?.setEnvironment?.('daylight');
+ for(let i=0;i<5;i++){
+  const p=storyCarrierBeyond(e,i);if(!p.visible)continue;
+  ctx.globalAlpha=p.alpha*open;
+  for(const side of [-1,1]){const x=p.x+18*p.scale*Math.cos(p.yaw),y=p.y+side*7*p.scale,length=22*p.scale,dx=Math.cos(p.yaw)*length,dy=Math.sin(p.yaw)*length,g=ctx.createLinearGradient(x,y,x+dx,y+dy);g.addColorStop(0,'#f4fff5d0');g.addColorStop(.25,'#8cecd48a');g.addColorStop(1,'#99efff00');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x-1.4*p.scale*Math.sin(p.yaw),y+1.4*p.scale*Math.cos(p.yaw));ctx.lineTo(x+dx,y+dy);ctx.lineTo(x+1.4*p.scale*Math.sin(p.yaw),y-1.4*p.scale*Math.cos(p.yaw));ctx.fill();}
+  drawModel(storyMesh('carrier'),p.x,p.y,p.scale,p.yaw,.12*Math.sin(e.returnAge+i)*(1-p.yaw/(Math.PI*.5)),Math.PI,e.returnAge,0);
+ }
+ // Flush while the aperture's real Canvas clip is active. Carriers cannot
+ // bleed across the frame or exist outside the destination after crossing.
+ window.gpuModels?.flush(ctx);window.gpuModels?.setEnvironment?.(sceneryLighting(sectors[level]));
+ for(let i=0;i<5;i++){const p=storyCarrierBeyond(e,i);if(!p.visible)continue;ctx.globalAlpha=p.alpha*open;ctx.fillStyle='#effff0';for(const side of [-1,1]){ctx.beginPath();ctx.arc(p.x+18*p.scale*Math.cos(p.yaw),p.y+side*7*p.scale,Math.max(.45,1.5*p.scale),0,TAU);ctx.fill();}}
+ ctx.restore();
+}
+function drawStoryPortalPassageShimmer(passages,scale){
+ ctx.save();ctx.globalCompositeOperation='screen';
+ for(const p of passages){
+  ctx.globalAlpha=1;const radius=(13+p.age*38)*scale,g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,radius);g.addColorStop(0,`rgba(219,255,245,${p.life*.36})`);g.addColorStop(.3,`rgba(115,229,255,${p.life*.22})`);g.addColorStop(1,'#83dfff00');ctx.fillStyle=g;ctx.fillRect(p.x-radius,p.y-radius,radius*2,radius*2);
+  for(let i=0;i<3;i++){const age=p.age-i*.13;if(age<0)continue;const r=(6+age*115)*scale;ctx.globalAlpha=p.life*p.life*(.7-i*.13);ctx.strokeStyle=i%2?'#a6f4ff':'#e0fff4';ctx.lineWidth=(2.5-i*.5)*scale;ctx.beginPath();for(let j=0;j<=64;j++){const a=j/64*TAU,w=1+.045*Math.sin(a*7-p.age*13+i),x=p.x+Math.cos(a)*r*w,y=p.y+Math.sin(a)*r*1.2*w;j?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.stroke();}
+ }
+ ctx.restore();
 }
 function drawStoryGate(e){
- if(!storyPortalFrame)prepareStoryPortal();const g=storyGatePosition(e),p=storyPortalPhase(e),t=e.returning?e.returnAge:e.age,rx=78*p.scale,ry=103*p.scale,panorama=storyPortalDestination?.complete&&storyPortalDestination.naturalWidth?storyPortalDestination:storyPortalVista,sourceW=panorama.naturalWidth||panorama.width,sourceH=panorama.naturalHeight||panorama.height;
- drawModel(storyPortalFrame,g.x,g.y,p.scale,.12,-.05,0,t,0);window.gpuModels?.flush(ctx);ctx.save();ctx.translate(g.x,g.y);ctx.scale(.76,1);drawModel(storyPortalRotor,0,0,p.scale,0,0,p.spin,t,0);window.gpuModels?.flush(ctx);ctx.restore();
+ if(!storyPortalFrame)prepareStoryPortal();const g=storyGatePosition(e),p=storyPortalPhase(e),pose=storyPortalPose(e),rotor=storyPortalRotorPose(e,p.spin+p.open*(e.returnAge||0)*.25),t=e.returning?e.returnAge:e.age,passages=storyPortalPassages(e),panorama=storyPortalDestination?.complete&&storyPortalDestination.naturalWidth?storyPortalDestination:storyPortalVista,sourceW=panorama.naturalWidth||panorama.width,sourceH=panorama.naturalHeight||panorama.height;
  ctx.save();ctx.translate(g.x,g.y);
- const halo=ctx.createRadialGradient(0,0,rx*.7,0,0,ry*1.8);halo.addColorStop(0,`rgba(126,225,255,${.08+p.open*.28})`);halo.addColorStop(.6,`rgba(86,150,242,${p.open*.14})`);halo.addColorStop(1,'#466eff00');ctx.fillStyle=halo;ctx.fillRect(-ry*1.8,-ry*1.8,ry*3.6,ry*3.6);
+ const radius=175*p.scale,halo=ctx.createRadialGradient(0,0,90*p.scale,0,0,radius);halo.addColorStop(0,`rgba(120,226,247,${.04+p.open*.12})`);halo.addColorStop(1,'#69caff00');ctx.fillStyle=halo;ctx.fillRect(-radius,-radius,radius*2,radius*2);
+ window.gpuModels?.setEnvironment?.('portal');drawModel(storyPortalFrame,0,0,p.scale,pose.yaw,pose.roll,pose.pitch,t,0);window.gpuModels?.flush(ctx);
+ // The destination, water, carrier ripple and lens all share the same
+ // projected circular plane, recessed behind a shallow physical throat.
+ ctx.save();const plane=storyPortalPlane(e);ctx.transform(plane.a,plane.b,plane.c,plane.d,plane.x,plane.y);const rx=104,ry=104;
  ctx.save();ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.clip();ctx.fillStyle='#050d20';ctx.fillRect(-rx,-ry,rx*2,ry*2);
  if(p.open>0){ctx.globalAlpha=p.open;ctx.drawImage(panorama,-ry,-ry,ry*2,ry*2);
   // Subtle whole-window refraction stays transparent enough to reveal the
   // rendered destination. The river has its own visible flowing reflection.
-  for(let i=0;i<18;i++){const y=-ry+i*ry/9,shift=Math.sin(i*.9-t*2.6)*2*p.scale;ctx.globalAlpha=.18*p.open;ctx.drawImage(panorama,0,i*sourceH/18,sourceW,sourceH/18,-ry+shift,y,ry*2,ry/9+1);}
+  for(let i=0;i<18;i++){const y=-ry+i*ry/9;let shift=Math.sin(i*.9-t*2.6)*2*1;for(const hit of passages)shift+=Math.sin((y-hit.y)*.06-hit.age*18)*Math.exp(-Math.abs(y-hit.y)/(38*1))*hit.life*9*1;ctx.globalAlpha=.18*p.open;ctx.drawImage(panorama,0,i*sourceH/18,sourceW,sourceH/18,-ry+shift,y,ry*2,ry/9+1);}
   ctx.save();ctx.beginPath();ctx.moveTo(-rx*.16,-ry*.12);ctx.lineTo(rx*.22,-ry*.12);ctx.lineTo(rx*.70,ry);ctx.lineTo(-rx*.75,ry);ctx.closePath();ctx.clip();
-  for(let i=9;i<24;i++){const u=i/24,shift=Math.sin(u*35-t*3.4)*1.9*p.scale;ctx.globalAlpha=.42*p.open;ctx.drawImage(panorama,0,u*sourceH,sourceW,sourceH/24,-ry+shift,-ry+u*ry*2,ry*2,ry/12+1);}
-  ctx.restore();ctx.globalAlpha=.23*p.open;ctx.strokeStyle='#edfff9';ctx.lineWidth=.8*p.scale;
-  for(const f of [{x:.59,y:.345,h:.10},{x:.72,y:.345,h:.16},{x:.83,y:.31,h:.26},{x:.20,y:.35,h:.18}])for(let i=0;i<5;i++){const u=(t*.75+i/5)%1,x=(f.x-.5)*ry*2+Math.sin(i*2.3)*2*p.scale,y=(f.y-.5+u*f.h)*ry*2;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+.6*p.scale,y+5*p.scale);ctx.stroke();}
+  for(let i=9;i<24;i++){const u=i/24,shift=Math.sin(u*35-t*3.4)*1.9*1;ctx.globalAlpha=.42*p.open;ctx.drawImage(panorama,0,u*sourceH,sourceW,sourceH/24,-ry+shift,-ry+u*ry*2,ry*2,ry/12+1);}
+  ctx.restore();ctx.globalAlpha=.23*p.open;ctx.strokeStyle='#edfff9';ctx.lineWidth=.8*1;
+  for(const f of [{x:.59,y:.345,h:.10},{x:.72,y:.345,h:.16},{x:.83,y:.31,h:.26},{x:.20,y:.35,h:.18}])for(let i=0;i<5;i++){const u=(t*.75+i/5)%1,x=(f.x-.5)*ry*2+Math.sin(i*2.3)*2*1,y=(f.y-.5+u*f.h)*ry*2;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+.6*1,y+5*1);ctx.stroke();}
+  drawStoryCarriersBeyond(e,p.open);
   // Uneven traveling wavefronts move across the glassy aperture, rather
   // than turning the vista into a uniform set of concentric target circles.
   ctx.globalCompositeOperation='screen';for(let i=0;i<6;i++){const u=(t*.22+i/6)%1,r=Math.max(1,u*rx);ctx.globalAlpha=(1-u)*.16*p.open;ctx.strokeStyle=i%2?'#b4feff':'#c5b7ff';ctx.lineWidth=(1-u)*2+1;ctx.beginPath();for(let j=0;j<=56;j++){const a=j/56*TAU,wave=1+.04*Math.sin(a*5+t*3+i),x=Math.cos(a)*r*wave,y=Math.sin(a)*r*ry/rx*wave;j?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.stroke();}
   ctx.globalAlpha=.55*p.open;ctx.strokeStyle='#c9ffff';ctx.lineWidth=1;for(let i=0;i<30;i++){const a=i*2.399+t*.18,u=((t*.14+i*.618)%1),r=(.2+u*.8)*rx;ctx.beginPath();ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r*ry/rx);ctx.lineTo(Math.cos(a)*r*(1+.06*u),Math.sin(a)*r*ry/rx*(1+.06*u));ctx.stroke();}
+  drawStoryPortalPassageShimmer(passages,1);
  }
  ctx.restore();ctx.globalAlpha=1;
- // Lock lamps fill as the defense proceeds. The center spins independently
- // until the locks engage; the aperture then blooms into a larger window.
- ctx.save();ctx.scale(p.scale,p.scale);for(let i=0;i<9;i++){const a=i/9*TAU-Math.PI/2,on=i/9<=p.charge;ctx.save();ctx.translate(Math.cos(a)*101,Math.sin(a)*132);ctx.rotate(a);ctx.fillStyle=on?'#d1fff2':'#354355';ctx.beginPath();ctx.moveTo(9,0);ctx.lineTo(-3,-7);ctx.lineTo(-3,7);ctx.fill();ctx.restore();}
- ctx.strokeStyle=p.open?'#c2fffa':'#79bdd6';ctx.lineWidth=p.open?3:1.5;ctx.beginPath();ctx.ellipse(0,0,78,103,0,0,TAU);ctx.stroke();
- for(let i=0;i<28;i++){const a=i/28*TAU+p.spin;ctx.strokeStyle=i%4?'#a2bec9':'#f3d3a3';ctx.lineWidth=i%4?1:3;ctx.beginPath();ctx.moveTo(Math.cos(a)*84,Math.sin(a)*110);ctx.lineTo(Math.cos(a)*89,Math.sin(a)*117);ctx.stroke();}ctx.restore();
- const bloom=e.returning?Math.sin(clamp((t-1.3)/1.2,0,1)*Math.PI)*.5:0;if(bloom>0){ctx.globalCompositeOperation='screen';const light=ctx.createRadialGradient(0,0,5,0,0,ry*1.7);light.addColorStop(0,`rgba(223,255,255,${bloom})`);light.addColorStop(1,'#7b9cff00');ctx.fillStyle=light;ctx.fillRect(-ry*1.7,-ry*1.7,ry*3.4,ry*3.4);ctx.globalCompositeOperation='source-over';}
- if(e.repairGlow>0){ctx.globalAlpha=e.repairGlow/2;ctx.strokeStyle='#b8ffe4';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(0,0,rx+30+(2-e.repairGlow)*45,ry+30+(2-e.repairGlow)*45,0,0,TAU);ctx.stroke();ctx.globalAlpha=1;}
+ ctx.restore();
+ // Foreground bevels and locks genuinely occlude the rear window. This pass
+ // exposes the asymmetric near/far rim instead of drawing a flat oval on top.
+ window.gpuModels?.setEnvironment?.('portal');drawModel(storyPortalFront,0,0,p.scale,pose.yaw,pose.roll,pose.pitch,t,0);drawModel(storyPortalRotor,0,0,p.scale,rotor.yaw,rotor.roll,rotor.pitch,t,0);window.gpuModels?.flush(ctx);
+ ctx.save();const b=storyPortalAxes(e);ctx.transform(b.u[0]*p.scale,b.u[1]*p.scale,b.v[0]*p.scale,b.v[1]*p.scale,b.n[0]*-16*p.scale,b.n[1]*-16*p.scale);
+ for(let i=0;i<9;i++){const a=i/9*TAU-Math.PI/2,on=i/9<=p.charge;ctx.save();ctx.rotate(a);ctx.fillStyle=on?'#d5fff2':'#527481';ctx.fillRect(117,-1,7,2);if(on){ctx.globalCompositeOperation='screen';const light=ctx.createRadialGradient(121,0,0,121,0,11);light.addColorStop(0,`rgba(117,245,238,${.24+p.open*.15})`);light.addColorStop(1,'#7ceeff00');ctx.fillStyle=light;ctx.fillRect(110,-11,22,22);}ctx.restore();}
+ ctx.restore();
+ // Recessed luminous rails spill moving light onto the machined inner edge.
+ ctx.save();ctx.globalCompositeOperation='screen';for(let i=0;i<3;i++){ctx.strokeStyle=i===0?'#d4ffef':'#65d2ec';ctx.globalAlpha=(.35+p.open*.45)/(i+1);ctx.lineWidth=(i===0?1.6:4)*p.scale;ctx.beginPath();for(let j=0;j<=96;j++){const a=j/96*TAU,r=107.5+i*.35,v=storyPortalProject(e,Math.cos(a)*r,Math.sin(a)*r,-6);j?ctx.lineTo(v.x,v.y):ctx.moveTo(v.x,v.y);}ctx.closePath();ctx.stroke();}
+ for(let i=0;i<4;i++){ctx.globalAlpha=.4+p.open*.45;ctx.lineWidth=2*p.scale;ctx.strokeStyle=i%2?'#9eefff':'#e0fff1';ctx.beginPath();for(let j=0;j<13;j++){const a=t*.7+i*TAU/4+j/12*.2,v=storyPortalProject(e,Math.cos(a)*112,Math.sin(a)*112,-8);j?ctx.lineTo(v.x,v.y):ctx.moveTo(v.x,v.y);}ctx.stroke();}
+ const bloom=e.returning?Math.sin(clamp((t-1.3)/1.2,0,1)*Math.PI)*.35:0;if(bloom>0){const light=ctx.createRadialGradient(0,0,5,0,0,radius);light.addColorStop(0,`rgba(223,255,255,${bloom})`);light.addColorStop(1,'#7b9cff00');ctx.globalAlpha=1;ctx.fillStyle=light;ctx.fillRect(-radius,-radius,radius*2,radius*2);}
+ ctx.restore();window.gpuModels?.setEnvironment?.(sceneryLighting(sectors[level]));
+ if(e.repairGlow>0){ctx.globalAlpha=e.repairGlow/2;ctx.strokeStyle='#b8ffe4';ctx.lineWidth=3;ctx.beginPath();for(let i=0;i<=96;i++){const a=i/96*TAU,r=175+(2-e.repairGlow)*35,v=storyPortalProject(e,Math.cos(a)*r,Math.sin(a)*r,0);i?ctx.lineTo(v.x,v.y):ctx.moveTo(v.x,v.y);}ctx.closePath();ctx.stroke();}
  ctx.restore();
 }
 function updateStoryPortalHUD(){
  const marker=$('#portalObjective'),e=storyMission?.extract,visible=storyActive()&&!!e&&state==='playing'&&!sectorBlend&&!storyMission.complete;
  if(!marker)return;marker.hidden=!visible;if(!visible)return;
- const g=storyGatePosition(e),p=storyPortalPhase(e),b=readFlightMarkerLayout();if(!b)return;const x=b.left+g.x/W*b.width,y=clamp(b.top+(g.y+154*p.scale)/H*b.height,0,b.frameHeight-48);marker.style.left=x/b.frameWidth*100+'%';marker.style.top=y/b.frameHeight*100+'%';
+ const g=storyGatePosition(e),p=storyPortalPhase(e),b=readFlightMarkerLayout();if(!b)return;const x=b.left+g.x/W*b.width,y=clamp(b.top+(g.y+156*p.scale)/H*b.height,0,b.frameHeight-48);marker.style.left=x/b.frameWidth*100+'%';marker.style.top=y/b.frameHeight*100+'%';
  hudText('#portalObjective strong',e.returning?(e.returnAge<2.5?'PORTAL SECURED · OPENING HOME':'BRINGING YOUR PEOPLE HOME'):'DEFEND THE PORTAL · SAVE YOUR PEOPLE');
  hudText('#portalObjective span',e.returning?`FRIENDLY CARRIERS ${e.evacuated}/5 · WEAPONS SAFE`:`BOTH SIDES · INTEGRITY ${e.hp}/${e.max}${e.age<32?' · '+Math.ceil(32-e.age)+'s':' · CLEAR THE APPROACH'}`);
 }
