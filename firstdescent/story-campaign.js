@@ -1,12 +1,12 @@
 'use strict';
 // A fixed story route, independent of the additive 92-world exploration archive.
 const STORY_ROUTE=[
- {id:'verdant-reach',world:'Caelus',system:'Vesper',title:'First Contact',kind:'guardian',brief:'Defeat the guardian. Recover the signal that led the expedition here.',result:'A damaged star map reveals a distress call from Ferrum.',socket:'Distress coordinates',benefit:'Route to Ferrum · hull service and one nova'},
- {id:'ember-forge',world:'Ferrum',system:'Vesper',title:'The Last Engineer',kind:'guardian',brief:'Enter the escape pod’s green ring on the way through the Foundry. The rescued engineer sends a sabotage drone to jam one Dreadnought weapon.',result:'The Foundry shard completes the coordinates to Orison. A submerged relay is still transmitting.',socket:'Orison coordinates',benefit:'Engineer can repair the final beacon once if rescued'},
- {id:'lumen-reef',world:'Thalassa',system:'Orison',title:'The Sunken Relay',kind:'relay',brief:'Stay inside each relay’s ring to reconnect three nodes. Defeat the guardian to recover the transmission.',result:'“We reached Eventide. Our ship is gone. The archive carries us.” The recording points to Nivara.',socket:'Expedition recording',benefit:'Relay uplink adds two points of extraction integrity'},
- {id:'nivara-glacial-heart',world:'Nivara',system:'Orison',title:'The Frozen Archive',kind:'seal',brief:'Shoot through three frozen archive seals, then defeat the sentinel. The fragments hold the way to Eventide.',result:'The archive reveals a dormant gate in Eventide. Its furnace must be restarted before the expedition can escape.',socket:'Eventide coordinates',benefit:'Archive telemetry reveals openings when later guardians change phase'},
- {id:'eventide-carmine-corona',world:'Carmine',system:'Eventide',title:'The Gate Furnace',kind:'furnace',brief:'Hold near three diversion controls during the guardian encounter. Route their energy into the rescue gate.',result:'The gate has power. Aureus holds the final signal. Recover it and protect the extraction beacon.',socket:'Gate ignition',benefit:'Diversion controls grant a brief hull guard · rescue gate powered'},
- {id:'eventide-aureus-corona',world:'Aureus',system:'Eventide',title:'Bring Them Home',kind:'extraction',brief:'Defeat the Origin guardian. Then defend the rescue portal from both sides until the expedition can cross.',result:'The expedition’s voices cross the gate. Their archive is safe. You have brought them home.',socket:'Extraction signal',benefit:'Protect the archive carriers and watch them cross the rescue gate'}
+ {id:'verdant-reach',world:'Caelus',system:'Vesper',title:'First Contact',kind:'guardian',purpose:'Find the expedition’s first missing coordinates.',brief:'Defeat the guardian and recover its signal shard. The shard reveals where the expedition went next.',result:'The first coordinates reveal a distress call from Ferrum’s Foundry.',socket:'Distress coordinates',benefit:'Opens the route to Ferrum · hull service and one nova'},
+ {id:'ember-forge',world:'Ferrum',system:'Vesper',title:'The Last Engineer',kind:'guardian',purpose:'Recover the route to Orison. An engineer is still trapped in the Foundry.',brief:'Optional: enter the escape pod’s green ring during the Foundry run. Then defeat the Dreadnought to recover the next coordinates.',result:'The Foundry shard reveals Orison. A submerged expedition relay is still transmitting.',socket:'Orison coordinates',benefit:'Optional engineer rescue: a sabotage drone now, one portal repair during the finale'},
+ {id:'lumen-reef',world:'Thalassa',system:'Orison',title:'The Sunken Relay',kind:'relay',purpose:'Locate the survivors by reconnecting their submerged relay.',brief:'Hold inside each relay’s ring to reconnect three nodes. Then defeat the guardian and recover the next signal shard.',result:'The relay locates five carriers in Eventide. Their crew are alive in stasis; the frozen archive on Nivara holds the way forward.',socket:'Survivor location',benefit:'Connected relays strengthen the final portal by two integrity points'},
+ {id:'nivara-glacial-heart',world:'Nivara',system:'Orison',title:'The Frozen Archive',kind:'seal',purpose:'Recover the navigation records needed to reach the stranded carriers.',brief:'Shoot through three frozen archive seals, then defeat the sentinel. The records reveal Eventide’s dormant rescue gate.',result:'The archive reveals a rescue gate in Eventide. Its furnace must be restarted before the carriers can come home.',socket:'Eventide coordinates',benefit:'Archive telemetry reveals openings when later guardians change phase'},
+ {id:'eventide-carmine-corona',world:'Carmine',system:'Eventide',title:'The Gate Furnace',kind:'furnace',purpose:'Restore power to the gate that will carry the survivors home.',brief:'Hold near three diversion controls during the guardian encounter. Route their energy into the rescue gate.',result:'The gate has power. Aureus holds the final coordinates. Open the route and defend the portal.',socket:'Gate ignition',benefit:'Diversion controls grant a brief hull guard · rescue gate powered'},
+ {id:'eventide-aureus-corona',world:'Aureus',system:'Eventide',title:'Bring Them Home',kind:'extraction',purpose:'Open the route home and protect the five survivor carriers.',brief:'Defeat the Origin guardian. Defend the portal from both sides. Once it opens, weapons stand down and the friendly carriers cross.',result:'All five carriers reached home. The expedition’s crew and discoveries are safe.',socket:'Return coordinates',benefit:'Bring the expedition home · watch the carriers cross the rescue gate'}
 ];
 const STORY_DEFINITION={id:'origin-route-001',version:1,finalStage:STORY_ROUTE[5].id,systems:['Vesper','Orison','Eventide'].map(name=>({id:name,name,discovery:name+' route decoded',stages:STORY_ROUTE.filter(m=>m.system===name).map(m=>({id:m.id,name:m.world,kind:'core'}))})),milestones:[]};
 const storyStore=createOriginStore(missionPreview?null:runStorage,STORY_DEFINITION);
@@ -104,12 +104,12 @@ function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playi
 function finishStorySector(){if(!storyActive())return false;if(!storyMission?.complete){transition=1;return true;}showStoryDebrief();return true;}
 // Brief transmissions keep the next action in view; the full route is optional.
 const STORY_TRANSMISSIONS=[
- {voice:'DISTRESS CALL · FERRUM',line:'“The Foundry is falling. One engineer is still alive.”',task:'Reach the escape pod. Then break the Dreadnought.'},
- {voice:'RECOVERED TRANSMISSION · ORISON',line:'“There is a signal under the water. It is still calling.”',task:'Reconnect three relays. Follow the expedition.'},
- {voice:'EXPEDITION RECORDING · NIVARA',line:'“Our ship is gone. The archive carries us.”',task:'Break the frozen seals. Recover the way to Eventide.'},
+ {voice:'DISTRESS CALL · FERRUM',line:'“The Foundry is falling. One engineer is still alive.”',task:'Optional: rescue the engineer en route. Break the Dreadnought.'},
+ {voice:'RECOVERED TRANSMISSION · ORISON',line:'“Our relay can tell you where the carriers are.”',task:'Reconnect three relays to locate the survivors. Then defeat the guardian.'},
+ {voice:'EXPEDITION RECORDING · NIVARA',line:'“Five carriers. The crew are in stasis. We’re still alive.”',task:'Break the frozen seals to recover the navigation records. Reach Eventide.'},
  {voice:'ARCHIVE DECODED · EVENTIDE',line:'“There is a way home. But the gate has no power.”',task:'Divert the furnace energy. Restart the rescue gate.'},
  {voice:'RESCUE CHANNEL · AUREUS',line:'“We can see the gate. Please do not leave us here.”',task:'Defeat the guardian. Defend the portal from both sides.'},
- {voice:'EXPEDITION CHANNEL · HOME',line:'“We made it. All of us. Thank you.”',task:'Five archive carriers recovered.'}
+ {voice:'EXPEDITION CHANNEL · HOME',line:'“You heard us. You found us. We’re home.”',task:'Five rescue carriers arrived home. The expedition’s crew and discoveries are safe.'}
 ];
 function storyServiceReceipt(){const r=storyMission?.reward||{},items=[];
  if(r.hull)items.push(`Hull repaired +${r.hull}`);else if(ship.hp>=5)items.push('Hull full');
@@ -122,7 +122,7 @@ function showStoryDebrief(){
  if(typeof relayDebrief!=='undefined')relayDebrief=null;
  state=final?'victory':'debrief';if(final)recordFlightRun(true);atlasOpen=false;keys.clear();pointer=null;touchContacts.clear();annTimer=0;$('#announcement').style.opacity=0;$('#pause').hidden=true;$('#touchControls').classList.remove('active');$('#originRecoveryPanel').hidden=true;window.flightAudio?.setBossApproach?.(0);window.flightAudio?.setIntensity?.(.12);if(final)window.flightAudio?.setRescueCelebration?.(true);window.flightAudio?.setMusicActive(true);
  const overlay=$('#overlay');overlay.onclick=null;
- const receipt=storyServiceReceipt(),crew=index===1&&flightRun?.storyEngineer?'ENGINEER ABOARD · SABOTAGE DRONE ONLINE':index===1&&r&&!r.rescued?'Engineer rescue available on a replay':final&&flightRun?.storyEngineer?'Your engineer helped bring them home.':'';
+ const receipt=storyServiceReceipt(),crew=index===1&&flightRun?.storyEngineer?'ENGINEER ABOARD · SABOTAGE DRONE ONLINE':index===1&&r&&!r.rescued?'Engineer not aboard · the rescue can still succeed':final&&flightRun?.storyEngineer?'Your engineer helped bring them home.':'';
  let routePresented=false;
  const renderTransmission=()=>{
   overlay.className='overlay story-transmission';overlay.scrollTop=0;
@@ -197,7 +197,7 @@ function drawRelayActivation(e){
 function updateStoryRecovery(r,phase){
  const d=STORY_ROUTE[r.index],next=STORY_ROUTE[r.index+1];if(phase===2&&r.index<5)window.flightAudio?.signalRecovered?.((r.index+1)/6,true);
  const panel=$('#originRecoveryPanel');if(!panel)return;panel.hidden=false;panel.classList.add('story-recovery');
- panel.innerHTML=`<span class="eyebrow">${phase===0?'GUARDIAN DOWN':phase===1?'SIGNAL TRANSFERRING':'SIGNAL SECURED'}</span><strong>${phase===2?(next?'NEXT: '+next.world.toUpperCase():'EXPEDITION HOME'):'RECOVERING THE SHARD'}</strong><p>${phase===2?storyServiceReceipt():'Drawing the signal aboard your ship'}</p>`;
+ panel.innerHTML=`<span class="eyebrow">${phase===0?'GUARDIAN DOWN':phase===1?'SIGNAL TRANSFERRING':'SIGNAL SECURED'}</span><strong>${phase===2?(next?'NEXT: '+next.world.toUpperCase():'EXPEDITION HOME'):'RECOVERING THE SHARD'}</strong><p>${phase===2?(next?d.socket+' recovered · '+storyServiceReceipt():storyServiceReceipt()):'SIGNAL SHARD · RETURN COORDINATES'}</p>`;
 }
 function storyNova(){if(!storyActive())return;for(const target of storyTargets())if(target.hp>0)storyHitTarget({damage:50,seen:new Set()},target);}
 
@@ -221,10 +221,10 @@ const OPENING_MISSIONS=Object.freeze([
   {at:44,count:4,type:1,center:380,formation:'wedge',elite:'ace',aimed:true},
   {at:46,count:3,type:3,center:250,formation:'line',aimed:true}
  ],beats:[
-  {at:0,title:'FOLLOW THE SIGNAL',detail:'Reach the guardian · weapons fire automatically'},
-  {at:9,title:'CONTACT BEHIND YOU',detail:'Flip to face left · clear the rear formation'},
+  {at:0,title:'FOLLOW THE SIGNAL',detail:'Recover the first coordinates · move to dodge · weapons fire automatically'},
+  {at:9,title:'CONTACT BEHIND YOU',detail:'Space / double tap to face left · clear the rear formation'},
   {at:17,title:'CLOUDBREAK',detail:'Keep moving across the aimed bursts'},
-  {at:29,title:'CHANNEL CLEAR',detail:'Collect supplies · prepare for the counterattack'},
+  {at:29,title:'CHANNEL CLEAR',detail:'Collect supplies for weapons and protection · prepare for the counterattack'},
   {at:33,title:'CROSSWIND AMBUSH',detail:'Attackers on both sides · turn to meet them'},
   {at:50,title:'GUARDIAN APPROACHING',detail:'Dodge its charge · flip and attack the opening'}
  ]},
@@ -241,8 +241,8 @@ const OPENING_MISSIONS=Object.freeze([
   {at:42,count:3,type:0,center:280,formation:'line',side:'left',aimed:true},
   {at:45,count:4,type:0,center:390,formation:'wedge',elite:'hunter',aimed:true}
  ],beats:[
-  {at:0,title:'ENTER THE FOUNDRY',detail:'Reach the Dreadnought · watch the machinery'},
-  {at:16,title:'ANSWER THE DISTRESS CALL',detail:'Enter the green ring · gain a sabotage drone'},
+  {at:0,title:'ENTER THE FOUNDRY',detail:'Recover the route to Orison · reach the Dreadnought'},
+  {at:16,title:'ANSWER THE DISTRESS CALL',detail:'Optional rescue · enter the green ring · gain a sabotage drone'},
   {at:30,title:'PRESSURE LOCKDOWN',detail:'Amber vents warn before firing · pass through the cool gaps'},
   {at:49,title:'DREADNOUGHT APPROACHING',detail:'Break both stabilizers · then circle behind the reactor'}
  ]}
@@ -449,8 +449,9 @@ function buildStoryPortalMachine(){
  // square-grid hull shader; fine abrasion comes from the retained bump map.
  for(const mesh of [storyPortalFrame,storyPortalFront,storyPortalRotor]){mesh.portalMachinery=true;for(const face of mesh)face.textureWeight=0;}
 }
+function prepareStoryDestination(){if(!storyPortalDestination){storyPortalDestination=new Image();storyPortalDestination.src='assets/portal-home-v170.webp';storyPortalDestination.decode?.().catch(()=>{});}return storyPortalDestination;}
 function prepareStoryPortal(){
- if(!storyPortalDestination){storyPortalDestination=new Image();storyPortalDestination.src='assets/portal-home-v170.webp';storyPortalDestination.decode?.().catch(()=>{});}
+ prepareStoryDestination();
  if(!storyPortalFrame)buildStoryPortalMachine();
  if(!storyPortalVista){
   const c=document.createElement('canvas');c.width=c.height=512;const v=c.getContext('2d'),sky=v.createLinearGradient(0,0,512,512);sky.addColorStop(0,'#080c30');sky.addColorStop(.4,'#173d65');sky.addColorStop(1,'#020920');v.fillStyle=sky;v.fillRect(0,0,512,512);
@@ -551,7 +552,7 @@ let campaignBriefView=null;
 function campaignBriefVisible(){return state==='title'&&atlasOpen&&!!campaignBriefView&&$('#overlay').classList.contains('campaign-intro');}
 function prepareCampaignBrief(index){
  const mission=STORY_ROUTE[index],definition=sectors.find(s=>s.id===mission.id);
- campaignBriefView={index,definition,image:loadArt(definition.background),cloud:definition.medium==='air'&&!definition.stellar&&definition.theme!=='forge'?loadArt('shoreCloud'):null,startedAt:navigationSeconds(),reducedMotion:typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches};
+ campaignBriefView={index,definition,owner:storyStore.account(),progress:storyStore.snapshot().count,image:loadArt(definition.background),cloud:definition.medium==='air'&&!definition.stellar&&definition.theme!=='forge'?loadArt('shoreCloud'):null,startedAt:navigationSeconds(),reducedMotion:typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches};
  window.gpuModels?.prepare?.([meshes.player2],definition.id);
  return campaignBriefView;
 }
@@ -581,11 +582,122 @@ function drawCampaignBriefScene(){
  // Nearby spray/embers cross the ship at a faster depth than the landscape.
  ctx.globalAlpha=.3;ctx.strokeStyle=water?'#b9f3ed':hot?'#ffd1a1':'#e7faf8';ctx.lineWidth=1;ctx.beginPath();for(let i=0;i<10;i++){const u=(i*.618+t*.055)%1,x=W*.57-u*W*.6,y=H*(.31+(i*.271%1)*.35);ctx.moveTo(x,y);ctx.lineTo(x+7,y+1);}ctx.stroke();ctx.restore();
 }
+// The rescue story is presentation only: progress belongs to storyStore.
+const STORY_RECAPS=Object.freeze([
+ 'Their return gate has failed. The first trace of the expedition is on Caelus.',
+ 'The Caelus signal led to a distress call from Ferrum’s Foundry.',
+ 'Ferrum revealed the route to Orison. The submerged relay can locate the survivors.',
+ 'Thalassa located the carriers in Eventide. The frozen archive holds the missing route.',
+ 'Nivara revealed a dormant rescue gate. Its furnace must be restarted.',
+ 'The furnace has power. One last signal will open the survivors’ way home.'
+]);
+const STORY_ACTIONS=Object.freeze(['Defeat the guardian. Recover the first coordinates.','Optional: rescue the engineer en route. Break the Dreadnought.','Hold inside three relay rings. Locate the survivors.','Break three archive seals. Find the route to Eventide.','Connect three diversion controls. Power the rescue gate.','Defend both sides of the portal. Save the five carriers.']);
+const STORY_PROLOGUE=Object.freeze([
+ {channel:'HOME · THE EXPEDITION DEPARTS',title:'They followed a signal.',line:'An expedition left home to investigate the Origin Signal.',scene:'home'},
+ {channel:'EVENTIDE · CONTACT LOST',title:'Then the way home collapsed.',line:'Their return gate failed. The expedition is stranded.',scene:'lost'},
+ {channel:'EXPEDITION CHANNEL · DISTRESS CALL',title:'“We’re still alive.”',line:'Five carriers. Survivors in stasis. Six missing coordinates.',scene:'carriers'},
+ {channel:'RESCUE COMMAND · YOUR MISSION',title:'Bring them home.',line:'Recover the coordinates. Open the gate. Defend their escape.',scene:'pilot'}
+]);
+let campaignPrologue=null;
+const storyIntroMemory=new Set();
+function storyIntroKey(){return 'first-descent-rescue-intro-v174:'+(storyStore.account()||'guest');}
+function storyIntroWasSeen(){const key=storyIntroKey();if(storyIntroMemory.has(key))return true;try{return !missionPreview&&runStorage?.getItem(key)==='seen';}catch{return false;}}
+function rememberStoryIntro(){const key=storyIntroKey();storyIntroMemory.add(key);try{if(!missionPreview)runStorage?.setItem(key,'seen');}catch{ /* A blocked preference store never blocks play. */ }}
+function storyResumeInfo(){const p=storyStore.snapshot(),index=p.complete?0:Math.max(0,STORY_ROUTE.findIndex(m=>m.id===p.next));return{p,index,next:STORY_ROUTE[index],recap:p.complete?'All five carriers reached home. Their crew and discoveries are safe.':STORY_RECAPS[index]};}
+function showCampaignEntry(){if(state!=='title')return;migrateStoryVictories();const p=storyStore.snapshot();if(!p.count&&!storyIntroWasSeen())showCampaignPrologue();else showCampaignBrief();}
+function campaignPrologueVisible(){return state==='title'&&atlasOpen&&!!campaignPrologue&&$('#overlay').classList.contains('story-prologue');}
+function showCampaignPrologue(){
+ if(state!=='title')return;campaignBriefView=null;atlasOpen=true;sectorBlend=null;
+ const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+ campaignPrologue={age:0,step:0,paused:reduced,reducedMotion:reduced,owner:storyStore.account(),home:prepareStoryDestination(),homeReveal:0};
+ prepareStoryPortal();
+ window.gpuModels?.prepare?.([storyMesh('carrier'),meshes.player2],sectors[level].id);
+ const overlay=$('#overlay');overlay.onclick=null;overlay.className='overlay story-prologue';
+ overlay.innerHTML='<section class="prologue-caption" aria-labelledby="prologueTitle"><div class="prologue-top"><span class="eyebrow mint">FIRST DESCENT · THE RESCUE</span><span id="prologueCount">1 / 4</span></div><div id="prologueWords" aria-live="polite" aria-atomic="true"><p id="prologueChannel" class="transmission-channel"></p><h2 id="prologueTitle"></h2><p id="prologueLine"></p></div><div class="prologue-progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="prologue-actions"><button id="prologueNext" class="primary">NEXT ↗</button><button id="prologuePause">PAUSE STORY</button><button id="prologueSkip">SKIP TO BRIEFING</button><button id="storyBack">Back</button></div></section>';
+ $('#prologueNext').onclick=()=>{if(!campaignPrologueVisible())return;if(campaignPrologue.step===3){finishCampaignPrologue();return;}campaignPrologue.age=(campaignPrologue.step+1)*5.5;campaignPrologue.step++;presentCampaignPrologue();};
+ $('#prologueSkip').onclick=finishCampaignPrologue;$('#storyBack').onclick=showTitleScreen;
+ $('#prologuePause').onclick=()=>{if(!campaignPrologue)return;campaignPrologue.paused=!campaignPrologue.paused;presentCampaignPrologue();};
+ presentCampaignPrologue();$('#prologueNext').focus({preventScroll:true});enableAudio();window.flightAudio?.setTitle(true);
+}
+function presentCampaignPrologue(){
+ const v=campaignPrologue;if(!v)return;const beat=STORY_PROLOGUE[v.step];
+ $('#prologueChannel').textContent=beat.channel;$('#prologueTitle').textContent=beat.title;$('#prologueLine').textContent=beat.line;$('#prologueCount').textContent=(v.step+1)+' / 4';
+ $('#prologueWords').setAttribute('data-step',String(v.step));$('#prologueNext').textContent=v.step===3?'MISSION BRIEFING ↗':'NEXT ↗';$('#prologuePause').textContent=v.paused?'PLAY STORY':'PAUSE STORY';$('#prologuePause').setAttribute('aria-pressed',String(v.paused));
+ $('#overlay').setAttribute('data-story-step',String(v.step));
+}
+function finishCampaignPrologue(){if(!campaignPrologue)return;if(campaignPrologue.owner===storyStore.account())rememberStoryIntro();campaignPrologue=null;showCampaignBrief();}
+function updateCampaignPrologue(dt){
+ if(!campaignPrologueVisible()||document.hidden)return;const v=campaignPrologue;
+ if(v.owner!==storyStore.account()){campaignPrologue=null;showCampaignBrief();return;}
+ if(imageReady(v.home))v.homeReveal=Math.min(1,v.homeReveal+Math.max(0,dt)*2);
+ if(v.paused)return;v.age+=Math.max(0,dt);if(v.age>=22){finishCampaignPrologue();return;}
+ const step=Math.min(3,Math.floor(v.age/5.5));if(step!==v.step){v.step=step;presentCampaignPrologue();}
+}
+function prologueGatePose(v){return {x:W*.72,y:H*.38,scale:1.55,yaw:-.52,roll:.04,pitch:-.13,age:v.age};}
+function drawPrologueGate(v,phase,t){
+ const p=prologueGatePose(v),intensity=phase==='lost'?1-navigationEase(Math.min(1,t/2.5)):phase==='carriers'?.12:.7;
+ drawModel(storyPortalFrame,p.x,p.y,p.scale,p.yaw,p.roll,p.pitch,t,0);
+ drawModel(storyPortalRotor,p.x,p.y,p.scale,p.yaw,p.roll,p.pitch,t,0);
+ drawModel(storyPortalFront,p.x,p.y,p.scale,p.yaw,p.roll,p.pitch,t,0);window.gpuModels?.flush(ctx);
+ ctx.save();ctx.translate(p.x,p.y);ctx.rotate(-.13);ctx.scale(.87,1);
+ const glow=ctx.createRadialGradient(0,0,20,0,0,200);glow.addColorStop(0,'#82e5f900');glow.addColorStop(.68,'#74d5e6'+Math.round(intensity*55).toString(16).padStart(2,'0'));glow.addColorStop(1,'#70c5dc00');ctx.fillStyle=glow;ctx.fillRect(-205,-205,410,410);
+ // The return channel dies inward, leaving a solid, unlit machine behind.
+ ctx.strokeStyle='#c2f9ee';ctx.lineWidth=2;ctx.globalAlpha=intensity;ctx.beginPath();ctx.arc(0,0,171,0,TAU);ctx.stroke();
+ for(let i=0;i<9;i++){ctx.globalAlpha=intensity*(.14+i*.045);ctx.beginPath();const r=24+i*16+(t*11%16);ctx.ellipse(Math.sin(t+i)*3,0,r,r,0,0,TAU);ctx.stroke();}
+ ctx.restore();
+}
+function prologueShardMesh(){
+ if(storyMeshes.has('coordinate'))return storyMeshes.get('coordinate');
+ const top=[0,-14,0],bottom=[0,14,0],rim=[[9,0,0],[0,0,9],[-9,0,0],[0,0,-9]],mesh=[];
+ for(let i=0;i<4;i++){mesh.push({v:[top,rim[i],rim[(i+1)%4]],c:[109,217,211],em:.32},{v:[bottom,rim[(i+1)%4],rim[i]],c:[54,136,165],em:.12});}
+ storyMeshes.set('coordinate',mesh);return mesh;
+}
+function drawCampaignPrologueScene(){
+ const v=campaignPrologue;if(!v)return;const t=v.reducedMotion?2:Math.max(0,v.age-v.step*5.5),phase=STORY_PROLOGUE[v.step].scene;
+ ctx.save();
+ if(phase==='home'&&imageReady(v.home)){
+  const zoom=1.04+t*.004,scale=Math.max(W/v.home.naturalWidth,H/v.home.naturalHeight)*zoom,w=v.home.naturalWidth*scale,h=v.home.naturalHeight*scale;
+  ctx.globalAlpha=v.homeReveal;ctx.drawImage(v.home,(W-w)*.5,(H-h)*.38,w,h);ctx.globalAlpha=1;
+ }else{
+  const system=contentReleases[0].systems[0];paintRotatingGalaxy(ctx,GALAXIES[system.galaxyId],W*.35,H*.39,W*.72,phase==='lost'?.7:.36,v.reducedMotion?0:v.age*.12);
+ }
+ const shade=ctx.createLinearGradient(0,0,0,H);shade.addColorStop(0,'#03101b28');shade.addColorStop(.42,'#03101b05');shade.addColorStop(1,'#030b16ed');ctx.fillStyle=shade;ctx.fillRect(0,0,W,H);
+ window.gpuModels?.setEnvironment?.(phase==='home'?'daylight':'space');
+ drawPrologueGate(v,phase,t);
+ if(phase==='home'||phase==='carriers'||phase==='lost'){
+  for(let i=0;i<5;i++){
+   const scale=phase==='home'?1.75+i*.13:2.2+i*.12;
+   const x=phase==='home'?W*(.20+i*.095)+t*32:W*(.18+i*.095)+Math.sin(t*.35+i)*9;
+   const y=H*(.23+(i%2)*.11)+Math.sin(t*.5+i)*4;
+   if(phase==='home'){ctx.save();const trail=ctx.createLinearGradient(x-75,y,x,y);trail.addColorStop(0,'#aaf9ee00');trail.addColorStop(1,'#aaf9eeaa');ctx.strokeStyle=trail;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x-75,y+7);ctx.lineTo(x-24,y+7);ctx.stroke();ctx.restore();}
+   drawModel(storyMesh('carrier'),x,y,scale,.18,.12,0,t+i,0);
+  }window.gpuModels?.flush(ctx);
+  if(phase==='carriers'){
+   // Each ship sends its own life signal; the fleet remains visibly intact.
+   ctx.save();ctx.strokeStyle='#9be8d9';ctx.lineWidth=1.5;
+   for(let i=0;i<5;i++){const x=W*(.18+i*.095),y=H*(.23+(i%2)*.11),r=36+(t*.45+i*.2)%1*35;ctx.globalAlpha=.3*(1-(r-36)/35);ctx.beginPath();ctx.ellipse(x,y,r,r*.45,0,0,TAU);ctx.stroke();}ctx.restore();
+  }
+ }else if(phase==='pilot'){drawShip(W*.34+t*25,H*.31+Math.sin(t*.7)*5,3.8,true,v.reducedMotion?0:v.age);window.gpuModels?.flush(ctx);}
+ if(phase!=='home'){
+  for(let i=0;i<6;i++){const a=i*TAU/6-.7,spread=phase==='lost'?navigationEase(Math.min(1,t/3)):phase==='pilot'?1-navigationEase(t/7):1,x=W*.72+Math.cos(a)*(205+spread*78),y=H*.38+Math.sin(a)*(205+spread*35);drawModel(prologueShardMesh(),x,y,1.25,.3+t*.22+i,.1,Math.sin(t*.3+i)*.2,t,0);}
+  window.gpuModels?.flush(ctx);
+ }
+ if(!v.reducedMotion&&!v.paused){const u=(v.age%5.5)/5.5,fade=u<.06?1-u/.06:u>.94?(u-.94)/.06:0;if(fade>0){ctx.globalAlpha=fade*.65;ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);}}
+ ctx.restore();window.gpuModels?.setEnvironment?.(sceneryLighting(sectors[level]));
+}
+function refreshStoryLobby(){
+ if(state!=='title')return;const overlay=$('#overlay');
+ if(overlay.classList.contains('title-screen'))updateExpeditionIntro();
+ else if(campaignBriefVisible()&&(campaignBriefView.owner!==storyStore.account()||campaignBriefView.progress!==storyStore.snapshot().count))showCampaignBrief();
+}
+
 function showCampaignBrief(){
- if(state!=='title')return;migrateStoryVictories();const p=storyStore.snapshot(),index=p.complete?0:Math.max(0,STORY_ROUTE.findIndex(m=>m.id===p.next)),next=STORY_ROUTE[index];atlasOpen=true;
+ if(state!=='title')return;campaignPrologue=null;migrateStoryVictories();const {p,index,next,recap}=storyResumeInfo();atlasOpen=true;sectorBlend=null;
  prepareCampaignBrief(index);
- const overlay=$('#overlay');overlay.className='overlay story-transmission campaign-intro';overlay.innerHTML=`<section class="campaign-scene" aria-label="Next mission preview: ${next.world}"><div class="campaign-scene-heading"><span class="eyebrow"><i aria-hidden="true"></i>${p.count&&!p.complete?'YOUR JOURNEY CONTINUES':'YOUR JOURNEY BEGINS'}</span><h3>${next.world}</h3><p>${next.system} · ${next.title}</p></div><div class="campaign-scene-route"><span class="eyebrow">THE ROUTE HOME · ${p.complete?0:p.count} / 6 SIGNALS</span><ol>${STORY_ROUTE.map((m,i)=>`<li class="${i<index?'secured':i===index?'next':''}"><i aria-hidden="true">${i<index?'◆':'◇'}</i><span>${m.world}</span></li>`).join('')}</ol><p>${['Beyond the clouds, their signal is still alive.','One engineer. One chance to reopen the way.','Their voices are waiting beneath the ocean.','The frozen archive holds the way forward.','Power the gate. The expedition is almost home.','This is the last signal. Bring them home.'][index]}</p></div></section><section class="transmission-card campaign-brief" aria-labelledby="campaignBriefTitle"><span class="eyebrow mint">SIX MISSIONS · THREE SOLAR SYSTEMS</span><h2 id="campaignBriefTitle">Bring them home.</h2><p class="transmission-task">Follow the Origin Signal. Recover six shards to reopen their route home.</p><ul class="brief-goals"><li><b>Find them</b><span>Rescue the engineer. Follow their transmissions.</span></li><li><b>Open the way</b><span>Recover six shards. Restore the relays and rescue gate.</span></li><li><b>Bring them home</b><span>Defend the final portal while your people escape.</span></li></ul><p class="transmission-service">${p.count&&!p.complete?'RESUMING':'FIRST DESTINATION'} · ${next.world.toUpperCase()} · ${next.title}</p><div class="transmission-actions"><button id="campaignTakeoff" class="primary">${p.count&&!p.complete?'CONTINUE':'BEGIN'} CAMPAIGN ↗</button><button id="storyBack" class="transmission-secondary">Back</button></div></section>`;
- $('#storyBack').onclick=showTitleScreen;$('#campaignTakeoff').onclick=()=>{campaignBriefView=null;atlasOpen=false;beginStory(index);};$('#campaignTakeoff').focus({preventScroll:true});
+ const returning=p.count&&!p.complete;
+ const overlay=$('#overlay');overlay.className='overlay story-transmission campaign-intro';overlay.onclick=null;
+ overlay.innerHTML=`<section class="campaign-scene" aria-label="Next mission preview: ${next.world}"><div class="campaign-scene-heading"><span class="eyebrow"><i aria-hidden="true"></i>${returning?'YOUR JOURNEY CONTINUES':'YOUR JOURNEY BEGINS'}</span><h3>${next.world}</h3><p>${next.system} · ${next.title}</p></div><div class="campaign-scene-route"><span class="eyebrow">THE ROUTE HOME · ${p.complete?0:p.count} / 6 COORDINATES</span><ol>${STORY_ROUTE.map((m,i)=>`<li class="${i<index?'secured':i===index?'next':''}"><i aria-hidden="true">${i<index?'◆':'◇'}</i><span>${m.world}</span></li>`).join('')}</ol><p>Recover coordinates → restore the gate → bring them home.</p></div></section><section class="transmission-card campaign-brief" aria-labelledby="campaignBriefTitle"><span class="eyebrow mint">${returning?'RESCUE IN PROGRESS · '+p.count+'/6 COORDINATES':'SIX MISSIONS · THREE SOLAR SYSTEMS'}</span><h2 id="campaignBriefTitle">${returning?'The rescue continues.':'Bring them home.'}</h2><p class="transmission-task">${returning?recap:'Six coordinates. Five stranded carriers. One route home.'}</p><p class="brief-destination">${returning?'RESUMING':'FIRST DESTINATION'} · ${next.world.toUpperCase()} · ${next.title}</p><p class="brief-instruction">${STORY_ACTIONS[index]}</p><p class="transmission-service">${p.durable?'Missions saved on this device.':'Session progress · keep this tab open.'} ${index===1?'Engineer rescue is optional.':'Progress survives defeat.'}</p><div class="transmission-actions"><button id="campaignTakeoff" class="primary">${returning?'CONTINUE':'BEGIN'} CAMPAIGN ↗</button><button id="storyBack" class="transmission-secondary">Back</button></div><button id="campaignStory" class="story-replay">MISSION STORY ↗</button></section>`;
+ $('#storyBack').onclick=showTitleScreen;$('#campaignStory').onclick=showCampaignPrologue;$('#campaignTakeoff').onclick=()=>{campaignBriefView=null;atlasOpen=false;beginStory(index);};$('#campaignTakeoff').focus({preventScroll:true});
 }
 
 function readFlightMarkerLayout(){

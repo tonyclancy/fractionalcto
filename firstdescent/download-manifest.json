@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 73332423,
+  "bytes": 73350584,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -1616,8 +1616,8 @@
     },
     {
       "path": "collection-ui.js",
-      "bytes": 6050,
-      "sha256": "d43431df8b5348de033fef04fd667bb9fd063326f63adb0432c8ae7bfeb4998f"
+      "bytes": 6142,
+      "sha256": "a72faf2254ceb4181c72e87248e93e58cb0f8250f8875efcd53320ba0a25750f"
     },
     {
       "path": "ferrum-mission.js",
@@ -1626,13 +1626,13 @@
     },
     {
       "path": "game.js",
-      "bytes": 110142,
-      "sha256": "df6706f46ce402fad43cbfbfa45e02299dc1017a0c39148f2832b53a44be3d54"
+      "bytes": 111189,
+      "sha256": "4b8db6b0b752e0a28ba33f6fc799692888b7f27739c95713b44a03703e56cb84"
     },
     {
       "path": "index.html",
-      "bytes": 7245,
-      "sha256": "f417676ed80caecec4b5e7f3312e4621ed11e8d37c7bde8087e682126e71531a"
+      "bytes": 7162,
+      "sha256": "5c462ec7dac020573e1348196c05af92394dbc198e3b8928c6302ccc28ce5716"
     },
     {
       "path": "levels.js",
@@ -1681,13 +1681,13 @@
     },
     {
       "path": "story-campaign.js",
-      "bytes": 70454,
-      "sha256": "36478708651e9e5c94205056122dd005eba5ffbe2220de9f13f5016f28df2f88"
+      "bytes": 81994,
+      "sha256": "6539a9aa295dbbcb38ddc26e1a83bab3e35d0f289873716ba24cd2abb53c47fb"
     },
     {
       "path": "style.css",
-      "bytes": 64306,
-      "sha256": "11ed28d64b2626cd5e521c9c6a723e9dae8a81f8297fb64e7280e77df7a38ea1"
+      "bytes": 69871,
+      "sha256": "4346ec2b846b39a2b2f726c87dd08019287b43e8ff106453c64fb066590e2f5a"
     },
     {
       "path": "tide-encounter.js",
