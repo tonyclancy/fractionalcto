@@ -35,6 +35,14 @@ function sectorArtPreparation(definition){
   ()=>{const location=expedition.locations[definition.id];if(location){preparePlanetCloseup(location);galaxyArtwork(expeditionGalaxy(location));requestSpaceImage('cosmic-remnant-v1.webp');if(location.centralBlackHole||navigationAnomaly(location)){prepareBlackHolePlasma();blackHoleNavigationArtwork();}}}
  ];
 }
+function sectorAuthoredAssets(definition){
+ const ids=new Set();for(const id of definition.models||[]){const asset=planetSpecies.get(id)?.authoredAsset;if(asset)ids.add(asset);}
+ const bossAsset=definition.biosphere?.boss?.authoredAsset;if(bossAsset)ids.add(bossAsset);
+ // Brood escorts use the remaining biosphere roles rather than the four wave models.
+ for(const id of definition.biosphere?.species||[]){const asset=planetSpecies.get(id)?.authoredAsset;if(asset)ids.add(asset);}
+ return [...ids];
+}
+function sectorModelsReady(definition){return window.gpuModels?.assetsReady?.(sectorAuthoredAssets(definition))!==false;}
 function prepareSectorArt(definition){for(const prepare of sectorArtPreparation(definition))prepare();}
 // One geometry per idle slice; current and next world resources stay retained
 // until another world replaces them, rather than expiring just before arrival.
@@ -49,6 +57,7 @@ function sectorModelPreparation(definition){
 // complete anything outstanding synchronously; prefetch never changes level.
 const sectorArtJobs=new Map();let sectorArtIdlePending=false;
 function queueSectorArt(definition){
+ if(definition)void window.gpuModels?.loadAssets?.(sectorAuthoredAssets(definition));
  if(!definition||(!window.requestIdleCallback&&!window.setTimeout))return;
  if(!sectorArtJobs.has(definition.id))sectorArtJobs.set(definition.id,{definition,jobs:[...sectorArtPreparation(definition),...sectorModelPreparation(definition)]});
  scheduleSectorArt();
@@ -59,7 +68,7 @@ function scheduleSectorArt(){
  const idle=window.requestIdleCallback?.bind(window)||(fn=>window.setTimeout(()=>fn({timeRemaining:()=>8}),16));
  idle(deadline=>{
   sectorArtIdlePending=false;
-  for(const [id,job] of sectorArtJobs)if(![sectors[level],sectors[typeof storyActive==='function'&&storyActive()?storyNextLevel():level+1]].includes(job.definition))sectorArtJobs.delete(id);
+  for(const [id,job] of sectorArtJobs)if(![sectors[level],sectors[typeof storyActive==='function'&&storyActive()?storyNextLevel():level+1],typeof campaignBriefView!=='undefined'?campaignBriefView?.definition:null].some(d=>d?.id===job.definition.id))sectorArtJobs.delete(id);
   if((deadline.timeRemaining()>=7||deadline.didTimeout)&&sectorArtJobs.size){
    const [id,job]=sectorArtJobs.entries().next().value;
    job.jobs.shift()();if(!job.jobs.length)sectorArtJobs.delete(id);
@@ -386,8 +395,11 @@ function drawShip(x,y,scale=1,preview=false,previewSeconds=world*.01){
 // keeps the model readable and prevents overlapping surfaces showing through.
 function drawPilotProtection(){
  if(!(ship.inv>0))return;
- ctx.save();ctx.globalAlpha=clamp(ship.inv/.35,0,1)*(.20+.05*Math.sin(time*5));ctx.strokeStyle='#c0f3ff';ctx.lineWidth=1.4;
- ctx.beginPath();ctx.ellipse(ship.x,ship.y,57,45,0,0,TAU);ctx.stroke();ctx.restore();
+ const kind=ship.protectionKind||'arrival',warm=kind==='hull',color=warm?'#ffc394':kind==='rescue'?'#fff0a3':'#bceeff';
+ ctx.save();ctx.globalAlpha=clamp(ship.inv/.35,0,1)*(.48+.08*Math.sin(time*12));ctx.strokeStyle=color;ctx.lineWidth=warm?2.8:2;
+ // Segmented brackets distinguish temporary protection from an equipped shield.
+ for(let i=0;i<4;i++){const a=i*Math.PI/2+Math.PI/8;ctx.beginPath();ctx.ellipse(ship.x,ship.y,57,40,0,a,a+Math.PI/4);ctx.stroke();}
+ ctx.restore();
 }
 function dronePosition(i){const a=world*.012+i*Math.PI;return{x:ship.x+Math.cos(pilotTurn.angle)*(-50+Math.cos(a)*16),y:ship.y+(i===0?-1:1)*66+Math.sin(a)*12}}
 function drawDrone(i){const p=dronePosition(i),age=world*.012+i*Math.PI,yaw=pilotTurn.angle+Math.sin(age)*.22,pitch=flightPose.pitch*.65,roll=pilotTurn.angle+flightPose.roll*.45+Math.sin(age)*.28;orb(p.x-16*Math.cos(pilotTurn.angle),p.y,19,'#9892ff',.22);drawModel(meshes.wingmate,p.x,p.y,1,yaw,roll,pitch,age);}
@@ -957,14 +969,14 @@ function drawHazards(){if(boss){drawBreath(boss);drawArsenalCharge(boss);}for(co
  if(h.kind==='tech'){drawCannonBeam(h);ctx.restore();continue;}
  if(armed){const angle=h.angle??Math.atan2(h.y-h.startY,-h.x),length=Math.hypot(W,H)+300;ctx.translate(h.x,h.startY);ctx.rotate(angle);glow(c,24);ctx.globalAlpha=.8;poly([[0,-h.width/4],[180,-h.width/2],[length,-h.width/2],[length,h.width/2],[180,h.width/2],[0,h.width/4]],c);ctx.globalAlpha=.95;ctx.strokeStyle='#edfff9';ctx.lineWidth=h.kind==='tech'?22:13;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(length,0);ctx.stroke();orb(0,0,h.kind==='tech'?39:28,'#eee4ff',.7);if(h.kind==='tech')for(let i=0;i<4;i++){const travel=(h.age*2.6+i*.25)%1;orb(length*travel,0,8+travel*4,'#f1eaff',.38);}}
  ctx.restore();}if(boss){if(!bossDesign()&&!bossOrganic()&&bossIndex()!==4)drawBossChamber(boss);drawSpecialWarning(boss)}}
-function moveShot(s,dt){s.age+=dt;s.trail.push({x:s.x,y:s.y});if(s.trail.length>12)s.trail.shift();
+function moveShot(s,dt){s.age+=dt;const point=s.trail.length===12?s.trail.shift():{};point.x=s.x;point.y=s.y;s.trail.push(point);
  if(s.kind==='missile'){const direction=s.direction||1;let target=typeof isCapitalSiege==='function'&&isCapitalSiege(boss)?capitalShotTarget(s):(boss&&(boss.x-s.x)*direction>0?boss:null);for(const e of enemies){if(e.hp>0&&(e.x-s.x)*direction>-40&&(!target||Math.hypot(e.x-s.x,e.y-s.y)<Math.hypot(target.x-s.x,target.y-s.y)))target=e}if(typeof storyHomingTarget==='function')target=storyHomingTarget(s,target);if(target){const a=Math.atan2(target.y-s.y,target.x-s.x);s.vx+=(Math.cos(a)*600-s.vx)*Math.min(1,dt*5);s.vy+=(Math.sin(a)*600-s.vy)*Math.min(1,dt*5)}}
  s.x+=s.vx*dt;s.base+=s.vy*dt;s.y=s.kind==='helix'?s.base+Math.sin(s.age*17)*s.side*(23+power*5):s.base;
 }
 function drawProjectile(s){ctx.save();const c=s.c;
- if(s.trail.length>1){ctx.strokeStyle=c;ctx.lineWidth=s.kind==='wave'?7:s.kind==='beam'?8:3;ctx.lineCap='round';ctx.globalAlpha=.42;ctx.beginPath();s.trail.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.globalAlpha=1}
- ctx.translate(s.x,s.y);if(s.direction===-1&&s.kind!=='missile')ctx.rotate(Math.PI);glow(c,18);ctx.strokeStyle=c;ctx.fillStyle=c;
- if(s.kind==='wave'){ctx.lineWidth=7;ctx.beginPath();ctx.ellipse(-8,0,17,28+power*4,0,-1.2,1.2);ctx.stroke();ctx.strokeStyle='#efffff';ctx.lineWidth=2;ctx.stroke();orb(0,0,34,c,.12)}
+ if(s.trail.length>1){ctx.strokeStyle=c;ctx.lineWidth=s.kind==='wave'?3:s.kind==='beam'?4:2;ctx.lineCap='round';ctx.globalAlpha=s.kind==='wave'?.22:.3;ctx.beginPath();s.trail.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.globalAlpha=1}
+ ctx.translate(s.x,s.y);if(s.direction===-1&&s.kind!=='missile')ctx.rotate(Math.PI);glow(c,9);ctx.strokeStyle=c;ctx.fillStyle=c;
+ if(s.kind==='wave'){ctx.lineWidth=4;ctx.beginPath();ctx.ellipse(-8,0,17,28+power*4,0,-1.2,1.2);ctx.stroke();ctx.strokeStyle='#efffff';ctx.lineWidth=2;ctx.stroke();orb(0,0,25,c,.055)}
  else if(s.kind==='missile'){ctx.rotate(Math.atan2(s.vy,s.vx));noGlow();drawModel(meshes.missile,0,0,1,0,.15,0,s.age);glow('#ffbd76',10);poly([[-12,-2],[-28-rand(0,8),0],[-12,2]],'#ffc98c')}
  else if(s.kind==='helix'){ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(0,0,13,6,s.side*s.age*8,0,TAU);ctx.stroke();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(1,0,3,0,TAU);ctx.fill()}
  else if(s.kind==='beam'){ctx.fillRect(-45,-4,65,8);ctx.fillStyle='#fff';ctx.fillRect(-42,-1,66,2);for(let i=0;i<2;i++){ctx.beginPath();ctx.ellipse(-15-i*18,0,3,12,0,0,TAU);ctx.stroke()}}

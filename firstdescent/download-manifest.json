@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 73350584,
+  "bytes": 73365022,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 464201,
-      "sha256": "52b8583538721447d8e36f241236e66d9d6b724fda3f4f998f23ffe1fbd315b4"
+      "bytes": 465312,
+      "sha256": "2679d64c1702ec46ecb0713b6d5b90a6c7c875ac9f82a6aac0fb8709fab64b5d"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1586,8 +1586,8 @@
     },
     {
       "path": "authored-assets.js",
-      "bytes": 5851,
-      "sha256": "6d6b5410b2f01f10b5ed013b719086ac15349fd517f747a04cbaeabd4f0d7ffc"
+      "bytes": 6266,
+      "sha256": "5eb8b15cd542a9c12ef574c5eaf0ab956a9e52ae96c04caef95761c18b5e6e9b"
     },
     {
       "path": "boss-creatures.js",
@@ -1626,18 +1626,18 @@
     },
     {
       "path": "game.js",
-      "bytes": 111189,
-      "sha256": "4b8db6b0b752e0a28ba33f6fc799692888b7f27739c95713b44a03703e56cb84"
+      "bytes": 112849,
+      "sha256": "5617fddf123ab38b8f8f90c72d3ce43da5cb0550866c79fca50f0274a7725ef1"
     },
     {
       "path": "index.html",
-      "bytes": 7162,
-      "sha256": "5c462ec7dac020573e1348196c05af92394dbc198e3b8928c6302ccc28ce5716"
+      "bytes": 7352,
+      "sha256": "74af4b93a7489f70c2af499d3e01402877082cf8530ec29ac063bea61daeb0af"
     },
     {
       "path": "levels.js",
       "bytes": 113769,
-      "sha256": "dfad7d294bb37ab188e8d4e7fb455791a2bd6eb0928954e13cc428350d50a5d8"
+      "sha256": "06a46bc54611d8833630f08a305b1c2a43fb455471266dc8987180336b636076"
     },
     {
       "path": "manifest.webmanifest",
@@ -1661,8 +1661,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 42492,
-      "sha256": "4ec5da18ae50f17a88e9403a84b11ba6bd1137e23a4e2fbf9e9c74713b4e2e07"
+      "bytes": 43023,
+      "sha256": "f4c03d3d1a591d1e7a5798568108c779a785ae7c2240535957d107d677ec18e0"
     },
     {
       "path": "runs.js",
@@ -1681,13 +1681,13 @@
     },
     {
       "path": "story-campaign.js",
-      "bytes": 81994,
-      "sha256": "6539a9aa295dbbcb38ddc26e1a83bab3e35d0f289873716ba24cd2abb53c47fb"
+      "bytes": 86960,
+      "sha256": "d0c5caf3fe0e1ebc303accaa8a907dcf064be478d8e980ac610ed1afa08015f7"
     },
     {
       "path": "style.css",
-      "bytes": 69871,
-      "sha256": "4346ec2b846b39a2b2f726c87dd08019287b43e8ff106453c64fb066590e2f5a"
+      "bytes": 75436,
+      "sha256": "ad6bd5ced004dde73f353aef916c44958dfe70dcf71437a2ab9b62a097e308bb"
     },
     {
       "path": "tide-encounter.js",

@@ -14,11 +14,19 @@ export const AUTHORED_ASSETS=Object.freeze({
  'vesper-reaver':{radius:125,habitat:'air',role:'boss'}
 });
 export class AuthoredAssets {
- constructor(scene){this.scene=scene;this.assets=new Map();this.pools=new Map();this.frame=0;this.errors=[];this.batches=new Map();this.batchedActors=0;}
- async load(){const loader=new GLTFLoader();await Promise.all(Object.keys(AUTHORED_ASSETS).map(async id=>{
-  try{const url=new URL(`assets/models/${id}.glb?v=20260919-polish67`,import.meta.url);const buffer=await loadModelBuffer(url);const gltf=await loader.parseAsync(buffer,new URL('.',url).href);this.assets.set(id,gltf);}
-  catch(error){this.errors.push(id);console.error('Authored model unavailable:',id,error);}
- }));return this;}
+ constructor(scene){this.scene=scene;this.assets=new Map();this.pending=new Map();this.loader=new GLTFLoader();this.pools=new Map();this.frame=0;this.errors=[];this.batches=new Map();this.batchedActors=0;}
+ ready(ids){return ids.every(id=>!AUTHORED_ASSETS[id]||this.assets.has(id)||this.errors.includes(id));}
+ async load(ids=Object.keys(AUTHORED_ASSETS)){
+  await Promise.all([...new Set(ids)].filter(id=>AUTHORED_ASSETS[id]).map(id=>{
+   if(this.ready([id]))return;
+   if(this.pending.has(id))return this.pending.get(id);
+   const task=(async()=>{
+    try{const url=new URL(`assets/models/${id}.glb?v=20260919-polish67`,import.meta.url);const buffer=await loadModelBuffer(url);const gltf=await this.loader.parseAsync(buffer,new URL('.',url).href);this.assets.set(id,gltf);}
+    catch(error){this.errors.push(id);console.error('Authored model unavailable:',id,error);}
+   })();
+   this.pending.set(id,task);return task.finally(()=>this.pending.delete(id));
+  }));return this;
+ }
  begin(){this.flush();this.frame++;this.batchedActors=0;for(const pool of this.pools.values()){pool.used=0;for(const item of pool.items)item.root.visible=false;}}
  flush(){for(const batch of this.batches.values()){batch.count=0;batch.object.count=0;batch.object.visible=false;}for(const pool of this.pools.values())for(const item of pool.items){item.root.visible=false;if(item.root.parent===this.scene)this.scene.remove(item.root);}}
  acquire(id,age,opacity,hit,order){
@@ -61,5 +69,5 @@ export class AuthoredAssets {
   item.root.visible=false;this.batchedActors++;
  }
  trim(){if(this.frame%300)return;for(const [key,b] of this.batches){if(this.frame-b.lastUsed>600){this.scene.remove(b.object);b.object.dispose();b.object.material.dispose();this.batches.delete(key);}}for(const pool of this.pools.values())while(pool.items.length&&this.frame-pool.items.at(-1).lastUsed>600){const item=pool.items.pop();this.scene.remove(item.root);item.mixer.stopAllAction();item.mixer.uncacheRoot(item.model);for(const m of item.materials)m.dispose();}}
- stats(){return {batches:this.batches.size,batchedActors:this.batchedActors,loaded:this.assets.size,instances:[...this.pools.values()].reduce((n,p)=>n+p.items.length,0),failed:this.errors};}
+ stats(){return {batches:this.batches.size,batchedActors:this.batchedActors,loaded:this.assets.size,pending:this.pending.size,instances:[...this.pools.values()].reduce((n,p)=>n+p.items.length,0),failed:this.errors};}
 }
