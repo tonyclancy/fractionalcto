@@ -92,17 +92,17 @@ window.flightAudio=(()=>{
    const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return false;
    context=new Audio();master=context.createGain();master.gain.value=enabled?.8:0;
    compressor=context.createDynamicsCompressor();compressor.threshold.value=-3;compressor.knee.value=3;compressor.ratio.value=8;if(compressor.attack)compressor.attack.value=.003;if(compressor.release)compressor.release.value=.20;
-   // Add warmth before the limiter; trim the brittle upper register.
+   // Keep the pressure body, but avoid a bass-heavy blanket over transients.
    const bass=context.createBiquadFilter(),air=context.createBiquadFilter();
-   bass.type='lowshelf';bass.frequency.value=130;bass.gain.value=2.5;
-   air.type='highshelf';air.frequency.value=4200;air.gain.value=-1;
+   bass.type='lowshelf';bass.frequency.value=130;bass.gain.value=.75;
+   air.type='highshelf';air.frequency.value=3800;air.gain.value=1.5;
    const subsonic=context.createBiquadFilter();subsonic.type='highpass';subsonic.frequency.value=25;subsonic.Q.value=.5;
    master.connect(bass);bass.connect(air);air.connect(subsonic);subsonic.connect(compressor);compressor.connect(context.destination);
    worldBus=context.createGain();worldBus.gain.value=1;worldFilter=context.createBiquadFilter();worldFilter.type='lowpass';worldFilter.Q.value=.5;
    // Control battle peaks before they reach the shared output. Repeated blasts
    // must not push the whole score down through a single shared compressor.
-   const effectsCompressor=context.createDynamicsCompressor();effectsCompressor.threshold.value=-14;effectsCompressor.knee.value=9;effectsCompressor.ratio.value=3;effectsCompressor.attack.value=.012;effectsCompressor.release.value=.16;
-   worldDucker=context.createGain();worldDucker.gain.value=1;worldBus.connect(effectsCompressor);effectsCompressor.connect(worldFilter);worldFilter.connect(worldDucker);worldDucker.connect(master);
+   const effectsCompressor=context.createDynamicsCompressor();effectsCompressor.threshold.value=-14;effectsCompressor.knee.value=6;effectsCompressor.ratio.value=2.5;effectsCompressor.attack.value=.020;effectsCompressor.release.value=.10;
+   worldDucker=context.createGain();worldDucker.gain.value=1;const effectsPresence=context.createBiquadFilter();effectsPresence.type='peaking';effectsPresence.frequency.value=2600;effectsPresence.Q.value=.7;effectsPresence.gain.value=2;worldBus.connect(effectsPresence);effectsPresence.connect(effectsCompressor);effectsCompressor.connect(worldFilter);worldFilter.connect(worldDucker);worldDucker.connect(master);
    cueMusicBus=context.createGain();cueMusicBus.gain.value=.62;cueMusicBus.connect(bass);
    if(context.createConvolver){room=context.createConvolver();roomSend=context.createGain();roomReturn=context.createGain();roomReturn.gain.value=.24;worldFilter.connect(roomSend);roomSend.connect(room);room.connect(roomReturn);roomReturn.connect(worldDucker);}
    musicBus=context.createGain();musicBus.gain.value=1.45;musicDucker=context.createGain();musicDucker.gain.value=1;
@@ -113,8 +113,8 @@ window.flightAudio=(()=>{
    // Trim low/mid masking and keep a little extra gameplay headroom for effects.
    currentMusicEQ=context.createBiquadFilter();currentMusicEQ.type='lowshelf';currentMusicEQ.frequency.value=180;currentMusicEQ.gain.value=-2;
    const currentPresence=context.createBiquadFilter(),currentAir=context.createBiquadFilter();
-   currentPresence.type='peaking';currentPresence.frequency.value=1500;currentPresence.Q.value=.65;currentPresence.gain.value=-2;
-   currentAir.type='highshelf';currentAir.frequency.value=2400;currentAir.gain.value=4.5;
+   currentPresence.type='peaking';currentPresence.frequency.value=2100;currentPresence.Q.value=.65;currentPresence.gain.value=.5;
+   currentAir.type='highshelf';currentAir.frequency.value=3600;currentAir.gain.value=4;
    currentMusicEQ.connect(currentPresence);currentPresence.connect(currentAir);currentAir.connect(musicDucker);
    musicDelay=context.createDelay(1);musicDelay.delayTime.value=themeBeat*.75;musicEcho=context.createGain();musicEcho.gain.value=.14;
    const echoLow=context.createBiquadFilter(),echoHigh=context.createBiquadFilter();echoLow.type='lowpass';echoLow.frequency.value=1900;echoHigh.type='highpass';echoHigh.frequency.value=280;
@@ -859,7 +859,7 @@ window.flightAudio=(()=>{
   }
   // A physical hull strike with a low pressure thud and short electrical debris.
   duckMusic(.72,.30);
-  noise({priority:5,duration:.075,gain:.15,cutoff:2700,end:650,pan,body:true});
+  noise({priority:5,duration:.075,gain:.15,cutoff:4600,end:1500,highpass:400,pan,body:true});
   noise({priority:5,duration:.36,gain:.34,cutoff:340,end:85,pan,body:true});
   noise({priority:5,duration:.18,gain:.065,cutoff:950,end:220,pan,offset:.025,body:true});
   for(let i=0;i<3;i++)noise({priority:5,duration:.024+i*.007,gain:.05-i*.01,cutoff:1900-i*300,end:500,pan,offset:.075+i*.045});
@@ -904,9 +904,9 @@ window.flightAudio=(()=>{
   noise({priority:5,cue:true,duration:shield?.40:.24,gain:shield?.07:.045,cutoff:shield?420:1800,end:shield?1300:550,band:true,resonance:.65,body:true,pan,offset:.025});
   note({priority:5,cue:true,frequency:hz(root),end:hz(root+12),duration:shield?.38:.24,gain:.045,instrument:'silk',attack:.045,hold:.055,cutoff:1050,cutoffEnd:1350,pan,offset:.025});
   // A warm major chord provides a positive finish without a high-octave run.
-  for(const [i,interval]of [12,16,19].entries())note({priority:5,cue:true,frequency:hz(root+interval),duration:special?.57:.45,hold:.10,gain:i===0?.071:.038,instrument:repair?'choir':'silk',attack:.018,cutoff:1900,cutoffEnd:950,pan:pan+(i-1)*.09,offset:settle+i*.025});
-  // One quiet air accent, filtered below the piercing chime range.
-  noise({priority:5,cue:true,duration:.11,gain:.018,cutoff:2400,end:1000,highpass:750,pan,offset:settle});
+  for(const [i,interval]of [12,16,19].entries())note({priority:5,cue:true,frequency:hz(root+interval),duration:special?.57:.45,hold:.10,gain:i===0?.071:.038,instrument:repair?'choir':'silk',attack:.010,cutoff:3100,cutoffEnd:1600,pan:pan+(i-1)*.09,offset:settle+i*.025});
+  // Short broadband engagement accent; the chord still carries the reward.
+  noise({priority:5,cue:true,duration:.07,gain:.025,cutoff:5200,end:2200,highpass:1300,pan,offset:settle});
  }
  function swim(e){
   if(!context||!enabled||e.x<0||e.x>1440||e.y<0||e.y>760||context.currentTime-lastSwim<.1)return;
