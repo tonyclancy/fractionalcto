@@ -38,13 +38,23 @@ function bossEncounterProfile(l){return l.encounterProfile||BOSS_ENCOUNTERS[l.en
 // Reusable attack programs are independent of the boss mesh and its palette.
 // A level may select an arsenal explicitly; otherwise its ecology selects one.
 const BOSS_ARSENALS=freezeContent({
+ gaze:{id:'gaze',effect:'eyes',name:'PRISM GAZE',hint:'EYE LOCKED · LEAVE THE SIGHTLINE',color:'#ffd388',warning:1.65,duration:1.05},
+ 'aquatic-gaze':{id:'gaze',effect:'eyes',name:'BIOLUMINESCENT LANCE',hint:'EYE LOCKED · SWIM CLEAR OF THE SIGHTLINE',color:'#92f4ec',warning:1.8,duration:.95},
+ lance:{id:'lance',effect:'eyes',name:'ION LANCE',hint:'CANNON LOCKED · LEAVE THE SIGHTLINE',color:'#b6baff',warning:1.8,duration:1.1},
+ sonic:{id:'sonic',effect:'sonic',name:'SONIC WINGBREAK',hint:'WINGS BRACED · CROSS THROUGH THE MINT GAP',color:'#e4f4ff',warning:1.8,duration:4.8},
+ pressure:{id:'pressure',effect:'sonic',name:'ABYSSAL COMPRESSION',hint:'PRESSURE RING · FOLLOW THE MINT OPENING',color:'#9aeadd',warning:1.9,duration:4.8},
+ gravity:{id:'gravity',effect:'gravity',name:'GRAVITY ANCHOR',hint:'LEAVE THE DARK CORE · KEEP YOUR THRUST',color:'#c4a6ff',warning:1.8,duration:2.8},
+ 'ion-mine':{id:'mine',name:'ION MINES',hint:'MINES ARM THEN BURST · FOLLOW THE OPENING',color:'#a7c4ff',warning:1.6,count:2,interval:.65,speed:290,radius:12},
+ silk:{id:'silk',name:'SILK SPIT',hint:'DODGE THE WEB · NOVA BREAKS A SNARE',color:'#e5efbf',warning:1.55,count:2,interval:.45,speed:430,radius:13},
  'furnace-gale':{id:'scythe',name:'WING SCYTHES',hint:'LET THE BLADES PASS · CROSS BEHIND THEM',color:'#ffd59b',warning:1.2,count:3,interval:.36,speed:450,radius:10},
  'tidal-pressure':{id:'pearl',name:'PRESSURE PODS',hint:'PODS COMPRESS, THEN ACCELERATE · SIDESTEP',color:'#96e8ff',warning:1.4,count:3,interval:.5,speed:210,radius:12},
  'abyssal-maw':{id:'mine',name:'URCHIN NEST',hint:'PODS BURST AFTER THEY SETTLE · FIND THE GAP',color:'#bb9cf5',warning:1.5,count:3,interval:.4,speed:320,radius:12},
  'ion-sweep':{id:'ion',name:'REFRACTING IONS',hint:'SHOTS REBOUND ONCE · WATCH THE RETURN',color:'#9badff',warning:1.3,count:4,interval:.38,speed:580,radius:8},
  'brood-tempest':{id:'chitin',name:'RETURNING TALONS',hint:'DODGE OUTWARD AND RETURNING BLADES',color:'#f5b67d',warning:1.35,count:2,interval:.55,speed:380,radius:10}
 });
-function bossArsenal(definition){return BOSS_ARSENALS[definition.arsenal||bossEncounterProfile(definition).power]||null;}
+function bossArsenal(definition,cycle=0){const deck=definition.bossVariation?.deck;return BOSS_ARSENALS[definition.arsenal||(deck?.length?deck[cycle%deck.length]:bossEncounterProfile(definition).power)]||null;}
+function bossSpeciesDefinition(definition){const spec=definition?.biosphere?.boss,v=definition?.bossVariation;return spec&&v?.color?{...spec,color:v.color,accent:v.accent}:spec;}
+
 
 // Shared tuning keeps future encounters within the same learnable combat rhythm.
 const COMBAT_BALANCE=freezeContent({bossHealth:.9,salvoRest:1.05,specialRest:1,hitGrace:1.25,shieldGrace:.85,enemySpeed:1.14,enemyCadence:.82,enemyProjectileSpeed:1.10,breathTracking:.55,enemyWindup:.48,enemyShotClearance:180});
@@ -81,6 +91,7 @@ function validateLevels(definitions){
   if(l.environment&&!ENVIRONMENTS[l.environment])fail(l,'unknown environment');
   if(l.gravityWell&&(!Array.isArray(l.gravityWell.center)||l.gravityWell.center.length!==2||l.gravityWell.center.some(n=>!Number.isFinite(n)||n<=0||n>=1)||!(l.gravityWell.radius>0&&l.gravityWell.radius<.2)||!(l.gravityWell.lensing>=0&&l.gravityWell.lensing<=2)||!(l.gravityWell.tidalPeriod>=8)))fail(l,'invalid gravitational view');
   if(l.flightRoute){const r=l.flightRoute;if(!finite(r.period)||r.period<10||!finite(r.drive)||r.drive<=0||!finite(r.speed)||r.speed<100||r.speed>500||!Array.isArray(r.points)||r.points.length<4||r.points.some(p=>!Array.isArray(p)||p.length!==2||p.some(v=>!finite(v))))fail(l,'invalid boss flight route');}
+  if(l.bossVariation){const v=l.bossVariation;if(!Array.isArray(v.deck)||v.deck.some(key=>!BOSS_ARSENALS[key])||!['orbit','sweep','sentinel'].includes(v.flight)||!finite(v.pace)||v.pace<.9||v.pace>1.12||[v.color,v.accent].some(c=>!Array.isArray(c)||c.length!==3||c.some(n=>!finite(n)||n<0||n>255)))fail(l,'invalid exploration guardian variation');}
   if(l.bossPalette&&(!Array.isArray(l.bossPalette)||l.bossPalette.length!==3||l.bossPalette.some(v=>!finite(v)||v<.3||v>1.5)))fail(l,'invalid boss palette');
   const encounter=bossEncounterProfile(l);if(l.arsenal&&!BOSS_ARSENALS[l.arsenal])fail(l,'unknown boss arsenal');if(!bossTechnique(l))fail(l,'encounter needs a supported player technique');if(!encounter||encounter.habitat!==(l.medium||encounter.habitat))fail(l,'encounter habitat mismatch');
   if(!Object.values(BOSS_ENCOUNTERS).some(e=>e.power===encounter.power)||!finite(encounter.cooldown)||encounter.cooldown<3||!finite(encounter.warning)||encounter.warning<1||!finite(encounter.phaseStep))fail(l,'invalid encounter profile');
@@ -2268,6 +2279,38 @@ openingCombat.broodWaves=[8];
 openingCombat.flankWaves=[3,9,13,15];
 openingCombat.challenge={...openingCombat.challenge,title:'NARROW PASSAGE',waves:[],count:2};
 openingCombat.revision+=4;
+// Recognizable guardian palettes, shared by campaign and exploration visits.
+// Caelus keeps its authored violet/bronze predator; Ferrum its industrial hull.
+const guardianPalettes={
+ 'lumen-reef':[[28,130,119],[193,244,133]],
+ 'nivara-glacial-heart':[[171,209,234],[65,117,223]],
+ 'eventide-carmine-corona':[[156,39,67],[255,194,108]],
+ 'eventide-aureus-corona':[[49,58,81],[255,230,169]]
+};
+for(const stage of expedition.stages){const palette=guardianPalettes[stage.id];if(palette&&stage.biosphere?.boss){stage.biosphere.boss={...stage.biosphere.boss,color:palette[0],accent:palette[1]};stage.revision++;}}
+// Stable encounter identities for Cross the Universe. The story route opts out
+// of these decks; its authored encounters and newly approved palettes stay intact.
+const EXPLORATION_PALETTES={
+ air:[[[75,100,159],[222,191,113]],[[112,68,143],[129,222,205]],[[61,129,113],[246,198,131]],[[160,91,88],[137,212,229]],[[153,139,96],[145,217,183]]],
+ water:[[[33,126,135],[176,240,141]],[[64,77,145],[241,180,217]],[[111,64,125],[123,228,227]],[[49,117,88],[226,213,127]],[[137,91,107],[153,231,237]]],
+ ice:[[[148,194,218],[75,120,227]],[[157,160,210],[125,239,230]],[[107,165,172],[233,228,177]],[[183,186,201],[123,174,250]],[[126,151,190],[200,233,249]]],
+ fire:[[[145,45,59],[255,183,101]],[[65,69,89],[255,218,160]],[[126,68,37],[248,223,150]],[[110,49,96],[244,163,99]],[[133,110,63],[241,203,135]]],
+ machine:[[[65,88,110],[146,223,240]],[[114,74,52],[255,194,115]],[[101,99,125],[191,177,249]],[[64,109,105],[223,231,143]],[[135,126,106],[150,204,235]]]
+};
+function explorationBossVariation(stage,index){
+ const spec=stage.biosphere.boss,seed=speciesHash(stage.id+':guardian191'),shape=organicAnatomyProgram(spec.genome),winged=spec.organic&&stage.medium==='air'&&['drake','sailwing','skimmer','moth'].includes(shape),silken=spec.organic&&stage.medium==='air'&&['mantis','razorcrab','beetle','crab','trilobite','moth'].includes(shape);
+ const cold=spec.genome.protection==='cryo'||stage.worldIdentity?.climate==='ice',hot=stage.atmosphere?.heat>.5||!!stage.stellar;
+ const family=!spec.organic?'machine':cold?'ice':stage.medium==='water'?'water':hot?'fire':'air';
+ const pool=stage.bossKind==='cathedral'?['siege']:!spec.organic?['ion-sweep','lance','ion-mine',...(stage.environment==='high-atmosphere'||stage.stellar||stage.gravityWell?['gravity']:[])]:stage.medium==='water'?['tidal-pressure','abyssal-maw','pressure','aquatic-gaze']:[...(winged?['furnace-gale','sonic']:['brood-tempest']),...(silken?['silk']:[]),'gaze',...(stage.gravityWell||stage.stellar?['gravity']:[])];
+ const offset=seed%pool.length,step=pool.length===4&&((seed>>>5)&1)?3:1,deck=Array.from({length:Math.min(3,pool.length)},(_,i)=>pool[(offset+i*step)%pool.length]);
+ const palette=EXPLORATION_PALETTES[family][(seed>>>7)%5],shade=.94+((seed>>>12)%13)/100,shift=((seed>>>17)%9)-4;
+ const preserve=!!spec.authoredAsset||!!guardianPalettes[stage.id]||stage.capitalHull==='shipyard';
+ return {seed,shape,family,winged,silken,deck:stage.encounterDirector==='tide-knots'?[]:stage.bossKind==='cathedral'?[]:deck,
+  color:preserve?spec.color:palette[0].map((v,i)=>Math.round(Math.max(25,Math.min(225,v*shade+(i===0?shift:-shift))))),accent:preserve?spec.accent:palette[1],
+  flight:['orbit','sweep','sentinel'][seed%3],pace:.92+((seed>>>4)%5)*.04,
+  siege:['precision','barrage','hunters'][index%3]};
+}
+for(const [index,stage] of expedition.stages.entries()){stage.bossVariation=explorationBossVariation(stage,index);stage.revision++;}
 freezeContent(expedition.locations);
 const campaign=freezeContent(validateLevels(expedition.stages));
 const CAMPAIGN_VERSION=contentReleases.map(r=>r.id+'@'+r.version).join('|')+'|'+campaign.map(l=>l.id+'@'+l.revision).join('|');

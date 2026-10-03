@@ -1049,8 +1049,10 @@ function buildDevelopedOrganism(spec){
  const bodyFaceCount=m.faces.length,armAttachments=[];
  const muzzle=[profile[0][0]-.5,profile[0][1]+.5,0];
  const eyeSection=.18,eyePoint=section(eyeSection),eyeRadius=boss?2.7:2.05;
+ m.faces.eyeSockets=[];
  for(const side of [-1,1]){
   const p=[eyePoint[0],eyePoint[1]-eyePoint[2]*.43,side*eyePoint[3]*.91];
+  m.faces.eyeSockets.push([p[0]-.7,p[1],p[2]+side*eyeRadius*.55]);
   ell(p,[eyeRadius*1.9,eyeRadius*1.28,eyeRadius*.65],dark);
   const eyeStart=m.faces.length;ell([p[0]-.35,p[1],p[2]+side*.4],[eyeRadius*1.1,eyeRadius*.76,eyeRadius*.55],accent,null,true);
   ell([p[0]-.7,p[1],p[2]+side*eyeRadius*.55],[eyeRadius*.24,eyeRadius*.65,eyeRadius*.13],[7,12,14],null,true);

@@ -259,7 +259,7 @@ function capitalLineageHull(spec){
 function capitalShipDesign(b){
  if(!b.capitalDesign){const base=machineBossDesigns[1];b.capitalDesign={...base,mesh:capitalSiegeMeshes.hull,drives:capitalSiegeMeshes.drives,guns:capitalSiegeMeshes.guns,mouth:[-116,0,-17],scale:3.4,bodyVolumes:[{center:[0,0,0],radii:[70,35,33]},{center:[74,0,0],radii:[33,28,22]},{center:[-78,0,-20],radii:[28,26,20]},{center:[-7,-61,-23],radii:[34,16,18]},{center:[-7,61,-23],radii:[34,16,18]}]};}
  if(!b.capitalDesign.lineageApplied&&typeof sectors!=='undefined'&&sectors[level]?.capitalHull==='shipyard'){b.capitalDesign.lineageApplied=true;b.capitalDesign.mesh=capitalSiegeMeshes.hull;}
- if(!b.capitalDesign.lineageApplied){const spec=typeof sectors!=='undefined'?sectors[level]?.biosphere?.boss:null;if(spec){const hull=spec.genome?capitalDevelopmentHull(spec):capitalSiegeMeshes.hull.map(f=>({...f,c:f.c.map((v,i)=>Math.round(v*.65+spec.color[i]*.35))}));if(!spec.genome){Object.assign(hull,{capitalHull:true,capitalSurface:true,dynamic:true,parts:capitalSiegeMeshes.hull.parts});hull.push(...capitalLineageHull(spec));}b.capitalDesign.mesh=hull;}b.capitalDesign.lineageApplied=true;}
+ if(!b.capitalDesign.lineageApplied){const spec=typeof sectors!=='undefined'?bossSpeciesDefinition(sectors[level]):null;if(spec){const hull=spec.genome?capitalDevelopmentHull(spec):capitalSiegeMeshes.hull.map(f=>({...f,c:f.c.map((v,i)=>Math.round(v*.65+spec.color[i]*.35))}));if(!spec.genome){Object.assign(hull,{capitalHull:true,capitalSurface:true,dynamic:true,parts:capitalSiegeMeshes.hull.parts});hull.push(...capitalLineageHull(spec));}b.capitalDesign.mesh=hull;}b.capitalDesign.lineageApplied=true;}
  return b.capitalDesign;
 }
 function initCapitalSiege(b){
@@ -430,6 +430,7 @@ function updateCapitalDischarges(b,dt){
  siege.pulses=siege.pulses.filter(p=>p.age<p.life);
 }
 function updateCapitalSiege(b,dt){
+ const doctrine=sectors[level].bossVariation?.siege;
  const s=initCapitalSiege(b);s.age+=dt;b.charge=0;b.attack=null;b.special=Infinity;
  for(const n of s.nodes){n.recovery=Math.max(0,(n.recovery||0)-dt);const disabled=n.sabotage>0;n.sabotage=Math.max(0,(n.sabotage||0)-dt);if(disabled&&n.sabotage===0){n.warning=0;n.burst=0;n.special=null;n.target=null;n.clock=.7;}}
  if(typeof updateEngineerSabotage==='function')updateEngineerSabotage(b,dt);
@@ -438,13 +439,13 @@ function updateCapitalSiege(b,dt){
  if(s.maneuver?.stage==='lunge'){b.siegeLoad=1;b.siegeStrike=false;return;}
  for(const n of s.nodes){n.hit=Math.max(0,n.hit-dt);n.muzzle=Math.max(0,n.muzzle-dt);if(!capitalNodeArmed(b,n)||n.sabotage>0||(b.x<0||b.x>W)||n.special)continue;const covering=!capitalNodeActive(b,n),lastBattery=s.stage==='batteries'&&s.nodes.slice(0,2).filter(p=>p.hp>0).length===1;
   if(n.target){const gun=capitalGunMounts(b,n)[0],axis=gun.heading-(n.aimOffset||0),desired=Math.atan2(n.target.y-gun.baseY,n.target.x-gun.baseX),offset=clamp(Math.atan2(Math.sin(desired-axis),Math.cos(desired-axis)),-.65,.65);n.aimOffset=(n.aimOffset||0)+clamp(offset-(n.aimOffset||0),-dt*2,dt*2);}
-  if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=covering?3:n.id==='core'||lastBattery?6:4;n.burstClock=0;}}
-  if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){n.muzzle=.17;const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?920:n.id==='reactor'?820:850,seeking=n.id!=='reactor'&&n.cycle%3===0&&n.burst===1;
-    hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?8:7,kind:seeking?'seeker':'rocket',bossRound:true,scale:n.id==='core'?.95:.85,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.12:.14;window.flightAudio?.shot('missile',mount.x,true);
+  if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=doctrine?(covering?2:doctrine==='barrage'?5:3):(covering?3:n.id==='core'||lastBattery?6:4);n.burstClock=0;}}
+  if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){n.muzzle=.17;const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=doctrine?(doctrine==='precision'?940:doctrine==='barrage'?760:700):(n.id==='core'?920:n.id==='reactor'?820:850),seeking=n.id!=='reactor'&&n.burst===1&&(doctrine?doctrine==='hunters':n.cycle%3===0);
+    hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?8:7,kind:seeking?'seeker':'rocket',bossRound:true,scale:n.id==='core'?.95:.85,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=doctrine?(doctrine==='precision'?.24:doctrine==='barrage'?.18:.32):(n.id==='core'?.12:.14);if(doctrine)window.flightAudio?.weaponCue?.('rocket-'+doctrine,'fire',mount.x);else window.flightAudio?.shot('missile',mount.x,true);
    }}else if(n.warning<=0){if(s.maneuverClock<=0&&!s.maneuver)continue;n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=(covering?1.8:n.id==='core'?.56:lastBattery?.6:.76)*(sectors[level].id==='ember-forge'?.92:1)*COMBAT_BALANCE.salvoRest*(sectors[level].salvoRestScale||1);n.heading=n.id==='reactor'?0:Math.PI;
-    if(n.id==='reactor'&&n.cycle%2===0){n.special={kind:'purge',age:0,warning:1.15,duration:.76,driveIndex:Math.floor(n.cycle/2)%capitalShipDesign(b).drives.length};}
-    else if(n.id==='core'&&!covering&&n.cycle%2===0){n.special={kind:'pulse',age:0,warning:1.3,duration:.3,gap:(n.cycle%4===0?-1:1)*.28};window.flightAudio?.laserCharge();}
-    else{n.target={x:ship.x,y:ship.y};n.warning=covering?1:.8;}
+    if(n.id==='reactor'&&n.cycle%(doctrine==='precision'?3:2)===0){n.special={kind:'purge',age:0,warning:1.15,duration:.76,driveIndex:Math.floor(n.cycle/2)%capitalShipDesign(b).drives.length};}
+    else if(n.id==='core'&&!covering&&n.cycle%(doctrine==='hunters'?3:2)===0){n.special={kind:'pulse',age:0,warning:1.3,duration:.3,gap:(n.cycle%4===0?-1:1)*.28};window.flightAudio?.laserCharge();}
+    else{n.target={x:ship.x,y:ship.y};n.warning=covering?1:.8;if(doctrine)window.flightAudio?.weaponCue?.('rocket-'+doctrine,'warn',capitalNodePosition(b,n).x,n.warning);}
    }}
  }
  const active=s.nodes.filter(n=>capitalNodeArmed(b,n)&&!(n.sabotage>0));b.siegeLoad=active.reduce((load,n)=>Math.max(load,n.special?Math.min(1,n.special.age/n.special.warning):n.warning>0?1-n.warning/.8:n.burst>0?1:0),0);b.siegeStrike=active.some(n=>n.burst>0||n.special&&n.special.age>=n.special.warning);
