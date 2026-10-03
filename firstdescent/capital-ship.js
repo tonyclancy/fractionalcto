@@ -135,12 +135,23 @@ const capitalSiegeMeshes=(()=>{
   for(let i=0;i<8;i++){m.box(1+i*2.6,y,-45,1.05,17,2,brass,.15);if(i<4)m.light(-23+i*6,y+sign*10,-45,3,1.6,hot);}
   m.light(-17,y,-45.7,12,2.4,hot);out[id]=m.mesh;
   const wreck=build();
-  for(const z of [-32,-17]){wreck.rod([-31,y-sign*10,z],[14,y-sign*10,z],1.9,dark);for(const x of [-28,-12,5])wreck.rod([x,sign*43,z],[x+5,y+sign*5,z-3],1.4,metal);}
-  wreck.rod([-27,y,-27],[12,y,-27],2.2,brass);
-  for(let j=0;j<6;j++){
-   const x=-30+j*8;wreck.plate([[x,y-sign*9],[x+6,y-sign*8],[x+8,y+sign*(j%3+1)],[x+4,y-sign*3],[x+1,y+sign*5]],-35-(j%2)*3,-31,j%2?dark:metal,.4);
-   if(j%2===0)wreck.light(x+3,y,-36,2,4,hot);
+  // A ruptured shell wraps the exposed machinery. Each fragment has a different
+  // fold and depth; the lower skin and bent conduits keep the original pod volume.
+  wreck.hull([[-35,y+sign*3,-21,3,5],[-21,y+sign*5,-20,5,9],[8,y+sign*4,-20,4,7],[17,y+sign*2,-21,2,4]],[35,39,39],12);
+  for(let j=0;j<9;j++){
+   const a=j*Math.PI*2/9,xx=-11+Math.cos(a)*26,yy=y+Math.sin(a)*9,zz=-31-Math.sin(a*2.7)*4;
+   const tip=[xx+Math.cos(a+.4)*(3+j%3),yy+Math.sin(a)*(3+j%2),zz-3-j%4];
+   wreck.face([[xx-5,yy-2,zz+4],[xx+4,yy-1,zz+3],tip],[58+j%3*8,54+j%2*7,48]);
+   wreck.face([[xx+4,yy-1,zz+3],[xx+3,yy+2,zz+5],tip],[101,87,66]);
+   wreck.face([[xx+3,yy+2,zz+5],[xx-5,yy-2,zz+4],tip],[25,30,32]);
   }
+  for(let j=0;j<4;j++){
+   const xx=-29+j*11,yy=y+Math.sin(j*2.3)*4;
+   wreck.rod([xx,sign*48,-22],[xx+3,yy,-29],.9,[62,69,68],7);
+   wreck.rod([xx+3,yy,-29],[xx+8,yy-3,-33-j],.65,j%2?brass:[46,43,37],7);
+  }
+  wreck.tube(-28,9,y,-26,3.1,[40,43,41],true,2.2,12);
+  wreck.rod([-23,y+1,-31],[-9,y-2,-32],.35,[206,92,30],6);
   out[id+'Wreck']=wreck.mesh;
  }
  for(const open of [false,true]){
@@ -171,10 +182,16 @@ const capitalSiegeMeshes=(()=>{
    m.mesh.damageBase=base;
    for(const side of [-1,1])for(let j=0;j<stage;j++){
     const cx=x+(j-1)* (pod?12:4),cy=y+(j%2?4:-3),zz=side<0?z:-z*.65,r=pod?7+j:4+j;
-    const rim=Array.from({length:9},(_,i)=>{const a=i/9*Math.PI*2,rr=r*(i%2?.7:1.15);return[cx+Math.cos(a)*rr*1.65,cy+Math.sin(a)*rr,zz];});
-    m.face(side<0?rim:rim.slice().reverse(),[13,16,18]);
-    for(let i=0;i<rim.length;i++){const a=rim[i],b=rim[(i+1)%rim.length],tip=[(a[0]+b[0])*.5,(a[1]+b[1])*.5,zz+side*(3.5+i%3*1.8)];m.face([a,b,tip],i%3?[93,66,47]:[175,110,61]);}
-    for(let k=0;k<3;k++)m.rod([cx-r,cy+k*2-2,zz+side*.5],[cx+r*.7,cy+k*2-3,zz+side*.5],.42,k===1?[244,108,36]:[118,86,60],5);
+    const rim=Array.from({length:13},(_,i)=>{const a=i/13*Math.PI*2,rr=r*(.84+.18*Math.sin(i*2.37+j*1.7));return[cx+Math.cos(a)*rr*1.65,cy+Math.sin(a)*rr,zz+side*Math.sin(i*3.1)*.7];});
+    const inner=rim.map((p,i)=>[cx+(p[0]-cx)*.58,cy+(p[1]-cy)*.56,zz-side*2.4]);
+    const center=[cx,cy,zz-side*2.8];
+    for(let i=0;i<rim.length;i++){
+     const next=(i+1)%rim.length,a=rim[i],b=rim[next],c=inner[next],d=inner[i];
+     m.face([center,d,c],[12,17,19]);
+     m.face([a,b,c,d],i%3?[44,41,35]:[108,71,44]);
+     if(i%3!==1){const tip=[a[0]+(a[0]-cx)*.13,a[1]+(a[1]-cy)*.12,zz+side*(1.5+i%4*.7)];m.face([a,b,tip],i%2?[74,77,70]:[136,104,68]);}
+    }
+    for(let k=0;k<2;k++)m.rod([cx-r*.7,cy+k*2-1,zz+side*.3],[cx+r*.5,cy+k*2-2,zz+side*.3],.24,k?[118,86,60]:[224,106,36],5);
    }
    m.mesh.damageStage=stage;out[key+'Damage'+stage]=m.mesh;
   }
@@ -247,7 +264,7 @@ function capitalShipDesign(b){
 }
 function initCapitalSiege(b){
  if(b.siege)return b.siege;
- const total=b.max||b.hp||1000,node=(id,local,radii,fraction,clock)=>({id,local,radii,radius:Math.max(radii[1],radii[2])*3.4,hp:total*fraction,max:total*fraction,hit:0,clock,warning:0,muzzle:0,heading:Math.PI,cycle:0,special:null});
+ const total=(b.max||b.hp||1000)*(sectors[level].id==='ember-forge'?1.10:1),node=(id,local,radii,fraction,clock)=>({id,local,radii,radius:Math.max(radii[1],radii[2])*3.4,hp:total*fraction,max:total*fraction,hit:0,clock,warning:0,muzzle:0,heading:Math.PI,cycle:0,special:null});
  b.siege={stage:'batteries',age:0,orbGranted:false,pulses:[],maneuverClock:6.5,maneuver:null,nodes:[node('dorsal',[-12,-65,-28],[50,16,17],.15,2.8),node('ventral',[-12,65,-28],[50,16,17],.15,4.3),node('reactor',[103,0,-8],[13,15,15],.23,2.6),node('core',[-94,0,-25],[15,15,15],.47,2.4)]};
  b.hp=total;b.max=total;b.pass=null;b.charge=0;b.attack=null;b.special=Infinity;
  announce(sectors[level].boss+' · ARMOR LOCKED','DESTROY THE UPPER AND LOWER STABILIZER PODS');
@@ -424,7 +441,7 @@ function updateCapitalSiege(b,dt){
   if(n.warning>0){n.warning-=dt;if(n.warning<=0){n.burst=covering?3:n.id==='core'||lastBattery?6:4;n.burstClock=0;}}
   if(n.burst>0){n.burstClock-=dt;if(n.burstClock<=0){n.muzzle=.17;const mounts=capitalGunMounts(b,n);n.lastGun=(n.burst-1)%mounts.length;const mount=mounts[n.lastGun],speed=n.id==='core'?920:n.id==='reactor'?820:850,seeking=n.id!=='reactor'&&n.cycle%3===0&&n.burst===1;
     hostile.push({x:mount.x,y:mount.y,vx:Math.cos(mount.heading)*speed,vy:Math.sin(mount.heading)*speed,r:n.id==='core'?8:7,kind:seeking?'seeker':'rocket',bossRound:true,scale:n.id==='core'?.95:.85,c:'#ffbd75',launchAngle:mount.heading});n.muzzle=.17;n.burst--;n.burstClock=n.id==='core'?.12:.14;window.flightAudio?.shot('missile',mount.x,true);
-   }}else if(n.warning<=0){if(s.maneuverClock<=0&&!s.maneuver)continue;n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=(covering?1.8:n.id==='core'?.56:lastBattery?.6:.76)*COMBAT_BALANCE.salvoRest*(sectors[level].salvoRestScale||1);n.heading=n.id==='reactor'?0:Math.PI;
+   }}else if(n.warning<=0){if(s.maneuverClock<=0&&!s.maneuver)continue;n.clock-=dt;if(n.clock<=0){n.cycle++;n.clock=(covering?1.8:n.id==='core'?.56:lastBattery?.6:.76)*(sectors[level].id==='ember-forge'?.92:1)*COMBAT_BALANCE.salvoRest*(sectors[level].salvoRestScale||1);n.heading=n.id==='reactor'?0:Math.PI;
     if(n.id==='reactor'&&n.cycle%2===0){n.special={kind:'purge',age:0,warning:1.15,duration:.76,driveIndex:Math.floor(n.cycle/2)%capitalShipDesign(b).drives.length};}
     else if(n.id==='core'&&!covering&&n.cycle%2===0){n.special={kind:'pulse',age:0,warning:1.3,duration:.3,gap:(n.cycle%4===0?-1:1)*.28};window.flightAudio?.laserCharge();}
     else{n.target={x:ship.x,y:ship.y};n.warning=covering?1:.8;}
@@ -474,45 +491,89 @@ function capitalSectionMesh(b,n){
  if(n.hp<=0)return capitalSiegeMeshes[n.id+'Wreck'];
  const stage=capitalDamageStage(n);return capitalSiegeMeshes[key+(stage?'Damage'+stage:'')]||capitalSiegeMeshes[key];
 }
-function capitalFireProfile(n){const severity=clamp(1-n.hp/n.max,0,1);return{severity,vents:severity>.65?3:severity>.3?2:1,length:24+severity*70,width:12+severity*24};}
-// Reuse small textured billows instead of drawing long, engine-like flame ribbons.
+// Authored transparent hull damage plus volumetric combustion. Each site has its own
+// material, silhouette and clock; nothing is spawned or allocated per particle.
+const capitalDamageSites={
+ dorsal:{scar:[12,65,320,365],smoke:[8,839,335,382],seed:1.37,span:[37,24],size:[79,104],lean:-.24,speed:1.17},
+ ventral:{scar:[333,64,307,369],smoke:[344,884,302,337],seed:4.91,span:[40,20],size:[102,65],lean:.3,speed:1.63},
+ reactor:{scar:[640,69,321,361],smoke:[648,843,350,380],seed:8.23,span:[24,29],size:[83,117],lean:.42,speed:.93},
+ core:{scar:[976,74,268,354],smoke:[997,838,249,389],seed:12.71,span:[30,23],size:[49,76],lean:-.12,speed:1.91}
+};
 const capitalDamageSprites=new Map();
-function capitalDamageSprite(smoke,seed){
- const key=(smoke?'smoke':'fire')+seed;if(capitalDamageSprites.has(key))return capitalDamageSprites.get(key);
- const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
- for(let k=0;k<13;k++){
-  const a=k*2.4+seed,x=64+Math.cos(a)*(15+k),y=64+Math.sin(a)*(12+k),r=19+k*.9,fill=g.createRadialGradient(x-r*.18,y-r*.23,1,x,y,r);
-  fill.addColorStop(0,smoke?'rgba(59,51,45,.52)':'rgba(255,227,148,.8)');
-  fill.addColorStop(.38,smoke?'rgba(29,27,28,.55)':'rgba(244,119,22,.7)');
-  fill.addColorStop(.7,smoke?'rgba(20,22,26,.4)':'rgba(150,39,9,.34)');
-  fill.addColorStop(1,'rgba(18,18,22,0)');g.fillStyle=fill;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill();
+let capitalDamageAtlas=null;
+function prepareCapitalDamage(){
+ if(capitalDamageAtlas)return;
+ capitalDamageAtlas=new Image();capitalDamageAtlas.decoding='async';
+ capitalDamageAtlas.onload=()=>{for(const id of Object.keys(capitalDamageSites))capitalDamageSprite(id);if(typeof surfaceDirty!=='undefined')surfaceDirty=true;};
+ capitalDamageAtlas.src='assets/capital-damage-v185.png';
+}
+function capitalDamageSprite(id){
+ if(capitalDamageSprites.has(id))return capitalDamageSprites.get(id);
+ prepareCapitalDamage();if(!capitalDamageAtlas.complete||!capitalDamageAtlas.naturalWidth)return null;
+ const site=capitalDamageSites[id],set={};
+ for(const kind of ['scar','smoke']){
+  const c=document.createElement('canvas'),r=site[kind];c.width=192;c.height=Math.round(192*r[3]/r[2]);
+  const g=c.getContext('2d');g.drawImage(capitalDamageAtlas,...r,0,0,c.width,c.height);set[kind]=c;
  }
- capitalDamageSprites.set(key,c);return c;
+ capitalDamageSprites.set(id,set);return set;
+}
+function capitalFireProfile(n){const severity=clamp(1-n.hp/n.max,0,1),site=capitalDamageSites[n.id];return{severity,site,length:site.size[1]*(.45+.55*severity),width:site.size[0]*(.5+.5*severity)};}
+function capitalDamageAnchor(b,n){
+ const pose=bossFlightPose(b),normal=rotateVertex([0,0,-1],pose.yaw,pose.roll,pose.pitch,0,0);
+ const pod=n.id==='dorsal'||n.id==='ventral',local=[n.local[0],n.local[1],pod?(n.hp<=0?-34.5:-47.8):n.local[2]-16.4];
+ return {local,point:bossMount(b,local),facing:Math.max(0,-normal[2])};
+}
+function drawCapitalScar(b,n,anchor,set,severity){
+ const site=capitalDamageSites[n.id],local=anchor.local,scale=.7+.3*severity,w=site.span[0]*scale,h=site.span[1]*scale;
+ const a=bossMount(b,[local[0]-w/2,local[1]-h/2,local[2]]),x=bossMount(b,[local[0]+w/2,local[1]-h/2,local[2]]),y=bossMount(b,[local[0]-w/2,local[1]+h/2,local[2]]);
+ ctx.save();ctx.globalAlpha=clamp(severity*2,0,1)*clamp(anchor.facing*5,0,1);
+ ctx.transform((x.x-a.x)/set.scar.width,(x.y-a.y)/set.scar.width,(y.x-a.x)/set.scar.height,(y.y-a.y)/set.scar.height,a.x,a.y);
+ ctx.drawImage(set.scar,0,0);ctx.restore();
+}
+function capitalFirePhase(n,j,k,age){
+ const seed=({dorsal:1.37,ventral:4.91,reactor:8.23,core:12.71}[n.id]||2.6)+j*2.39+k*1.73;
+ const clock=age*(.72+.19*Math.sin(seed*2.1))+seed,cycle=Math.floor(clock),t=clock-cycle;
+ return {seed,t,variation:.78+.22*Math.sin(cycle*2.41+seed),sway:Math.sin(age*(2.7+.3*Math.cos(seed))+seed)};
+}
+function capitalArcState(n,age){
+ const q=capitalFirePhase(n,0,23,age*.29),duration=.09+.03*Math.sin(q.seed);
+ return {seed:q.seed,alpha:q.t<duration?Math.sin(q.t/duration*Math.PI):0,bend:Math.sin(Math.floor(age*2.7)+q.seed)};
 }
 function drawCapitalDamage(b,n){
  const fire=capitalFireProfile(n),severity=fire.severity;if(severity<=0)return;
- const pod=n.id==='dorsal'||n.id==='ventral',local=pod?[n.local[0],n.local[1],-48]:[n.local[0],n.local[1],n.local[2]-18];
+ const anchor=capitalDamageAnchor(b,n),local=anchor.local,p=anchor.point,set=capitalDamageSprite(n.id),site=fire.site;
+ if(window.gpuModels?.drawDamageVolume&&anchor.facing<=0)return;
  ctx.save();
- for(let j=0;j<fire.vents;j++){
-  const socket=[local[0]+(j-1)*9,local[1]+(j%2?3:-2),local[2]],p=bossMount(b,socket);
-  // Smoke rises in world space; the breach follows the rolling hull. A broken
-  // module burns irregularly, unlike the parallel blue plumes of its engines.
-  for(let k=0;k<5;k++){
-   const t=(b.age*.36+k/5+j*.19)%1,size=fire.width*(1.2+t*2.2),x=p.x+Math.sin(t*5+j*2+k*.4)*22*t,y=p.y-15-t*(65+severity*70);
-   ctx.globalAlpha=Math.sin(Math.PI*t)*(.42+severity*.38);ctx.drawImage(capitalDamageSprite(true,j),x-size,y-size,size*2,size*2);
+ if(set&&!window.gpuModels?.drawDamageVolume){
+  drawCapitalScar(b,n,anchor,set,severity);
+  // Sparse independently aged smoke curls, with warm dense reactor smoke and
+  // lighter cable vapor. Every plume starts at its physical rupture.
+  for(let k=0;k<3;k++){
+   const q=capitalFirePhase(n,0,k+7,b.age*.32),t=q.t,w=fire.width*(.65+t*.8),h=w*set.smoke.height/set.smoke.width;
+   ctx.globalAlpha=Math.sin(Math.PI*t)*(.18+severity*.22);
+   ctx.save();ctx.translate(p.x+(site.lean*100+q.sway*20)*t,p.y-15-t*(60+severity*75));ctx.rotate(q.sway*.13);
+   ctx.drawImage(set.smoke,-w*.5,-h*.8,w,h);ctx.restore();
   }
-  ctx.globalAlpha=1;orb(p.x,p.y,12+severity*13,'#fa6f23',.23+severity*.2);
-  for(let k=0;k<4;k++){
-   const t=(b.age*(1.1+j*.17)+k/4+j*.23)%1,envelope=Math.sin(Math.PI*t),size=fire.width*(.7+t*.75),x=p.x+Math.sin(t*8+j*2.7+k)*size*.48,y=p.y-t*fire.length;
-   ctx.globalAlpha=envelope*(.65+severity*.3);ctx.drawImage(capitalDamageSprite(false,j),x-size,y-size,size*2,size*2);
-  }
-  // Short falling sparks and glowing fragments, with independent trajectories.
-  for(let k=0;k<5;k++){
-   const t=(b.age*.65+k*.21+j*.13)%1,vx=Math.sin(k*2.3+j)*40,x=p.x+vx*t,y=p.y-25*t+65*t*t;
-   ctx.globalAlpha=(1-t)*severity;ctx.strokeStyle=k%2?'#ffd49b':'#dc642b';ctx.lineWidth=k%2?1.3:2.2;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-vx*.04,y-(130*t-25)*.04);ctx.stroke();
-  }
+
+ }
+ // Sparks have independent emission windows, launch velocities and gravity.
+ for(let k=0;k<9;k++){
+  const q=capitalFirePhase(n,0,k+13,b.age*1.4);if(q.t>.52)continue;
+  const t=q.t/.52,vx=Math.sin(q.seed)*65+site.lean*38,vy=-35-28*Math.cos(q.seed*2),x=p.x+vx*t,y=p.y+vy*t+35*t*t;
+  ctx.globalAlpha=Math.sin(Math.PI*t)*severity;ctx.strokeStyle=k%3?'#ffcd80':'#edeee0';ctx.lineWidth=k%2?.85:1.4;
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-vx*.035,y-(vy+70*t)*.035);ctx.stroke();
+ }
+ const arc=capitalArcState(n,b.age);
+ if(arc.alpha>0&&severity>.3){
+  const a=bossMount(b,[local[0]-5,local[1]-2,local[2]-1]),z=bossMount(b,[local[0]+4,local[1]+3,local[2]-2]);
+  ctx.globalAlpha=arc.alpha*.7;ctx.lineWidth=1.1;ctx.strokeStyle='#b9dce3';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(a.x+(z.x-a.x)*.36+arc.bend*4,a.y+(z.y-a.y)*.3-4);ctx.lineTo(a.x+(z.x-a.x)*.67-arc.bend*3,a.y+(z.y-a.y)*.6+3);ctx.lineTo(z.x,z.y);ctx.stroke();
  }
  ctx.restore();
+}
+function queueCapitalDamageVolume(b,n){
+ const fire=capitalFireProfile(n);if(fire.severity<=0||!window.gpuModels?.drawDamageVolume)return;
+ const anchor=capitalDamageAnchor(b,n),site=fire.site,pose=bossFlightPose(b),set=capitalDamageSprite(n.id),section=capitalSectionMesh(b,n);
+ window.gpuModels.drawDamageVolume(ctx,{id:n.id,x:b.x,y:b.y,scale:capitalShipDesign(b).scale,yaw:pose.yaw,roll:pose.roll,pitch:pose.pitch,mount:anchor.local,facing:clamp(anchor.facing*5,0,1),scar:set?.scar,surfaceMesh:section.damageBase||section,surfaceCenter:n.local,span:site.span,severity:fire.severity,width:fire.width,height:fire.length,age:b.age,speed:site.speed,seed:site.seed,lean:site.lean,kind:['dorsal','ventral','reactor','core'].indexOf(n.id)});
 }
 function drawCapitalSiege(b){
  const s=initCapitalSiege(b),pose=bossFlightPose(b),scale=capitalShipDesign(b).scale;
@@ -521,6 +582,7 @@ function drawCapitalSiege(b){
  for(const n of s.nodes)if(capitalNodeArmed(b,n))for(const gun of capitalGunMounts(b,n))drawModel(meshes.cannon,gun.baseX,gun.baseY,.8,0,0,gun.heading-Math.PI,b.age,n.hit);
  // Flush modules before drawing their targeting information, keeping labels
  // clear while the actual objects remain solid GPU-rendered geometry.
+ for(const n of s.nodes)queueCapitalDamageVolume(b,n);
  window.gpuModels?.flush(ctx);
  drawCapitalDischarges(b);
  for(const n of s.nodes)drawCapitalDamage(b,n);
@@ -542,6 +604,6 @@ function drawCapitalSiege(b){
   if(capitalNodeArmed(b,n)&&n.warning>0){for(const gun of capitalGunMounts(b,n))orb(gun.x,gun.y,11+15*(1-n.warning/(n.id==='core'?1:.8)),'#ffb868',.55);}
   if(n.muzzle>0){const gun=capitalGunMounts(b,n)[n.lastGun||0],strength=n.muzzle/.17;ctx.save();ctx.translate(gun.x,gun.y);ctx.rotate(gun.heading);orb(9,0,29,'#ffd399',strength*.85);ctx.globalAlpha=strength;poly([[0,-7],[39,0],[0,7]],'#fff0be');ctx.strokeStyle='#ffe8bb';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(11+(1-strength)*18,0,4,8+(1-strength)*14,0,0,TAU);ctx.stroke();ctx.restore();}
  }
- for(const n of s.nodes)if(n.hp<=0){const p=capitalNodePosition(b,n),pulse=.5+.5*Math.sin(b.age*17+n.local[0]);ctx.save();ctx.globalCompositeOperation='lighter';orb(p.x,p.y,18+(n.id==='reactor'?8:0),'#ff6d31',.16+.14*pulse);ctx.strokeStyle='#ffbd72';ctx.lineWidth=1.5;ctx.globalAlpha=.35+.45*pulse;for(let i=0;i<3;i++){const a=b.age*(1.8+i*.7)+i*2.1,len=10+8*Math.sin(b.age*9+i)**2;ctx.beginPath();ctx.moveTo(p.x+Math.cos(a)*7,p.y+Math.sin(a)*7);ctx.lineTo(p.x+Math.cos(a)*len,p.y+Math.sin(a)*len);ctx.stroke();}ctx.globalCompositeOperation='source-over';ctx.fillStyle='rgba(25,25,30,.24)';ctx.beginPath();ctx.arc(p.x-8-Math.sin(b.age*.8)*5,p.y-16-(b.age*7%28),13+(b.age*3%8),0,TAU);ctx.fill();ctx.restore();}
+
  ctx.restore();
 }

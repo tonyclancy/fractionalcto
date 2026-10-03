@@ -8,7 +8,13 @@ artFiles.shoreWisp='shore-wisp-v135.webp';
 const artCrops={"reefObstacle":{"x":62,"y":24,"w":920,"h":1485},"stormObstacle":{"x":141,"y":14,"w":748,"h":1502},"coreObstacle":{"x":51,"y":6,"w":964,"h":1519},"colonyObstacle":{"x":260,"y":5,"w":509,"h":1525},"carrierObstacle":{"x":230,"y":2,"w":559,"h":1526},"derelictObstacle":{"x":255,"y":4,"w":530,"h":1527}};
 function loadArt(key){
  if(art[key]||!artFiles[key])return art[key];
- const img=new Image();img.decoding='async';img.onload=()=>{if(typeof surfaceDirty!=='undefined')surfaceDirty=true;if(key==='orisonLightning')prepareCloudLightning();};if(artCrops[key])img.solidCrop=artCrops[key];art[key]=img;img.src='assets/'+artFiles[key];if(key==='orisonGas')loadArt('orisonLightning');return img;
+ const img=new Image();img.decoding='async';img.onload=()=>{if(typeof surfaceDirty!=='undefined')surfaceDirty=true;if(key==='orisonLightning')prepareCloudLightning();queuePanoramaPreparation(key,img);};if(artCrops[key])img.solidCrop=artCrops[key];art[key]=img;img.src='assets/'+artFiles[key];if(key==='orisonGas')loadArt('orisonLightning');return img;
+}
+function queuePanoramaPreparation(key,image){
+ const definitions=[sectors[level],sectors[typeof storyActive==='function'&&storyActive()?storyNextLevel():level+1],typeof campaignBriefView!=='undefined'?campaignBriefView?.definition:null];
+ const definition=definitions.find(d=>d?.background===key);if(!definition)return;
+ const prepare=()=>{if(art[key]===image&&imageReady(image))panoramaGeometry(image,!!definition.scrollAxis);};
+ if(window.requestIdleCallback)window.requestIdleCallback(prepare,{timeout:1500});else if(window.setTimeout)window.setTimeout(prepare,16);
 }
 function trimSectorArt(current,next){
  const keep=new Set();for(const d of [current,next])if(d)for(const key of shoreAtmosphereAssets(d))keep.add(key);for(const d of [current,next])if(d){keep.add(d.background||({verdant:'space',forge:'carrier',abyss:'abyss'}[d.theme]||d.theme));keep.add(d.obstacleArt||({verdant:'colonyObstacle',forge:'carrierObstacle',abyss:'derelictObstacle'}[d.theme]||d.theme+'Obstacle'));}
@@ -24,6 +30,8 @@ function sectorArtPreparation(definition){
    loadArt(definition.background||theme[definition.theme]||'space');
    if(backgroundEventKind(definition)==='lightning')loadArt('cloudDischarge');
    loadArt(definition.obstacleArt||({verdant:'colonyObstacle',forge:'carrierObstacle',abyss:'derelictObstacle'}[definition.theme]||definition.theme+'Obstacle'));},
+  ()=>{const img=art[definition.background];if(imageReady(img))panoramaGeometry(img,!!definition.scrollAxis);},
+  ()=>{if(definition.siege)prepareCapitalDamage();},
   ()=>prepareSceneryBorderEdge(definition,0),
   ()=>prepareSceneryBorderEdge(definition,1),
   ()=>prepareShoreAtmosphere(definition),
@@ -2994,6 +3002,7 @@ function blackHolePlasmaFrame(seconds=navigationSeconds()){
  p.c.globalCompositeOperation='source-atop';p.c.fillStyle=p.shade;p.c.fillRect(0,0,512,512);p.c.globalCompositeOperation='source-over';
  p.bloom.clearRect(0,0,512,512);p.bloom.filter='blur(7px)';p.bloom.drawImage(p.frame,0,0);return p.frame;
 }
+function blackHoleLensBands(radius){return Math.max(24,Math.min(48,Math.ceil(radius/2)));}
 function blackHoleLensing(c,x,y,r){
  // Bend the scenery already behind the object, rather than draw an unrelated
  // ripple over it. One bounded retained capture serves all concentric samples.
@@ -3004,8 +3013,9 @@ function blackHoleLensing(c,x,y,r){
  const b=blackHoleLensSurface.getContext('2d'),left=cx-extent,top=cy-extent,x0=Math.max(0,left),y0=Math.max(0,top),x1=Math.min(c.canvas.width,cx+extent),y1=Math.min(c.canvas.height,cy+extent),factor=512/(extent*2);
  b.clearRect(0,0,512,512);b.drawImage(c.canvas,x0,y0,x1-x0,y1-y0,(x0-left)*factor,(y0-top)*factor,(x1-x0)*factor,(y1-y0)*factor);
  c.save();c.setTransform(1,0,0,1,0,0);
- for(let i=0;i<48;i++){
-  const inner=rr*(1.015+i*1.635/48),outer=rr*(1.015+(i+1)*1.635/48),u=(i+.5)/48,q=(inner+outer)/(2*rr),source=q-1.65*(1-u)**2/q;
+ const bands=blackHoleLensBands(rr);
+ for(let i=0;i<bands;i++){
+  const inner=rr*(1.015+i*1.635/bands),outer=rr*(1.015+(i+1)*1.635/bands),u=(i+.5)/bands,q=(inner+outer)/(2*rr),source=q-1.65*(1-u)**2/q;
   // An approximate radial lens equation gives an enlarged outer image and
   // a reversed inner image. Both approach curved Einstein arcs near the rim.
   const magnify=q/(Math.sign(source||1)*Math.max(.055,Math.abs(source)));
@@ -3131,12 +3141,12 @@ function drawGalaxyObservationCredit(c,galaxy,alpha){
  for(const word of words){const next=line?line+' '+word:word;if(next.length>155){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);galaxyCreditLines.set(galaxy,lines);}
  const y=H-24-lines.length*14;for(let i=0;i<lines.length;i++)c.fillText(lines[i],38,y+i*14);c.restore();
 }
-function paintRotatingGalaxy(c,galaxy,x,y,width,alpha=1,seconds=navigationSeconds(),showCore=true){
+function paintRotatingGalaxy(c,galaxy,x,y,width,alpha=1,seconds=navigationSeconds(),showCore=true,revealOnLoad=true){
  // Canvas ignores out-of-range alpha and retains the previous opacity. A
  // negative rounding residue must never redraw a faded galaxy at full strength.
  if(!Number.isFinite(alpha)||alpha<=0)return;alpha=Math.min(1,alpha);
  const artwork=galaxyArtwork(galaxy);
- if(artwork){c.save();c.globalAlpha*=alpha*spaceArtworkReveal(artwork.photoReadyAt);c.globalCompositeOperation='screen';c.translate(x,y);c.rotate(galaxyRotation(galaxy,seconds));c.drawImage(artwork,-width/2,-width*.3125,width,width*.625);c.restore();}
+ if(artwork){c.save();c.globalAlpha*=alpha*(revealOnLoad?spaceArtworkReveal(artwork.photoReadyAt):1);c.globalCompositeOperation='screen';c.translate(x,y);c.rotate(galaxyRotation(galaxy,seconds));c.drawImage(artwork,-width/2,-width*.3125,width,width*.625);c.restore();}
  if(galaxy.centralBlackHole&&showCore){c.save();c.globalAlpha*=alpha;paintNavigationBlackHole(c,x,y,width*(35.2/14000),'',seconds);c.restore();}
  if(artwork&&c===ctx)drawGalaxyObservationCredit(c,galaxy,alpha);
 }
@@ -3145,7 +3155,7 @@ function drawNavigationChart(){
  const map=document.querySelector('#expeditionMap');if(!map)return;
  const now=navigationSeconds();if(map.navigationPainted&&now-(map.navigationTime||0)<1/30)return;map.navigationPainted=true;map.navigationTime=now;
  const c=map.getContext('2d'),system=contentReleases[0].systems[0],galaxy=GALAXIES[system.galaxyId],width=800*.94,cx=400,cy=550*.49;
- c.setTransform(map.width/800,0,0,map.height/550,0,0);c.clearRect(0,0,800,550);paintRotatingGalaxy(c,galaxy,cx,cy,width,1,now);
+ c.setTransform(map.width/800,0,0,map.height/550,0,0);c.clearRect(0,0,800,550);paintRotatingGalaxy(c,galaxy,cx,cy,width,1,now,true,false);
  const point=galaxySystemOffset(system,width,now),x=cx+point.x,y=cy+point.y;c.strokeStyle='#a5f9dcb0';c.lineWidth=1;c.beginPath();c.arc(x,y,8+Math.sin(now*1.4)*1.5,0,TAU);c.stroke();c.fillStyle='#caffeb';c.beginPath();c.arc(x,y,2.5,0,TAU);c.fill();c.beginPath();c.moveTo(x+12,y);c.lineTo(x+35,y-22);c.lineTo(x+130,y-22);c.stroke();
  c.font='bold 14px monospace';c.fillText(system.name+' SYSTEM',x+38,y-29);c.textAlign='center';c.fillStyle='#e1f3ed';c.font='bold 22px monospace';c.fillText(galaxy.name,cx,46);c.font='12px monospace';c.fillStyle='#99babb';c.fillText('YOUR JOURNEY BEGINS IN THE OUTER ARM',cx,550-45);c.fillText(systemFocus(system).name+' · '+systemCensusLabel(system),cx,550-23);
 }
@@ -3368,18 +3378,36 @@ function spacePhotoMask(x,y,bounds){
 }
 function spaceArtworkReveal(readyAt){return readyAt===undefined?1:navigationEase((navigationSeconds()-readyAt)/1.2);}
 function galaxyThumbnailMask(galaxy){const b=galaxy.contentBounds||[0,0,1280,800];return '--galaxy-rx:'+b[2]/1280*50+'%;--galaxy-ry:'+b[3]/800*50+'%;';}
+// Feather the photograph with three GPU-backed canvas composites. Waiting for
+// 100 idle pixel-processing jobs left an already downloaded title galaxy blank.
+// Screen blending already removes black, so no luminance pixel readback is needed.
+function prepareSpaceImage(image,file,bounds){
+ if(galaxyImages.get(file)!==image)return;
+ const surface=document.createElement('canvas');surface.width=1280;surface.height=800;
+ const c=surface.getContext('2d');c.drawImage(image,0,0,1280,800);
+ const [left,top,width,height]=bounds,cx=left+(width-1)/2,cy=top+(height-1)/2,rx=(width-1)/2,ry=(height-1)/2;
+ c.globalCompositeOperation='destination-in';
+ c.save();c.translate(cx,cy);c.scale(rx,ry);
+ const radial=c.createRadialGradient(0,0,0,0,0,1);
+ for(let i=0;i<=32;i++){const r=i/32;radial.addColorStop(r,'rgba(255,255,255,'+(1-navigationEase((r-.57)/.43))+')');}
+ c.fillStyle=radial;c.fillRect(-1280/rx,-800/ry,2560/rx,1600/ry);c.restore();
+ for(const horizontal of [true,false]){
+  const gradient=horizontal?c.createLinearGradient(left,0,left+width-1,0):c.createLinearGradient(0,top,0,top+height-1);
+  for(let i=0;i<=32;i++){const u=i/32,alpha=navigationEase((1-Math.abs(u*2-1))/.24);gradient.addColorStop(u,'rgba(255,255,255,'+alpha+')');}
+  c.fillStyle=gradient;c.fillRect(0,0,1280,800);
+ }
+ c.globalCompositeOperation='source-over';image.galaxyCutout=surface;image.spaceReadyAt=navigationSeconds();if(typeof surfaceDirty!=='undefined')surfaceDirty=true;
+ const map=document.querySelector('#expeditionMap');if(map)map.navigationPainted=false;
+}
 function requestSpaceImage(file,bounds=[0,0,1280,800]){
  if(galaxyImages.has(file)){const image=galaxyImages.get(file);galaxyImages.delete(file);galaxyImages.set(file,image);return image;}
  // Previous/current/next galaxy plus the shared remnant. Atlas thumbnails never
  // enter this decoded-image cache. Ignore late loads after their eviction.
  while(galaxyImages.size>=4){const key=galaxyImages.keys().next().value,old=galaxyImages.get(key);old.onload=null;old.galaxyCutout=null;galaxyImages.delete(key);}
- const image=new Image();image.decoding='async';galaxyImages.set(file,image);image.onload=()=>{
+ const image=new Image();image.decoding='async';if(file==='galaxy-spiral-v1.webp')image.fetchPriority='high';galaxyImages.set(file,image);image.onload=()=>{
   if(galaxyImages.get(file)!==image)return;
-  // Prepare transparency once per source, outside the animation loop. All
-  // galaxy palettes and travel scenes share these retained photographic cutouts.
-  const surface=document.createElement('canvas');surface.width=1280;surface.height=800;const c=surface.getContext('2d',{willReadFrequently:true});c.drawImage(image,0,0,1280,800);const pixels=c.getImageData(0,0,1280,800),data=pixels.data;
-  for(let y=0;y<800;y++)for(let x=0;x<1280;x++){const k=(y*1280+x)*4,light=Math.max(data[k],data[k+1],data[k+2]);data[k+3]=Math.round(data[k+3]*clamp((light-3)/48,0,1)*spacePhotoMask(x,y,bounds));}
-  c.putImageData(pixels,0,0);image.galaxyCutout=surface;image.spaceReadyAt=navigationSeconds();const map=document.querySelector('#expeditionMap');if(map)map.navigationPainted=false;
+  // Publish a complete feathered image directly after decode; no idle queue.
+  prepareSpaceImage(image,file,bounds);
  };image.onerror=()=>console.warn('Galaxy artwork unavailable:',file);image.src='assets/'+file;return image;
 }
 function galaxyArtwork(galaxy){

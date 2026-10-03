@@ -421,3 +421,7 @@ body.game-expanded{overscroll-behavior:none}
 .homecoming-caption>strong{display:block;margin-top:.14em;font-size:clamp(28px,5.2cqw,72px);font-weight:500;line-height:1.08;letter-spacing:-.04em}
 .homecoming-caption>p{margin:.65em 0 0;font-size:clamp(11px,1.4cqw,19px);font-weight:400;letter-spacing:.02em;color:#d2e5eb}
 .homecoming-caption:before{content:"";display:block;width:clamp(30px,4cqw,58px);height:2px;margin-bottom:clamp(10px,1.2cqw,17px);background:linear-gradient(90deg,#bff8e5,#bff8e500);box-shadow:0 0 15px #a3e9ff40}
+
+/* Campaign launch: the story belongs beside the real destination artwork. */
+.campaign-brief .brief-story{color:#c5dadd;font-size:clamp(12px,1.3vw,16px);line-height:1.5;margin:12px 0 18px;text-wrap:pretty}
+@container(max-height:310px){.campaign-brief .brief-story{font-size:11px;line-height:1.35;margin:6px 0 9px}}

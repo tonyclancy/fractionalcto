@@ -212,7 +212,8 @@ if(renderer){
  function queueRigidInstance(faces,data,context,x,y,scale,yaw,roll,pitch){
   const a=context.getTransform();if(a.a*a.d-a.b*a.c<0||scale<0)return false; // Three instancing does not support reflected matrices.
   let group=instanceGroups.get(faces);
-  if(!group){const object=new THREE.InstancedMesh(data.geometry,material(false),128);object.instanceMatrix.setUsage(THREE.DynamicDrawUsage);object.frustumCulled=false;object.matrixAutoUpdate=false;object.visible=false;scene.add(object);group={object,count:0};instanceGroups.set(faces,group);}
+  if(!group){const object=new THREE.InstancedMesh(data.geometry,material(false),128);object.instanceMatrix.setUsage(THREE.DynamicDrawUsage);object.frustumCulled=false;object.matrixAutoUpdate=false;object.visible=false;scene.add(object);group={object,count:0,lastUsed:renderFrame};instanceGroups.set(faces,group);}
+  group.lastUsed=renderFrame;
   if(group.count===128)return false; // Overflow keeps the ordinary draw path.
   if(group.object.geometry!==data.geometry)group.object.geometry=data.geometry;
   const pr=window.flightRenderScale||1,zScale=Math.sqrt(Math.abs(a.a*a.d-a.b*a.c))/pr;
@@ -220,6 +221,7 @@ if(renderer){
   if(!includeDrawBounds(data,faces,instanceMatrix))return true;
   group.object.setMatrixAt(group.count++,instanceMatrix);group.object.count=group.count;group.object.renderOrder=batch;group.object.visible=true;group.object.instanceMatrix.needsUpdate=true;frameInstancedObjects++;pending++;return true;
  }
+ function trimInstances(){for(const [faces,group] of instanceGroups){if(renderFrame-group.lastUsed>600&&!isPrepared(faces)){scene.remove(group.object);group.object.dispose();group.object.material.dispose();instanceGroups.delete(faces);}}}
  function resetInstances(){for(const group of instanceGroups.values()){group.count=0;group.object.count=0;group.object.visible=false;}}
  const authored=new AuthoredAssets(scene);
  if(document.documentElement?.hasAttribute?.('data-model-gallery'))await authored.load();
@@ -235,9 +237,103 @@ if(renderer){
   const item=authored.acquire(faces.authoredAsset,age,context.globalAlpha,hit,batch);
   item.root.matrix.copy(instanceMatrix);authored.submit(item);pending++;return true;
  }
+ // Retained 3D combustion volumes share the hull's depth buffer. The box never
+ // pulses in size: rising density, vortices and combustion temperature evolve
+ // inside it. Scar plates are attached in the same 3D pass, not canvas stickers.
+ const damageVolumes=new Map();let damageBox=null;
+ const damageVector=new THREE.Vector3(),damageInverse=new THREE.Matrix4(),damageMatrix=new THREE.Matrix4(),damagePlacement=new THREE.Matrix4(),damageRotation=new THREE.Matrix4();
+ const fireVertex=`varying vec3 localPoint;void main(){localPoint=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
+ const fireFragment=`
+ precision highp float;
+ varying vec3 localPoint;
+ uniform vec3 rayDirection;
+ uniform mat4 projectionMatrix,modelViewMatrix;
+ uniform float fireTime,fireSeed,fireLean,fireKind;
+ float hash3(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}
+ float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
+ float turbulence(vec3 p){return noise3(p)*.59+noise3(p*2.07+11.7)*.28+noise3(p*4.13-3.1)*.13;}
+ void main(){
+  vec3 rd=normalize(rayDirection),ro=localPoint-rd*3.0;
+  vec3 safeDir=sign(rd)*max(abs(rd),vec3(.00001));
+  safeDir+=vec3(equal(safeDir,vec3(0.0)))*.00001;
+  vec3 a=(-vec3(.5)-ro)/safeDir,b=(vec3(.5)-ro)/safeDir;
+  vec3 lo=min(a,b),hi=max(a,b);float enter=max(max(lo.x,lo.y),lo.z),leave=min(min(hi.x,hi.y),hi.z);
+  if(leave<=enter)discard;
+  float stepSize=(leave-enter)/36.0,t=enter+stepSize*.5,first=-1.0;
+  vec4 sum=vec4(0.0);
+  for(int i=0;i<36;i++){
+   vec3 p=ro+rd*t;float height=p.y+.5,h=height/.73;
+   vec3 flow=p*vec3(7.8,5.8,7.8)+vec3(fireSeed,-fireTime*2.7,fireSeed*.71);
+   float curl=noise3(flow*.62+vec3(0,0,fireTime*.22))-.5;
+   flow.xz+=vec2(curl,-curl)*1.7;
+   float n=turbulence(flow);
+   vec2 axis=vec2(fireLean*h*.48+sin(h*5.0-fireTime*1.8+fireSeed)*h*.045,cos(h*7.0-fireTime*1.3+fireSeed)*h*.07);
+   float radius=.38-h*.12,rad=length((p.xz-axis)*vec2(fireKind==1.0?.64:1.0,1.12));
+   float envelope=1.0-smoothstep(radius*.52,radius,rad);
+   float tongues=max(0.0,(n-(.34+h*.20))*4.2);
+   float density=tongues*envelope*smoothstep(0.0,.035,height)*(1.0-smoothstep(.67,.91,height));
+   float heat=clamp((n-.36)*1.8+envelope*.10-h*.08,0.0,1.0);
+   vec3 color=mix(vec3(.65,.035,.002),vec3(1.55,.32,.008),smoothstep(.08,.46,heat));
+   color=mix(color,vec3(1.9,1.15,.19),smoothstep(.46,.77,heat));
+   color=mix(color,vec3(2.3,2.1,1.6),smoothstep(.79,1.0,heat));
+   if(fireKind==3.0)color=mix(color,vec3(.15,.38,1.35),clamp((1.0-h)*heat*.8,0.0,.7));
+   float smoke=max(0.0,1.0-length(p.xz-axis)/(.18+height*.2)+(n-.57)*2.5)*smoothstep(.4,.8,height)*(1.0-smoothstep(.84,1.0,height))*.35;
+   float alpha=1.0-exp(-(density*7.0+smoke*2.0)*stepSize);
+   vec3 emission=mix(vec3(.12,.105,.09),color,density/(density+smoke+.0001));
+   if(first<0.0&&alpha>.012)first=t;
+   sum.rgb+=(1.0-sum.a)*emission*alpha;sum.a+=(1.0-sum.a)*alpha;
+   if(sum.a>.985)break;t+=stepSize;
+  }
+  if(sum.a<.008||first<0.0)discard;
+  // Test actual emitting density against hull depth, not the empty box face.
+  vec4 depthPoint=projectionMatrix*modelViewMatrix*vec4(ro+rd*first,1.0);
+  gl_FragDepth=depthPoint.z/depthPoint.w*.5+.5;
+  gl_FragColor=vec4(sum.rgb/max(sum.a,.001),sum.a);
+ }`;
+ function hideDamageVolumes(){for(const item of damageVolumes.values()){item.fire.visible=false;item.scar.visible=false;}}
+ function drawDamageVolume(context,spec){
+  let item=damageVolumes.get(spec.id);
+  if(!item){
+   damageBox??=new THREE.BoxGeometry(1,1,1);damageBox.computeBoundingSphere();
+   const mat=new THREE.ShaderMaterial({vertexShader:fireVertex,fragmentShader:fireFragment,uniforms:{rayDirection:{value:new THREE.Vector3()},fireTime:{value:0},fireSeed:{value:0},fireLean:{value:0},fireKind:{value:0}},side:THREE.BackSide,transparent:true,depthTest:true,depthWrite:false,toneMapped:false});
+   const fire=new THREE.Mesh(damageBox,mat),scar=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshStandardMaterial({transparent:true,depthTest:true,depthWrite:false,side:THREE.DoubleSide,roughness:.82,metalness:.2,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1,alphaTest:.025}));
+   fire.matrixAutoUpdate=scar.matrixAutoUpdate=false;fire.frustumCulled=scar.frustumCulled=false;fire.visible=scar.visible=false;scene.add(fire,scar);scar.material.onBeforeCompile=shader=>{shader.vertexShader='varying vec2 damageUV;\n'+shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\n damageUV=uv;');shader.fragmentShader='varying vec2 damageUV;\n'+shader.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n if(any(lessThan(damageUV,vec2(0.0)))||any(greaterThan(damageUV,vec2(1.0))))discard;');};scar.material.customProgramCacheKey=()=> 'capital-surface-damage187';item={fire,scar,texture:null,surfaceMesh:null};damageVolumes.set(spec.id,item);
+  }
+  const a=context.getTransform(),pr=window.flightRenderScale||1,zScale=Math.sqrt(Math.abs(a.a*a.d-a.b*a.c))/pr;
+  affine.set(a.a/pr,a.c/pr,0,a.e/pr-720,-a.b/pr,-a.d/pr,0,380-a.f/pr,0,0,-zScale,0,0,0,0,1);
+  local.makeTranslation(spec.x,spec.y,0);euler.set(spec.roll,spec.yaw,spec.pitch,'ZXY');rotation.makeRotationFromEuler(euler);scaleMatrix.makeScale(spec.scale,spec.scale,spec.scale);
+  damageMatrix.copy(affine).multiply(local).multiply(rotation).multiply(scaleMatrix);
+  if(spec.scar){
+   if(!item.texture){item.texture=new THREE.CanvasTexture(spec.scar);item.texture.colorSpace=THREE.SRGBColorSpace;item.scar.material.map=item.texture;item.scar.material.needsUpdate=true;}
+   if(item.surfaceMesh!==spec.surfaceMesh){
+    item.scar.geometry.dispose();const g=geometry(spec.surfaceMesh).geometry.clone(),position=g.attributes.position,uv=new Float32Array(position.count*2),c=spec.surfaceCenter;
+    const cylinder=spec.id==='reactor'||spec.id==='core';
+    for(let i=0;i<position.count;i++){
+     const x=position.getX(i),y=position.getY(i),z=position.getZ(i);
+     uv[i*2]=(x-c[0])/spec.span[0]+.5;
+     // Cylindrical housings carry the texture around their actual shell. Pods
+     // use surface projection onto their armor, ribs and folded wreck fragments.
+     uv[i*2+1]=cylinder?Math.atan2(y-c[1],-(z-c[2]))/2.9+.5:.5-(y-c[1])/spec.span[1];
+    }
+    g.setAttribute('uv',new THREE.BufferAttribute(uv,2));item.scar.geometry=g;item.surfaceMesh=spec.surfaceMesh;
+   }
+   item.scar.matrix.copy(damageMatrix);
+   item.scar.material.opacity=Math.min(1,spec.severity*2);item.scar.renderOrder=batch+1;item.scar.visible=includeDrawBounds({geometry:item.scar.geometry},{},item.scar.matrix);if(item.scar.visible)pending++;
+
+  }
+  // The root uses the full hull transform, including depth. Buoyancy stays up;
+  // yaw rotates the 3D density field so a bank cannot reveal a flat flame card.
+  damageVector.set(...spec.mount).applyMatrix4(rotation).multiplyScalar(spec.scale); // rotation still holds the hull rotation
+  const w=spec.width*1.45,h=spec.height*1.5,d=w*.72;
+  damagePlacement.makeTranslation(spec.x+damageVector.x,spec.y+damageVector.y-h*.5,damageVector.z);damageRotation.makeRotationY(spec.yaw);scaleMatrix.makeScale(w,-h,d);
+  item.fire.matrix.copy(affine).multiply(damagePlacement).multiply(damageRotation).multiply(scaleMatrix);
+  damageInverse.copy(item.fire.matrix).invert();item.fire.material.uniforms.rayDirection.value.set(0,0,-1).transformDirection(damageInverse);
+  const u=item.fire.material.uniforms;u.fireTime.value=spec.age*spec.speed;u.fireSeed.value=spec.seed;u.fireLean.value=spec.lean;u.fireKind.value=spec.kind;
+  item.fire.renderOrder=batch+2;item.fire.visible=includeDrawBounds({geometry:damageBox},{},item.fire.matrix);if(item.fire.visible)pending++;
+ }
  const authoredCenter=new THREE.Vector3();
  let pixelRatio=1;
- window.gpuModels={supportsStamps:true,loadAssets:ids=>authored.load(ids),assetsReady:ids=>authored.ready(ids),setEnvironment,setEnvironmentBlend,prepareTerrain(faces){geometry(faces);if(faces.terrainRelief&&faces.terrainMaterial!=='ice')terrainMap(faces.terrainMaterial);if(faces.asteroidReference)asteroidMaps(faces.asteroidReference);if(faces.terrainMaterial==='ice')getGlacierTexture();},modelRadius(faces){if(AUTHORED_ASSETS[faces.authoredAsset])return AUTHORED_ASSETS[faces.authoredAsset].radius;const sphere=geometry(faces).geometry.boundingSphere;return sphere.center.length()+sphere.radius;},prepare(faces,worldId){let retained;if(worldId!==undefined){retained=preparedWorlds.get(worldId)||new Set();preparedWorlds.delete(worldId);preparedWorlds.set(worldId,retained);while(preparedWorlds.size>2)preparedWorlds.delete(preparedWorlds.keys().next().value);}for(const f of faces)if(f&&!authored.assets?.has(f.authoredAsset)){retained?.add(f);if(!geoCache.has(f))geometry(f);}},begin(){authored.begin();authored.trim();renderFrame++;if(renderFrame%120===0){for(const [faces,data] of geoCache){if(renderFrame-data.lastUsed>600&&!isPrepared(faces)){data.geometry.dispose();geoCache.delete(faces);disposedGeometry++;}}}const ratio=window.flightRenderScale||1;if(Math.abs(ratio-pixelRatio)>.02){pixelRatio=ratio;renderer.setPixelRatio(ratio);}used=0;batch=0;pending=0;pendingStart=0;frameDrawCalls=frameTriangles=frameCompositePixels=framePasses=frameCopyRegions=frameBoundingPixels=0;resetClip();resetInstances();frameInstancedObjects=0;for(const s of slots)s.object.visible=false},draw(faces,context,x,y,scale,yaw,roll,pitch,age,hit,rig){if(drawAuthored(faces,context,x,y,scale,yaw,roll,pitch,age,hit))return;const data=geometry(faces);if(faces.instanceSafe&&!rig&&!hit&&context.globalAlpha>=.999&&queueRigidInstance(faces,data,context,x,y,scale,yaw,roll,pitch))return;let s=slots[used];if(!s){const normalMaterial=material(data.organic);s={object:new THREE.Mesh(data.geometry,normalMaterial),normalMaterial,faces};s.object.matrixAutoUpdate=false;s.object.frustumCulled=false;scene.add(s.object);slots.push(s);s.object.onBeforeRender=()=>{const u=s.object.material.userData.modelUniforms;if(u){u.sceneryLight.value=s.faces.terrainRelief?(environmentName==='hot'?3:environmentName==='foundry'?2:1):0;u.terrainGrowth.value=s.faces.terrainMaterial==='reef'?1:0;u.terrainBorder.value=s.faces.border?1:0;u.terrainNeutral.value=s.faces.terrainNeutral||0;u.terrainSurface.value=s.faces.terrainRelief&&s.faces.terrainMaterial!=='ice'?(s.faces.terrainMaterial==='foundry'?1:s.faces.terrainMaterial==='basalt'?3:2):0;u.organicSurface.value=s.surfaceKind;u.alienSurface.value=s.alienKind||0;u.pilotSurface.value=s.faces.pilotHull?1:0;u.motionTime.value=s.age;u.rigKind.value=s.rig==='squid'?1:s.rig==='octopus'?2:s.rig==='ray'?3:0;u.hitFlash.value=s.hit>0&&(s.age%.12)<.022?Math.sin((s.age%.12)/.022*Math.PI):0}};}if(s.object.geometry!==data.geometry){s.object.geometry=data.geometry;}s.faces=faces;s.object.frustumCulled=!faces.dynamic;
+ window.gpuModels={supportsStamps:true,drawDamageVolume,loadAssets:ids=>authored.load(ids),assetsReady:ids=>authored.ready(ids),setEnvironment,setEnvironmentBlend,prepareTerrain(faces){geometry(faces);if(faces.terrainRelief&&faces.terrainMaterial!=='ice')terrainMap(faces.terrainMaterial);if(faces.asteroidReference)asteroidMaps(faces.asteroidReference);if(faces.terrainMaterial==='ice')getGlacierTexture();},modelRadius(faces){if(AUTHORED_ASSETS[faces.authoredAsset])return AUTHORED_ASSETS[faces.authoredAsset].radius;const sphere=geometry(faces).geometry.boundingSphere;return sphere.center.length()+sphere.radius;},prepare(faces,worldId){let retained;if(worldId!==undefined){retained=preparedWorlds.get(worldId)||new Set();preparedWorlds.delete(worldId);preparedWorlds.set(worldId,retained);while(preparedWorlds.size>2)preparedWorlds.delete(preparedWorlds.keys().next().value);}for(const f of faces)if(f&&!authored.assets?.has(f.authoredAsset)){retained?.add(f);if(!geoCache.has(f))geometry(f);}},begin(){hideDamageVolumes();authored.begin();authored.trim();renderFrame++;if(renderFrame%120===0){trimInstances();for(const [faces,data] of geoCache){if(renderFrame-data.lastUsed>600&&!isPrepared(faces)){data.geometry.dispose();geoCache.delete(faces);disposedGeometry++;}}}const ratio=window.flightRenderScale||1;if(Math.abs(ratio-pixelRatio)>.02){pixelRatio=ratio;renderer.setPixelRatio(ratio);}used=0;batch=0;pending=0;pendingStart=0;frameDrawCalls=frameTriangles=frameCompositePixels=framePasses=frameCopyRegions=frameBoundingPixels=0;resetClip();resetInstances();frameInstancedObjects=0;for(const s of slots)s.object.visible=false},draw(faces,context,x,y,scale,yaw,roll,pitch,age,hit,rig){if(drawAuthored(faces,context,x,y,scale,yaw,roll,pitch,age,hit))return;const data=geometry(faces);if(faces.instanceSafe&&!rig&&!hit&&context.globalAlpha>=.999&&queueRigidInstance(faces,data,context,x,y,scale,yaw,roll,pitch))return;let s=slots[used];if(!s){const normalMaterial=material(data.organic);s={object:new THREE.Mesh(data.geometry,normalMaterial),normalMaterial,faces};s.object.matrixAutoUpdate=false;s.object.frustumCulled=false;scene.add(s.object);slots.push(s);s.object.onBeforeRender=()=>{const u=s.object.material.userData.modelUniforms;if(u){u.sceneryLight.value=s.faces.terrainRelief?(environmentName==='hot'?3:environmentName==='foundry'?2:1):0;u.terrainGrowth.value=s.faces.terrainMaterial==='reef'?1:0;u.terrainBorder.value=s.faces.border?1:0;u.terrainNeutral.value=s.faces.terrainNeutral||0;u.terrainSurface.value=s.faces.terrainRelief&&s.faces.terrainMaterial!=='ice'?(s.faces.terrainMaterial==='foundry'?1:s.faces.terrainMaterial==='basalt'?3:2):0;u.organicSurface.value=s.surfaceKind;u.alienSurface.value=s.alienKind||0;u.pilotSurface.value=s.faces.pilotHull?1:0;u.motionTime.value=s.age;u.rigKind.value=s.rig==='squid'?1:s.rig==='octopus'?2:s.rig==='ray'?3:0;u.hitFlash.value=s.hit>0&&(s.age%.12)<.022?Math.sin((s.age%.12)/.022*Math.PI):0}};}if(s.object.geometry!==data.geometry){s.object.geometry=data.geometry;}s.faces=faces;s.object.frustumCulled=!faces.dynamic;
  // A pooled slot can change from terrain to a creature or atlas every frame.
  // Select its material first, then reset every surface property by texture identity.
  const organic=data.organic||rig==='squid'||rig==='octopus';s.surfaceKind=faces.asteroidReference?7:faces.asteroidFinish?6:faces.rock?(faces.terrainMaterial==='ice'?4:faces.terrainMaterial==='storm'?5:faces.terrainMaterial?3:2):organic?1:0;s.alienKind=faces.alienMaterial==='chitin'?1:faces.alienMaterial==='flesh'?2:0;
@@ -246,7 +342,7 @@ if(renderer){
  const a=context.getTransform(),pr=window.flightRenderScale||1,zScale=Math.sqrt(Math.abs(a.a*a.d-a.b*a.c))/pr;affine.set(a.a/pr,a.c/pr,0,a.e/pr-720,-a.b/pr,-a.d/pr,0,380-a.f/pr,0,0,-zScale,0,0,0,0,1);local.makeTranslation(x,y,0);euler.set(roll,yaw,pitch,'ZXY');rotation.makeRotationFromEuler(euler);scaleMatrix.makeScale(scale,scale,scale);s.object.matrix.copy(affine).multiply(local).multiply(rotation).multiply(scaleMatrix);s.object.visible=includeDrawBounds(data,faces,s.object.matrix);s.object.material.opacity=context.globalAlpha;s.object.material.depthWrite=faces.painted===undefined&&context.globalAlpha>.96;s.object.renderOrder=batch;s.age=age;s.hit=hit;s.rig=rig;
  used++;if(s.object.visible)pending++},flush(context,capture=false){if(!pending){pendingStart=used;return;}pending=0;const width=clipRight-clipLeft,height=clipBottom-clipTop;renderer.setScissor(clipLeft,760-clipBottom,width,height);renderer.setScissorTest(true);renderer.render(scene,camera);renderer.setScissorTest(false);framePasses++;frameBoundingPixels+=width*height;let stamp;
  if(capture){const image=document.createElement('canvas'),sx=surface.width/1440,sy=surface.height/760;image.width=Math.ceil(width*sx);image.height=Math.ceil(height*sy);image.getContext('2d').drawImage(surface,clipLeft*sx,clipTop*sy,width*sx,height*sy,0,0,image.width,image.height);stamp={image,x:clipLeft,y:clipTop,w:width,h:height};}
-frameDrawCalls+=renderer.info.render.calls;frameTriangles+=renderer.info.render.triangles;peakTriangles=Math.max(peakTriangles,frameTriangles);context.save();context.setTransform(1,0,0,1,0,0);context.globalAlpha=1;context.globalCompositeOperation='source-over';const regionCount=splitCopyRegions();frameCopyRegions+=regionCount;for(let i=0;i<regionCount;i++){const k=i*4,x=copyRegions[k],y=copyRegions[k+1],w=copyRegions[k+2]-x,h=copyRegions[k+3]-y;frameCompositePixels+=w*h;context.drawImage(surface,x*surface.width/1440,y*surface.height/760,w*surface.width/1440,h*surface.height/760,x*context.canvas.width/1440,y*context.canvas.height/760,w*context.canvas.width/1440,h*context.canvas.height/760);}context.restore();for(let i=pendingStart;i<used;i++)slots[i].object.visible=false;pendingStart=used;authored.flush();resetClip();resetInstances();batch++;frames++;return stamp},stats(){return{authored:authored.stats(),engine:'Three.js',version:THREE.REVISION,webgl:true,drawCalls:frameDrawCalls,triangles:frameTriangles,instancedObjects:frameInstancedObjects,instanceGroups:instanceGroups.size,compositePasses:framePasses,copyRegions:frameCopyRegions,boundingPixels:frameBoundingPixels,compositePixels:frameCompositePixels,compositeCoverage:framePasses?+(frameCompositePixels/(framePasses*1440*760)).toFixed(3):0,pooledObjects:slots.length,peakTriangles,frames,renderFrames:renderFrame,preparedWorlds:preparedWorlds.size,geometryCache:geoCache.size,disposedGeometry,gpuGeometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,shaderPrograms:renderer.info.programs?.length||0}}};
+frameDrawCalls+=renderer.info.render.calls;frameTriangles+=renderer.info.render.triangles;peakTriangles=Math.max(peakTriangles,frameTriangles);context.save();context.setTransform(1,0,0,1,0,0);context.globalAlpha=1;context.globalCompositeOperation='source-over';const regionCount=splitCopyRegions();frameCopyRegions+=regionCount;for(let i=0;i<regionCount;i++){const k=i*4,x=copyRegions[k],y=copyRegions[k+1],w=copyRegions[k+2]-x,h=copyRegions[k+3]-y;frameCompositePixels+=w*h;context.drawImage(surface,x*surface.width/1440,y*surface.height/760,w*surface.width/1440,h*surface.height/760,x*context.canvas.width/1440,y*context.canvas.height/760,w*context.canvas.width/1440,h*context.canvas.height/760);}context.restore();for(let i=pendingStart;i<used;i++)slots[i].object.visible=false;pendingStart=used;hideDamageVolumes();authored.flush();resetClip();resetInstances();batch++;frames++;return stamp},stats(){return{authored:authored.stats(),engine:'Three.js',version:THREE.REVISION,webgl:true,drawCalls:frameDrawCalls,triangles:frameTriangles,instancedObjects:frameInstancedObjects,instanceGroups:instanceGroups.size,compositePasses:framePasses,copyRegions:frameCopyRegions,boundingPixels:frameBoundingPixels,compositePixels:frameCompositePixels,compositeCoverage:framePasses?+(frameCompositePixels/(framePasses*1440*760)).toFixed(3):0,pooledObjects:slots.length,damageVolumes:damageVolumes.size,peakTriangles,frames,renderFrames:renderFrame,preparedWorlds:preparedWorlds.size,geometryCache:geoCache.size,disposedGeometry,gpuGeometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,shaderPrograms:renderer.info.programs?.length||0}}};
 }
 // Fetch together, execute classic scripts in dependency order.
 if(!document.documentElement.hasAttribute('data-model-gallery'))await Promise.all(['audio.js','models.js','boss-creatures.js','boss-machines.js','capital-ship.js','levels.js','runs.js','art.js','wildlife-birds.js','wildlife-aquatic.js','wildlife-small-life.js','wildlife-crawlers.js','shore-wildlife.js','tide-encounter.js','ferrum-mission.js','story-campaign.js','game.js','cloud-config.js','collection-sync.js','collection-ui.js'].map(src=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.async=false;s.src=src+new URL(import.meta.url).search;s.onload=resolve;s.onerror=reject;document.body.append(s)})));
