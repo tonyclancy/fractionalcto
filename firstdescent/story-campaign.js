@@ -985,14 +985,13 @@ function originEyes(b){
  const eye=sockets.reduce((near,p)=>rotateVertex(p,pose.yaw,pose.roll,pose.pitch,0,0)[2]<rotateVertex(near,pose.yaw,pose.roll,pose.pitch,0,0)[2]?p:near);
  return[bossMount(b,eye)];
 }
-function originGuardianHint(b){const g=b.origin,a=g?.attack;if(!a)return b.exposed>0?'CORE EXPOSED · ATTACK NOW':'GATE LOCKS '+(g?.phase||0)+'/3 · WATCH ITS EYES AND WINGS';return a.kind==='eyes'?'EYES LOCKED · LEAVE THE AMBER SIGHTLINES':a.kind==='sonic'?'WINGS COMPRESSING · CROSS THROUGH THE BLUE GAP':'GRAVITY WELL · STEER AWAY FROM THE DARK CORE';}
+function originGuardianHint(b){const g=b.origin,a=g?.attack;if(!a)return b.exposed>0?'CORE EXPOSED · ATTACK NOW':'GATE LOCKS '+(g?.phase||0)+'/3 · WATCH ITS EYES AND WINGS';return a.kind==='eyes'?'EYES LOCKED · LEAVE THE AMBER SIGHTLINES':a.kind==='sonic'?'WINGS COMPRESSING · MOVE TO THE MINT OPENING':'PLASMA BARRAGE · SIDESTEP THE AIM, THEN WEAVE';}
 function beginOriginAttack(b,kind){
  const g=originGuardianState(b),warning=kind==='eyes'?1.65:kind==='sonic'?1.8:1.6;
- const a={kind,age:0,warning,duration:kind==='eyes'?1.15:kind==='sonic'?4.9:3,origin:{x:b.x,y:b.y},target:{x:ship.x,y:ship.y},fired:false};
- if(kind==='gravity')a.well={x:clamp(ship.x+75,200,W-400),y:clamp(ship.y,200,H-200)};
- if(kind==='sonic')a.gap=Math.atan2(ship.y-b.y,ship.x-b.x); // Fixed, generous exit; never follows the pilot.
+ const a={kind,age:0,warning,duration:kind==='eyes'?1.15:kind==='sonic'?4.9:2.1,origin:{x:b.x,y:b.y},target:{x:ship.x,y:ship.y},fired:false};
+ if(kind==='sonic')planBossSonicGap(b,a);
  g.attack=a;g.cycle++;b.exposed=0;b.recovery=0;
- announce(kind==='eyes'?'SOLAR GAZE':kind==='sonic'?'SONIC WINGBREAK':'GRAVITY ANCHOR',kind==='eyes'?'EYES LOCKED · MOVE OFF THE SIGHTLINES':kind==='sonic'?'FOLLOW THE BLUE OPENING':'LEAVE THE DARK CORE BEFORE IT COLLAPSES');
+ announce(kind==='eyes'?'SOLAR GAZE':kind==='sonic'?'SONIC WINGBREAK':'PLASMA BARRAGE',kind==='eyes'?'EYES LOCKED · MOVE OFF THE SIGHTLINES':kind==='sonic'?'MOVE TO THE MINT OPENING':'SIDESTEP THE AIM · WEAVE BETWEEN BURSTS');
  window.flightAudio?.weaponCue?.(kind==='eyes'?'gaze':kind,'warn',b.x,warning);
 }
 function originLaserLines(b,a){return originEyes(b).map(p=>{const angle=Math.atan2(a.target.y-p.y,a.target.x-p.x);return {x:p.x,y:p.y,ex:p.x+Math.cos(angle)*W*1.4,ey:p.y+Math.sin(angle)*W*1.4};});}
@@ -1000,10 +999,35 @@ function originLaserHit(line,old,current,r=22){
  const angle=Math.atan2(line.ey-line.y,line.ex-line.x),c=Math.cos(angle),s=Math.sin(angle),point=p=>({x:(p.x-line.x)*c+(p.y-line.y)*s,y:-(p.x-line.x)*s+(p.y-line.y)*c}),a=point(old),b=point(current);
  return segmentBoxTime(a.x,a.y,b.x-a.x,b.y-a.y,0,-r,Math.hypot(line.ex-line.x,line.ey-line.y),r)!==Infinity;
 }
+function sonicGapHalf(a){return a.gapHalf??.58;}
+function planBossSonicGap(b,a){
+ const p=a.origin,dx=ship.x-p.x,dy=ship.y-p.y,d=Math.hypot(dx,dy),aim=Math.atan2(dy,dx);
+ const preferred=(b.sonicCycle||0)%2?1:-1;b.sonicCycle=(b.sonicCycle||0)+1;
+ a.gapHalf=clamp(Math.atan2(80,d),.12,.34);
+ let best=null;
+ // Choose a reachable lane away from the pilot's current bearing. Alternate
+ // high/low preferences, but reject terrain, hulls and obstructed approaches.
+ for(const sign of [preferred,-preferred])for(const offset of [160,220,280])for(const side of [0,-80,80]){
+  const x=clamp(ship.x+side,65,W-85),y=clamp(ship.y+sign*offset,75,H-75),travel=Math.hypot(x-ship.x,y-ship.y),angle=Math.atan2(y-p.y,x-p.x);
+  const delta=Math.abs(Math.atan2(Math.sin(angle-aim),Math.cos(angle-aim)));
+  if(travel<90||delta<a.gapHalf+.08||Math.hypot(x-p.x,y-p.y)<150)continue;
+  let clear=true;
+  for(let i=1;i<=12&&clear;i++){
+   const px=ship.x+(x-ship.x)*i/12,py=ship.y+(y-ship.y)*i/12;
+   clear=!sceneryBorderContact(px,py,32,22)&&!bossBodyHit(b,px,py,40)&&!obstacles.some(o=>obstacleSolids(o).some(r=>px+32>r.x&&px-32<r.x+r.w&&py+22>r.y&&py-22<r.y+r.h));
+  }
+  if(!clear)continue;
+  const score=travel+(sign===preferred?0:500)+Math.abs(side)*.25;
+  if(!best||score<best.score)best={x,y,angle,score};
+ }
+ // In a blocked corridor preserve a possible escape instead of forcing a
+ // lane through solid scenery. All choices lock before the warning begins.
+ a.gap=best?.angle??aim;a.safePoint=best?{x:best.x,y:best.y}:{x:ship.x,y:ship.y};
+}
 function originSonicRadius(a,age,ring=0){return 55+Math.max(0,age-a.warning-ring*.8)*270;}
 function originSonicHit(a,oldAge,old,current,ring=0){
  if(a.age<a.warning+ring*.8)return false;
- for(let i=0;i<=8;i++){const t=i/8,age=oldAge+(a.age-oldAge)*t;if(age<a.warning+ring*.8)continue;const x=old.x+(current.x-old.x)*t-a.origin.x,y=old.y+(current.y-old.y)*t-a.origin.y,delta=Math.atan2(Math.sin(Math.atan2(y,x)-a.gap),Math.cos(Math.atan2(y,x)-a.gap));if(Math.abs(delta)>.58&&Math.abs(Math.hypot(x,y)-originSonicRadius(a,age,ring))<22)return true;}
+ for(let i=0;i<=8;i++){const t=i/8,age=oldAge+(a.age-oldAge)*t;if(age<a.warning+ring*.8)continue;const x=old.x+(current.x-old.x)*t-a.origin.x,y=old.y+(current.y-old.y)*t-a.origin.y,delta=Math.atan2(Math.sin(Math.atan2(y,x)-a.gap),Math.cos(Math.atan2(y,x)-a.gap));if(Math.abs(delta)>sonicGapHalf(a)&&Math.abs(Math.hypot(x,y)-originSonicRadius(a,age,ring))<22)return true;}
  return false;
 }
 function updateOriginGuardian(b,dt){
@@ -1014,15 +1038,12 @@ function updateOriginGuardian(b,dt){
  if(phase>g.phase){g.phase=phase;g.lockAge=0;g.attack=null;g.rest=storyBenefits().telemetry?3.2:2.6;b.exposed=g.rest;b.recovery=g.rest;announce('GATE LOCK '+phase+'/3 RELEASED',phase===1?'SOLAR CORE DESTABILIZING':'FINAL LOCK · BREAK THE GUARDIAN');window.flightAudio?.engineerCue?.('link',W/2);}
  g.wingAge+=dt*(g.attack?.kind==='sonic'?(g.attack.age<g.attack.warning?.28:2.8):1);
  const a=g.attack;
- if(!a){g.rest-=dt;if(g.rest<=0){const sequence=g.phase===0?['eyes','gravity','sonic']:g.phase===1?['gravity','sonic','eyes']:['sonic','eyes','gravity','eyes'];beginOriginAttack(b,sequence[g.cycle%sequence.length]);}g.previous={x:ship.x,y:ship.y};return;}
+ if(!a){g.rest-=dt;if(g.rest<=0){const sequence=g.phase===0?['eyes','volley','sonic']:g.phase===1?['volley','sonic','eyes']:['sonic','eyes','volley','eyes'];beginOriginAttack(b,sequence[g.cycle%sequence.length]);}g.previous={x:ship.x,y:ship.y};return;}
  const oldAge=a.age;a.age+=dt;
  if(a.age>=a.warning){
-  if(!a.fired){a.fired=true;window.flightAudio?.weaponCue?.(a.kind==='eyes'?'gaze':a.kind,'fire',a.kind==='gravity'?a.well.x:b.x,a.duration);}
+  if(!a.fired){a.fired=true;if(a.kind!=='volley')window.flightAudio?.weaponCue?.(a.kind==='eyes'?'gaze':a.kind,'fire',b.x,a.duration);}
   if(a.kind==='eyes'){const t=clamp((a.warning-oldAge)/dt,0,1),from={x:g.previous.x+(ship.x-g.previous.x)*t,y:g.previous.y+(ship.y-g.previous.y)*t};for(const line of originLaserLines(b,a))if(originLaserHit(line,from,ship))damage();}
-  else if(a.kind==='gravity'){
-   const dx=a.well.x-ship.x,dy=a.well.y-ship.y,d=Math.hypot(dx,dy)||1,pull=Math.max(0,1-d/250)*110,px=clamp(ship.x+dx/d*pull*dt,40,W-65),py=clamp(ship.y+dy/d*pull*dt,42,H-42);
-   if(!sceneryBorderContact(px,py,28,18)&&!obstacles.some(o=>obstacleSolids(o).some(r=>px+28>r.x&&px-28<r.x+r.w&&py+18>r.y&&py-18<r.y+r.h))){ship.x=px;ship.y=py;}
-   if(segmentCircleTime(g.previous.x,g.previous.y,ship.x-g.previous.x,ship.y-g.previous.y,a.well.x,a.well.y,34)!==Infinity)damage();
+  else if(a.kind==='volley'){updateBossPlasmaBarrage(b,a);
   }else for(let i=0;i<(g.phase===2?2:1);i++)if(originSonicHit(a,oldAge,g.previous,ship,i))damage();
  }
  if(a.age>=a.warning+a.duration){g.attack=null;g.rest=g.phase===2?2.1:2.7;b.exposed=g.rest;b.recovery=g.rest;}
@@ -1032,27 +1053,40 @@ function moveOriginGuardian(b,dt){
  const g=originGuardianState(b),oldX=b.x,oldY=b.y;
  // Hold the head still throughout a laser lock and firing. Other attacks
  // permit a slow deliberate patrol; no inherited crossing charge.
- if(!g.attack||g.attack.kind==='gravity')driveBoss(b,{x:W*.77+Math.sin(b.age*.21)*60,y:H*.5+Math.sin(b.age*.38)*100},dt,2.4,85);
- b.turnYaw=0;updateBossAttitude(b,dt,(b.x-oldX)/dt,(b.y-oldY)/dt);
- if(g.attack?.kind==='eyes'){b.flightPitch=0;b.flightYaw=0;b.flightBank=0;}
+ if(!g.attack)driveBoss(b,{x:W*.77+Math.sin(b.age*.21)*60,y:H*.5+Math.sin(b.age*.38)*100},dt,2.4,85);
+ if(g.attack?.kind==='volley'){if(g.attack.age<g.attack.warning){const facing=g.attack.target.x>b.x?Math.PI:0;b.turnYaw=(b.turnYaw||0)+clamp(facing-(b.turnYaw||0),-dt*2.8,dt*2.8);}}else b.turnYaw=0;
+ updateBossAttitude(b,dt,(b.x-oldX)/dt,(b.y-oldY)/dt);
+ if(g.attack?.kind==='eyes'||g.attack?.kind==='volley'){b.flightPitch=0;b.flightYaw=0;b.flightBank=0;}
 }
-let originLensCanvas=null;
-function drawOriginPrelude(b){
- if(b?.arsenal?.kind==='gravity')drawBossGravityLens(b.arsenal);
- if(!isOriginGuardian(b)||!b.origin||sectorBlend)return;
- const g=b.origin,mesh=storyMesh('beacon');ctx.save();ctx.globalAlpha=.16+g.phase*.12;drawModel(mesh,W/2,H/2,2.15,.42,.05,0,b.age,0);window.gpuModels?.flush(ctx);ctx.restore();
- ctx.save();ctx.strokeStyle='#a3ffe3';ctx.lineWidth=3;
- for(let i=0;i<3;i++){ctx.globalAlpha=i<g.phase?.85:.18;ctx.beginPath();ctx.arc(W/2,H/2,104,i*TAU/3+.12,(i+1)*TAU/3-.12);ctx.stroke();}
- if(g.lockAge<2){ctx.globalAlpha=(1-g.lockAge/2)*.6;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.quadraticCurveTo((b.x+W/2)/2,H*.24,W/2,H/2);ctx.stroke();}ctx.restore();
- drawBossGravityLens(g.attack);
+// Shared by the final guardian and exploration bosses. Targets lock at windup;
+// all damage comes from visible projectiles using the normal swept collision path.
+function bossPlasmaMuzzle(b){const d=bossDesign();return bossMount(b,bossOrganic()?d.mouth:(d.guns?.[0]||d.mouth));}
+function updateBossPlasmaBarrage(b,a){
+ a.salvos??=0;
+ while(a.salvos<3&&a.age>=a.warning+a.salvos*.5){
+  const m=bossPlasmaMuzzle(b);
+  a.aim??=Math.atan2(a.target.y-m.y,a.target.x-m.x);
+  const shift=a.salvos===1?.12:0;
+  for(let i=-2;i<=2;i++){
+   const angle=a.aim+i*.24+shift,speed=430;
+   hostile.push({x:m.x,y:m.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:7,age:0,kind:'arsenal',arsenal:'plasma',c:'#86e7ff',life:3.6,baseSpeed:speed,side:1,bossShot:true});
+  }
+  a.salvos++;b.muzzle=.18;
+  window.flightAudio?.weaponCue?.('volley','fire',m.x,.3);
+ }
 }
-function drawBossGravityLens(a){
- if(a?.kind!=='gravity')return;const p=a.well,strength=clamp(a.age/a.warning,0,1),size=240;
- if(!originLensCanvas){originLensCanvas=document.createElement('canvas');originLensCanvas.width=originLensCanvas.height=size;}
- const c=originLensCanvas.getContext('2d');c.clearRect(0,0,size,size);c.drawImage(canvas,(p.x-120)*renderScale,(p.y-120)*renderScale,size*renderScale,size*renderScale,0,0,size,size);
- // Retained low-resolution scene copy: bend the scenery, not a dark disc
- // pasted over the player. No pixel readback and no canvas allocations in flight.
- ctx.save();for(let i=0;i<16;i++){const outer=120-i*6,inner=outer-6,zoom=1+strength*.22*(1-outer/150);ctx.save();ctx.beginPath();ctx.arc(p.x,p.y,outer,0,TAU);ctx.arc(p.x,p.y,inner,0,TAU,true);ctx.clip();ctx.drawImage(originLensCanvas,p.x-120*zoom,p.y-120*zoom,size*zoom,size*zoom);ctx.restore();}ctx.restore();
+function drawBossPlasmaCharge(b,a){
+ const m=bossPlasmaMuzzle(b),q=clamp(a.age/a.warning,0,1),active=a.age>=a.warning;
+ const pulse=active?Math.max(0,1-((a.age-a.warning)% .5)/.2):q;
+ ctx.save();
+ if(!active){
+  const aim=Math.atan2(a.target.y-m.y,a.target.x-m.x);
+  ctx.strokeStyle='#a7efff';ctx.lineWidth=1.2;ctx.globalAlpha=.22+q*.25;ctx.setLineDash([8,12]);
+  for(let i=-2;i<=2;i++){const angle=aim+i*.24;ctx.beginPath();ctx.moveTo(m.x+Math.cos(angle)*25,m.y+Math.sin(angle)*25);ctx.lineTo(m.x+Math.cos(angle)*420,m.y+Math.sin(angle)*420);ctx.stroke();}
+  ctx.setLineDash([]);
+  for(let i=0;i<9;i++){const phase=(a.age*1.8+i*.618)%1,angle=i*2.399+a.age*.7,r=12+(1-phase)*42;ctx.globalAlpha=Math.sin(phase*Math.PI)*q;ctx.fillStyle=i%2?'#85dfff':'#f3fcff';ctx.beginPath();ctx.arc(m.x+Math.cos(angle)*r,m.y+Math.sin(angle)*r,1.2+i%3*.4,0,TAU);ctx.fill();}
+ }
+ ctx.globalAlpha=1;orb(m.x,m.y,16+pulse*25,'#66d9ff',.4+pulse*.45);orb(m.x,m.y,6+pulse*9,'#d5f7ff',.85);ctx.fillStyle='#effcff';ctx.beginPath();ctx.arc(m.x,m.y,2+pulse*4,0,TAU);ctx.fill();ctx.restore();
 }
 function drawOriginGuardian(b,g=b.origin){
  const a=g?.attack;if(!a)return;
@@ -1062,17 +1096,23 @@ function drawOriginGuardian(b,g=b.origin){
    ctx.strokeStyle=a.profile?.color||(active?'#ffb85b':'#ffd388');ctx.globalAlpha=active?.22:.65;ctx.lineWidth=active?30:1.5;ctx.setLineDash(active?[]:[9,8]);ctx.beginPath();ctx.moveTo(line.x,line.y);ctx.lineTo(line.ex,line.ey);ctx.stroke();ctx.setLineDash([]);
    if(active){ctx.globalAlpha=.95;ctx.lineWidth=10;ctx.stroke();ctx.strokeStyle='#fff9e5';ctx.lineWidth=3;ctx.stroke();}orb(line.x,line.y,7+charge*11,'#ffe2ad',.5+charge*.3);
   }
- }else if(a.kind==='gravity'){
-  const p=a.well;ctx.strokeStyle=active?'#c1a4ff':'#b49bf0';ctx.lineWidth=2;
-  for(let i=0;i<5;i++){const r=30+i*18;ctx.globalAlpha=.22+i*.04;ctx.beginPath();ctx.ellipse(p.x,p.y,r,r*.72,a.age*.65+i*.18,0,TAU);ctx.stroke();}
-  ctx.globalAlpha=1;orb(p.x,p.y,35,'#9371fa',.4);ctx.fillStyle=active?'#080915':'#18132b88';ctx.beginPath();ctx.arc(p.x,p.y,20+charge*4,0,TAU);ctx.fill();ctx.strokeStyle='#d5c5ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,33,-Math.PI/2,-Math.PI/2+TAU*charge);ctx.stroke();
+ }else if(a.kind==='volley'){
+  drawBossPlasmaCharge(b,a);
  }else{
-  const p=a.origin;
+  const p=a.origin,half=sonicGapHalf(a);
+  if(!active&&a.safePoint){
+   const reach=Math.hypot(a.safePoint.x-p.x,a.safePoint.y-p.y);
+   ctx.strokeStyle='#9cffdf';ctx.globalAlpha=.38;ctx.lineWidth=1.5;ctx.setLineDash([7,9]);
+   for(const side of [-1,1]){const angle=a.gap+side*half;ctx.beginPath();ctx.moveTo(p.x+Math.cos(angle)*65,p.y+Math.sin(angle)*65);ctx.lineTo(p.x+Math.cos(angle)*reach,p.y+Math.sin(angle)*reach);ctx.stroke();}
+   ctx.setLineDash([]);ctx.globalAlpha=.85;ctx.lineWidth=3;
+   ctx.save();ctx.translate(a.safePoint.x,a.safePoint.y);ctx.rotate(a.gap+Math.PI);
+   for(let i=0;i<2;i++){ctx.beginPath();ctx.moveTo(-10-i*14,-8);ctx.lineTo(-i*14,0);ctx.lineTo(-10-i*14,8);ctx.stroke();}ctx.restore();
+  }
   for(let ring=0;ring<(g.phase===2?2:1);ring++){
    if(ring&&a.age<a.warning+ring*.8)continue;const r=active?originSonicRadius(a,a.age,ring):55;if(r>W*1.4)continue;
-   ctx.strokeStyle=a.profile?.color||(active?'#dff9ff':'#e8c787');ctx.globalAlpha=active?.72:.45;ctx.lineWidth=active?5:2;ctx.beginPath();ctx.arc(p.x,p.y,r,a.gap+.58,a.gap+TAU-.58);ctx.stroke();
+   ctx.strokeStyle=a.profile?.color||(active?'#dff9ff':'#e8c787');ctx.globalAlpha=active?.72:.45;ctx.lineWidth=active?5:2;ctx.beginPath();ctx.arc(p.x,p.y,r,a.gap+half,a.gap+TAU-half);ctx.stroke();
    if(active){ctx.globalAlpha=.14;ctx.lineWidth=21;ctx.stroke();}
-   ctx.strokeStyle='#9cffdf';ctx.globalAlpha=.8;ctx.lineWidth=3;for(const side of [-1,1]){const angle=a.gap+side*.58;ctx.beginPath();ctx.moveTo(p.x+Math.cos(angle)*(r-12),p.y+Math.sin(angle)*(r-12));ctx.lineTo(p.x+Math.cos(angle)*(r+20),p.y+Math.sin(angle)*(r+20));ctx.stroke();}
+   ctx.strokeStyle='#9cffdf';ctx.globalAlpha=.8;ctx.lineWidth=3;for(const side of [-1,1]){const angle=a.gap+side*half;ctx.beginPath();ctx.moveTo(p.x+Math.cos(angle)*(r-12),p.y+Math.sin(angle)*(r-12));ctx.lineTo(p.x+Math.cos(angle)*(r+20),p.y+Math.sin(angle)*(r+20));ctx.stroke();}
   }
  }ctx.restore();
 }

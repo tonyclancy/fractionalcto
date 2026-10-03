@@ -847,7 +847,7 @@ window.flightAudio=(()=>{
   const key=id+':'+action,now=context.currentTime;if(now-(weaponCueTimes.get(key)??-10)<.075)return;weaponCueTimes.set(key,now);
   const pan=Math.max(-.75,Math.min(.75,(x/1440-.5)*1.4)),wet=environment==='water',warn=action==='warn',length=Math.max(.12,Math.min(2,duration)),register=.96+(bossVoice.seed%9)*.01;
   const n=o=>note({priority:5,pan,...o}),h=o=>noise({priority:5,pan,...o});
-  duckMusic(warn?.88:['sonic','pressure','gravity'].includes(id)?.73:.82,warn?.22:.3);
+  duckMusic(warn?.88:['sonic','pressure','volley'].includes(id)?.73:.82,warn?.22:.3);
   if(id==='silk'){
    if(action==='attach'||action==='break'){
     h({duration:action==='attach'?.28:.16,gain:.12,cutoff:action==='attach'?2600:4800,end:650,highpass:300,wet:action==='attach',body:true});
@@ -870,10 +870,10 @@ window.flightAudio=(()=>{
     h({duration:water?.5:.22,gain:.16,cutoff:water?1650:6500,end:water?330:800,highpass:water?0:450,wet:water,body:true});
     n({frequency:water?72:110,end:35,duration:.65,gain:.12,type:'sine',cutoff:300});
    }
-  }else if(id==='gravity'){
-   n({frequency:(warn?100:64)*register,end:warn?48:32,duration:warn?length:1.2,gain:warn?.085:.15,type:'sine',cutoff:280,attack:.04,hold:warn?length*.45:.3});
-   n({frequency:warn?208:310,end:warn?97:66,duration:warn?length:1.05,gain:.05,type:'triangle',cutoff:1400,vibrato:22,vibratoRate:7});
-   h({duration:warn?length:.7,gain:warn?.05:.13,cutoff:warn?180:950,end:warn?820:90,body:true,pressure:!warn,tremolo:warn?8:4});
+  }else if(id==='volley'){
+   n({frequency:(warn?120:680)*register,end:warn?880:95,duration:warn?length:.24,gain:warn?.075:.12,type:'sawtooth',cutoff:wet?2200:4200,attack:warn?.08:.003,hold:warn?length*.35:0});
+   n({frequency:warn?65:130,end:warn?150:42,duration:warn?length*.85:.3,gain:warn?.06:.11,type:'sine',cutoff:400});
+   h({duration:warn?length*.8:.16,gain:warn?.05:.14,cutoff:warn?400:4800,end:warn?2900:700,body:true,tremolo:warn?16:0});
   }else if(id==='pearl'){
    n({frequency:warn?75:310,end:warn?165:65,duration:warn?length:.24,gain:warn?.065:.10,type:'sine',cutoff:1000,attack:warn?.08:.004});
    h({duration:warn?length*.7:.25,gain:warn?.055:.13,cutoff:warn?380:2100,end:warn?1200:230,wet:true,body:true});

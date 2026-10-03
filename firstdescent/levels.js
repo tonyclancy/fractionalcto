@@ -43,7 +43,7 @@ const BOSS_ARSENALS=freezeContent({
  lance:{id:'lance',effect:'eyes',name:'ION LANCE',hint:'CANNON LOCKED · LEAVE THE SIGHTLINE',color:'#b6baff',warning:1.8,duration:1.1},
  sonic:{id:'sonic',effect:'sonic',name:'SONIC WINGBREAK',hint:'WINGS BRACED · CROSS THROUGH THE MINT GAP',color:'#e4f4ff',warning:1.8,duration:4.8},
  pressure:{id:'pressure',effect:'sonic',name:'ABYSSAL COMPRESSION',hint:'PRESSURE RING · FOLLOW THE MINT OPENING',color:'#9aeadd',warning:1.9,duration:4.8},
- gravity:{id:'gravity',effect:'gravity',name:'GRAVITY ANCHOR',hint:'LEAVE THE DARK CORE · KEEP YOUR THRUST',color:'#c4a6ff',warning:1.8,duration:2.8},
+ volley:{id:'volley',effect:'volley',name:'PLASMA BARRAGE',hint:'SIDESTEP THE AIM · WEAVE BETWEEN BURSTS',color:'#86e7ff',warning:1.8,duration:2.1},
  'ion-mine':{id:'mine',name:'ION MINES',hint:'MINES ARM THEN BURST · FOLLOW THE OPENING',color:'#a7c4ff',warning:1.6,count:2,interval:.65,speed:290,radius:12},
  silk:{id:'silk',name:'SILK SPIT',hint:'DODGE THE WEB · NOVA BREAKS A SNARE',color:'#e5efbf',warning:1.55,count:2,interval:.45,speed:430,radius:13},
  'furnace-gale':{id:'scythe',name:'WING SCYTHES',hint:'LET THE BLADES PASS · CROSS BEHIND THEM',color:'#ffd59b',warning:1.2,count:3,interval:.36,speed:450,radius:10},
@@ -2301,7 +2301,7 @@ function explorationBossVariation(stage,index){
  const spec=stage.biosphere.boss,seed=speciesHash(stage.id+':guardian191'),shape=organicAnatomyProgram(spec.genome),winged=spec.organic&&stage.medium==='air'&&['drake','sailwing','skimmer','moth'].includes(shape),silken=spec.organic&&stage.medium==='air'&&['mantis','razorcrab','beetle','crab','trilobite','moth'].includes(shape);
  const cold=spec.genome.protection==='cryo'||stage.worldIdentity?.climate==='ice',hot=stage.atmosphere?.heat>.5||!!stage.stellar;
  const family=!spec.organic?'machine':cold?'ice':stage.medium==='water'?'water':hot?'fire':'air';
- const pool=stage.bossKind==='cathedral'?['siege']:!spec.organic?['ion-sweep','lance','ion-mine',...(stage.environment==='high-atmosphere'||stage.stellar||stage.gravityWell?['gravity']:[])]:stage.medium==='water'?['tidal-pressure','abyssal-maw','pressure','aquatic-gaze']:[...(winged?['furnace-gale','sonic']:['brood-tempest']),...(silken?['silk']:[]),'gaze',...(stage.gravityWell||stage.stellar?['gravity']:[])];
+ const pool=stage.bossKind==='cathedral'?['siege']:!spec.organic?['ion-sweep','lance','ion-mine',...(stage.environment==='high-atmosphere'||stage.stellar||stage.gravityWell?['volley']:[])]:stage.medium==='water'?['tidal-pressure','abyssal-maw','pressure','aquatic-gaze']:[...(winged?['furnace-gale','sonic']:['brood-tempest']),...(silken?['silk']:[]),'gaze',...(stage.gravityWell||stage.stellar?['volley']:[])];
  const offset=seed%pool.length,step=pool.length===4&&((seed>>>5)&1)?3:1,deck=Array.from({length:Math.min(3,pool.length)},(_,i)=>pool[(offset+i*step)%pool.length]);
  const palette=EXPLORATION_PALETTES[family][(seed>>>7)%5],shade=.94+((seed>>>12)%13)/100,shift=((seed>>>17)%9)-4;
  const preserve=!!spec.authoredAsset||!!guardianPalettes[stage.id]||stage.capitalHull==='shipyard';
@@ -2310,7 +2310,7 @@ function explorationBossVariation(stage,index){
   flight:['orbit','sweep','sentinel'][seed%3],pace:.92+((seed>>>4)%5)*.04,
   siege:['precision','barrage','hunters'][index%3]};
 }
-for(const [index,stage] of expedition.stages.entries()){stage.bossVariation=explorationBossVariation(stage,index);stage.revision++;}
+for(const [index,stage] of expedition.stages.entries()){stage.bossVariation=explorationBossVariation(stage,index);stage.revision+=1+(stage.bossVariation.deck.includes('volley')||stage.id==='eventide-aureus-corona'?1:0)+(stage.bossVariation.deck.some(k=>BOSS_ARSENALS[k].effect==='sonic')||stage.id==='eventide-aureus-corona'?1:0);}
 freezeContent(expedition.locations);
 const campaign=freezeContent(validateLevels(expedition.stages));
 const CAMPAIGN_VERSION=contentReleases.map(r=>r.id+'@'+r.version).join('|')+'|'+campaign.map(l=>l.id+'@'+l.revision).join('|');

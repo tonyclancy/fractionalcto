@@ -808,7 +808,7 @@ function driveBoss(b,target,dt,drive,speed){
  const vx=b.navVX||0,vy=b.navVY||0;let nx=vx+((target.x-b.x)*drive*drive-2*drive*vx)*dt,ny=vy+((target.y-b.y)*drive*drive-2*drive*vy)*dt;
  const magnitude=Math.hypot(nx,ny),limit=speed/Math.max(speed,magnitude);b.navVX=nx*limit;b.navVY=ny*limit;b.x+=b.navVX*dt;b.y+=b.navVY*dt;
 }
-function moveBoss(b,dt){if(b.arsenal?.profile.effect){const a=b.arsenal;if(a.kind==='eyes'&&a.age<a.warning){const facing=a.target.x>b.x?Math.PI:0;b.turnYaw=(b.turnYaw||0)+clamp(facing-(b.turnYaw||0),-dt*2.8,dt*2.8);updateBossAttitude(b,dt,0,0);}return;}if(isOriginGuardian(b)){moveOriginGuardian(b,dt);return;}if(isTideEncounter()){moveTideBoss(b,dt);return;}if(sectors[level].medium==='water')dt*=WATER_HANDLING.bossMotion;if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){moveCapitalShip(b,dt);return;}const kind=bossIndex(),oldX=b.x,oldY=b.y;
+function moveBoss(b,dt){if(b.arsenal?.profile.effect){const a=b.arsenal;if((a.kind==='eyes'||a.kind==='volley')&&a.age<a.warning){const facing=a.target.x>b.x?Math.PI:0;b.turnYaw=(b.turnYaw||0)+clamp(facing-(b.turnYaw||0),-dt*2.8,dt*2.8);updateBossAttitude(b,dt,0,0);}return;}if(isOriginGuardian(b)){moveOriginGuardian(b,dt);return;}if(isTideEncounter()){moveTideBoss(b,dt);return;}if(sectors[level].medium==='water')dt*=WATER_HANDLING.bossMotion;if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){moveCapitalShip(b,dt);return;}const kind=bossIndex(),oldX=b.x,oldY=b.y;
  const crossing=![1,4].includes(kind)&&updateBossPass(b,dt);
  if(!crossing&&Math.abs(ship.x-b.x)>120&&!b.breath){const targetYaw=ship.x>b.x?Math.PI:0;b.turnYaw=(b.turnYaw||0)+clamp(targetYaw-(b.turnYaw||0),-dt*2.4,dt*2.4);}
  if(crossing){b.navVX=(b.x-oldX)/dt;b.navVY=(b.y-oldY)/dt;}
@@ -852,7 +852,8 @@ function arsenalSocket(b){const d=bossDesign();return d?bossMount(b,d.guns?.[0]|
 function beginBossArsenal(b){
  const profile=bossArsenal(sectors[level],b.variationCycle||0);if(!profile)return false;b.variationCycle=(b.variationCycle||0)+1;
  b.arsenal={profile,age:0,fired:0,target:{x:ship.x,y:ship.y}};
- if(profile.effect)Object.assign(b.arsenal,{kind:profile.effect,warning:profile.warning,duration:profile.duration,origin:{x:b.x,y:b.y},gap:Math.atan2(ship.y-b.y,ship.x-b.x),well:{x:clamp(ship.x+75,200,W-200),y:clamp(ship.y,150,H-150)},previous:{x:ship.x,y:ship.y}});
+ if(profile.effect)Object.assign(b.arsenal,{kind:profile.effect,warning:profile.warning,duration:profile.duration,origin:{x:b.x,y:b.y},previous:{x:ship.x,y:ship.y}});
+ if(profile.effect==='sonic')planBossSonicGap(b,b.arsenal);
  b.arsenalLastCycle=b.specialCount||0;b.special=bossEncounterProfile(sectors[level]).cooldown*COMBAT_BALANCE.specialRest;
  b.capacitorSalvo=null;holdBossSalvo(b);announce(profile.name,profile.hint);
  window.flightAudio?.weaponCue?.(profile.id,'warn',b.x,profile.warning);return true;
@@ -895,6 +896,8 @@ function drawArsenalRound(b){
  }else if(b.arsenal==='mine'){
   const charge=clamp((t-1.25)/.9,0,1);orb(0,0,14+charge*4,b.c,.32);ctx.fillStyle='#352644';ctx.beginPath();ctx.arc(0,0,9,0,TAU);ctx.fill();
   for(let i=0;i<8;i++){const a=i*TAU/8+t*.45;ctx.beginPath();ctx.moveTo(Math.cos(a)*8,Math.sin(a)*8);ctx.lineTo(Math.cos(a)*(14+charge*4),Math.sin(a)*(14+charge*4));ctx.stroke();}orb(0,0,3+charge*4,'#f4e5ff',.5+charge*.4);
+ }else if(b.arsenal==='plasma'){
+  orb(0,0,15,b.c,.3);ctx.fillStyle='#f0fcff';ctx.beginPath();ctx.ellipse(0,0,10,5,0,0,TAU);ctx.fill();ctx.strokeStyle='#86e7ff';ctx.globalAlpha=.7;ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(-9,0);ctx.lineTo(-31,0);ctx.stroke();
  }else if(b.arsenal==='pearl'){
   const compress=passEase(clamp((t-.4)/.35,0,1));orb(0,0,17-compress*4,b.c,.45);ctx.beginPath();ctx.ellipse(0,0,12-compress*3,12-compress*3,0,0,TAU);ctx.stroke();orb(-3,-3,4,'#eaffff',.9);
   if(t>.65){ctx.globalAlpha=.45;ctx.beginPath();ctx.moveTo(-12,-4);ctx.quadraticCurveTo(-36,-9,-50,-2);ctx.moveTo(-12,4);ctx.quadraticCurveTo(-36,9,-50,2);ctx.stroke();}
@@ -3567,16 +3570,14 @@ function drawPickupEffects(){
 function updateExplorationSignature(b,dt){
  const a=b.arsenal,oldAge=a.age;a.age+=dt;holdBossSalvo(b);
  if(a.age>=a.warning){
-  if(!a.fired){a.fired=1;window.flightAudio?.weaponCue?.(a.profile.id,'fire',a.kind==='gravity'?a.well.x:b.x,a.duration);}
+  if(!a.fired){a.fired=1;if(a.kind!=='volley')window.flightAudio?.weaponCue?.(a.profile.id,'fire',b.x,a.duration);}
   if(a.kind==='eyes'){
    const t=clamp((a.warning-oldAge)/dt,0,1),from={x:a.previous.x+(ship.x-a.previous.x)*t,y:a.previous.y+(ship.y-a.previous.y)*t};
    for(const line of originLaserLines(b,a))if(originLaserHit(line,from,ship))damage();
   }else if(a.kind==='sonic'){
    if(originSonicHit(a,oldAge,a.previous,ship))damage();
-  }else{
-   const dx=a.well.x-ship.x,dy=a.well.y-ship.y,d=Math.hypot(dx,dy)||1,pull=Math.max(0,1-d/250)*95,px=clamp(ship.x+dx/d*pull*dt,40,W-65),py=clamp(ship.y+dy/d*pull*dt,42,H-42);
-   if(!sceneryBorderContact(px,py,28,18)&&!obstacles.some(o=>obstacleSolids(o).some(r=>px+28>r.x&&px-28<r.x+r.w&&py+18>r.y&&py-18<r.y+r.h))){ship.x=px;ship.y=py;}
-   if(segmentCircleTime(a.previous.x,a.previous.y,ship.x-a.previous.x,ship.y-a.previous.y,a.well.x,a.well.y,34)!==Infinity)damage();
+  }else if(a.kind==='volley'){
+   updateBossPlasmaBarrage(b,a);
   }
  }
  a.previous={x:ship.x,y:ship.y};
