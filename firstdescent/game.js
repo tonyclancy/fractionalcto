@@ -493,6 +493,7 @@ function updateStructures(dt){
 // A visible charge precedes each attack. Selected leaders fire a finite burst
 // at the warning position; followers leave lanes open and every burst ends.
 function updateEnemyWeapon(e,dt){
+ if((e.relayJammedUntil||0)>time){e.shotWindup=null;e.shoot=Math.max(e.shoot||0,.8);return;}
  if(e.retreat){e.shotWindup=null;return;}
  e.shoot-=dt;
  const visible=e.x>45&&e.x<W-45&&e.y>35&&e.y<H-35&&(!e.entry||e.age>1.0);

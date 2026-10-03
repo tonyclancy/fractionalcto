@@ -3,7 +3,7 @@
 const STORY_ROUTE=[
  {id:'verdant-reach',world:'Caelus',system:'Vesper',title:'First Contact',kind:'guardian',purpose:'Find the expedition’s first missing coordinates.',brief:'Defeat the guardian and recover its signal shard. The shard reveals where the expedition went next.',result:'The first coordinates reveal a distress call from Ferrum’s Foundry.',socket:'Distress coordinates',benefit:'Opens the route to Ferrum · hull service and one nova'},
  {id:'ember-forge',world:'Ferrum',system:'Vesper',title:'The Last Engineer',kind:'guardian',purpose:'Recover the route to Orison. An engineer is still trapped in the Foundry.',brief:'Optional: enter the escape pod’s green ring during the Foundry run. Then defeat the Dreadnought to recover the next coordinates.',result:'The Foundry shard reveals Orison. A submerged expedition relay is still transmitting.',socket:'Orison coordinates',benefit:'Optional engineer rescue: a sabotage drone now, one portal repair during the finale'},
- {id:'lumen-reef',world:'Thalassa',system:'Orison',title:'The Sunken Relay',kind:'relay',purpose:'Locate the survivors by reconnecting their submerged relay.',brief:'Hold inside each relay’s ring to reconnect three nodes. Then defeat the guardian and recover the next signal shard.',result:'The relay locates five carriers in Eventide. Their crew are alive in stasis; the frozen archive on Nivara holds the way forward.',socket:'Survivor location',benefit:'Connected relays strengthen the final portal by two integrity points'},
+ {id:'lumen-reef',world:'Thalassa',system:'Orison',title:'The Sunken Relay',kind:'relay',purpose:'Locate the survivors by reconnecting their submerged relay.',brief:'Hold inside the relay rings: activate sonar, disrupt enemy weapons, then locate the survivors. Defeat the guardian to recover the next signal shard.',result:'The relay locates five carriers in Eventide. Their crew are alive in stasis; the frozen archive on Nivara holds the way forward.',socket:'Survivor location',benefit:'Connected relays strengthen the final portal by two integrity points'},
  {id:'nivara-glacial-heart',world:'Nivara',system:'Orison',title:'The Frozen Archive',kind:'seal',purpose:'Recover the navigation records needed to reach the stranded carriers.',brief:'Shoot through three frozen archive seals, then defeat the sentinel. The records reveal Eventide’s dormant rescue gate.',result:'The archive reveals a rescue gate in Eventide. Its furnace must be restarted before the carriers can come home.',socket:'Eventide coordinates',benefit:'Archive telemetry reveals openings when later guardians change phase'},
  {id:'eventide-carmine-corona',world:'Carmine',system:'Eventide',title:'The Gate Furnace',kind:'furnace',purpose:'Restore power to the gate that will carry the survivors home.',brief:'Hold near three diversion controls during the guardian encounter. Route their energy into the rescue gate.',result:'The gate has power. Aureus holds the final coordinates. Open the route and defend the portal.',socket:'Gate ignition',benefit:'Diversion controls grant a brief hull guard · rescue gate powered'},
  {id:'eventide-aureus-corona',world:'Aureus',system:'Eventide',title:'Bring Them Home',kind:'extraction',purpose:'Open the route home and protect the five survivor carriers.',brief:'Defeat the Origin guardian. Defend the portal from both sides. Once it opens, weapons stand down and the friendly carriers cross.',result:'All five carriers reached home. The expedition’s crew and discoveries are safe.',socket:'Return coordinates',benefit:'Bring the expedition home · watch the carriers cross the rescue gate'}
@@ -15,7 +15,7 @@ function migrateStoryVictories(){for(const m of STORY_ROUTE.slice(0,2))if(origin
 function storyIndex(){return flightRun?.story===STORY_DEFINITION.id?STORY_ROUTE.findIndex(m=>m.id===sectors[level].id):-1;}
 function storyActive(){return storyIndex()>=0;}
 function storyNextLevel(){const next=STORY_ROUTE[storyIndex()+1];return next?sectors.findIndex(s=>s.id===next.id):-1;}
-function prepareStoryMission(){const i=storyIndex();storyMission=i<0?null:{index:i,done:0,charge:0,node:null,guardian:false,complete:false,age:0,extract:null,relayEchoes:[],bossPhase:-1,pendingPhase:false};if(i>=0){if(flightRun.storyEngineer===undefined)flightRun.storyEngineer=i>1&&relayStore.snapshot().unlocked;const kind=STORY_ROUTE[i].kind;if(kind==='extraction')prepareStoryPortal();if(kind!=='guardian')window.gpuModels?.prepare([storyMesh(kind==='extraction'?'beacon':kind),...(['relay','furnace'].includes(kind)?[storyMesh(kind).rotor]:[]),...(kind==='extraction'?[storyMesh('raider'),storyMesh('carrier')]:[])],sectors[level].id);}}
+function prepareStoryMission(){const i=storyIndex();storyMission=i<0?null:{index:i,done:0,charge:0,node:null,guardian:false,complete:false,age:0,extract:null,relayEchoes:[],bossPhase:-1,pendingPhase:false};if(i>=0){if(flightRun.storyEngineer===undefined)flightRun.storyEngineer=i>1&&relayStore.snapshot().unlocked;const kind=STORY_ROUTE[i].kind;if(kind==='seal')window.gpuModels?.prepare([0,1,2,3].map(archiveIceMesh).concat([archiveFragmentMesh(),storyMesh('relay')]),sectors[level].id);if(kind==='relay')window.gpuModels?.prepare([0,1,2].map(sunkenCarrierMesh),sectors[level].id);if(kind==='extraction')prepareStoryPortal();if(kind!=='guardian')window.gpuModels?.prepare([storyMesh(kind==='extraction'?'beacon':kind),...(['relay','furnace'].includes(kind)?[storyMesh(kind).rotor]:[]),...(kind==='extraction'?[storyMesh('raider'),storyMesh('carrier')]:[])],sectors[level].id);}}
 function storyCheckpoint(){if(!storyActive()||!storyMission)return null;return{index:storyMission.index,done:storyMission.done,guardian:storyMission.guardian,complete:storyMission.complete,reward:storyMission.reward,engineer:!!flightRun.storyEngineer,extract:!!storyMission.extract};}
 function restoreStoryCheckpoint(saved){if(!storyActive()||saved?.index!==storyIndex())return;storyMission.done=Math.max(0,Math.min(3,saved.done||0));storyMission.guardian=!!saved.guardian;storyMission.complete=!!saved.complete;storyMission.reward=saved.reward;flightRun.storyEngineer=!!saved.engineer;if(saved.guardian){bossDefeated=true;transition=4;time=Math.max(time,sectors[level].duration+.01);world=time*SCROLL_SPEED;}if(saved.extract&&!saved.complete)beginStoryExtraction();}
 function storyObjective(){const m=storyMission,d=STORY_ROUTE[storyIndex()];if(!d||!m)return '';if(m.complete)return 'SIGNAL SHARD SECURED · ROUTE UPDATED';if(m.extract){const e=m.extract;return e.returning&&e.returnAge>=storyPilotCrossingAge()?`EXPEDITION SAFE · WELCOME HOME`:e.returning&&e.returnAge>=storyPilotLaunchAge()?`EXPEDITION 5/5 SAFE · HEADING HOME`:e.returning?`RESCUING EXPEDITION ${e.evacuated}/5 · FRIENDLY CARRIERS · WEAPONS SAFE`:`DEFEND PORTAL · SAVE YOUR PEOPLE · ${e.age>=32?'CLEAR THE APPROACH':Math.ceil(32-e.age)+'s'} · INTEGRITY ${e.hp}/${e.max}${e.engineer&&!e.repaired?' · ENGINEER ON STANDBY':''}`;}
@@ -36,7 +36,13 @@ function beginStoryExtraction(){
 }
 function updateStoryBoss(b){
  if(!storyActive()||!storyMission||b.entry||isOriginGuardian(b))return;
- const m=storyMission,phase=bossCombatPhase(b);
+ const m=storyMission,phase=bossCombatPhase(b),archive=m.archive;
+ // Spend one recovered opening in a safe gap; never interrupt an authored attack
+ // or chain all three windows together when the seals were collected early.
+ if(archive?.openings>0&&m.age>=archive.nextOpening&&!bossPatternBusy(b)&&!b.recovery&&!b.exposed&&!b.eyeAttack&&!b.pressureFollowup&&!b.comboSteps?.length&&!b.broodWatch){
+  archive.openings--;archive.nextOpening=m.age+14;b.exposed=3;b.recovery=3;holdBossSalvo(b);
+  announce('ARCHIVE LINK · SENTINEL EXPOSED','AIM AT THE GLOWING CORE · 3 SECONDS',2);window.flightAudio?.archiveCue?.('opening',b.x);
+ }
  if(phase!==m.bossPhase){if(m.bossPhase>=0)m.pendingPhase=true;m.bossPhase=phase;}
  // Keep the existing authored attacks. Explain the change only in a clear gap.
  if(!m.pendingPhase||bossPatternBusy(b)||b.recovery||b.siege||isTideEncounter())return;
@@ -148,15 +154,197 @@ function storyTargets(){
   c.mission=storyMission;c.time=time;c.node=n;c.raiders=raiders;c.count=raiders?.length||0;c.dirty=false;
  }return c.list;
 }
-function storyHitTarget(s,target){storyTargetCache.dirty=true;target.hp-=s.damage;if(target.storyRaider)target.hit=.16;s.seen.add(target);s.spent=true;burst(target.x,target.y,target.storySeal?'#bcefff':'#ffab79',5);if(target.hp<=0){if(target.storyRaider){score+=target.kind==='breaker'?250:150;kills++;}explode(target.x,target.y,target.storySeal?'#bcefff':'#ffa265',target.storySeal?1:.65,false);if(target.storySeal)finishStoryNode();}}
+function storyHitTarget(s,target){
+ if(target.hp<=0)return;storyTargetCache.dirty=true;target.hp-=s.damage;s.seen.add(target);s.spent=true;
+ if(target.storySeal){
+  const stage=Math.min(3,Math.floor((1-Math.max(0,target.hp)/42)*4));
+  if(stage>(target.crackStage||0)){target.crackStage=stage;window.flightAudio?.archiveCue?.('crack',target.x);burst(target.x,target.y,'#c5edff',5);}
+  if(target.hp<=0)finishStoryNode();return;
+ }
+ if(target.storyRaider)target.hit=.16;burst(target.x,target.y,'#ffab79',5);
+ if(target.hp<=0){if(target.storyRaider){score+=target.kind==='breaker'?250:150;kills++;}explode(target.x,target.y,'#ffa265',.65,false);}
+}
 function finishStoryNode(){
  const m=storyMission;if(!m||m.done>=3)return;const kind=STORY_ROUTE[m.index].kind;
- if(m.node)m.relayEchoes.push({...m.node,kind,age:0,number:m.done+1});m.done++;
+ if(m.node&&kind!=='seal')m.relayEchoes.push({...m.node,kind,age:0,number:m.done+1});m.done++;
+ if(kind==='relay')activateSunkenRelay(m,m.node||ship);
+ if(kind==='seal')activateFrozenArchive(m,m.node||ship);
  if(kind==='furnace'){ship.inv=Math.max(ship.inv,3);rings.push({x:ship.x,y:ship.y,r:20,life:.9,c:'#ffdc8b'});}
- m.node=null;m.charge=0;window.flightAudio?.engineerCue?.('link',ship.x);
+ m.node=null;m.charge=0;if(kind!=='relay'&&kind!=='seal')window.flightAudio?.engineerCue?.('link',ship.x);
  const title=kind==='seal'?`ARCHIVE ${m.done}/3 RECOVERED`:kind==='furnace'?`GATE POWER ${m.done}/3`:`RELAY ${m.done}/3 CONNECTED`;
  const benefit=kind==='seal'?'BOSS PHASE OPENINGS REVEALED':kind==='furnace'?'RESCUE GATE POWERED · HULL GUARD 3s':'SURVIVORS LOCATED · FINAL PORTAL +2 INTEGRITY';
- announce(title,m.done===3?benefit:kind==='furnace'?'ENERGY ROUTED · HULL GUARD 3s':'NEXT SIGNAL LOCATED',2);saveCheckpoint();
+ if(kind==='relay'&&m.done===3){annTimer=0;$('#announcement').style.opacity=0;}
+ else announce(title,kind==='relay'?['SONAR ONLINE · THREATS MARKED','DEFENSE PULSE · ESCORTS JAMMED','FIVE CARRIERS FOUND · FINAL PORTAL +2'][m.done-1]:m.done===3?benefit:kind==='furnace'?'ENERGY ROUTED · HULL GUARD 3s':'ICE BURST · MOVE BETWEEN THE MARKED RAYS',2);saveCheckpoint();
+}
+// Nivara: finite, simulation-time effects. Checkpoints retain the recovered
+// records, not fresh hazards or repeatable combat rewards.
+const ARCHIVE_WARNING=1.25;
+function activateFrozenArchive(m,n){
+ const a=m.archive||(m.archive={sources:[],readyAt:0,openings:0,nextOpening:0});
+ a.sources.push({x:n.x,y:n.y,at:m.age,number:m.done,angle:.16+m.done*.23,fired:false});
+ a.readyAt=m.age+3.4;window.flightAudio?.archiveCue?.('warning',n.x);
+}
+function updateFrozenArchive(m,dt){
+ const a=m.archive;if(!a)return;
+ for(const p of a.sources){
+  const age=m.age-p.at;
+  if(!p.fired&&age>=ARCHIVE_WARNING){
+   p.fired=true;a.openings++;window.flightAudio?.archiveCue?.('shatter',p.x);
+   for(let i=0;i<8;i++){const angle=p.angle+i*TAU/8,speed=240;hostile.push({x:p.x,y:p.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:6,c:'#bbecff',kind:'archiveIce',age:0});}
+   if(p.number===3){a.discoveryAt=m.age;annTimer=0;$('#announcement').style.opacity=0;window.flightAudio?.archiveCue?.('decoded',p.x);}
+  }
+ }
+ a.sources=a.sources.filter(p=>m.age-p.at<4.8);
+}
+function archiveIceMesh(stage=0){
+ const key='archive-ice-'+stage;if(storyMeshes.has(key))return storyMeshes.get(key);
+ const m=meshBuilder();m.ellipsoid(0,0,0,14,21,12,[103,163,184],.2,8,5);
+ for(let i=0;i<9;i++){
+  const a=i*TAU/9,spread=stage*(i%3===0?.8:.35),cx=Math.cos(a)*spread,cy=Math.sin(a)*spread;
+  const polar=(r,t,z)=>[cx+Math.cos(t)*r,cy+Math.sin(t)*r,z];
+  const radius=t=>46+6*Math.sin(t*3)+4*Math.cos(t*2),lo=a-TAU/18,hi=a+TAU/18;
+  const v=[[cx+5,cy-8,-33],polar(radius(lo),lo,-6),polar(radius(hi),hi,-6),polar(28,a+.07,12)];
+  const shades=[[177,222,240],[86,142,168],[216,246,251],[104,178,203]];
+  for(let j=0;j<4;j++){const ids=[[0,1,2],[0,3,1],[0,2,3],[1,3,2]][j];m.faces.push({v:ids.map(k=>v[k]),c:shades[(j+i)%4],em:j===0?.1:0});}
+  // Narrow dark fissures with pale inner edges sit on the same faceted surface.
+  if(stage>0&&i<stage*3){const path=[polar(11,a,-34),polar(25,a+.11,-25),polar(39,a-.1,-15)];m.tube(path,1.1,[28,63,83],0,0,5,2);m.tube(path.map(v=>[v[0]+.9,v[1]-.5,v[2]-.5]),.38,[221,250,255],.35,0,4,2);}
+ }
+ const faces=m.faces;storyMeshes.set(key,faces);return faces;
+}
+function archiveFragmentMesh(){
+ const key='archive-fragment';if(storyMeshes.has(key))return storyMeshes.get(key);
+ const m=meshBuilder();m.wedge([-9,-4,1],[11,0,-4],[-3,7,3],5,[137,208,234]);m.wedge([-9,-4,1],[11,0,-4],[-2,-7,-2],3,[216,246,254]);storyMeshes.set(key,m.faces);return m.faces;
+}
+function drawFrozenSeal(n,age,stage=Math.min(3,Math.floor((1-Math.max(0,n.hp)/42)*4))){
+ const pose={yaw:.28+Math.sin(age*.6)*.08,roll:.06*Math.sin(age*.8),pitch:.05};
+ drawModel(archiveIceMesh(stage),n.x,n.y,1,pose.yaw,pose.roll,pose.pitch,age,0);
+}
+function drawArchiveGeometry(m){
+ const a=m.archive;if(!a)return;
+ for(const p of a.sources){
+  const t=m.age-p.at;
+  if(!p.fired){drawFrozenSeal(p,m.age,3);continue;}
+  const u=t-ARCHIVE_WARNING;
+  if(u<1.7)for(let i=0;i<12;i++){
+   const angle=i*2.399+p.number*.7,speed=40+(i%4)*19;
+   ctx.save();ctx.globalAlpha*=clamp((1.7-u)/.6,0,1);
+   drawModel(archiveFragmentMesh(),p.x+Math.cos(angle)*speed*u,p.y+Math.sin(angle)*speed*u+35*u*u,.6+(i%3)*.18,u*(i%2?2:-3),angle+u,angle*.4,m.age,0);ctx.restore();
+  }
+ }
+ if(a.discoveryAt!==undefined){
+  const t=m.age-a.discoveryAt;if(t>=8)return;
+  const x=W*.66,y=H*.25,fade=clamp((8-t)/1.4,0,1),assemble=navigationEase(clamp(t/1.8,0,1));
+  ctx.save();ctx.globalAlpha*=fade*.85;
+  // The dormant gate uses the same beveled machinery as the final rescue gate.
+  drawStoryNodeMachine('relay',x+132,y+32,m.age*.3);
+  for(let i=0;i<3;i++)drawModel(archiveFragmentMesh(),x-140+i*85+Math.cos(i*2)*80*(1-assemble),y+Math.sin(i*1.6)*32-90*(1-assemble),1.5,.4,i*.8+(1-assemble)*2,0,m.age,0);
+  ctx.restore();
+ }
+}
+function drawArchiveSignals(m){
+ const a=m.archive;
+ if(a)for(const p of a.sources){
+  if(p.fired)continue;const t=clamp((m.age-p.at)/ARCHIVE_WARNING,0,1);
+  ctx.save();ctx.translate(p.x,p.y);ctx.strokeStyle='#ffd4a0';ctx.lineWidth=1.5;ctx.globalAlpha=.65+t*.3;
+  for(let i=0;i<8;i++){
+   const angle=p.angle+i*TAU/8;ctx.save();ctx.rotate(angle);ctx.beginPath();ctx.moveTo(58,0);ctx.lineTo(175,0);ctx.moveTo(166,-5);ctx.lineTo(175,0);ctx.lineTo(166,5);ctx.stroke();ctx.restore();
+  }
+  ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,61,-Math.PI/2,-Math.PI/2+TAU*t);ctx.stroke();ctx.restore();
+ }
+ if(m.node){
+  ctx.save();ctx.translate(m.node.x,m.node.y);ctx.strokeStyle='#c4edff';ctx.lineWidth=1.5;
+  for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(side*60,-13);ctx.lineTo(side*54,-13);ctx.lineTo(side*54,13);ctx.lineTo(side*60,13);ctx.stroke();}ctx.restore();
+ }
+ if(a?.discoveryAt!==undefined){
+  const t=m.age-a.discoveryAt;if(t>=8)return;const x=W*.66,y=H*.25,progress=clamp((t-.7)/1.8,0,1);
+  ctx.save();ctx.globalAlpha=clamp((8-t)/1.4,0,1);ctx.strokeStyle='#98def0';ctx.lineWidth=1.5;
+  const pts=[[-140,0],[-55,32],[30,-2],[132,32]];
+  // Quiet holographic orbits distinguish decoded coordinates from loose debris.
+  ctx.strokeStyle='#81c5e342';ctx.lineWidth=1;
+  for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse(x+pts[i][0],y+pts[i][1],19+i*3,8+i*2,-.35,0,TAU);ctx.stroke();}
+  ctx.strokeStyle='#a8e5ff';ctx.lineWidth=2;
+  for(let i=0;i<3;i++){const u=clamp(progress*3-i,0,1);if(!u)continue;ctx.fillStyle='#c5f2ff';ctx.beginPath();ctx.arc(x+pts[i][0],y+pts[i][1],2.5,0,TAU);ctx.fill();}
+
+  for(let i=0;i<3;i++){
+   const u=clamp(progress*3-i,0,1),p=pts[i],q=pts[i+1];ctx.beginPath();ctx.moveTo(x+p[0],y+p[1]);ctx.lineTo(x+p[0]+(q[0]-p[0])*u,y+p[1]+(q[1]-p[1])*u);ctx.stroke();
+  }
+  ctx.strokeStyle='#ddac70';ctx.beginPath();ctx.arc(x+132,y+32,45,-.8,.8);ctx.stroke();ctx.restore();
+ }
+}
+function drawArchiveIce(b){
+ ctx.save();ctx.strokeStyle='#b8e9ff88';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-b.vx*.07,b.y-b.vy*.07);ctx.stroke();ctx.restore();
+ drawModel(archiveFragmentMesh(),b.x,b.y,.72,(b.age||0)*3,Math.atan2(b.vy,b.vx),(b.age||0)*2,b.age||0,0);
+}
+
+// Relay effects use simulation time and a bounded list of three sources.
+// Completed checkpoints restore objective progress, never replay a free pulse.
+function activateSunkenRelay(m,n){
+ const net=m.network||(m.network={sources:[],readyAt:0});
+ net.sources.push({x:n.x,y:n.y,number:m.done,at:m.age});net.readyAt=m.age+3.2;
+ if(m.done===3)net.discoveryAt=m.age;
+ window.flightAudio?.relayCue?.(m.done,n.x);
+}
+function updateSunkenRelay(m,dt){
+ const net=m.network;if(!net)return;
+ for(const p of net.sources){
+  p.x-=48*dt;const age=m.age-p.at,radius=age*620;
+  if(age>2.8)continue;
+  for(const e of enemies){
+   if(e.hp<=0||e.x<0||e.x>W||Math.hypot(e.x-p.x,e.y-p.y)>radius)continue;
+   if(p.number===1)e.relayRevealedUntil=Math.max(e.relayRevealedUntil||0,time+8);
+   if(p.number===2&&e.relayPulse!==p){e.relayPulse=p;e.relayJammedUntil=time+6;e.shotWindup=null;e.shoot=Math.max(e.shoot||0,.8);}
+  }
+  if(p.number===2){
+   // In-flight bullets dissolve once reached; lasers and boss bodies remain threats.
+   for(const h of hostile)if(!h.expired&&Math.hypot(h.x-p.x,h.y-p.y)<radius){h.expired=true;burst(h.x,h.y,'#a0f6ff',3);}
+   hostile=hostile.filter(h=>!h.expired);
+  }
+ }
+ net.sources=net.sources.filter(p=>m.age-p.at<10);
+}
+const sunkenCarrierHolograms=[];
+function sunkenCarrierMesh(variant=0){
+ if(!sunkenCarrierHolograms[variant])sunkenCarrierHolograms[variant]=storyCarrierMesh(variant).map(f=>({...f,c:f.c.map((c,i)=>c*.35+[50,165,180][i]*.65),em:.25}));
+ return sunkenCarrierHolograms[variant];
+}
+function drawSunkenNetwork(m){
+ const net=m.network;if(!net)return;ctx.save();
+ for(const p of net.sources){
+  const age=m.age-p.at,fade=clamp((10-age)/2,0,1),r=age*620;
+  ctx.globalAlpha=fade;ctx.strokeStyle=p.number===2?'#c0efff':'#79e8da';
+  if(age<2.8){ctx.lineWidth=2;ctx.globalAlpha=fade*.5*(1-age/2.8);ctx.beginPath();ctx.arc(p.x,p.y,r,0,TAU);ctx.stroke();ctx.lineWidth=9;ctx.globalAlpha*=.14;ctx.stroke();}
+  // A lit circuit carries moving packets to the next relay, not a full-screen flash.
+  const target=p.number===3?{x:W*.66,y:H*.25}:m.node||{x:Math.min(W-120,p.x+300),y:p.y-90};
+  const u=clamp(age/.85,0,1),dx=target.x-p.x,dy=target.y-p.y;
+  ctx.globalAlpha=fade*.35;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+dx*u,p.y+dy*u);ctx.stroke();
+  ctx.fillStyle='#cbfff4';ctx.globalAlpha=fade*.8;
+  for(let i=0;i<4;i++){const t=(age*.5+i/4)%1;if(t>u)continue;ctx.beginPath();ctx.arc(p.x+dx*t,p.y+dy*t,2,0,TAU);ctx.fill();}
+  ctx.beginPath();ctx.arc(p.x,p.y,8,0,TAU);ctx.fill();
+ }
+ for(const e of enemies){
+  const jam=Math.max(0,(e.relayJammedUntil||0)-time),scan=Math.max(0,(e.relayRevealedUntil||0)-time);if(e.hp<=0||!jam&&!scan)continue;
+  const r=Math.max(24,Math.min(65,(e.r||25)+12));ctx.globalAlpha=Math.min(1,Math.max(jam,scan));ctx.strokeStyle=jam?'#d8f4ff':'#8cffe0';ctx.lineWidth=1.6;
+  for(const sx of [-1,1])for(const sy of [-1,1]){ctx.beginPath();ctx.moveTo(e.x+sx*(r-9),e.y+sy*r);ctx.lineTo(e.x+sx*r,e.y+sy*r);ctx.lineTo(e.x+sx*r,e.y+sy*(r-9));ctx.stroke();}
+  if(jam){ctx.beginPath();ctx.arc(e.x,e.y,r+7,-Math.PI/2,-Math.PI/2+TAU*clamp(jam/6,0,1));ctx.stroke();}
+  else if(e.shotWindup){ctx.globalAlpha*=.35;ctx.setLineDash([5,9]);ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.shotWindup.targetX,e.shotWindup.targetY);ctx.stroke();ctx.setLineDash([]);}
+ }
+ if(net.discoveryAt!==undefined){
+  const age=m.age-net.discoveryAt,alpha=clamp(age/.65,0,1)*clamp((8-age)/1.5,0,1);
+  if(alpha>0){
+   // Five real carrier silhouettes materialize inside a projected transmission.
+   const x=W*.66,y=H*.25,w=340,h=110;ctx.globalAlpha=alpha;
+   ctx.fillStyle='#062332ce';ctx.fillRect(x-w/2,y-h/2,w,h);ctx.strokeStyle='#88e8de';ctx.lineWidth=1;
+   for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(x+side*w/2,y-h/2+14);ctx.lineTo(x+side*w/2,y-h/2);ctx.lineTo(x+side*(w/2-24),y-h/2);ctx.stroke();}
+   for(let i=0;i<5;i++){
+    const u=clamp((age-i*.25)/.5,0,1);ctx.globalAlpha=alpha*u*.85;
+    drawModel(sunkenCarrierMesh(i%3),x+(i-2)*59,y+Math.abs(i-2)*8,.62,0,.1,0,m.age,0);
+   }
+   window.gpuModels?.flush(ctx);ctx.globalAlpha=alpha*.2;ctx.strokeStyle='#b8ffef';
+   for(let i=0;i<8;i++){const sy=y-h/2+(i*19+age*24)%h;ctx.beginPath();ctx.moveTo(x-w/2,sy);ctx.lineTo(x+w/2,sy);ctx.stroke();}
+
+  }
+ }
+ ctx.restore();
 }
 function storyNodePosition(n,dt){
  // Hold the objective in the flight corridor instead of making a missed
@@ -169,11 +357,11 @@ function storyNodeFeedback(m,kind){
  if(!m.node){m.signalNode=null;m.signalStep=0;return;}
  if(m.signalNode!==m.node){m.signalNode=m.node;m.signalStep=0;}
  const progress=kind==='seal'?1-m.node.hp/42:m.charge/1.5,step=Math.min(3,Math.floor(progress*4));
- if(step>m.signalStep){m.signalStep=step;window.flightAudio?.engineerCue?.('link',m.node.x);}
+ if(kind!=='seal'&&step>m.signalStep){m.signalStep=step;window.flightAudio?.engineerCue?.('link',m.node.x);}
 }
-function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playing'||sectorBlend)return;const m=storyMission,d=STORY_ROUTE[m.index];updateOpeningMission();m.age+=dt;for(const echo of m.relayEchoes){echo.age+=dt;echo.x-=48*dt;}m.relayEchoes=m.relayEchoes.filter(e=>e.age<2.2);if(m.complete)return;
- if(['relay','seal','furnace'].includes(d.kind)&&m.done<3&&time>(d.kind==='furnace'?sectors[level].duration:12)){
-  if(!m.node){const y=[250,500,360][m.done];m.node={x:W-300,y,baseY:y,hp:42,r:32,storySeal:d.kind==='seal'};}
+function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playing'||sectorBlend)return;const m=storyMission,d=STORY_ROUTE[m.index];updateOpeningMission();m.age+=dt;updateSunkenRelay(m,dt);updateFrozenArchive(m,dt);for(const echo of m.relayEchoes){echo.age+=dt;echo.x-=48*dt;}m.relayEchoes=m.relayEchoes.filter(e=>e.age<2.2);if(m.complete)return;
+ if(['relay','seal','furnace'].includes(d.kind)&&m.done<3&&m.age>=Math.max(m.network?.readyAt||0,m.archive?.readyAt||0)&&time>(d.kind==='furnace'?sectors[level].duration:12)){
+  if(!m.node){const y=[250,500,360][m.done];m.node={x:W-300,y,baseY:y,hp:42,r:d.kind==='seal'?43:32,storySeal:d.kind==='seal'};}
   storyNodePosition(m.node,dt);
   if(d.kind!=='seal'){const nearby=Math.hypot(ship.x-m.node.x,ship.y-m.node.y)<112;m.charge=clamp(m.charge+(nearby?dt:-dt*.35),0,1.5);if(m.charge>=1.5)finishStoryNode();}
  }
@@ -192,6 +380,9 @@ function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playi
   if(e.hp<=0){announce('EXTRACTION INTERRUPTED','RETRY THE BEACON DEFENSE',3);end(false);return;}if(e.age<32||e.spawned<18||e.raiders.length)return;beginStoryReturn(e);return;
   }
  }else if(['relay','seal','furnace'].includes(d.kind)&&m.done<3)return;
+ if(d.kind==='seal'&&m.archive?.sources.some(p=>!p.fired))return;
+ if(d.kind==='seal'&&m.archive?.discoveryAt!==undefined&&m.age-m.archive.discoveryAt<6)return;
+ if(d.kind==='relay'&&m.network?.discoveryAt!==undefined&&m.age-m.network.discoveryAt<6)return;
  if(d.kind==='extraction'){
   m.complete=true;m.reward={hull:0,novas:0};originRecovery=null;transition=.3;
   if(flightRun.storyOwner===storyStore.account())storyStore.collect(d.id);
@@ -283,14 +474,17 @@ function drawStoryRelaySurface(n,age,kind,charge=0){
 }
 function drawStoryMission(){
  if(!storyActive()||!storyMission||sectorBlend)return;const m=storyMission,d=STORY_ROUTE[m.index],n=m.node,e=m.extract;
- if(n)drawStoryNodeMachine(d.kind,n.x,n.y,m.age);
+ if(n){if(d.kind==='seal')drawFrozenSeal(n,m.age);else drawStoryNodeMachine(d.kind,n.x,n.y,m.age);}
+ if(d.kind==='seal')drawArchiveGeometry(m);
  for(const echo of m.relayEchoes){ctx.save();ctx.globalAlpha*=1-navigationEase((echo.age-.65)/1.55);drawStoryNodeMachine(echo.kind||'relay',echo.x,echo.y,m.age);ctx.restore();}
  if(e)for(const r of e.raiders)drawModel(storyMesh('raider'),r.x,r.y,r.scale||1,.08*Math.sin(r.age*3),.18*Math.sin(r.age*4),Math.atan2(e.y-r.y,e.x-r.x),r.age,r.hit||0);
  window.gpuModels?.flush(ctx);ctx.save();
  for(const echo of m.relayEchoes){ctx.save();ctx.globalAlpha=1-navigationEase(echo.age/2.2);drawStoryRelaySurface(echo,m.age,echo.kind||'relay',1);ctx.restore();drawRelayActivation(echo);}
  if(n&&['relay','furnace'].includes(d.kind))drawStoryRelaySurface(n,m.age,d.kind,clamp(m.charge/1.5,0,1));
+ if(d.kind==='relay')drawSunkenNetwork(m);
+ if(d.kind==='seal')drawArchiveSignals(m);
  if(n&&d.kind==='relay')drawRelaySignal(n,m);
- if(n&&d.kind!=='relay')drawStoryNodeSignal(n,m,d.kind);
+ if(n&&!['relay','seal'].includes(d.kind))drawStoryNodeSignal(n,m,d.kind);
  if(e&&!e.returning)drawStoryGate(e);
  if(e)drawStoryRaiderEffects(e);
  ctx.restore();
@@ -329,16 +523,23 @@ function drawStoryNodeSignal(n,m,kind){
  if(near&&!seal){const dx=n.x-ship.x,dy=n.y-ship.y;ctx.save();ctx.strokeStyle='#ffd392a0';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ship.x,ship.y);ctx.lineTo(n.x,n.y);ctx.stroke();ctx.fillStyle='#fff4d6';for(let i=0;i<4;i++){const u=(m.age*1.3+i*.25)%1;ctx.beginPath();ctx.arc(ship.x+dx*u,ship.y+dy*u,2.5,0,TAU);ctx.fill();}ctx.restore();}
 }
 function storyInteractionHint(){
+ if(storyActive()&&storyMission?.archive){
+  const m=storyMission,a=m.archive,p=a.sources.find(p=>!p.fired);
+  if(p)return{n:p,title:'ICE BURST',action:'Move between the marked rays',discovery:true};
+  if(a.discoveryAt!==undefined&&m.age-a.discoveryAt<8)return{n:{x:W*.66,y:H*.25-25},title:'ROUTE TO EVENTIDE',action:'Gate found · Power offline',discovery:true};
+ }
+
+ if(storyActive()&&storyMission?.network?.discoveryAt!==undefined&&storyMission.age-storyMission.network.discoveryAt<8)return{n:{x:W*.66,y:H*.25-65},title:'5 CARRIERS FOUND',action:'Alive in Eventide · Portal +2',discovery:true};
  if(!storyActive()||!storyMission?.node)return null;const m=storyMission,n=m.node,kind=STORY_ROUTE[m.index].kind,seal=kind==='seal',near=Math.hypot(ship.x-n.x,ship.y-n.y)<112;
  return{n,title:seal?'BREAK THE ARCHIVE SEAL':kind==='furnace'?'POWER THE RESCUE GATE':'CONNECT THE RELAY',action:seal?'Shoot the crystal':near?'Stay in the ring':'Enter the ring',progress:clamp(seal?1-n.hp/42:m.charge/1.5,0,1),count:m.done};
 }
 function updateStoryInteractionHUD(){
  const marker=$('#missionTarget');if(!marker)return;const hint=storyInteractionHint(),visible=!!hint&&state==='playing'&&!sectorBlend&&!storyMission.complete&&hint.n.x>0&&hint.n.x<W;marker.hidden=!visible;if(!visible)return;
- hudText('#missionTarget strong',hint.title);hudText('#missionTarget span',hint.action+' · '+hint.count+'/3');hudWidth('#missionTarget i',Math.round(hint.progress*100)+'%');
+ hudText('#missionTarget strong',hint.title);hudText('#missionTarget span',hint.discovery?hint.action:hint.action+' · '+hint.count+'/3'+(STORY_ROUTE[storyIndex()]?.kind==='relay'?' · '+['Sonar','Disrupt','Locate'][hint.count]:''));hudElement('#missionTarget .mission-link-progress').hidden=!!hint.discovery;hudWidth('#missionTarget i',Math.round((hint.progress||0)*100)+'%');
  positionStoryInteractionMarker();
 }
 function positionStoryInteractionMarker(){
- const marker=hudElement('#missionTarget'),m=storyMission,n=m?.node;
+ const marker=hudElement('#missionTarget'),m=storyMission,n=storyInteractionHint()?.n;
  if(!marker||marker.hidden)return;
  if(!n||state!=='playing'||sectorBlend||m.complete||n.x<=0||n.x>=W){marker.hidden=true;return;}
  const b=readFlightMarkerLayout();if(!b)return;
@@ -632,7 +833,7 @@ function createStoryPortalMachine(segments=96,detail=true){
  let frame,front,rotor;
  frame=storyPortalLathe([[111,-8],[127,-8],[131,-5],[131,9],[126,12],[109,12],[107,8],[107,5]],segments,[[76,92,105],[112,131,144],[40,53,67],[55,69,83],[113,127,132],[47,64,76],[86,114,123]]);
  front=storyPortalLathe([[107,5],[109,-6],[113,-11],[127,-11],[131,-7]],segments,[[78,108,117],[116,151,164],[152,170,174],[72,95,111]]);
- const m=meshBuilder();
+ const m=meshBuilder();m.ellipsoid(0,0,0,14,21,12,[103,163,184],.2,8,5);
  for(let i=0;i<9;i++){
   const a=i/9*TAU-Math.PI/2,rad=(r,t,z)=>[Math.cos(a)*r-Math.sin(a)*t,Math.sin(a)*r+Math.cos(a)*t,z];
   storyPortalModule(front,a,[[113,-5],[119,-9],[133,-9],[139,-5],[139,5],[133,9],[119,9],[113,5]],-14,-8,[119,142,155]);
