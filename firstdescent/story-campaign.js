@@ -708,7 +708,8 @@ const OPENING_MISSIONS=Object.freeze([
   {at:35,count:3,type:0,center:340,formation:'wedge',aimed:true},
   {at:39,count:3,type:2,center:480,formation:'line',aimed:true},
   {at:42,count:3,type:0,center:280,formation:'line',side:'left',aimed:true},
-  {at:45,count:4,type:0,center:390,formation:'wedge',elite:'hunter',aimed:true}
+  {at:45,count:4,type:0,center:390,formation:'wedge',elite:'hunter',aimed:true},
+  {at:50,count:2,type:2,center:300,formation:'line',aimed:true}
  ],beats:[
   {at:0,title:'ENTER THE FOUNDRY',detail:'Recover the route to Orison · reach the Dreadnought'},
   {at:16,title:'ANSWER THE DISTRESS CALL',detail:'Optional rescue · enter the green ring · gain a sabotage drone'},
@@ -726,7 +727,7 @@ function openingMissionTask(){
 }
 function updateOpeningMissionHUD(){
  updateOpeningRescueMarker();updateStoryInteractionHUD();
- const el=$('#flightObjective');if(!el)return;const task=openingMissionTask(),visible=!!task&&state==='playing'&&!sectorBlend&&!bossDefeated&&!boss&&annTimer<=0;
+ const el=$('#flightObjective');if(!el)return;const task=openingMissionTask()||(typeof worldBehaviorTask==='function'?worldBehaviorTask():null),visible=!!task&&state==='playing'&&!sectorBlend&&!bossDefeated&&!boss&&annTimer<=0;
  el.hidden=!visible;if(!visible)return;
  hudText('#flightObjectiveTitle',task.title);hudText('#flightObjectiveDetail',task.detail);
 }

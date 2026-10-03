@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 75514030,
+  "bytes": 75530334,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 470380,
-      "sha256": "5adf594b02d2f2a59435b7e41a9ebac4d2a3eae493b945ec7d0e359a06e7edec"
+      "bytes": 470579,
+      "sha256": "668cdb618ba2327807138d30d80accb04b576feaea50074653788d2a8fcd9672"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1586,8 +1586,8 @@
     },
     {
       "path": "audio.js",
-      "bytes": 97317,
-      "sha256": "63403ce75287f842bf2505ef94d2f74fd59284b5c503dce7bf4968ad2bf0755d"
+      "bytes": 97927,
+      "sha256": "91073b0fbfcf8edb4a3245c922c50cbb951cfc61983ddd380f894a6d1b2b7a9a"
     },
     {
       "path": "authored-assets.js",
@@ -1631,13 +1631,13 @@
     },
     {
       "path": "game.js",
-      "bytes": 116369,
-      "sha256": "4b400accad02bd460ba8e069a014e1d008f641f898645b2413b7e7b76deaf8b1"
+      "bytes": 117140,
+      "sha256": "8c217733d910f1790b5c68e91310019f7797c8d70ff6e958607475aa66fb25d5"
     },
     {
       "path": "index.html",
-      "bytes": 7525,
-      "sha256": "02554b7c8d10bbdf97bd7a64738cf11ee379d4c06cad38a9395bd0f7e2b95562"
+      "bytes": 7523,
+      "sha256": "ec5f64c1c777177e376828c344a9259ccbce54948788a5b54c38d60d52a9546b"
     },
     {
       "path": "levels.js",
@@ -1666,8 +1666,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 52255,
-      "sha256": "a785cb2485d2cdc035ee30fadb8778908187c18d11fd3c45b9d69b131e4c5959"
+      "bytes": 52276,
+      "sha256": "057049d0f9a7107e6ef9ddecfba1a69ed7d8fdeb8b11f33baace196d8a1583ce"
     },
     {
       "path": "runs.js",
@@ -1686,8 +1686,8 @@
     },
     {
       "path": "story-campaign.js",
-      "bytes": 136436,
-      "sha256": "2b9fcd3f9b1bf04660d575cec7b7fc040cb23f2b619dd1e9712e35222ec428e8"
+      "bytes": 136567,
+      "sha256": "0be1d9df703ac24f56321ac1382b270eaadfb1908140f738632dbd2a4c8e21cd"
     },
     {
       "path": "style.css",
@@ -1743,6 +1743,11 @@
       "path": "wildlife-small-life.js",
       "bytes": 9435,
       "sha256": "314d0bda9d322be51d23a3dad15cf13314e4ab2edcd58e79def70fa3856c90d3"
+    },
+    {
+      "path": "world-behaviors.js",
+      "bytes": 14574,
+      "sha256": "9f19385d7d0709669ad848a01b9d9cadac27c3bb8c379bfa288729d11468bb45"
     }
   ]
 }

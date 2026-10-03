@@ -2554,6 +2554,7 @@ function shotTerrainHit(x,y,s){let first=2;const dx=s.x-x,dy=s.y-y,
    for(let i=0;i<=steps;i++){const t=i/steps;if(t>=first)break;if(rotorContact(o,x+dx*t,y+dy*t,s.r)){first=t;break;}}
   }
  }
+ if(typeof worldBehaviorTerrainTime==='function')first=Math.min(first,worldBehaviorTerrainTime(x,y,s));
  return first<=1?{x:x+dx*first,y:y+dy*first}:null;
 }
 function terrainImpact(x,y,vx,vy){const angle=Math.atan2(-vy,-vx);for(let i=0;i<8;i++){const a=angle+rand(-1.3,1.3),speed=rand(65,210),life=rand(.12,.26);particles.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life,max:life,c:i<2?'#f2ffff':i%2?'#79cee3':'#ffce82',r:i<2?2.6:1.3,spark:true});}if(particles.length>900)particles.splice(0,particles.length-900);}
@@ -2817,7 +2818,7 @@ function drawBossPatternTelegraphs(b){
  ctx.restore();
 }
 function drawEncounterDefenses(b){if(isOriginGuardian(b)){drawOriginGuardian(b);drawBossWeakPoint(b);return;}if(isTideEncounter()){drawTideEncounter(b);return;}if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){drawCapitalSiege(b);return;}const k=bossIndex();drawBossPatternTelegraphs(b);drawBossWeakPoint(b);if(k===1){for(const n of b.generators||[]){const p=encounterSocket(b,[-18,n.side*57,-40]);if(n.hp>0){const pose=bossFlightPose(b);drawModel(meshes.weaponOrb,p.x,p.y,.75,pose.yaw,pose.roll,pose.pitch,b.age);healthBar(p.x,p.y-24,35,n.hp,30,'#98e5ff');}}}if((k===1&&!b.shieldBroken)||(k===5&&enemies.some(e=>e.guardian&&e.hp>0))){ctx.save();ctx.strokeStyle=k===1?'#77bfe8':'#b883c9';ctx.globalAlpha=.3;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(b.x,b.y,b.r*1.15,b.r*.9,0,0,TAU);ctx.stroke();ctx.restore();}}
-function sectorCurrent(){if(sectors[level].stellar?.weather==='wind'&&!boss)return Math.sin(time*Math.PI/7)*24;return themeIndex()===2&&!boss?Math.sin(time*Math.PI/6)*65:0;}
+function sectorCurrent(){if(typeof worldBehaviorProfile==='function'&&worldBehaviorProfile()?.kind==='current')return 0;if(sectors[level].stellar?.weather==='wind'&&!boss)return Math.sin(time*Math.PI/7)*24;return themeIndex()===2&&!boss?Math.sin(time*Math.PI/6)*65:0;}
 function stormLane(){
  const scene=sectors[level];
  // A shared art/encounter theme does not imply the same environmental hazard:
