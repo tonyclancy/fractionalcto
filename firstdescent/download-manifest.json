@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 75503732,
+  "bytes": 75514030,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -1586,8 +1586,8 @@
     },
     {
       "path": "audio.js",
-      "bytes": 96533,
-      "sha256": "c99b43e2d2a35909a4fd1b16e53c08b6f969576b84c1d7418a8d12c854845b22"
+      "bytes": 97317,
+      "sha256": "63403ce75287f842bf2505ef94d2f74fd59284b5c503dce7bf4968ad2bf0755d"
     },
     {
       "path": "authored-assets.js",
@@ -1631,13 +1631,13 @@
     },
     {
       "path": "game.js",
-      "bytes": 116321,
-      "sha256": "900fe4e5c99777cf42555423b3cf8502f63225eb1ba9b4e1762c60899bd7c45b"
+      "bytes": 116369,
+      "sha256": "4b400accad02bd460ba8e069a014e1d008f641f898645b2413b7e7b76deaf8b1"
     },
     {
       "path": "index.html",
       "bytes": 7525,
-      "sha256": "bc0a56c33360d9c663cc2610c43c37f0e7f1c7a7adc66409863d9bb006840cec"
+      "sha256": "02554b7c8d10bbdf97bd7a64738cf11ee379d4c06cad38a9395bd0f7e2b95562"
     },
     {
       "path": "levels.js",
@@ -1686,8 +1686,8 @@
     },
     {
       "path": "story-campaign.js",
-      "bytes": 126970,
-      "sha256": "ebdd6248f6dba995b54e449b23154c9e3e7f11c25cf08f21fb8237de30a9e916"
+      "bytes": 136436,
+      "sha256": "2b9fcd3f9b1bf04660d575cec7b7fc040cb23f2b619dd1e9712e35222ec428e8"
     },
     {
       "path": "style.css",

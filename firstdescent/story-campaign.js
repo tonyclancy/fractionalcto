@@ -5,7 +5,7 @@ const STORY_ROUTE=[
  {id:'ember-forge',world:'Ferrum',system:'Vesper',title:'The Last Engineer',kind:'guardian',purpose:'Recover the route to Orison. An engineer is still trapped in the Foundry.',brief:'Optional: enter the escape pod’s green ring during the Foundry run. Then defeat the Dreadnought to recover the next coordinates.',result:'The Foundry shard reveals Orison. A submerged expedition relay is still transmitting.',socket:'Orison coordinates',benefit:'Optional engineer rescue: a sabotage drone now, one portal repair during the finale'},
  {id:'lumen-reef',world:'Thalassa',system:'Orison',title:'The Sunken Relay',kind:'relay',purpose:'Locate the survivors by reconnecting their submerged relay.',brief:'Hold inside the relay rings: activate sonar, disrupt enemy weapons, then locate the survivors. Defeat the guardian to recover the next signal shard.',result:'The relay locates five carriers in Eventide. Their crew are alive in stasis; the frozen archive on Nivara holds the way forward.',socket:'Survivor location',benefit:'Connected relays strengthen the final portal by two integrity points'},
  {id:'nivara-glacial-heart',world:'Nivara',system:'Orison',title:'The Frozen Archive',kind:'seal',purpose:'Recover the navigation records needed to reach the stranded carriers.',brief:'Shoot through three frozen archive seals, then defeat the sentinel. The records reveal Eventide’s dormant rescue gate.',result:'The archive reveals a rescue gate in Eventide. Its furnace must be restarted before the carriers can come home.',socket:'Eventide coordinates',benefit:'Archive telemetry reveals openings when later guardians change phase'},
- {id:'eventide-carmine-corona',world:'Carmine',system:'Eventide',title:'The Gate Furnace',kind:'furnace',purpose:'Restore power to the gate that will carry the survivors home.',brief:'Hold near three diversion controls during the guardian encounter. Route their energy into the rescue gate.',result:'The gate has power. Aureus holds the final coordinates. Open the route and defend the portal.',socket:'Gate ignition',benefit:'Diversion controls grant a brief hull guard · rescue gate powered'},
+ {id:'eventide-carmine-corona',world:'Carmine',system:'Eventide',title:'The Gate Furnace',kind:'furnace',purpose:'Restore power to the gate that will carry the survivors home.',brief:'Break three armored couplings. Move to each exposed terminal to redirect energy while avoiding the warned heat surges. Restart the rescue gate.',result:'The gate has power. Aureus holds the final coordinates. Open the route and defend the portal.',socket:'Gate ignition',benefit:'Diversion controls grant a brief hull guard · rescue gate powered'},
  {id:'eventide-aureus-corona',world:'Aureus',system:'Eventide',title:'Bring Them Home',kind:'extraction',purpose:'Open the route home and protect the five survivor carriers.',brief:'Defeat the Origin guardian. Defend the portal from both sides. Once it opens, weapons stand down and the friendly carriers cross.',result:'All five carriers reached home. The expedition’s crew and discoveries are safe.',socket:'Return coordinates',benefit:'Bring the expedition home · watch the carriers cross the rescue gate'}
 ];
 const STORY_DEFINITION={id:'origin-route-001',version:1,finalStage:STORY_ROUTE[5].id,systems:['Vesper','Orison','Eventide'].map(name=>({id:name,name,discovery:name+' route decoded',stages:STORY_ROUTE.filter(m=>m.system===name).map(m=>({id:m.id,name:m.world,kind:'core'}))})),milestones:[]};
@@ -15,12 +15,12 @@ function migrateStoryVictories(){for(const m of STORY_ROUTE.slice(0,2))if(origin
 function storyIndex(){return flightRun?.story===STORY_DEFINITION.id?STORY_ROUTE.findIndex(m=>m.id===sectors[level].id):-1;}
 function storyActive(){return storyIndex()>=0;}
 function storyNextLevel(){const next=STORY_ROUTE[storyIndex()+1];return next?sectors.findIndex(s=>s.id===next.id):-1;}
-function prepareStoryMission(){const i=storyIndex();storyMission=i<0?null:{index:i,done:0,charge:0,node:null,guardian:false,complete:false,age:0,extract:null,relayEchoes:[],bossPhase:-1,pendingPhase:false};if(i>=0){if(flightRun.storyEngineer===undefined)flightRun.storyEngineer=i>1&&relayStore.snapshot().unlocked;const kind=STORY_ROUTE[i].kind;if(kind==='seal')window.gpuModels?.prepare([0,1,2,3].map(archiveIceMesh).concat([archiveFragmentMesh(),storyMesh('relay')]),sectors[level].id);if(kind==='relay')window.gpuModels?.prepare([0,1,2].map(sunkenCarrierMesh),sectors[level].id);if(kind==='extraction')prepareStoryPortal();if(kind!=='guardian')window.gpuModels?.prepare([storyMesh(kind==='extraction'?'beacon':kind),...(['relay','furnace'].includes(kind)?[storyMesh(kind).rotor]:[]),...(kind==='extraction'?[storyMesh('raider'),storyMesh('carrier')]:[])],sectors[level].id);}}
+function prepareStoryMission(){const i=storyIndex();storyMission=i<0?null:{index:i,done:0,charge:0,node:null,guardian:false,complete:false,age:0,extract:null,relayEchoes:[],bossPhase:-1,pendingPhase:false};if(i>=0){if(flightRun.storyEngineer===undefined)flightRun.storyEngineer=i>1&&relayStore.snapshot().unlocked;const kind=STORY_ROUTE[i].kind;if(kind==='seal')window.gpuModels?.prepare([0,1,2,3].map(archiveIceMesh).concat([archiveFragmentMesh(),storyMesh('relay')]),sectors[level].id);if(kind==='relay')window.gpuModels?.prepare([0,1,2].map(sunkenCarrierMesh),sectors[level].id);if(kind==='furnace'){prepareStoryDestination();window.gpuModels?.prepare([furnaceCouplingMesh(false),furnaceCouplingMesh(true)],sectors[level].id);}if(kind==='extraction')prepareStoryPortal();if(kind!=='guardian')window.gpuModels?.prepare([storyMesh(kind==='extraction'?'beacon':kind),...(['relay','furnace'].includes(kind)?[storyMesh(kind).rotor]:[]),...(kind==='extraction'?[storyMesh('raider'),storyMesh('carrier')]:[])],sectors[level].id);}}
 function storyCheckpoint(){if(!storyActive()||!storyMission)return null;return{index:storyMission.index,done:storyMission.done,guardian:storyMission.guardian,complete:storyMission.complete,reward:storyMission.reward,engineer:!!flightRun.storyEngineer,extract:!!storyMission.extract};}
 function restoreStoryCheckpoint(saved){if(!storyActive()||saved?.index!==storyIndex())return;storyMission.done=Math.max(0,Math.min(3,saved.done||0));storyMission.guardian=!!saved.guardian;storyMission.complete=!!saved.complete;storyMission.reward=saved.reward;flightRun.storyEngineer=!!saved.engineer;if(saved.guardian){bossDefeated=true;transition=4;time=Math.max(time,sectors[level].duration+.01);world=time*SCROLL_SPEED;}if(saved.extract&&!saved.complete)beginStoryExtraction();}
 function storyObjective(){const m=storyMission,d=STORY_ROUTE[storyIndex()];if(!d||!m)return '';if(m.complete)return 'SIGNAL SHARD SECURED · ROUTE UPDATED';if(m.extract){const e=m.extract;return e.returning&&e.returnAge>=storyPilotCrossingAge()?`EXPEDITION SAFE · WELCOME HOME`:e.returning&&e.returnAge>=storyPilotLaunchAge()?`EXPEDITION 5/5 SAFE · HEADING HOME`:e.returning?`RESCUING EXPEDITION ${e.evacuated}/5 · FRIENDLY CARRIERS · WEAPONS SAFE`:`DEFEND PORTAL · SAVE YOUR PEOPLE · ${e.age>=32?'CLEAR THE APPROACH':Math.ceil(32-e.age)+'s'} · INTEGRITY ${e.hp}/${e.max}${e.engineer&&!e.repaired?' · ENGINEER ON STANDBY':''}`;}
  const opening=openingMissionTask();if(opening&&!m.guardian)return `${m.index+1}/6 · ${opening.title}`;
- const task=d.kind==='relay'?`LINK RELAYS ${m.done}/3 · HOLD INSIDE RING`:d.kind==='seal'?`BREAK SEALS ${m.done}/3 · SHOOT THE CORE`:d.kind==='furnace'?`DIVERT ENERGY ${m.done}/3 · HOLD INSIDE RING`:d.kind==='extraction'?'DEFEAT GUARDIAN · THEN DEFEND THE PORTAL':d.world==='Ferrum'?'DEFEAT DREADNOUGHT · ENGINEER RESCUE OPTIONAL':'DEFEAT GUARDIAN · RECOVER SIGNAL';return `${m.index+1}/6 · ${m.done===3?'OBJECTIVE COMPLETE · DEFEAT GUARDIAN':task}${m.guardian?' · GUARDIAN DOWN':''}`;}
+ const task=d.kind==='relay'?`LINK RELAYS ${m.done}/3 · HOLD INSIDE RING`:d.kind==='seal'?`BREAK SEALS ${m.done}/3 · SHOOT THE CORE`:d.kind==='furnace'?`GATE POWER ${m.done}/3 · BREAK ARMOR · LINK TERMINAL`:d.kind==='extraction'?'DEFEAT GUARDIAN · THEN DEFEND THE PORTAL':d.world==='Ferrum'?'DEFEAT DREADNOUGHT · ENGINEER RESCUE OPTIONAL':'DEFEAT GUARDIAN · RECOVER SIGNAL';return `${m.index+1}/6 · ${m.done===3?'OBJECTIVE COMPLETE · DEFEAT GUARDIAN':task}${m.guardian?' · GUARDIAN DOWN':''}`;}
 function beginStory(target){migrateStoryVictories();const p=storyStore.snapshot();const index=target===undefined?(p.complete?0:STORY_ROUTE.findIndex(m=>m.id===p.next)):target;if(!Number.isInteger(index)||index<0||index>=6)return;if(STORY_ROUTE.slice(0,index).some(m=>!storyStore.has(m.id)))return;beginDescent(sectors.findIndex(s=>s.id===STORY_ROUTE[index].id),'story');}
 function storySocketMarkup(){const p=storyStore.snapshot();return `<div class="story-route">${STORY_ROUTE.map((m,i)=>{const done=storyStore.has(m.id),open=STORY_ROUTE.slice(0,i).every(s=>storyStore.has(s.id));return `<article class="story-stop ${done?'secured':open?'available':'locked'}"><span class="eyebrow">${m.system} · ${String(i+1).padStart(2,'0')}</span><h3><span aria-label="${done?'Shard secured':'Empty socket'}">${done?'◆':'◇'}</span> ${m.world}</h3><strong>${m.title}</strong><p>${m.brief}</p><p class="story-benefit">${m.benefit}</p><small>${done?'SHARD SECURED':open?'ROUTE OPEN':'ROUTE LOCKED'} · ${m.socket}</small></article>`;}).join('')}</div>`;}
 function showStoryMap(resume=false){if(state!=='title'&&state!=='paused')return;const previous=state;migrateStoryVictories();const p=storyStore.snapshot(),next=STORY_ROUTE.find(m=>m.id===p.next),overlay=$('#overlay');atlasOpen=true;atlasSystemId=null;overlay.className='overlay universe-atlas origin-log';overlay.onclick=null;overlay.innerHTML=`<div class="atlas-shell story-shell"><header class="atlas-header"><div><span class="eyebrow mint">THE ORIGIN SIGNAL · SIX MISSIONS</span><h2>BRING THEM HOME</h2><p>Find the lost expedition. Rebuild its route through three solar systems.</p></div><button id="storyBack">${resume?'RESUME FLIGHT':'← MAIN MENU'}</button></header><section class="origin-summary"><div><span class="eyebrow">SIGNAL SHARDS</span><strong>${p.count}<small> / 6 secured</small></strong><progress max="6" value="${p.count}" aria-label="Story route progress"></progress></div><div><h3>${p.complete?'The expedition is home.':next.world+' · '+next.title}</h3><p>${p.complete?'All six signals form a route home. Your full universe archive remains available to explore.':next.brief}</p>${resume?'':`<button id="storyLaunch" class="primary">${p.complete?'REPLAY STORY':'CONTINUE STORY'} ↗</button>`}</div></section>${storySocketMarkup()}<p class="atlas-note">${p.durable?'Saved on this device.':'Session preview · progress resets on reload.'} Completed missions survive defeat. Signal Shards open the next mission automatically. The engineer is optional.</p>${resume?'':typeof relayLoadoutMarkup==='function'?'<section class="relay-card"><div><h3>FLIGHT EQUIPMENT</h3><p>Rescue the engineer on Ferrum to unlock the Recovery Kit.</p>'+relayLoadoutMarkup()+'</div></section>':''}<div class="relay-actions">${resume?'':`<button id="storyArchive">EXPLORATION ARCHIVE · ${originStore.snapshot().count}/92</button>`}${resume?'':'<button id="storyExplore">FLY EXPLORATION ROUTE ↗</button>'}</div><p class="atlas-note">Your exploration archive is separate. Story missions do not require collecting all 92 crystals.</p></div>`;
@@ -37,6 +37,8 @@ function beginStoryExtraction(){
 function updateStoryBoss(b){
  if(!storyActive()||!storyMission||b.entry||isOriginGuardian(b))return;
  const m=storyMission,phase=bossCombatPhase(b),archive=m.archive;
+ if(m.node?.interruptPending&&!bossPatternBusy(b)&&!b.recovery&&!b.exposed&&!b.eyeAttack&&!b.pressureFollowup&&!b.comboSteps?.length&&!b.broodWatch){m.node.interruptPending=false;beginBossArsenal(b);}
+
  // Spend one recovered opening in a safe gap; never interrupt an authored attack
  // or chain all three windows together when the seals were collected early.
  if(archive?.openings>0&&m.age>=archive.nextOpening&&!bossPatternBusy(b)&&!b.recovery&&!b.exposed&&!b.eyeAttack&&!b.pressureFollowup&&!b.comboSteps?.length&&!b.broodWatch){
@@ -133,7 +135,7 @@ function storyHomeSceneOpaque(){const e=storyActive()?storyMission?.extract:null
 function storyGatePosition(e){return{x:e.x-storyRescuePan(e),y:e.y};}
 function storyMayFire(){return storyActive()&&!storyMission?.complete&&!storyMission?.extract?.returning;}
 function playerWeaponsActive(){return typeof storyActive==='function'&&storyActive()?storyMayFire():!bossDefeated;}
-function storyTarget(){return storyActive()&&STORY_ROUTE[storyIndex()].kind==='seal'?storyMission?.node:null;}
+function storyTarget(){return storyActive()&&['seal','furnace'].includes(STORY_ROUTE[storyIndex()].kind)?storyMission?.node:null;}
 const STORY_NO_TARGETS=Object.freeze([]);
 let storyCombatDefinitions=null;
 function storyCombatSectors(){
@@ -156,6 +158,11 @@ function storyTargets(){
 }
 function storyHitTarget(s,target){
  if(target.hp<=0)return;storyTargetCache.dirty=true;target.hp-=s.damage;s.seen.add(target);s.spent=true;
+ if(target.storyCoupling){
+  burst(target.x,target.y,'#ffc077',5);
+  if(target.hp<=0){target.exposedAt=storyMission.age;target.surgeAt=storyMission.age+1.3;target.surgeWarned=true;target.interruptPending=true;window.flightAudio?.furnaceCue?.('unlock',target.x);window.flightAudio?.furnaceCue?.('warning',target.x);announce('COUPLING EXPOSED','MOVE TO THE LIT TERMINAL · AVOID THE HEAT LANE',2);}
+  return;
+ }
  if(target.storySeal){
   const stage=Math.min(3,Math.floor((1-Math.max(0,target.hp)/42)*4));
   if(stage>(target.crackStage||0)){target.crackStage=stage;window.flightAudio?.archiveCue?.('crack',target.x);burst(target.x,target.y,'#c5edff',5);}
@@ -166,16 +173,107 @@ function storyHitTarget(s,target){
 }
 function finishStoryNode(){
  const m=storyMission;if(!m||m.done>=3)return;const kind=STORY_ROUTE[m.index].kind;
- if(m.node&&kind!=='seal')m.relayEchoes.push({...m.node,kind,age:0,number:m.done+1});m.done++;
+ if(m.node&&!['seal','furnace'].includes(kind))m.relayEchoes.push({...m.node,kind,age:0,number:m.done+1});m.done++;
  if(kind==='relay')activateSunkenRelay(m,m.node||ship);
  if(kind==='seal')activateFrozenArchive(m,m.node||ship);
- if(kind==='furnace'){ship.inv=Math.max(ship.inv,3);rings.push({x:ship.x,y:ship.y,r:20,life:.9,c:'#ffdc8b'});}
- m.node=null;m.charge=0;if(kind!=='relay'&&kind!=='seal')window.flightAudio?.engineerCue?.('link',ship.x);
+ if(kind==='furnace'){activateGateFurnace(m,m.node||ship);ship.inv=Math.max(ship.inv,3);rings.push({x:ship.x,y:ship.y,r:20,life:.9,c:'#ffdc8b'});}
+ m.node=null;m.charge=0;if(!['relay','seal','furnace'].includes(kind))window.flightAudio?.engineerCue?.('link',ship.x);
  const title=kind==='seal'?`ARCHIVE ${m.done}/3 RECOVERED`:kind==='furnace'?`GATE POWER ${m.done}/3`:`RELAY ${m.done}/3 CONNECTED`;
  const benefit=kind==='seal'?'BOSS PHASE OPENINGS REVEALED':kind==='furnace'?'RESCUE GATE POWERED · HULL GUARD 3s':'SURVIVORS LOCATED · FINAL PORTAL +2 INTEGRITY';
  if(kind==='relay'&&m.done===3){annTimer=0;$('#announcement').style.opacity=0;}
  else announce(title,kind==='relay'?['SONAR ONLINE · THREATS MARKED','DEFENSE PULSE · ESCORTS JAMMED','FIVE CARRIERS FOUND · FINAL PORTAL +2'][m.done-1]:m.done===3?benefit:kind==='furnace'?'ENERGY ROUTED · HULL GUARD 3s':'ICE BURST · MOVE BETWEEN THE MARKED RAYS',2);saveCheckpoint();
 }
+// Shared interaction rule: simulation-time progress, a deliberate action,
+// forgiving loss of progress on leaving, and exactly one completion boundary.
+function advanceStoryLink(m,dt,engaged,duration=1.5,decay=.35){
+ m.charge=clamp(m.charge+(engaged?dt:-dt*decay),0,duration);return m.charge>=duration;
+}
+function furnaceTerminal(n){return{x:n.x-102,y:n.y+(n.number%2?90:-90)};}
+function furnaceSurge(n,age){return n.hp<=0&&n.surgeAt!==undefined?{warning:age<n.surgeAt,active:age>=n.surgeAt&&age<n.surgeAt+.6,x1:Math.max(40,n.x-300),x2:W-60,y:n.y}:null;}
+function updateFurnaceCoupling(m,dt){
+ const n=m.node;if(!n||n.hp>0)return;
+ if(m.age>=n.surgeAt+.6){n.surgeAt=m.age+3.2;n.surgeWarned=false;}
+ if(!n.surgeWarned&&m.age>=n.surgeAt-1.3){n.surgeWarned=true;window.flightAudio?.furnaceCue?.('warning',n.x);}
+ const surge=furnaceSurge(n,m.age);
+ if(surge.active){
+  if(!n.surgeSound){n.surgeSound=true;window.flightAudio?.furnaceCue?.('surge',n.x);}
+  if(pilotHullContactTime(surge.x1,surge.y,surge.x2,surge.y,12)<=1)damage('environment');
+ }else n.surgeSound=false;
+ const terminal=furnaceTerminal(n),engaged=Math.hypot(ship.x-terminal.x,ship.y-terminal.y)<50;
+ if(advanceStoryLink(m,dt,engaged,1.6,.45))finishStoryNode();
+}
+function activateGateFurnace(m,n){
+ const f=m.furnace||(m.furnace={feeds:[],readyAt:0});
+ f.feeds.push({x:n.x,y:n.y,at:m.age,number:m.done});f.readyAt=m.age+2.8;
+ if(m.done===3)f.ignitionAt=m.age;
+ window.flightAudio?.furnaceCue?.(m.done===3?'ignite':'transfer',n.x);
+}
+function updateGateFurnace(m,dt){
+ if(!m.furnace)return;m.furnace.feeds=m.furnace.feeds.filter(p=>m.age-p.at<3);
+}
+function furnaceCouplingMesh(open){
+ const key='power-coupling-'+open;if(storyMeshes.has(key))return storyMeshes.get(key);const m=meshBuilder();
+ m.ellipsoid(0,0,3,42,31,23,[53,61,68],0,12,8);
+ for(const side of [-1,1]){
+  m.tube([[-32,side*26,2],[-43,side*26,-9],[-28,side*15,-20]],5,[133,104,66],0,0,8,2);
+  m.ellipsoid(-32,side*26,3,10,9,12,[64,76,88],0,10,6);
+ }
+ for(let i=0;i<3;i++){
+  const x=-24+i*24,shift=open?(i-1)*8:0;
+  m.wedge([x-13+shift,-25,open?-5:-29],[x+10+shift,-23,open?-5:-29],[x+9+shift,23,open?-5:-29],9,[157-i*14,112-i*8,67],0);
+  m.wedge([x-13+shift,-25,open?-5:-29],[x+9+shift,23,open?-5:-29],[x-10+shift,25,open?-5:-29],9,[126,88,53],0);
+ }
+ if(open)for(let i=0;i<3;i++){m.tube([[-22,-13+i*13,-25],[25,-13+i*13,-25]],3,[255,181,77],.75,0,8,2);m.ellipsoid(0,-13+i*13,-27,13,2,2,[255,239,170],.8,10,4);}
+ const faces=m.faces;faces.industrial=true;storyMeshes.set(key,faces);return faces;
+}
+function drawFurnaceGate(m=storyMission){
+ if(!storyActive()||!m||STORY_ROUTE[m.index].kind!=='furnace'||sectorBlend||time<sectors[level].duration-8)return;
+ const x=W*.82,y=H*.46,scale=3.05,pose={yaw:.55,roll:-.06,pitch:.08},mesh=storyMesh('furnace');
+ const f=m.furnace,t=m.age,power=m.done/3,ignite=f?.ignitionAt===undefined?-1:t-f.ignitionAt;
+ drawModel(mesh,x,y,scale,pose.yaw,pose.roll,pose.pitch,t,0);window.gpuModels?.flush(ctx);
+ const u=rotateVertex([1,0,0],pose.yaw,pose.roll,pose.pitch,0,0),v=rotateVertex([0,1,0],pose.yaw,pose.roll,pose.pitch,0,0);
+ ctx.save();ctx.translate(x,y);ctx.transform(u[0]*scale,u[1]*scale,v[0]*scale,v[1]*scale,0,0);
+ ctx.save();ctx.beginPath();ctx.arc(0,0,32,0,TAU);ctx.clip();ctx.fillStyle='#08131d';ctx.fillRect(-33,-33,66,66);
+ // A brief, unstable glimpse; the final coordinates are still needed on Aureus.
+ const glimpse=ignite>=0&&ignite<5.3?Math.sin(Math.PI*clamp((ignite-.7)/4.6,0,1))**2:0,photo=storyPortalDestination;
+ if(glimpse&&photo?.complete&&photo.naturalWidth){ctx.globalAlpha=glimpse*.86;ctx.drawImage(photo,-33,-33,66,66);ctx.globalAlpha=1;}
+ ctx.strokeStyle='#86e8f2';ctx.lineWidth=.5;
+ for(let i=0;i<5;i++){ctx.globalAlpha=power*(.09+.08*Math.sin(t*1.8-i)**2);ctx.beginPath();ctx.ellipse(Math.sin(t*.7+i)*2,0,9+i*6,6+i*5,t*.13,0,TAU);ctx.stroke();}
+ ctx.restore();ctx.globalAlpha=1;
+ for(let i=0;i<9;i++){const angle=i*TAU/9-Math.PI/2,lit=i<m.done*3;ctx.fillStyle=lit?'#c0ffff':'#485360';ctx.beginPath();ctx.arc(Math.cos(angle)*39,Math.sin(angle)*39,lit?2:1.3,0,TAU);ctx.fill();}
+ ctx.restore();
+ const axes={u,v,n:rotateVertex([0,0,1],pose.yaw,pose.roll,pose.pitch,0,0)},spin=t*(.035+power*.28),rotor=storyPortalRotorBasisPose(axes,spin);
+ drawModel(mesh.rotor,x,y,scale,rotor.yaw,rotor.roll,rotor.pitch,t,0);window.gpuModels?.flush(ctx);
+}
+function drawFurnaceSignals(m){
+ const n=m.node,t=m.age,g={x:W*.82,y:H*.46};
+ if(n){
+  const terminal=furnaceTerminal(n),open=n.hp<=0;
+  ctx.save();ctx.lineWidth=3;ctx.strokeStyle=open?'#ffc071':'#786655';ctx.beginPath();ctx.moveTo(n.x-28,n.y);ctx.lineTo(n.x-65,n.y);ctx.lineTo(terminal.x,terminal.y);ctx.stroke();
+  if(open){
+   const surge=furnaceSurge(n,t),warn=t>=n.surgeAt-1.3;
+   if(warn||surge.active){
+    if(!surge.active){ctx.strokeStyle='#09111bc0';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(surge.x1,surge.y);ctx.lineTo(surge.x2,surge.y);ctx.stroke();}
+    const beam=ctx.createLinearGradient(surge.x1,0,surge.x2,0);beam.addColorStop(0,'#ff902000');beam.addColorStop(.12,'#ff9436b0');beam.addColorStop(.5,'#ffe6a1df');beam.addColorStop(.88,'#ff9436b0');beam.addColorStop(1,'#ff902000');
+    ctx.strokeStyle=surge.active?beam:'#ffa77699';ctx.lineCap='round';ctx.lineWidth=surge.active?24:2;ctx.beginPath();ctx.moveTo(surge.x1,surge.y);ctx.lineTo(surge.x2,surge.y);ctx.stroke();
+    if(surge.active){
+     ctx.strokeStyle='#fff2c4b0';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(surge.x1+30,surge.y);ctx.lineTo(surge.x2-30,surge.y);ctx.stroke();
+     for(let k=0;k<2;k++){ctx.strokeStyle=k?'#ffd18bd0':'#fff4dbaa';ctx.lineWidth=1.2;ctx.beginPath();for(let x=surge.x1+20;x<surge.x2-20;x+=12){const y=surge.y+Math.sin(x*.043-t*15+k*3)*4+Math.sin(x*.019+t*11)*2;x===surge.x1+20?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.stroke();}
+    }else{ctx.strokeStyle='#ffd7a1';ctx.lineWidth=1;for(let x=surge.x1;x<surge.x2;x+=55){ctx.beginPath();ctx.moveTo(x,surge.y-8);ctx.lineTo(x+15,surge.y);ctx.lineTo(x,surge.y+8);ctx.stroke();}}
+   }
+   ctx.strokeStyle='#08131db3';ctx.lineWidth=4;ctx.beginPath();ctx.arc(terminal.x,terminal.y,50,0,TAU);ctx.stroke();ctx.strokeStyle='#a7ffdb';ctx.lineWidth=2;ctx.stroke();
+   ctx.lineWidth=5;ctx.beginPath();ctx.arc(terminal.x,terminal.y,50,-Math.PI/2,-Math.PI/2+TAU*clamp(m.charge/1.6,0,1));ctx.stroke();
+   ctx.fillStyle='#d4ffe9';ctx.beginPath();ctx.moveTo(terminal.x-7,terminal.y);ctx.lineTo(terminal.x,terminal.y-8);ctx.lineTo(terminal.x+7,terminal.y);ctx.lineTo(terminal.x,terminal.y+8);ctx.closePath();ctx.fill();
+  }else{ctx.strokeStyle='#ffd3a1';ctx.lineWidth=2;for(const sign of [-1,1]){ctx.beginPath();ctx.moveTo(n.x+sign*55,n.y-20);ctx.lineTo(n.x+sign*49,n.y-20);ctx.lineTo(n.x+sign*49,n.y+20);ctx.lineTo(n.x+sign*55,n.y+20);ctx.stroke();}}
+  ctx.restore();
+ }
+ for(const p of m.furnace?.feeds||[]){
+  const age=t-p.at,u=clamp(age/1.2,0,1),fade=clamp((3-age)/.8,0,1);
+  ctx.save();ctx.globalAlpha=fade;ctx.strokeStyle='#ffae5660';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.quadraticCurveTo((p.x+g.x)/2,p.y-55,g.x,g.y);ctx.stroke();ctx.strokeStyle='#fff0b3';ctx.lineWidth=2;ctx.stroke();
+  for(let i=0;i<6;i++){const q=clamp(u*1.4-i*.075,0,1);if(q<=0||q>=1)continue;const x=(1-q)**2*p.x+2*(1-q)*q*(p.x+g.x)/2+q*q*g.x,y=(1-q)**2*p.y+2*(1-q)*q*(p.y-55)+q*q*g.y;ctx.fillStyle='#d6ffff';ctx.beginPath();ctx.arc(x,y,3,0,TAU);ctx.fill();}ctx.restore();
+ }
+}
+
 // Nivara: finite, simulation-time effects. Checkpoints retain the recovered
 // records, not fresh hazards or repeatable combat rewards.
 const ARCHIVE_WARNING=1.25;
@@ -349,21 +447,22 @@ function drawSunkenNetwork(m){
 function storyNodePosition(n,dt){
  // Hold the objective in the flight corridor instead of making a missed
  // approach disappear for an entire scroll cycle, including after the boss.
- n.x=Math.max(W*.22,n.x-dt*48);
- const solids=obstacles.flatMap(obstacleSolids);let target=n.baseY;const clear=y=>!sceneryBorderContact(n.x,y,78,70)&&solids.every(r=>n.x+78<r.x||n.x-78>r.x+r.w||y+70<r.y||y-70>r.y+r.h);
+ if(!(n.storyCoupling&&n.hp<=0))n.x=Math.max(W*.22,n.x-dt*48);
+ const solids=obstacles.flatMap(obstacleSolids),rx=n.storyCoupling?160:78,ry=n.storyCoupling?155:70;let target=n.baseY;const clear=y=>!sceneryBorderContact(n.x,y,rx,ry)&&solids.every(r=>n.x+rx<r.x||n.x-rx>r.x+r.w||y+ry<r.y||y-ry>r.y+r.h);
  if(!clear(target))target=[H/2,250,510,310,450].find(clear)??H/2;n.y+=(target-n.y)*Math.min(1,dt*3);
 }
 function storyNodeFeedback(m,kind){
  if(!m.node){m.signalNode=null;m.signalStep=0;return;}
  if(m.signalNode!==m.node){m.signalNode=m.node;m.signalStep=0;}
  const progress=kind==='seal'?1-m.node.hp/42:m.charge/1.5,step=Math.min(3,Math.floor(progress*4));
- if(kind!=='seal'&&step>m.signalStep){m.signalStep=step;window.flightAudio?.engineerCue?.('link',m.node.x);}
+ if(kind==='relay'&&step>m.signalStep){m.signalStep=step;window.flightAudio?.engineerCue?.('link',m.node.x);}
 }
-function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playing'||sectorBlend)return;const m=storyMission,d=STORY_ROUTE[m.index];updateOpeningMission();m.age+=dt;updateSunkenRelay(m,dt);updateFrozenArchive(m,dt);for(const echo of m.relayEchoes){echo.age+=dt;echo.x-=48*dt;}m.relayEchoes=m.relayEchoes.filter(e=>e.age<2.2);if(m.complete)return;
- if(['relay','seal','furnace'].includes(d.kind)&&m.done<3&&m.age>=Math.max(m.network?.readyAt||0,m.archive?.readyAt||0)&&time>(d.kind==='furnace'?sectors[level].duration:12)){
-  if(!m.node){const y=[250,500,360][m.done];m.node={x:W-300,y,baseY:y,hp:42,r:d.kind==='seal'?43:32,storySeal:d.kind==='seal'};}
+function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playing'||sectorBlend)return;const m=storyMission,d=STORY_ROUTE[m.index];updateOpeningMission();m.age+=dt;updateSunkenRelay(m,dt);updateFrozenArchive(m,dt);updateGateFurnace(m,dt);for(const echo of m.relayEchoes){echo.age+=dt;echo.x-=48*dt;}m.relayEchoes=m.relayEchoes.filter(e=>e.age<2.2);if(m.complete)return;
+ if(['relay','seal','furnace'].includes(d.kind)&&m.done<3&&m.age>=Math.max(m.network?.readyAt||0,m.archive?.readyAt||0,m.furnace?.readyAt||0)&&time>(d.kind==='furnace'?sectors[level].duration:12)){
+  if(!m.node){const y=[250,500,360][m.done];m.node={x:W-300,y,baseY:y,hp:d.kind==='furnace'?60:42,r:d.kind==='furnace'?45:d.kind==='seal'?43:32,storySeal:d.kind==='seal',storyCoupling:d.kind==='furnace',number:m.done};}
   storyNodePosition(m.node,dt);
-  if(d.kind!=='seal'){const nearby=Math.hypot(ship.x-m.node.x,ship.y-m.node.y)<112;m.charge=clamp(m.charge+(nearby?dt:-dt*.35),0,1.5);if(m.charge>=1.5)finishStoryNode();}
+  if(d.kind==='relay'&&advanceStoryLink(m,dt,Math.hypot(ship.x-m.node.x,ship.y-m.node.y)<112,1.5,.35))finishStoryNode();
+  if(d.kind==='furnace')updateFurnaceCoupling(m,dt);
  }
  storyNodeFeedback(m,d.kind);
  if(!m.guardian)return;
@@ -380,6 +479,7 @@ function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playi
   if(e.hp<=0){announce('EXTRACTION INTERRUPTED','RETRY THE BEACON DEFENSE',3);end(false);return;}if(e.age<32||e.spawned<18||e.raiders.length)return;beginStoryReturn(e);return;
   }
  }else if(['relay','seal','furnace'].includes(d.kind)&&m.done<3)return;
+ if(d.kind==='furnace'&&m.furnace?.ignitionAt!==undefined&&m.age-m.furnace.ignitionAt<6)return;
  if(d.kind==='seal'&&m.archive?.sources.some(p=>!p.fired))return;
  if(d.kind==='seal'&&m.archive?.discoveryAt!==undefined&&m.age-m.archive.discoveryAt<6)return;
  if(d.kind==='relay'&&m.network?.discoveryAt!==undefined&&m.age-m.network.discoveryAt<6)return;
@@ -474,17 +574,19 @@ function drawStoryRelaySurface(n,age,kind,charge=0){
 }
 function drawStoryMission(){
  if(!storyActive()||!storyMission||sectorBlend)return;const m=storyMission,d=STORY_ROUTE[m.index],n=m.node,e=m.extract;
- if(n){if(d.kind==='seal')drawFrozenSeal(n,m.age);else drawStoryNodeMachine(d.kind,n.x,n.y,m.age);}
+ if(n){if(d.kind==='furnace')drawModel(furnaceCouplingMesh(n.hp<=0),n.x,n.y,1,.2,0,0,m.age,0);else if(d.kind==='seal')drawFrozenSeal(n,m.age);else drawStoryNodeMachine(d.kind,n.x,n.y,m.age);}
  if(d.kind==='seal')drawArchiveGeometry(m);
+ if(d.kind==='furnace')for(const feed of m.furnace?.feeds||[]){ctx.save();ctx.globalAlpha=clamp((3-(m.age-feed.at))/1.5,0,1);drawModel(furnaceCouplingMesh(true),feed.x,feed.y,1,.2,0,0,m.age,0);ctx.restore();}
  for(const echo of m.relayEchoes){ctx.save();ctx.globalAlpha*=1-navigationEase((echo.age-.65)/1.55);drawStoryNodeMachine(echo.kind||'relay',echo.x,echo.y,m.age);ctx.restore();}
  if(e)for(const r of e.raiders)drawModel(storyMesh('raider'),r.x,r.y,r.scale||1,.08*Math.sin(r.age*3),.18*Math.sin(r.age*4),Math.atan2(e.y-r.y,e.x-r.x),r.age,r.hit||0);
  window.gpuModels?.flush(ctx);ctx.save();
  for(const echo of m.relayEchoes){ctx.save();ctx.globalAlpha=1-navigationEase(echo.age/2.2);drawStoryRelaySurface(echo,m.age,echo.kind||'relay',1);ctx.restore();drawRelayActivation(echo);}
- if(n&&['relay','furnace'].includes(d.kind))drawStoryRelaySurface(n,m.age,d.kind,clamp(m.charge/1.5,0,1));
+ if(n&&d.kind==='relay')drawStoryRelaySurface(n,m.age,d.kind,clamp(m.charge/1.5,0,1));
  if(d.kind==='relay')drawSunkenNetwork(m);
  if(d.kind==='seal')drawArchiveSignals(m);
  if(n&&d.kind==='relay')drawRelaySignal(n,m);
- if(n&&!['relay','seal'].includes(d.kind))drawStoryNodeSignal(n,m,d.kind);
+ if(d.kind==='furnace')drawFurnaceSignals(m);
+ if(n&&!['relay','seal','furnace'].includes(d.kind))drawStoryNodeSignal(n,m,d.kind);
  if(e&&!e.returning)drawStoryGate(e);
  if(e)drawStoryRaiderEffects(e);
  ctx.restore();
@@ -523,6 +625,12 @@ function drawStoryNodeSignal(n,m,kind){
  if(near&&!seal){const dx=n.x-ship.x,dy=n.y-ship.y;ctx.save();ctx.strokeStyle='#ffd392a0';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ship.x,ship.y);ctx.lineTo(n.x,n.y);ctx.stroke();ctx.fillStyle='#fff4d6';for(let i=0;i<4;i++){const u=(m.age*1.3+i*.25)%1;ctx.beginPath();ctx.arc(ship.x+dx*u,ship.y+dy*u,2.5,0,TAU);ctx.fill();}ctx.restore();}
 }
 function storyInteractionHint(){
+ if(storyActive()&&STORY_ROUTE[storyIndex()].kind==='furnace'){
+  const m=storyMission,n=m?.node;
+  if(m?.furnace?.ignitionAt!==undefined&&m.age-m.furnace.ignitionAt<6)return{n:{x:W*.82,y:H*.46+20},title:'RESCUE GATE POWERED',action:'Home is within reach',discovery:true};
+  if(n){const p=furnaceTerminal(n),near=Math.hypot(ship.x-p.x,ship.y-p.y)<50;return{n,title:n.hp>0?'BREAK THE POWER COUPLING':'REDIRECT THE ENERGY',action:n.hp>0?'Shoot the armored core':near?'Hold the link':'Enter the lit terminal',progress:n.hp>0?1-n.hp/60:m.charge/1.6,count:m.done};}
+ }
+
  if(storyActive()&&storyMission?.archive){
   const m=storyMission,a=m.archive,p=a.sources.find(p=>!p.fired);
   if(p)return{n:p,title:'ICE BURST',action:'Move between the marked rays',discovery:true};
@@ -1151,7 +1259,7 @@ const STORY_RECAPS=Object.freeze([
  'Nivara revealed a dormant rescue gate. Its furnace must be restarted.',
  'The furnace has power. One last signal will open the survivors’ way home.'
 ]);
-const STORY_ACTIONS=Object.freeze(['Defeat the guardian. Recover the first coordinates.','Optional: rescue the engineer en route. Break the Dreadnought.','Hold inside three relay rings. Locate the survivors.','Break three archive seals. Find the route to Eventide.','Connect three diversion controls. Power the rescue gate.','Defend both sides of the portal. Save the five carriers.']);
+const STORY_ACTIONS=Object.freeze(['Defeat the guardian. Recover the first coordinates.','Optional: rescue the engineer en route. Break the Dreadnought.','Hold inside three relay rings. Locate the survivors.','Break three archive seals. Find the route to Eventide.','Break the couplings. Link their terminals. Power the rescue gate.','Defend both sides of the portal. Save the five carriers.']);
 let campaignPrologue=null;
 function storyResumeInfo(){const p=storyStore.snapshot(),index=p.complete?0:Math.max(0,STORY_ROUTE.findIndex(m=>m.id===p.next));return{p,index,next:STORY_ROUTE[index],recap:p.complete?'All five carriers reached home. Their crew and discoveries are safe.':STORY_RECAPS[index]};}
 function showCampaignEntry(){if(state==='title')showCampaignBrief();}
