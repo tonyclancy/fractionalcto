@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 75484177,
+  "bytes": 75488366,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 470310,
-      "sha256": "b9c20d1a1278c9ae9b564268fea51e03fba67368023fab7d20f72bf6be547cb6"
+      "bytes": 470328,
+      "sha256": "e380c32b00b5972a6f974a8c6a4be591908834de32ecb35a41dc3f9812bcfb0f"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1606,8 +1606,8 @@
     },
     {
       "path": "capital-ship.js",
-      "bytes": 50589,
-      "sha256": "d754ae39386ac5a91444a5971afa84787547eb1bd321b47991f214263f125f08"
+      "bytes": 50600,
+      "sha256": "c5bbb4b6af4240a5f4ad8b8576c3d394ebaa7b4df28b3539fd6cba8e34335f5d"
     },
     {
       "path": "cloud-config.js",
@@ -1631,13 +1631,13 @@
     },
     {
       "path": "game.js",
-      "bytes": 114254,
-      "sha256": "4e5c30e1cdc09f140495e2ef1a8a23b92263c0f1b8a198d12bac07e123d4efdf"
+      "bytes": 116228,
+      "sha256": "b972eb590ab585c0da0ba29935e677fa3f805be817874679e43c72ac3dc1eb52"
     },
     {
       "path": "index.html",
-      "bytes": 7529,
-      "sha256": "e71e712bd7e4df3a247bf849bdd4cee4b66eed1212860e68687d092f2579c755"
+      "bytes": 7527,
+      "sha256": "dacb1cf224172a559a13d82c982c26ef7e0f196d6bd94613c1f032e461938e72"
     },
     {
       "path": "levels.js",
@@ -1686,18 +1686,18 @@
     },
     {
       "path": "story-campaign.js",
-      "bytes": 113539,
-      "sha256": "5d9da988918a41c778719bc77ffaa2992d1e6fbdd75118c574544c22846baa3d"
+      "bytes": 113814,
+      "sha256": "f503a05ec03e3f50127b7638f17504112be85d3f3646f00e6be39e45f1ca388b"
     },
     {
       "path": "style.css",
-      "bytes": 76868,
-      "sha256": "54c2b301fc222ad2d55bdad13e686aa0726da1432918bb31c6fa8546c7892295"
+      "bytes": 78770,
+      "sha256": "0542785e65267ebf73407696adbc7216bd892debd6af25f4df31f7917d17d4c5"
     },
     {
       "path": "tide-encounter.js",
-      "bytes": 5656,
-      "sha256": "f6de11f83e52a8c2f2a7fc1caefeedfdd8909e0d645c0c3661595895205a697b"
+      "bytes": 5667,
+      "sha256": "094da28210ee8e2709d3a0ccbad51fe8002bbff70c3b6438b1ce91230609e862"
     },
     {
       "path": "vendor/THREE-LICENSE.txt",

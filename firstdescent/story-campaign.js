@@ -149,10 +149,19 @@ function storyTargets(){
  }return c.list;
 }
 function storyHitTarget(s,target){storyTargetCache.dirty=true;target.hp-=s.damage;if(target.storyRaider)target.hit=.16;s.seen.add(target);s.spent=true;burst(target.x,target.y,target.storySeal?'#bcefff':'#ffab79',5);if(target.hp<=0){if(target.storyRaider){score+=target.kind==='breaker'?250:150;kills++;}explode(target.x,target.y,target.storySeal?'#bcefff':'#ffa265',target.storySeal?1:.65,false);if(target.storySeal)finishStoryNode();}}
-function finishStoryNode(){const m=storyMission;if(!m||m.done>=3)return;if(m.node)m.relayEchoes.push({...m.node,kind:STORY_ROUTE[m.index].kind,age:0,number:m.done+1});m.done++;if(STORY_ROUTE[m.index].kind==='furnace'){ship.inv=Math.max(ship.inv,3);rings.push({x:ship.x,y:ship.y,r:20,life:.9,c:'#ffdc8b'});}m.node=null;m.charge=0;window.flightAudio?.engineerCue?.('link',ship.x);announce(m.done===3?'LINK COMPLETE':`NODE ${m.done} / 3 SECURED`,STORY_ROUTE[m.index].kind==='furnace'?'GATE ENERGY ROUTED · HULL GUARD 3s':m.done===3?'RECOVER THE GUARDIAN’S SIGNAL':'NEXT SIGNAL LOCATED',1);saveCheckpoint();}
+function finishStoryNode(){
+ const m=storyMission;if(!m||m.done>=3)return;const kind=STORY_ROUTE[m.index].kind;
+ if(m.node)m.relayEchoes.push({...m.node,kind,age:0,number:m.done+1});m.done++;
+ if(kind==='furnace'){ship.inv=Math.max(ship.inv,3);rings.push({x:ship.x,y:ship.y,r:20,life:.9,c:'#ffdc8b'});}
+ m.node=null;m.charge=0;window.flightAudio?.engineerCue?.('link',ship.x);
+ const title=kind==='seal'?`ARCHIVE ${m.done}/3 RECOVERED`:kind==='furnace'?`GATE POWER ${m.done}/3`:`RELAY ${m.done}/3 CONNECTED`;
+ const benefit=kind==='seal'?'BOSS PHASE OPENINGS REVEALED':kind==='furnace'?'RESCUE GATE POWERED · HULL GUARD 3s':'SURVIVORS LOCATED · FINAL PORTAL +2 INTEGRITY';
+ announce(title,m.done===3?benefit:kind==='furnace'?'ENERGY ROUTED · HULL GUARD 3s':'NEXT SIGNAL LOCATED',2);saveCheckpoint();
+}
 function storyNodePosition(n,dt){
- // Repeating approaches prevent a missed object from blocking the mission.
- n.x-=dt*48;if(n.x< -130)n.x=W+130;
+ // Hold the objective in the flight corridor instead of making a missed
+ // approach disappear for an entire scroll cycle, including after the boss.
+ n.x=Math.max(W*.22,n.x-dt*48);
  const solids=obstacles.flatMap(obstacleSolids);let target=n.baseY;const clear=y=>!sceneryBorderContact(n.x,y,78,70)&&solids.every(r=>n.x+78<r.x||n.x-78>r.x+r.w||y+70<r.y||y-70>r.y+r.h);
  if(!clear(target))target=[H/2,250,510,310,450].find(clear)??H/2;n.y+=(target-n.y)*Math.min(1,dt*3);
 }
@@ -188,7 +197,7 @@ function updateStoryMission(dt){if(!storyActive()||!storyMission||state!=='playi
   if(flightRun.storyOwner===storyStore.account())storyStore.collect(d.id);
   saveCheckpoint();updateHUD();return;
  }
- m.complete=true;const hullBefore=ship.hp,novaBefore=novas;ship.hp=Math.min(5,ship.hp+1);novas=Math.min(3,novas+1);m.reward={hull:ship.hp-hullBefore,novas:novas-novaBefore};queuePickupEffect('rescue',{title:'MISSION REWARD · SIGNAL SECURED',detail:`HULL +${ship.hp-hullBefore} · NOVA +${novas-novaBefore} · ROUTE UPDATED`},m.shardSource||ship);ship.inv=Math.max(ship.inv,ORIGIN_RECOVERY_DURATION+1);saveCheckpoint();if(flightRun.storyOwner===storyStore.account())storyStore.collect(d.id);transition=3.4;originRecovery={story:true,index:m.index,x:clamp(m.shardSource?.x??ship.x+220,70,W-70),y:clamp(m.shardSource?.y??ship.y,90,H-90),kind:originEntry(d.id)?.kind||'core',age:0,phase:-1};updateOriginRecovery(0);annTimer=0;$('#announcement').style.opacity=0;updateHUD();
+ m.complete=true;const hullBefore=ship.hp,novaBefore=novas;ship.hp=Math.min(5,ship.hp+1);novas=Math.min(3,novas+1);m.reward={hull:ship.hp-hullBefore,novas:novas-novaBefore};queuePickupEffect('rescue',{title:'MISSION REWARD · SIGNAL SECURED',detail:storyServiceReceipt()+' · ROUTE UPDATED'},m.shardSource||ship);ship.inv=Math.max(ship.inv,ORIGIN_RECOVERY_DURATION+1);saveCheckpoint();if(flightRun.storyOwner===storyStore.account())storyStore.collect(d.id);transition=3.4;originRecovery={story:true,index:m.index,x:clamp(m.shardSource?.x??ship.x+220,70,W-70),y:clamp(m.shardSource?.y??ship.y,90,H-90),kind:originEntry(d.id)?.kind||'core',age:0,phase:-1};updateOriginRecovery(0);annTimer=0;$('#announcement').style.opacity=0;updateHUD();
 }
 function finishStorySector(){if(!storyActive())return false;if(!storyMission?.complete){transition=1;return true;}showStoryDebrief();return true;}
 // Brief transmissions keep the next action in view; the full route is optional.
@@ -455,7 +464,7 @@ function updateOpeningMission(){
   if(!f.jets)f.jets=prepareOpeningJets();
   for(const j of f.jets){const p=openingJetPose(j);
    if(p.stage!==j.stage||p.cycle!==j.cycle){if(p.stage===0&&p.x>0&&p.x<W)window.flightAudio?.laserCharge?.(p.x);if(p.stage===1&&p.x>0&&p.x<W)window.flightAudio?.thrusterBurst?.(.45);j.stage=p.stage;j.cycle=p.cycle;}
-   if(openingJetContact(j,p,f.previous))damage();
+   if(openingJetContact(j,p,f.previous))damage('environment');
   }
  }
  f.previous.x=ship.x;f.previous.y=ship.y;f.previous.time=time;
@@ -540,7 +549,7 @@ function updateStoryRaiders(e,dt){
   r.x+=(ux*speed-uy*weave)*dt;r.y+=(uy*speed+ux*weave)*dt;
   if(len<80||Math.hypot(e.x-r.x,e.y-r.y)<80){r.hp=0;e.hp--;repairStoryBeacon(e);burst(e.x,e.y,'#ffad72',18);window.flightAudio?.shipHit?.(e.x,false);continue;}
   // Both the moving hull and a fast pilot swipe use relative swept contact.
-  if(r.contactCooldown<=0&&pilotHullContactTime(r.contactOldX,r.contactOldY,r.x,r.y,r.r,e.previousShip?.x??ship.x,e.previousShip?.y??ship.y)<=1){damage();r.hp-=10;r.contactCooldown=1;burst(r.x,r.y,'#ff9872',6);}
+  if(r.contactCooldown<=0&&pilotHullContactTime(r.contactOldX,r.contactOldY,r.x,r.y,r.r,e.previousShip?.x??ship.x,e.previousShip?.y??ship.y)<=1){damage('collision');r.hp-=10;r.contactCooldown=1;burst(r.x,r.y,'#ff9872',6);}
   if(r.kind!=='skirmisher'&&r.shotCount<2&&r.age>=(r.shotAt??2)&&hostile.length<48&&Math.hypot(r.x-ship.x,r.y-ship.y)>180){aimed(r.x,r.y,400,0,'bolt');hostile.at(-1).c='#ff7865';r.shotCount++;r.shotAt=r.age+2.4;window.flightAudio?.shot?.('pulse',r.x,true);}
  }
  if(!e.previousShip)e.previousShip={x:ship.x,y:ship.y};else{e.previousShip.x=ship.x;e.previousShip.y=ship.y;}
@@ -1042,9 +1051,9 @@ function updateOriginGuardian(b,dt){
  const oldAge=a.age;a.age+=dt;
  if(a.age>=a.warning){
   if(!a.fired){a.fired=true;if(a.kind!=='volley')window.flightAudio?.weaponCue?.(a.kind==='eyes'?'gaze':a.kind,'fire',b.x,a.duration);}
-  if(a.kind==='eyes'){const t=clamp((a.warning-oldAge)/dt,0,1),from={x:g.previous.x+(ship.x-g.previous.x)*t,y:g.previous.y+(ship.y-g.previous.y)*t};for(const line of originLaserLines(b,a))if(originLaserHit(line,from,ship))damage();}
+  if(a.kind==='eyes'){const t=clamp((a.warning-oldAge)/dt,0,1),from={x:g.previous.x+(ship.x-g.previous.x)*t,y:g.previous.y+(ship.y-g.previous.y)*t};for(const line of originLaserLines(b,a))if(originLaserHit(line,from,ship))damage('laser');}
   else if(a.kind==='volley'){updateBossPlasmaBarrage(b,a);
-  }else for(let i=0;i<(g.phase===2?2:1);i++)if(originSonicHit(a,oldAge,g.previous,ship,i))damage();
+  }else for(let i=0;i<(g.phase===2?2:1);i++)if(originSonicHit(a,oldAge,g.previous,ship,i))damage('shockwave');
  }
  if(a.age>=a.warning+a.duration){g.attack=null;g.rest=g.phase===2?2.1:2.7;b.exposed=g.rest;b.recovery=g.rest;}
  g.previous={x:ship.x,y:ship.y};

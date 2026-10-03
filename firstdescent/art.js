@@ -3573,9 +3573,9 @@ function updateExplorationSignature(b,dt){
   if(!a.fired){a.fired=1;if(a.kind!=='volley')window.flightAudio?.weaponCue?.(a.profile.id,'fire',b.x,a.duration);}
   if(a.kind==='eyes'){
    const t=clamp((a.warning-oldAge)/dt,0,1),from={x:a.previous.x+(ship.x-a.previous.x)*t,y:a.previous.y+(ship.y-a.previous.y)*t};
-   for(const line of originLaserLines(b,a))if(originLaserHit(line,from,ship))damage();
+   for(const line of originLaserLines(b,a))if(originLaserHit(line,from,ship))damage('laser');
   }else if(a.kind==='sonic'){
-   if(originSonicHit(a,oldAge,a.previous,ship))damage();
+   if(originSonicHit(a,oldAge,a.previous,ship))damage('shockwave');
   }else if(a.kind==='volley'){
    updateBossPlasmaBarrage(b,a);
   }

@@ -425,3 +425,11 @@ body.game-expanded{overscroll-behavior:none}
 /* Campaign launch: the story belongs beside the real destination artwork. */
 .campaign-brief .brief-story{color:#c5dadd;font-size:clamp(12px,1.3vw,16px);line-height:1.5;margin:12px 0 18px;text-wrap:pretty}
 @container(max-height:310px){.campaign-brief .brief-story{font-size:11px;line-height:1.35;margin:6px 0 9px}}
+/* A fast, readable recovery screen, sized to the game surface. */
+.overlay.flight-retry{padding:20px;overflow:auto;box-sizing:border-box;background:rgba(3,12,19,.78)}
+.retry-card{display:flex;gap:28px;align-items:center;width:min(650px,100%);margin:auto;padding:28px;box-sizing:border-box;border:1px solid #487179;border-radius:20px;background:linear-gradient(125deg,#102c36ee,#07151ef5);box-shadow:0 20px 65px #0007}
+.retry-emblem{flex:none;display:grid;place-items:center;width:92px;height:92px;border:1px solid #ffaf8899;border-radius:50%;color:#ffc3a5;font-size:58px;background:radial-gradient(circle,#b9582a33,transparent 70%);transform:rotate(-18deg)}
+.retry-content{min-width:0;flex:1}.retry-card h2{margin:12px 0;font-size:clamp(24px,4cqw,40px);line-height:1.08}.retry-hint{font-size:15px;line-height:1.5;color:#cedee2;margin:0 0 18px}.retry-restored{display:flex;gap:18px;border-block:1px solid #6db1b433;padding:14px 0}.retry-restored span{font-size:11px;line-height:1.5;color:#a2bec5}.retry-restored b{display:block;font-size:16px;color:#a4f4de}.retry-kept{font-size:12px;line-height:1.4;color:#b1c9cd;margin:14px 0}.retry-card .primary{width:100%;min-width:0;min-height:44px;padding:14px 18px;font-size:13px}.retry-card .eyebrow{font-size:11px;letter-spacing:1.3px}
+@container (max-height:450px){.overlay.flight-retry{padding:12px}.retry-card{padding:16px;gap:16px;max-width:610px}.retry-emblem{width:60px;height:60px;font-size:38px}.retry-card h2{margin:7px 0;font-size:25px}.retry-hint{font-size:12px;margin:0 0 9px}.retry-restored{padding:7px 0}.retry-kept{margin:8px 0;font-size:11px}.retry-card .primary{padding:10px 14px}}
+@container (max-width:480px){.retry-card{padding:16px;gap:0}.retry-emblem{display:none}.retry-card .eyebrow{font-size:10px}.retry-restored{gap:16px}}
+.overlay.flight-retry,.console:is(:fullscreen,.native-fullscreen,.expanded) .overlay.flight-retry{z-index:17}

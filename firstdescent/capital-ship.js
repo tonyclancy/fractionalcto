@@ -426,7 +426,7 @@ function updateCapitalDischarges(b,dt){
   if(a.kind==='purge'&&a.age>=a.warning&&a.age<a.warning+a.duration&&capitalPurgeContact(capitalDischargeFrame(b,a.kind),ship.x,ship.y))damage();
   if(a.age>=a.warning+a.duration){node.special=null;node.recovery=2.4;}
  }
- for(const pulse of siege.pulses){pulse.age+=dt;pulse.r=28+pulse.age*510;if(capitalPulseContact(pulse,ship.x,ship.y))damage();}
+ for(const pulse of siege.pulses){pulse.age+=dt;pulse.r=28+pulse.age*510;if(capitalPulseContact(pulse,ship.x,ship.y))damage('shockwave');}
  siege.pulses=siege.pulses.filter(p=>p.age<p.life);
 }
 function updateCapitalSiege(b,dt){

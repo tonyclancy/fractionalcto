@@ -29,7 +29,7 @@ function updateTideEncounter(b,dt){
   if(t.phase==='hold'&&d<210&&d>24){const pull=(1-d/210)*38*dt;ship.x=clamp(ship.x+dx/d*pull,30,W-30);ship.y=clamp(ship.y+dy/d*pull,30,H-30);}
   // A physical ring expands from surviving knots, with a wide escape gap aimed
   // away from the boss. The warning is the knot brightening before release.
-  if(t.phase==='release'){const r=30+t.age*185,gap=tideRingGap(p,b),a=Math.atan2(ship.y-p.y,ship.x-p.x),delta=Math.abs(Math.atan2(Math.sin(a-gap),Math.cos(a-gap)));if(Math.abs(d-r)<15&&delta>.7)damage();}
+  if(t.phase==='release'){const r=30+t.age*185,gap=tideRingGap(p,b),a=Math.atan2(ship.y-p.y,ship.x-p.x),delta=Math.abs(Math.atan2(Math.sin(a-gap),Math.cos(a-gap)));if(Math.abs(d-r)<15&&delta>.7)damage('shockwave');}
  }
  // Small aimed pearls are emitted by actual dorsal organs on either side.
  t.shot-=dt;if(t.shot<=0&&t.phase!=='exposed'&&b.x>50&&b.x<W-50){
