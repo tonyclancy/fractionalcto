@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 75573069,
+  "bytes": 75573862,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -1631,18 +1631,18 @@
     },
     {
       "path": "game.js",
-      "bytes": 120405,
-      "sha256": "ecada27a93bb8e28a6a6d3960595f692d2cd11648f784591ac5a6f354bb0e396"
+      "bytes": 120973,
+      "sha256": "e75760d9a7fae705676e5409c8230be31558ba24854c927a6781d760b11262a0"
     },
     {
       "path": "index.html",
       "bytes": 7529,
-      "sha256": "93041d9f7932fbbfc5663a737bf81788ff9e1bc1e4dd86a2f50fa0fef3a7a49c"
+      "sha256": "879a1ed2e2591c5673fc6ae558bdd94acdb8c5c1703dfc4070aa8c458c1bb69e"
     },
     {
       "path": "levels.js",
-      "bytes": 119602,
-      "sha256": "7a3d84fbdc713e43024123521d95f15cb22c72b1db4a69cdc762dee1baa9d258"
+      "bytes": 119592,
+      "sha256": "1ce32259948ba46b08df40969690ba11c07bfb02d7060b4d1dfb86f55b69a590"
     },
     {
       "path": "manifest.webmanifest",
@@ -1672,7 +1672,7 @@
     {
       "path": "renderer3d.js",
       "bytes": 55109,
-      "sha256": "f6a33aec2dd29a7ee428ee4119e443367b2e861d1d0c73558995cac2eeebd87d"
+      "sha256": "0b91538878415b41a24c825fb3d1d5c2a7b9c0f77a4f8288ea0aa5146b0734be"
     },
     {
       "path": "runs.js",
@@ -1691,8 +1691,8 @@
     },
     {
       "path": "story-campaign.js",
-      "bytes": 134566,
-      "sha256": "1cf2b3236841cbe6dfc29139a42ed6dcb0eb5b49e53aac0cab2315e1c4900be9"
+      "bytes": 134801,
+      "sha256": "d6dd8777181fd075894ce97781bbe35911ba9e0a6fe6570b2ced8b531d04e152"
     },
     {
       "path": "style.css",

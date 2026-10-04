@@ -2010,14 +2010,14 @@ function systemChallengeBudget(index,count,expeditionIndex=0){
  if(!Number.isInteger(index)||!Number.isInteger(count)||count<1||index<0||index>=count)throw Error('Invalid system challenge position');
  if(!Number.isInteger(expeditionIndex)||expeditionIndex<0)throw Error('Invalid expedition position');
  const progress=count===1?0:index/(count-1),journey=1-Math.exp(-expeditionIndex/5);
- return {version:5,expeditionIndex,journey,enemyFireScale:1-journey*.18,index,count,progress,difficulty:Number((.75+progress*2.75).toFixed(3)),hp:Math.round(1000+300*progress),enemyHealthScale:(1.04+progress*.38)*(1+journey*.3),bossArmor:1+progress*.12,maxActiveEnemies:9+Math.round(progress*5),waves:22+Math.round(progress*8),eliteWaveInterval:11-Math.round(progress*4+journey*2),salvoRestScale:(1-progress*.34)*(1-journey*.18),specialCooldown:(6.1-progress*2)*(1-journey*.14),warning:1.85-progress*.25};
+ return {version:6,expeditionIndex,journey,enemyFireScale:1-journey*.18,index,count,progress,difficulty:Number((.75+progress*2.75).toFixed(3)),hp:Math.round(1000+300*progress),enemyHealthScale:(1.04+progress*.38)*(1+journey*.3),bossArmor:1+progress*.12,maxActiveEnemies:11+Math.round(progress*5),waves:26+Math.round(progress*8),eliteWaveInterval:11-Math.round(progress*4+journey*2),salvoRestScale:(1-progress*.34)*(1-journey*.18),specialCooldown:(6.1-progress*2)*(1-journey*.14),warning:1.85-progress*.25};
 }
 function applySystemChallenge(stage,index,count,expeditionIndex){
  const b=systemChallengeBudget(index,count,expeditionIndex);stage.systemChallenge=b;
  Object.assign(stage,{difficulty:b.difficulty,hp:b.hp,enemyHealthScale:b.enemyHealthScale,bossArmor:b.bossArmor,salvoRestScale:b.salvoRestScale});
  stage.pacing={...stage.pacing,maxActiveEnemies:b.maxActiveEnemies,pickupGap:2.7-b.progress*.4,maxPickups:2,preBossRelief:true};
- // A little room to read the opening; the same authored wave count builds later.
- stage.waves=Array.from({length:b.waves},(_,i)=>Number((3+Math.pow(i/(b.waves-1),.86)*(stage.duration-8.5)).toFixed(3)));
+ // Fixed, denser formations keep pressure moving toward the guardian.
+ stage.waves=Array.from({length:b.waves},(_,i)=>Number((3+Math.pow(i/(b.waves-1),.94)*(stage.duration-8.5)).toFixed(3)));
  // Defense is the first learnable pickup, before the opening obstacle reaches the pilot.
  const guard=stage.supplies.find(d=>d.type==='frontShield'),speed=stage.supplies.find(d=>d.type==='speed');
  if(guard){guard.at=1;guard.y=380;guard.drift=260;}if(speed)speed.at=3.5;

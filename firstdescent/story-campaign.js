@@ -140,10 +140,10 @@ const STORY_NO_TARGETS=Object.freeze([]);
 let storyCombatDefinitions=null;
 function storyCombatSectors(){
  if(storyCombatDefinitions)return storyCombatDefinitions;
- const difficulty=[1,1.45,1.95,2.4,2.9,3.4],caps=[9,10,10,11,12,13],health=[1.07,1.12,1.20,1.26,1.34,1.40],counts=[0,0,22,24,26,28];
+ const difficulty=[1,1.45,1.95,2.4,2.9,3.4],caps=[11,12,12,13,14,15],health=[1.07,1.12,1.20,1.26,1.34,1.40],counts=[0,0,26,28,30,32];
  storyCombatDefinitions=Object.freeze(campaign.map(d=>{
   const i=STORY_ROUTE.findIndex(m=>m.id===d.id);if(i<0)return d;
-  const waves=i<2?d.waves:Object.freeze(Array.from({length:counts[i]},(_,n)=>+(3+(d.duration-8.5)*Math.pow(n/(counts[i]-1),.84)).toFixed(3)));
+  const waves=i<2?d.waves:Object.freeze(Array.from({length:counts[i]},(_,n)=>+(3+(d.duration-8.5)*Math.pow(n/(counts[i]-1),.94)).toFixed(3)));
   return Object.freeze({...d,bossVariation:null,...(i===3?{arsenal:'crystal'}:{}),...(i===4?{arsenal:'silk'}:{}),...(i===5?{encounterProfile:{...bossEncounterProfile(d),signature:'ORIGIN LOCKDOWN'}}:{}),difficulty:difficulty[i],enemyHealthScale:health[i],waves,pacing:Object.freeze({...d.pacing,maxActiveEnemies:caps[i]}),flankWaves:Object.freeze(d.flankWaves.filter(n=>n<waves.length)),broodWaves:Object.freeze(d.broodWaves.filter(n=>n<waves.length))});
  }));return storyCombatDefinitions;
 }
@@ -638,39 +638,47 @@ function storyNova(){if(!storyActive())return;for(const target of storyTargets()
 
 function storyHomingTarget(s,target){for(const e of storyTargets())if(e.hp>0&&(e.x-s.x)*(s.direction||1)>-40&&(!target||Math.hypot(e.x-s.x,e.y-s.y)<Math.hypot(target.x-s.x,target.y-s.y)))target=e;return target;}
 
-// Authored opening missions use pressure, recovery and a final escalation.
-// The exploration archive retains its existing schedules and challenges.
+// Small, overlapping formations carry the opening missions into the guardian.
+// Ferrum keeps a short protected boarding introduction before patrols resume.
 const OPENING_MISSIONS=Object.freeze([
  {bossAt:52,waves:[
-  {at:3,count:2,type:1,center:330,formation:'line'},
+  {at:3,count:3,type:1,center:330,formation:'line'},
   {at:7,count:1,type:2,center:380,formation:'line',aimed:true,role:'suppressor',teach:true},
-  {at:11,count:2,type:1,center:300,formation:'line',side:'left',role:'flanker',teach:true},
-  {at:14,count:3,type:3,center:470,formation:'line',aimed:true},
+  {at:11,count:3,type:1,center:300,formation:'line',side:'left',role:'flanker',teach:true},
+  {at:14,count:4,type:3,center:470,formation:'line',aimed:true},
   {at:18,count:2,type:2,center:260,formation:'wedge',aimed:true,role:'suppressor'},
-  {at:21,count:3,type:1,center:460,formation:'wedge',aimed:true},
-  {at:24,count:2,type:3,center:320,formation:'line',aimed:true},
+  {at:21,count:4,type:1,center:460,formation:'wedge',aimed:true},
+  {at:24,count:3,type:3,center:320,formation:'line',aimed:true},
+  {at:27.5,count:3,type:1,center:460,formation:'line'},
+  {at:31,count:3,type:3,center:300,formation:'wedge'},
   {at:34,count:2,type:2,center:280,formation:'wedge',aimed:true,role:'suppressor'},
-  {at:38,count:2,type:1,center:490,formation:'line',side:'left',aimed:true,role:'flanker'},
+  {at:38,count:3,type:1,center:490,formation:'line',side:'left',aimed:true,role:'flanker'},
   {at:42,count:3,type:1,center:380,formation:'wedge',elite:'ace',aimed:true},
-  {at:48,count:3,type:3,center:250,formation:'line',aimed:true}
+  {at:45,count:3,type:1,center:480,formation:'line'},
+  {at:48,count:4,type:3,center:250,formation:'line',aimed:true}
  ],beats:[
   {at:0,title:'FOLLOW THE SIGNAL',detail:'Recover the first coordinates · move to dodge · weapons fire automatically'},
   {at:7,title:'READ THE AIM',detail:'Leave the amber sightline · hit it while it charges to interrupt'},
   {at:11,title:'CONTACT BEHIND YOU',detail:'Space / double tap to face left · clear the rear formation'},
   {at:17,title:'COUNTERATTACK',detail:'Blue barrels charge · break their aim or move clear'},
-  {at:29,title:'CHANNEL CLEAR',detail:'Collect supplies for weapons and protection · prepare for the counterattack'},
+  {at:29,title:'KEEP PUSHING',detail:'Collect supplies as you fight · more contacts ahead'},
   {at:33,title:'CROSSWIND AMBUSH',detail:'Attackers on both sides · turn to meet them'},
   {at:50,title:'GUARDIAN APPROACHING',detail:'Dodge its charge · flip and attack the opening'}
  ]},
  {waves:[
-  {at:3,count:2,type:0,center:380,formation:'line'},
+  {at:3,count:3,type:0,center:380,formation:'line'},
   {at:7,count:3,type:0,center:260,formation:'wedge',role:'coordinator',teach:true},
   {at:10,count:3,type:2,center:480,formation:'line',aimed:true},
   {at:13,count:1,type:2,center:320,formation:'line',aimed:true,role:'suppressor'},
   {at:16,count:2,type:0,center:530,formation:'line'},
+  {at:24,count:3,type:0,center:510,formation:'line'},
+  {at:28,count:3,type:0,center:480,formation:'wedge'},
+  {at:31.5,count:3,type:2,center:360,formation:'line'},
   {at:35,count:2,type:2,center:380,formation:'split',aimed:true,role:'suppressor'},
+  {at:37.5,count:3,type:0,center:500,formation:'line'},
   {at:40,count:3,type:0,center:340,formation:'wedge',aimed:true,role:'coordinator'},
   {at:45,count:2,type:0,center:280,formation:'line',side:'left',aimed:true,role:'flanker'},
+  {at:47.5,count:3,type:0,center:480,formation:'wedge'},
   {at:50,count:2,type:2,center:380,formation:'split',aimed:true,role:'suppressor'}
  ],beats:[
   {at:0,title:'ENTER THE FOUNDRY',detail:'Recover the route to Orison · reach the Dreadnought'},
@@ -732,11 +740,9 @@ function openingJetContact(j,p,previous){
 }
 function updateOpeningMission(){
  const plan=openingMissionPlan(),m=storyMission;if(!plan||!m||m.complete)return;
- const f=m.opening||(m.opening={beat:-1,jets:null,previous:{x:ship.x,y:ship.y,time},retired:false});
+ const f=m.opening||(m.opening={beat:-1,jets:null,previous:{x:ship.x,y:ship.y,time}});
  const beat=openingMissionBeat();if(beat!==f.beat){f.beat=beat;const b=plan.beats[beat];if(beat>0&&!(storyIndex()===1&&beat===1)&&!boss)announce(b.title,b.detail,1);}
- if(storyIndex()===0&&time>=29&&!f.recoveryClear){f.recoveryClear=true;beginEnemyRetreat();}
  if(storyIndex()===1&&time>=19&&!f.rescueClear){f.rescueClear=true;beginEnemyRetreat();}
- if(time>=(storyIndex()===0?50:49)&&!f.retired){f.retired=true;beginEnemyRetreat();}
  if(storyIndex()===1&&!boss&&time>=30&&time<sectors[level].duration){
   if(!f.jets)f.jets=prepareOpeningJets();
   for(const j of f.jets){const p=openingJetPose(j);
