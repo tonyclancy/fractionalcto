@@ -38,6 +38,7 @@ function bossEncounterProfile(l){return l.encounterProfile||BOSS_ENCOUNTERS[l.en
 // Reusable attack programs are independent of the boss mesh and its palette.
 // A level may select an arsenal explicitly; otherwise its ecology selects one.
 const BOSS_ARSENALS=freezeContent({
+ crystal:{id:'crystal',effect:'crystal',name:'GLACIAL LATTICE',hint:'ICE FORMING · MOVE BETWEEN THE MARKED COLUMNS',color:'#b9edff',warning:1.8,duration:2.6},
  gaze:{id:'gaze',effect:'eyes',name:'PRISM GAZE',hint:'EYE LOCKED · LEAVE THE SIGHTLINE',color:'#ffd388',warning:1.65,duration:1.05},
  'aquatic-gaze':{id:'gaze',effect:'eyes',name:'BIOLUMINESCENT LANCE',hint:'EYE LOCKED · SWIM CLEAR OF THE SIGHTLINE',color:'#92f4ec',warning:1.8,duration:.95},
  lance:{id:'lance',effect:'eyes',name:'ION LANCE',hint:'CANNON LOCKED · LEAVE THE SIGHTLINE',color:'#b6baff',warning:1.8,duration:1.1},
@@ -2301,7 +2302,7 @@ function explorationBossVariation(stage,index){
  const spec=stage.biosphere.boss,seed=speciesHash(stage.id+':guardian191'),shape=organicAnatomyProgram(spec.genome),winged=spec.organic&&stage.medium==='air'&&['drake','sailwing','skimmer','moth'].includes(shape),silken=spec.organic&&stage.medium==='air'&&['mantis','razorcrab','beetle','crab','trilobite','moth'].includes(shape);
  const cold=spec.genome.protection==='cryo'||stage.worldIdentity?.climate==='ice',hot=stage.atmosphere?.heat>.5||!!stage.stellar;
  const family=!spec.organic?'machine':cold?'ice':stage.medium==='water'?'water':hot?'fire':'air';
- const pool=stage.bossKind==='cathedral'?['siege']:!spec.organic?['ion-sweep','lance','ion-mine',...(stage.environment==='high-atmosphere'||stage.stellar||stage.gravityWell?['volley']:[])]:stage.medium==='water'?['tidal-pressure','abyssal-maw','pressure','aquatic-gaze']:[...(winged?['furnace-gale','sonic']:['brood-tempest']),...(silken?['silk']:[]),'gaze',...(stage.gravityWell||stage.stellar?['volley']:[])];
+ const pool=stage.bossKind==='cathedral'?['siege']:!spec.organic?['ion-sweep','lance','ion-mine',...(stage.environment==='high-atmosphere'||stage.stellar||stage.gravityWell?['volley']:[])]:stage.medium==='water'?(cold?['crystal','tidal-pressure','pressure','aquatic-gaze']:['tidal-pressure','abyssal-maw','pressure','aquatic-gaze']):[...(cold?['crystal']:[]),...(winged?['furnace-gale','sonic']:['brood-tempest']),...(silken?['silk']:[]),'gaze',...(stage.gravityWell||stage.stellar?['volley']:[])];
  const offset=seed%pool.length,step=pool.length===4&&((seed>>>5)&1)?3:1,deck=Array.from({length:Math.min(3,pool.length)},(_,i)=>pool[(offset+i*step)%pool.length]);
  const palette=EXPLORATION_PALETTES[family][(seed>>>7)%5],shade=.94+((seed>>>12)%13)/100,shift=((seed>>>17)%9)-4;
  const preserve=!!spec.authoredAsset||!!guardianPalettes[stage.id]||stage.capitalHull==='shipyard';
@@ -2310,7 +2311,7 @@ function explorationBossVariation(stage,index){
   flight:['orbit','sweep','sentinel'][seed%3],pace:.92+((seed>>>4)%5)*.04,
   siege:['precision','barrage','hunters'][index%3]};
 }
-for(const [index,stage] of expedition.stages.entries()){stage.bossVariation=explorationBossVariation(stage,index);stage.revision+=1+(stage.bossVariation.deck.includes('volley')||stage.id==='eventide-aureus-corona'?1:0)+(stage.bossVariation.deck.some(k=>BOSS_ARSENALS[k].effect==='sonic')||stage.id==='eventide-aureus-corona'?1:0);}
+for(const [index,stage] of expedition.stages.entries()){stage.bossVariation=explorationBossVariation(stage,index);stage.revision+=(stage.bossVariation.deck.includes('crystal')?1:0)+1+(stage.bossVariation.deck.includes('volley')||stage.id==='eventide-aureus-corona'?1:0)+(stage.bossVariation.deck.some(k=>BOSS_ARSENALS[k].effect==='sonic')||stage.id==='eventide-aureus-corona'?1:0);}
 freezeContent(expedition.locations);
 const campaign=freezeContent(validateLevels(expedition.stages));
 const CAMPAIGN_VERSION=contentReleases.map(r=>r.id+'@'+r.version).join('|')+'|'+campaign.map(l=>l.id+'@'+l.revision).join('|');

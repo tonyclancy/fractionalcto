@@ -433,3 +433,15 @@ body.game-expanded{overscroll-behavior:none}
 @container (max-height:450px){.overlay.flight-retry{padding:12px}.retry-card{padding:16px;gap:16px;max-width:610px}.retry-emblem{width:60px;height:60px;font-size:38px}.retry-card h2{margin:7px 0;font-size:25px}.retry-hint{font-size:12px;margin:0 0 9px}.retry-restored{padding:7px 0}.retry-kept{margin:8px 0;font-size:11px}.retry-card .primary{padding:10px 14px}}
 @container (max-width:480px){.retry-card{padding:16px;gap:0}.retry-emblem{display:none}.retry-card .eyebrow{font-size:10px}.retry-restored{gap:16px}}
 .overlay.flight-retry,.console:is(:fullscreen,.native-fullscreen,.expanded) .overlay.flight-retry{z-index:17}
+
+/* Tactical receipts share one readable lane with mission instructions. */
+.stage:has(.flight-objective:not([hidden])) #announcement{visibility:hidden}
+@media(pointer:coarse),(max-width:680px),(max-width:960px) and (max-height:600px){
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .flight-objective{top:calc(env(safe-area-inset-top,0px) + 64px);left:calc(env(safe-area-inset-left,0px) + 14px);max-width:min(440px,68%)}
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .stage:has(#bossbar:not([hidden])) .flight-objective{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 76px)}
+}
+@media(pointer:coarse) and (orientation:portrait),(max-width:680px) and (orientation:portrait){
+ .console:is(:fullscreen,.native-fullscreen,.expanded) .flight-objective{top:calc(env(safe-area-inset-top,0px) + 154px);max-width:calc(100% - 28px)}
+}
+
+.mission-target.compact-discovery{width:auto;max-width:calc(100% - 100px);padding:6px 10px;text-align:left;border:0;border-left:2px solid #a3edd8;border-radius:0;background:#071d28b8}.mission-target.compact-discovery strong{font-size:11px;letter-spacing:.04em}.mission-target.compact-discovery span{font-size:11px}

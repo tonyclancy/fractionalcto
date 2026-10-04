@@ -66,7 +66,6 @@ function drawTideEncounter(b){const t=b.tide;if(!t)return;ctx.save();
   if(t.phase==='hold')for(let arm=0;arm<3;arm++){ctx.beginPath();for(let j=0;j<28;j++){const u=j/27,r=22+u*175,a=u*4+b.age*2+arm*TAU/3,x=p.x+Math.cos(a)*r,y=p.y+Math.sin(a)*r;j?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.strokeStyle='#88dfd6';ctx.globalAlpha=.16;ctx.lineWidth=1.6;ctx.stroke();ctx.globalAlpha=1;}
   if(t.phase==='release'){const r=30+t.age*185,gap=tideRingGap(p,b);ctx.beginPath();ctx.arc(p.x,p.y,r,gap+.7,gap+TAU-.7);ctx.strokeStyle='#b9fff1';ctx.lineWidth=9;ctx.globalAlpha=.8;ctx.stroke();ctx.lineWidth=2;ctx.strokeStyle='#f0fff9';ctx.stroke();ctx.globalAlpha=1;}
  }
- // Armor state is readable on the actual dorsal organs, not a giant bubble.
- for(const local of TIDE_ORGANS){const m=bossMount(b,local);orb(m.x,m.y,b.exposed>0?17:8,b.exposed>0?'#ffc176':'#87d9d2',.55+.2*Math.sin(b.age*5));}
+ // The creature's native eyelids/gill covers open during mantle recovery.
  ctx.restore();
 }

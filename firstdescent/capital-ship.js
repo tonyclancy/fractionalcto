@@ -283,7 +283,7 @@ function capitalSiegeHint(b){
  if(special)return special.kind==='purge'?'THRUSTER IGNITION · CLEAR THE EXHAUST':'CAPACITOR DISCHARGE · FOLLOW THE DARK GAP';
  if(s.stage==='batteries')return 'STABILIZER PODS · '+s.nodes.slice(0,2).filter(n=>n.hp>0).length+' REMAIN';
  if(s.nodes.some(n=>capitalNodeActive(b,n)&&n.recovery>0))return 'MACHINERY OVERHEATED · LAND FOLLOW-UP SHOTS FOR EXTRA DAMAGE';
- if(s.stage==='core')return 'COMMAND CORE EXPOSED · ATTACK THE BOW';
+ if(s.stage==='core')return 'COMMAND CORE OPEN · ATTACK THE BOW';
  const node=s.nodes[2],p=capitalNodePosition(b,node),tip=bossMount(b,[node.local[0]+20,node.local[1],node.local[2]]),dx=tip.x-p.x,dy=tip.y-p.y;
  if(Math.abs(dx)<Math.hypot(dx,dy)*.7||['turn','resetTurn'].includes(s.maneuver?.stage))return 'AFT REACTOR · FOLLOW THE STERN AS IT TURNS';
  const direction=dx>0?-1:1;
@@ -349,7 +349,11 @@ function hitCapitalSection(s,limit=1,start){
  let node=null,tNode=Infinity;
  for(const n of b.siege.nodes){if(n.hp<=0)continue;const t=capitalNodeIntersection(b,n,a,z,s.r||0);if(t<tNode){tNode=t;node=n;}}
  if(node&&tNode<=limit&&tNode<=hull+.015){
-  if(capitalNodeActive(b,node)&&capitalShotSideAllowed(b,node,s,a))capitalDamageNode(b,node,bossDamage(s.damage)*1.25*capitalSectionDamageScale(node));
+  if(capitalNodeActive(b,node)&&capitalShotSideAllowed(b,node,s,a)){
+   const scale=capitalSectionDamageScale(node);capitalDamageNode(b,node,bossDamage(s.damage)*1.25*scale);
+   if(scale>1&&!(node.coreImpact>0))node.coreImpact=.16;
+   if(scale>1&&typeof openingRoleFeedback==='function'&&(!openingFeedback||time-openingFeedback.at>1.5))openingRoleFeedback('weak',capitalNodePosition(b,node));
+  }
   else terrainImpact(a.x+(z.x-a.x)*tNode,a.y+(z.y-a.y)*tNode,s.vx,s.vy);
   return true;
  }
@@ -592,7 +596,7 @@ function drawCapitalSiege(b){
   if(active){
    const above=n.id==='dorsal'||n.id==='core',yy=clamp(p.y+(above?-1:1)*(n.radius+22),35,H-40),label=n.id==='dorsal'?'UPPER STABILIZER':n.id==='ventral'?'LOWER STABILIZER':n.id==='reactor'?'AFT REACTOR':'COMMAND CORE';
    const nearHeader=above&&yy<125,barY=nearHeader?Math.max(138,p.y-15):yy,labelY=barY+(above?-9:19),labelX=clamp(p.x+(nearHeader?n.radius+118:0),86,W-86);
-   if(n.recovery>0)orb(p.x,p.y,n.radius*.7,'#93ffdd',.28+.1*Math.sin(b.age*14));
+   drawPearlCore({...p,r:Math.min(28,n.radius*.55)},n.coreAperture??(capitalSectionDamageScale(n)>1?1:0),'machine',pose.roll,1,n.coreImpact);
    ctx.fillStyle='rgba(3,15,23,.87)';ctx.fillRect(labelX-81,labelY-13,162,19);
    ctx.font='bold 12px "DM Sans",sans-serif';ctx.fillStyle='#d4fff0';ctx.fillText(n.sabotage>0?'JAMMED · FIRE':n.recovery>0?'OVERHEATED · FIRE':label,labelX,labelY);
    healthBar(labelX,barY,92,n.hp,n.max,'#8fffd5');

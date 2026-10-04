@@ -15,7 +15,7 @@ function migrateStoryVictories(){for(const m of STORY_ROUTE.slice(0,2))if(origin
 function storyIndex(){return flightRun?.story===STORY_DEFINITION.id?STORY_ROUTE.findIndex(m=>m.id===sectors[level].id):-1;}
 function storyActive(){return storyIndex()>=0;}
 function storyNextLevel(){const next=STORY_ROUTE[storyIndex()+1];return next?sectors.findIndex(s=>s.id===next.id):-1;}
-function prepareStoryMission(){const i=storyIndex();storyMission=i<0?null:{index:i,done:0,charge:0,node:null,guardian:false,complete:false,age:0,extract:null,relayEchoes:[],bossPhase:-1,pendingPhase:false};if(i>=0){if(flightRun.storyEngineer===undefined)flightRun.storyEngineer=i>1&&relayStore.snapshot().unlocked;const kind=STORY_ROUTE[i].kind;if(kind==='seal')window.gpuModels?.prepare([0,1,2,3].map(archiveIceMesh).concat([archiveFragmentMesh(),storyMesh('relay')]),sectors[level].id);if(kind==='relay')window.gpuModels?.prepare([0,1,2].map(sunkenCarrierMesh),sectors[level].id);if(kind==='furnace'){prepareStoryDestination();window.gpuModels?.prepare([furnaceCouplingMesh(false),furnaceCouplingMesh(true)],sectors[level].id);}if(kind==='extraction')prepareStoryPortal();if(kind!=='guardian')window.gpuModels?.prepare([storyMesh(kind==='extraction'?'beacon':kind),...(['relay','furnace'].includes(kind)?[storyMesh(kind).rotor]:[]),...(kind==='extraction'?[storyMesh('raider'),storyMesh('carrier')]:[])],sectors[level].id);}}
+function prepareStoryMission(){const i=storyIndex();storyMission=i<0?null:{index:i,done:0,charge:0,node:null,guardian:false,complete:false,age:0,extract:null,relayEchoes:[],bossPhase:-1,pendingPhase:false};if(i>=0){if(flightRun.storyEngineer===undefined)flightRun.storyEngineer=i>1&&relayStore.snapshot().unlocked;const kind=STORY_ROUTE[i].kind;if(kind==='seal')window.gpuModels?.prepare([0,1,2,3].map(archiveIceMesh).concat([archiveFragmentMesh(),storyMesh('relay')]),sectors[level].id);if(kind==='furnace'){prepareStoryDestination();window.gpuModels?.prepare([furnaceCouplingMesh(false),furnaceCouplingMesh(true)],sectors[level].id);}if(kind==='extraction')prepareStoryPortal();if(kind!=='guardian')window.gpuModels?.prepare([storyMesh(kind==='extraction'?'beacon':kind),...(['relay','furnace'].includes(kind)?[storyMesh(kind).rotor]:[]),...(kind==='extraction'?[storyMesh('raider'),storyMesh('carrier')]:[])],sectors[level].id);}}
 function storyCheckpoint(){if(!storyActive()||!storyMission)return null;return{index:storyMission.index,done:storyMission.done,guardian:storyMission.guardian,complete:storyMission.complete,reward:storyMission.reward,engineer:!!flightRun.storyEngineer,extract:!!storyMission.extract};}
 function restoreStoryCheckpoint(saved){if(!storyActive()||saved?.index!==storyIndex())return;storyMission.done=Math.max(0,Math.min(3,saved.done||0));storyMission.guardian=!!saved.guardian;storyMission.complete=!!saved.complete;storyMission.reward=saved.reward;flightRun.storyEngineer=!!saved.engineer;if(saved.guardian){bossDefeated=true;transition=4;time=Math.max(time,sectors[level].duration+.01);world=time*SCROLL_SPEED;}if(saved.extract&&!saved.complete)beginStoryExtraction();}
 function storyObjective(){const m=storyMission,d=STORY_ROUTE[storyIndex()];if(!d||!m)return '';if(m.complete)return 'SIGNAL SHARD SECURED · ROUTE UPDATED';if(m.extract){const e=m.extract;return e.returning&&e.returnAge>=storyPilotCrossingAge()?`EXPEDITION SAFE · WELCOME HOME`:e.returning&&e.returnAge>=storyPilotLaunchAge()?`EXPEDITION 5/5 SAFE · HEADING HOME`:e.returning?`RESCUING EXPEDITION ${e.evacuated}/5 · FRIENDLY CARRIERS · WEAPONS SAFE`:`DEFEND PORTAL · SAVE YOUR PEOPLE · ${e.age>=32?'CLEAR THE APPROACH':Math.ceil(32-e.age)+'s'} · INTEGRITY ${e.hp}/${e.max}${e.engineer&&!e.repaired?' · ENGINEER ON STANDBY':''}`;}
@@ -43,13 +43,13 @@ function updateStoryBoss(b){
  // or chain all three windows together when the seals were collected early.
  if(archive?.openings>0&&m.age>=archive.nextOpening&&!bossPatternBusy(b)&&!b.recovery&&!b.exposed&&!b.eyeAttack&&!b.pressureFollowup&&!b.comboSteps?.length&&!b.broodWatch){
   archive.openings--;archive.nextOpening=m.age+14;b.exposed=3;b.recovery=3;holdBossSalvo(b);
-  announce('ARCHIVE LINK · SENTINEL EXPOSED','AIM AT THE GLOWING CORE · 3 SECONDS',2);window.flightAudio?.archiveCue?.('opening',b.x);
+  announce('ARCHIVE LINK · CORE OPEN','AIM INSIDE THE OPENING · 3 SECONDS',2);window.flightAudio?.archiveCue?.('opening',b.x);
  }
  if(phase!==m.bossPhase){if(m.bossPhase>=0)m.pendingPhase=true;m.bossPhase=phase;}
  // Keep the existing authored attacks. Explain the change only in a clear gap.
  if(!m.pendingPhase||bossPatternBusy(b)||b.recovery||b.siege||isTideEncounter())return;
  m.pendingPhase=false;
- if(storyBenefits().telemetry){b.exposed=Math.max(b.exposed||0,2.8);b.recovery=Math.max(b.recovery||0,2.8);announce('ARCHIVE TELEMETRY · OPENING FOUND','ALIGN WITH THE GLOWING WEAK POINT · ATTACK NOW',2);window.flightAudio?.engineerCue?.('link',b.x);}
+ if(storyBenefits().telemetry){b.exposed=Math.max(b.exposed||0,2.8);b.recovery=Math.max(b.recovery||0,2.8);announce('ARCHIVE TELEMETRY · OPENING FOUND','AIM INSIDE THE OPENING · ATTACK NOW',2);window.flightAudio?.engineerCue?.('link',b.x);}
  else announce(`${STORY_ROUTE[m.index].world.toUpperCase()} GUARDIAN · ${phase===2?'FINAL ASSAULT':'PATTERN CHANGING'}`,bossEncounterHint(b),2);
 }
 function repairStoryBeacon(e){
@@ -144,7 +144,7 @@ function storyCombatSectors(){
  storyCombatDefinitions=Object.freeze(campaign.map(d=>{
   const i=STORY_ROUTE.findIndex(m=>m.id===d.id);if(i<0)return d;
   const waves=i<2?d.waves:Object.freeze(Array.from({length:counts[i]},(_,n)=>+(3+(d.duration-8.5)*Math.pow(n/(counts[i]-1),.84)).toFixed(3)));
-  return Object.freeze({...d,bossVariation:null,...(i===4?{arsenal:'silk'}:{}),...(i===5?{encounterProfile:{...bossEncounterProfile(d),signature:'ORIGIN LOCKDOWN'}}:{}),difficulty:difficulty[i],enemyHealthScale:health[i],waves,pacing:Object.freeze({...d.pacing,maxActiveEnemies:caps[i]}),flankWaves:Object.freeze(d.flankWaves.filter(n=>n<waves.length)),broodWaves:Object.freeze(d.broodWaves.filter(n=>n<waves.length))});
+  return Object.freeze({...d,bossVariation:null,...(i===3?{arsenal:'crystal'}:{}),...(i===4?{arsenal:'silk'}:{}),...(i===5?{encounterProfile:{...bossEncounterProfile(d),signature:'ORIGIN LOCKDOWN'}}:{}),difficulty:difficulty[i],enemyHealthScale:health[i],waves,pacing:Object.freeze({...d.pacing,maxActiveEnemies:caps[i]}),flankWaves:Object.freeze(d.flankWaves.filter(n=>n<waves.length)),broodWaves:Object.freeze(d.broodWaves.filter(n=>n<waves.length))});
  }));return storyCombatDefinitions;
 }
 const storyTargetCache={mission:null,time:-1,node:null,raiders:null,count:-1,dirty:false,list:[]};
@@ -181,7 +181,7 @@ function finishStoryNode(){
  const title=kind==='seal'?`ARCHIVE ${m.done}/3 RECOVERED`:kind==='furnace'?`GATE POWER ${m.done}/3`:`RELAY ${m.done}/3 CONNECTED`;
  const benefit=kind==='seal'?'BOSS PHASE OPENINGS REVEALED':kind==='furnace'?'RESCUE GATE POWERED · HULL GUARD 3s':'SURVIVORS LOCATED · FINAL PORTAL +2 INTEGRITY';
  if(kind==='relay'&&m.done===3){annTimer=0;$('#announcement').style.opacity=0;}
- else announce(title,kind==='relay'?['SONAR ONLINE · THREATS MARKED','DEFENSE PULSE · ESCORTS JAMMED','FIVE CARRIERS FOUND · FINAL PORTAL +2'][m.done-1]:m.done===3?benefit:kind==='furnace'?'ENERGY ROUTED · HULL GUARD 3s':'ICE BURST · MOVE BETWEEN THE MARKED RAYS',2);saveCheckpoint();
+ else announce(title,kind==='relay'?['SONAR ONLINE · HULL READINGS AVAILABLE','DEFENSE PULSE · ESCORTS JAMMED','FIVE CARRIERS FOUND · FINAL PORTAL +2'][m.done-1]:m.done===3?benefit:kind==='furnace'?'ENERGY ROUTED · HULL GUARD 3s':'ICE BURST · MOVE BETWEEN THE MARKED RAYS',2);saveCheckpoint();
 }
 // Shared interaction rule: simulation-time progress, a deliberate action,
 // forgiving loss of progress on leaving, and exactly one completion boundary.
@@ -400,47 +400,12 @@ function updateSunkenRelay(m,dt){
  }
  net.sources=net.sources.filter(p=>m.age-p.at<10);
 }
-const sunkenCarrierHolograms=[];
-function sunkenCarrierMesh(variant=0){
- if(!sunkenCarrierHolograms[variant])sunkenCarrierHolograms[variant]=storyCarrierMesh(variant).map(f=>({...f,c:f.c.map((c,i)=>c*.35+[50,165,180][i]*.65),em:.25}));
- return sunkenCarrierHolograms[variant];
-}
 function drawSunkenNetwork(m){
  const net=m.network;if(!net)return;ctx.save();
  for(const p of net.sources){
-  const age=m.age-p.at,fade=clamp((10-age)/2,0,1),r=age*620;
-  ctx.globalAlpha=fade;ctx.strokeStyle=p.number===2?'#c0efff':'#79e8da';
-  if(age<2.8){ctx.lineWidth=2;ctx.globalAlpha=fade*.5*(1-age/2.8);ctx.beginPath();ctx.arc(p.x,p.y,r,0,TAU);ctx.stroke();ctx.lineWidth=9;ctx.globalAlpha*=.14;ctx.stroke();}
-  // A lit circuit carries moving packets to the next relay, not a full-screen flash.
-  const target=p.number===3?{x:W*.66,y:H*.25}:m.node||{x:Math.min(W-120,p.x+300),y:p.y-90};
-  const u=clamp(age/.85,0,1),dx=target.x-p.x,dy=target.y-p.y;
-  ctx.globalAlpha=fade*.35;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+dx*u,p.y+dy*u);ctx.stroke();
-  ctx.fillStyle='#cbfff4';ctx.globalAlpha=fade*.8;
-  for(let i=0;i<4;i++){const t=(age*.5+i/4)%1;if(t>u)continue;ctx.beginPath();ctx.arc(p.x+dx*t,p.y+dy*t,2,0,TAU);ctx.fill();}
-  ctx.beginPath();ctx.arc(p.x,p.y,8,0,TAU);ctx.fill();
- }
- for(const e of enemies){
-  const jam=Math.max(0,(e.relayJammedUntil||0)-time),scan=Math.max(0,(e.relayRevealedUntil||0)-time);if(e.hp<=0||!jam&&!scan)continue;
-  const r=Math.max(24,Math.min(65,(e.r||25)+12));ctx.globalAlpha=Math.min(1,Math.max(jam,scan));ctx.strokeStyle=jam?'#d8f4ff':'#8cffe0';ctx.lineWidth=1.6;
-  for(const sx of [-1,1])for(const sy of [-1,1]){ctx.beginPath();ctx.moveTo(e.x+sx*(r-9),e.y+sy*r);ctx.lineTo(e.x+sx*r,e.y+sy*r);ctx.lineTo(e.x+sx*r,e.y+sy*(r-9));ctx.stroke();}
-  if(jam){ctx.beginPath();ctx.arc(e.x,e.y,r+7,-Math.PI/2,-Math.PI/2+TAU*clamp(jam/6,0,1));ctx.stroke();}
-  else if(e.shotWindup){ctx.globalAlpha*=.35;ctx.setLineDash([5,9]);ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.shotWindup.targetX,e.shotWindup.targetY);ctx.stroke();ctx.setLineDash([]);}
- }
- if(net.discoveryAt!==undefined){
-  const age=m.age-net.discoveryAt,alpha=clamp(age/.65,0,1)*clamp((8-age)/1.5,0,1);
-  if(alpha>0){
-   // Five real carrier silhouettes materialize inside a projected transmission.
-   const x=W*.66,y=H*.25,w=340,h=110;ctx.globalAlpha=alpha;
-   ctx.fillStyle='#062332ce';ctx.fillRect(x-w/2,y-h/2,w,h);ctx.strokeStyle='#88e8de';ctx.lineWidth=1;
-   for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(x+side*w/2,y-h/2+14);ctx.lineTo(x+side*w/2,y-h/2);ctx.lineTo(x+side*(w/2-24),y-h/2);ctx.stroke();}
-   for(let i=0;i<5;i++){
-    const u=clamp((age-i*.25)/.5,0,1);ctx.globalAlpha=alpha*u*.85;
-    drawModel(sunkenCarrierMesh(i%3),x+(i-2)*59,y+Math.abs(i-2)*8,.62,0,.1,0,m.age,0);
-   }
-   window.gpuModels?.flush(ctx);ctx.globalAlpha=alpha*.2;ctx.strokeStyle='#b8ffef';
-   for(let i=0;i<8;i++){const sy=y-h/2+(i*19+age*24)%h;ctx.beginPath();ctx.moveTo(x-w/2,sy);ctx.lineTo(x+w/2,sy);ctx.stroke();}
-
-  }
+  const age=m.age-p.at;if(age>=2.8)continue;
+  ctx.strokeStyle=p.number===2?'#c0efff':'#79e8da';ctx.lineWidth=2;
+  ctx.globalAlpha=.28*(1-age/2.8);ctx.beginPath();ctx.arc(p.x,p.y,age*620,0,TAU);ctx.stroke();
  }
  ctx.restore();
 }
@@ -637,20 +602,21 @@ function storyInteractionHint(){
   if(a.discoveryAt!==undefined&&m.age-a.discoveryAt<8)return{n:{x:W*.66,y:H*.25-25},title:'ROUTE TO EVENTIDE',action:'Gate found · Power offline',discovery:true};
  }
 
- if(storyActive()&&storyMission?.network?.discoveryAt!==undefined&&storyMission.age-storyMission.network.discoveryAt<8)return{n:{x:W*.66,y:H*.25-65},title:'5 CARRIERS FOUND',action:'Alive in Eventide · Portal +2',discovery:true};
+ if(storyActive()&&storyMission?.network?.discoveryAt!==undefined&&storyMission.age-storyMission.network.discoveryAt<4.5)return{n:{x:W/2,y:0},title:'5 CARRIERS LOCATED',action:'Eventide · Portal integrity +2',discovery:true,compact:true};
  if(!storyActive()||!storyMission?.node)return null;const m=storyMission,n=m.node,kind=STORY_ROUTE[m.index].kind,seal=kind==='seal',near=Math.hypot(ship.x-n.x,ship.y-n.y)<112;
  return{n,title:seal?'BREAK THE ARCHIVE SEAL':kind==='furnace'?'POWER THE RESCUE GATE':'CONNECT THE RELAY',action:seal?'Shoot the crystal':near?'Stay in the ring':'Enter the ring',progress:clamp(seal?1-n.hp/42:m.charge/1.5,0,1),count:m.done};
 }
 function updateStoryInteractionHUD(){
  const marker=$('#missionTarget');if(!marker)return;const hint=storyInteractionHint(),visible=!!hint&&state==='playing'&&!sectorBlend&&!storyMission.complete&&hint.n.x>0&&hint.n.x<W;marker.hidden=!visible;if(!visible)return;
- hudText('#missionTarget strong',hint.title);hudText('#missionTarget span',hint.discovery?hint.action:hint.action+' · '+hint.count+'/3'+(STORY_ROUTE[storyIndex()]?.kind==='relay'?' · '+['Sonar','Disrupt','Locate'][hint.count]:''));hudElement('#missionTarget .mission-link-progress').hidden=!!hint.discovery;hudWidth('#missionTarget i',Math.round((hint.progress||0)*100)+'%');
+ marker.classList.toggle('compact-discovery',!!hint.compact);hudText('#missionTarget strong',hint.title);hudText('#missionTarget span',hint.discovery?hint.action:hint.action+' · '+hint.count+'/3'+(STORY_ROUTE[storyIndex()]?.kind==='relay'?' · '+['Sonar','Disrupt','Locate'][hint.count]:''));hudElement('#missionTarget .mission-link-progress').hidden=!!hint.discovery;hudWidth('#missionTarget i',Math.round((hint.progress||0)*100)+'%');
  positionStoryInteractionMarker();
 }
 function positionStoryInteractionMarker(){
- const marker=hudElement('#missionTarget'),m=storyMission,n=storyInteractionHint()?.n;
+ const marker=hudElement('#missionTarget'),m=storyMission,hint=storyInteractionHint(),n=hint?.n;
  if(!marker||marker.hidden)return;
  if(!n||state!=='playing'||sectorBlend||m.complete||n.x<=0||n.x>=W){marker.hidden=true;return;}
  const b=readFlightMarkerLayout();if(!b)return;
+ if(hint.compact){marker.style.transform=`translate3d(${b.left+12}px,${b.top+b.height-62}px,0)`;return;}
  const x=b.left+clamp(n.x/W*b.width,105,b.width-105),y=b.top+clamp((n.y+135)/H*b.height,35,b.height-74);
  marker.style.transform=`translate3d(${x}px,${y}px,0) translateX(-50%)`;
 }
@@ -677,57 +643,57 @@ function storyHomingTarget(s,target){for(const e of storyTargets())if(e.hp>0&&(e
 const OPENING_MISSIONS=Object.freeze([
  {bossAt:52,waves:[
   {at:3,count:2,type:1,center:330,formation:'line'},
-  {at:7,count:3,type:1,center:460,formation:'wedge'},
-  {at:11,count:2,type:1,center:300,formation:'line',side:'left'},
+  {at:7,count:1,type:2,center:380,formation:'line',aimed:true,role:'suppressor',teach:true},
+  {at:11,count:2,type:1,center:300,formation:'line',side:'left',role:'flanker',teach:true},
   {at:14,count:3,type:3,center:470,formation:'line',aimed:true},
-  {at:18,count:3,type:1,center:260,formation:'wedge',aimed:true},
-  {at:21,count:4,type:1,center:460,formation:'wedge',aimed:true},
-  {at:24,count:3,type:2,center:320,formation:'line',elite:'hunter'},
-  {at:34,count:4,type:1,center:280,formation:'wedge',aimed:true},
-  {at:36,count:3,type:1,center:490,formation:'line',side:'left',aimed:true},
-  {at:39,count:3,type:3,center:300,formation:'line',aimed:true},
-  {at:41,count:3,type:1,center:470,formation:'line',side:'left',aimed:true},
-  {at:44,count:4,type:1,center:380,formation:'wedge',elite:'ace',aimed:true},
+  {at:18,count:2,type:2,center:260,formation:'wedge',aimed:true,role:'suppressor'},
+  {at:21,count:3,type:1,center:460,formation:'wedge',aimed:true},
+  {at:24,count:2,type:3,center:320,formation:'line',aimed:true},
+  {at:34,count:2,type:2,center:280,formation:'wedge',aimed:true,role:'suppressor'},
+  {at:38,count:2,type:1,center:490,formation:'line',side:'left',aimed:true,role:'flanker'},
+  {at:42,count:3,type:1,center:380,formation:'wedge',elite:'ace',aimed:true},
   {at:48,count:3,type:3,center:250,formation:'line',aimed:true}
  ],beats:[
   {at:0,title:'FOLLOW THE SIGNAL',detail:'Recover the first coordinates · move to dodge · weapons fire automatically'},
-  {at:9,title:'CONTACT BEHIND YOU',detail:'Space / double tap to face left · clear the rear formation'},
-  {at:17,title:'CLOUDBREAK',detail:'Keep moving across the aimed bursts'},
+  {at:7,title:'READ THE AIM',detail:'Leave the amber sightline · hit it while it charges to interrupt'},
+  {at:11,title:'CONTACT BEHIND YOU',detail:'Space / double tap to face left · clear the rear formation'},
+  {at:17,title:'COUNTERATTACK',detail:'Blue barrels charge · break their aim or move clear'},
   {at:29,title:'CHANNEL CLEAR',detail:'Collect supplies for weapons and protection · prepare for the counterattack'},
   {at:33,title:'CROSSWIND AMBUSH',detail:'Attackers on both sides · turn to meet them'},
   {at:50,title:'GUARDIAN APPROACHING',detail:'Dodge its charge · flip and attack the opening'}
  ]},
  {waves:[
   {at:3,count:2,type:0,center:380,formation:'line'},
-  {at:7,count:3,type:0,center:260,formation:'wedge'},
+  {at:7,count:3,type:0,center:260,formation:'wedge',role:'coordinator',teach:true},
   {at:10,count:3,type:2,center:480,formation:'line',aimed:true},
-  {at:13,count:3,type:0,center:320,formation:'line',aimed:true},
+  {at:13,count:1,type:2,center:320,formation:'line',aimed:true,role:'suppressor'},
   {at:16,count:2,type:0,center:530,formation:'line'},
-  {at:29,count:3,type:0,center:260,formation:'wedge',aimed:true},
-  {at:32,count:3,type:2,center:460,formation:'line',aimed:true},
-  {at:35,count:3,type:0,center:340,formation:'wedge',aimed:true},
-  {at:39,count:3,type:2,center:480,formation:'line',aimed:true},
-  {at:42,count:3,type:0,center:280,formation:'line',side:'left',aimed:true},
-  {at:45,count:4,type:0,center:390,formation:'wedge',elite:'hunter',aimed:true},
-  {at:50,count:2,type:2,center:300,formation:'line',aimed:true}
+  {at:35,count:2,type:2,center:380,formation:'split',aimed:true,role:'suppressor'},
+  {at:40,count:3,type:0,center:340,formation:'wedge',aimed:true,role:'coordinator'},
+  {at:45,count:2,type:0,center:280,formation:'line',side:'left',aimed:true,role:'flanker'},
+  {at:50,count:2,type:2,center:380,formation:'split',aimed:true,role:'suppressor'}
  ],beats:[
   {at:0,title:'ENTER THE FOUNDRY',detail:'Recover the route to Orison · reach the Dreadnought'},
   {at:16,title:'ANSWER THE DISTRESS CALL',detail:'Optional rescue · enter the green ring · gain a sabotage drone'},
-  {at:30,title:'PRESSURE LOCKDOWN',detail:'Amber vents warn before firing · pass through the cool gaps'},
+  {at:30,title:'WATCH THE VENTS',detail:'Amber glow · jet · cool gap. Cross after the burst.'},
+  {at:35,title:'BREAK THEIR AIM',detail:'Staggered charges · interrupt one or move off its sightline'},
   {at:49,title:'DREADNOUGHT APPROACHING',detail:'Break both stabilizers · then circle behind the reactor'}
  ]}
 ].map(p=>Object.freeze({...p,times:Object.freeze(p.waves.map(w=>w.at))})));
 function openingMissionPlan(){const i=storyIndex();return i===0||i===1?OPENING_MISSIONS[i]:null;}
 function openingMissionBeat(){const plan=openingMissionPlan();return plan?Math.max(0,plan.beats.findLastIndex(b=>time>=b.at)):-1;}
 function openingMissionTask(){
- const plan=openingMissionPlan();if(!plan||storyMission?.complete)return null;
+ if(storyMission?.complete)return null;
+ const feedback=typeof openingFeedbackTask==='function'?openingFeedbackTask():null;if(feedback)return feedback;
+ const plan=openingMissionPlan();if(!plan)return null;
+ if(storyIndex()===1&&time>=7&&time<13)return {title:'BREAK THE FORMATION',detail:'Amber leader protects its escorts · destroy it to disrupt their weapons'};
  if(boss){if(boss.siege)return {title:'DISMANTLE THE DREADNOUGHT',detail:capitalSiegeHint(boss)};return {title:boss.exposed>0?'COUNTERATTACK NOW':'DEFEAT THE SKY GUARDIAN',detail:bossEncounterHint(boss)};}
  if(storyIndex()===1&&time>=16&&time<30){const m=ferrumMission;return m?.boarded?{title:'ENGINEER ABOARD',detail:'Drone jams one boss weapon · attack its green opening'}:m?.status==='missed'?{title:'DISTRESS CALL PASSED',detail:'Rescue optional · the route remains open'}:plan.beats[1];}
  return plan.beats[openingMissionBeat()];
 }
 function updateOpeningMissionHUD(){
  updateOpeningRescueMarker();updateStoryInteractionHUD();
- const el=$('#flightObjective');if(!el)return;const task=openingMissionTask()||(typeof worldBehaviorTask==='function'?worldBehaviorTask():null),visible=!!task&&state==='playing'&&!sectorBlend&&!bossDefeated&&!boss&&annTimer<=0;
+ const el=$('#flightObjective');if(!el)return;const feedback=typeof openingFeedbackTask==='function'&&!!openingFeedbackTask();const task=openingMissionTask()||(typeof worldBehaviorTask==='function'?worldBehaviorTask():null),visible=!!task&&state==='playing'&&!sectorBlend&&!bossDefeated&&(!boss||feedback)&&(annTimer<=0||feedback);
  el.hidden=!visible;if(!visible)return;
  hudText('#flightObjectiveTitle',task.title);hudText('#flightObjectiveDetail',task.detail);
 }
@@ -768,6 +734,7 @@ function updateOpeningMission(){
  const plan=openingMissionPlan(),m=storyMission;if(!plan||!m||m.complete)return;
  const f=m.opening||(m.opening={beat:-1,jets:null,previous:{x:ship.x,y:ship.y,time},retired:false});
  const beat=openingMissionBeat();if(beat!==f.beat){f.beat=beat;const b=plan.beats[beat];if(beat>0&&!(storyIndex()===1&&beat===1)&&!boss)announce(b.title,b.detail,1);}
+ if(storyIndex()===0&&time>=29&&!f.recoveryClear){f.recoveryClear=true;beginEnemyRetreat();}
  if(storyIndex()===1&&time>=19&&!f.rescueClear){f.rescueClear=true;beginEnemyRetreat();}
  if(time>=(storyIndex()===0?50:49)&&!f.retired){f.retired=true;beginEnemyRetreat();}
  if(storyIndex()===1&&!boss&&time>=30&&time<sectors[level].duration){
@@ -1304,7 +1271,7 @@ function originEyes(b){
  const eye=sockets.reduce((near,p)=>rotateVertex(p,pose.yaw,pose.roll,pose.pitch,0,0)[2]<rotateVertex(near,pose.yaw,pose.roll,pose.pitch,0,0)[2]?p:near);
  return[bossMount(b,eye)];
 }
-function originGuardianHint(b){const g=b.origin,a=g?.attack;if(!a)return b.exposed>0?'CORE EXPOSED · ATTACK NOW':'GATE LOCKS '+(g?.phase||0)+'/3 · WATCH ITS EYES AND WINGS';return a.kind==='eyes'?'EYES LOCKED · LEAVE THE AMBER SIGHTLINES':a.kind==='sonic'?'WINGS COMPRESSING · MOVE TO THE MINT OPENING':'PLASMA BARRAGE · SIDESTEP THE AIM, THEN WEAVE';}
+function originGuardianHint(b){const g=b.origin,a=g?.attack;if(!a)return b.exposed>0?'CARAPACE OPEN · ATTACK NOW':'GATE LOCKS '+(g?.phase||0)+'/3 · WATCH ITS EYES AND WINGS';return a.kind==='eyes'?'EYES LOCKED · LEAVE THE AMBER SIGHTLINES':a.kind==='sonic'?'WINGS COMPRESSING · MOVE TO THE MINT OPENING':'PLASMA BARRAGE · SIDESTEP THE AIM, THEN WEAVE';}
 function beginOriginAttack(b,kind){
  const g=originGuardianState(b),warning=kind==='eyes'?1.65:kind==='sonic'?1.8:1.6;
  const a={kind,age:0,warning,duration:kind==='eyes'?1.15:kind==='sonic'?4.9:2.1,origin:{x:b.x,y:b.y},target:{x:ship.x,y:ship.y},fired:false};

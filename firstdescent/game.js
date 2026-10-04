@@ -190,7 +190,7 @@ function bossDamage(amount){return amount/(sectors[level].bossArmor||1);}
 const waveTimes=sectors.map(s=>s.waves),gatePlans=sectors.map(s=>s.obstacles),supplyPlans=sectors.map(s=>s.supplies);
 function flightBossTime(){return (typeof openingMissionPlan==='function'&&openingMissionPlan()?.bossAt)||sectors[level].duration;}
 function flightWaveTimes(){return typeof openingMissionPlan==='function'&&openingMissionPlan()?.times||(storyActive()?sectors[level].waves:waveTimes[level]);}
-function flightAuthoredWave(index){return (typeof openingMissionPlan==='function'&&openingMissionPlan()?.waves||sectors[level].encounterWaves)?.[index];}
+function flightAuthoredWave(index){return (typeof campaignTacticalWave==='function'&&campaignTacticalWave(index))||(typeof openingMissionPlan==='function'&&openingMissionPlan()?.waves||sectors[level].encounterWaves)?.[index];}
 const SCROLL_SPEED=100;
 const weaponNames={pulse:'PULSE',spread:'STARFIRE',beam:'ION LANCE',helix:'HELIX',wave:'PHOTON WAVE',missile:'SEEKER'};
 let ship={x:210,y:380,hp:5,inv:0,shield:0,frontShield:0,frontFlash:0};const keys=new Set();let pointer=null,lastTouchTap=null,pinchGesture=null;const touchContacts=new Map();
@@ -206,7 +206,7 @@ function background(dt){drawBackdrop(dt)}
 function drawBaseShip(x,y,scale=1,preview=false){ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);const tilt=preview?Math.sin(world*.005)*.03:(keys.has('ArrowUp')||keys.has('w'))?-.09:(keys.has('ArrowDown')||keys.has('s'))?.09:0;ctx.rotate(tilt);
 orb(-44,0,67,'#26e5dd',.4);glow('#6af9da',20);poly([[-32,-8],[-75-rand(0,25),0],[-32,8]],'#6effdd');poly([[-36,-4],[-85-rand(0,20),0],[-36,4]],'#effff5');noGlow();
 poly([[-27,-11],[-43,-36],[-14,-30],[18,-9]],'#356272','#94b8ba');poly([[-27,11],[-43,36],[-14,30],[18,9]],'#203e51','#6e9da7');poly([[-35,-16],[2,-21],[55,0],[2,21],[-35,16],[-20,0]],'#8babb4','#e7fafa');poly([[-21,-11],[9,-14],[55,0],[-2,4]],'#d2e5e4');poly([[-5,5],[55,0],[4,19],[-28,13]],'#486777');poly([[0,-9],[20,-4],[28,0],[2,2],[-8,-3]],'#102c41','#68f8ef');glow('#7afee3',10);poly([[2,-6],[17,-3],[19,-1],[2,-1]],'#81ffe8');ctx.fillStyle='#81ffe8';ctx.fillRect(-28,-23,14,3);ctx.fillRect(-28,20,14,3);noGlow();ctx.restore()}
-function enemyShape(e){drawEnemy(e)}
+function enemyShape(e){drawEnemy(e);if(typeof drawOpeningRole==='function')drawOpeningRole(e)}
 function drawBoss(){if(boss)drawMenace(boss)}
 function drawBossLayer(){
  drawBoss();
@@ -258,7 +258,7 @@ function beginDescent(target,mode='exploration'){
  if(window.safariImmersion?.request(launch))return;void ensureGameFullscreen();launch();
 }
 function start(target=0,mode='exploration'){flightLaunchToken++;sectors=mode==='story'?storyCombatSectors():campaign;campaignPrologue=null;campaignBriefView=null;$('#overlay').classList.remove('loading-flight','story-prologue','campaign-intro','universe-atlas','origin-log','story-transmission','story-journey','flight-retry');originRecovery=null;originFinalePending=false;const recoveryPanel=$('#originRecoveryPanel');if(recoveryPanel){recoveryPanel.hidden=true;recoveryPanel.classList.remove('story-recovery');}rescueCharge=0;weaponOrb={owned:false,flash:0};pilotTurn={angle:0,target:0};beginFlightRun();if(mode==='story'&&typeof STORY_DEFINITION!=='undefined'){flightRun.story=STORY_DEFINITION.id;flightRun.storyOwner=storyStore.account();}if(target>0)flightRun.scope='mission-resume';frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=Number.isInteger(target)&&target>=0&&target<sectors.length?target:0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:1,frontShield:0,frontFlash:0};if(typeof applyRelayLoadout==='function')applyRelayLoadout();resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();if(typeof storyActive==='function'&&storyActive())announce(STORY_ROUTE[storyIndex()].title,storyObjective());else announce(expedition.locations[sectors[level].id].destinationName,sectors[level].name);updateHUD()}
-function resetSector(deferPreparation=false){if(typeof resetWorldBehavior==='function')resetWorldBehavior();annTimer=0;annPriority=0;$('#announcement').style.opacity=0;originRecovery=null;originFinalePending=false;const recoveryPanel=$('#originRecoveryPanel');if(recoveryPanel){recoveryPanel.hidden=true;recoveryPanel.classList.remove('story-recovery');}flash=0;shake=0;if(sectors[level].stellar)requestStellarPhotosphere();resetWaterWakes();trimSectorArt(sectors[level],sectors[typeof storyActive==='function'&&storyActive()?storyNextLevel():level+1]);if(!deferPreparation)prepareSectorArt(sectors[level]);queueSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;ship.silk=ship.silkGrace=0;challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setEnvironment?.(sectors[level].medium,sectors[level].theme,sectors[level].environment,sectors[level].worldIdentity);window.flightAudio?.setSector(sectors[level].music,sectors[level].id,{kind:bossIndex(),organic:bossOrganic(),anatomy:bossDesign()?.mesh.anatomyProgram||sectors[level].biosphere?.boss.anatomy,habitat:sectors[level].medium,seed:sectors[level].biosphere?.boss.genome?.seed,protection:sectors[level].biosphere?.boss.genome?.protection});window.flightAudio?.setBossApproach?.(0);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];pickupEffects=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.edgeBounceX=ship.edgeBounceY=null;ship.protectionKind='arrival';ship.inv=3;if(typeof prepareFerrumMission==='function')prepareFerrumMission();if(typeof prepareStoryMission==='function')prepareStoryMission();saveCheckpoint();updateHUD()}
+function resetSector(deferPreparation=false){if(typeof resetOpeningTactics==='function')resetOpeningTactics();if(typeof resetWorldBehavior==='function')resetWorldBehavior();annTimer=0;annPriority=0;$('#announcement').style.opacity=0;originRecovery=null;originFinalePending=false;const recoveryPanel=$('#originRecoveryPanel');if(recoveryPanel){recoveryPanel.hidden=true;recoveryPanel.classList.remove('story-recovery');}flash=0;shake=0;if(sectors[level].stellar)requestStellarPhotosphere();resetWaterWakes();trimSectorArt(sectors[level],sectors[typeof storyActive==='function'&&storyActive()?storyNextLevel():level+1]);if(!deferPreparation)prepareSectorArt(sectors[level]);queueSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;ship.silk=ship.silkGrace=0;challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setEnvironment?.(sectors[level].medium,sectors[level].theme,sectors[level].environment,sectors[level].worldIdentity);window.flightAudio?.setSector(sectors[level].music,sectors[level].id,{kind:bossIndex(),organic:bossOrganic(),anatomy:bossDesign()?.mesh.anatomyProgram||sectors[level].biosphere?.boss.anatomy,habitat:sectors[level].medium,seed:sectors[level].biosphere?.boss.genome?.seed,protection:sectors[level].biosphere?.boss.genome?.protection});window.flightAudio?.setBossApproach?.(0);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];pickupEffects=[];waveIndex=0;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.edgeBounceX=ship.edgeBounceY=null;ship.protectionKind='arrival';ship.inv=3;if(typeof prepareFerrumMission==='function')prepareFerrumMission();if(typeof prepareStoryMission==='function')prepareStoryMission();saveCheckpoint();updateHUD()}
 function panel(title,description,label,action){$('#overlay').classList.remove('loading-flight','story-prologue','campaign-intro','hidden','records-view','title-screen','universe-atlas','origin-log','story-transmission','story-journey','flight-retry');$('#overlay').innerHTML=`<div class="intro"><div class="eyebrow mint">FIRST DESCENT / FLIGHT RECORD</div><h1 class="result-title">${title}</h1><p class="introcopy">${description}</p><button class="primary" id="panelAction">${label}<span>↗</span></button><div class="launch-caption">SCORE ${String(score).padStart(6,'0')} · ${expedition.locations[sectors[level].id].systemName} · SECTOR ${systemStageProgress(expedition.locations[sectors[level].id]).number} / ${systemStageProgress(expedition.locations[sectors[level].id]).total}</div></div>`;$('#panelAction').onclick=action;$('#panelAction').focus()}
 function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause);if(typeof storyActive==='function'&&storyActive()){const button=document.createElement('button');button.textContent='MISSION ROUTE';button.onclick=()=>showStoryMap(true);$('#overlay').append(button);}}else if(state==='paused'){enableAudio();const resume=()=>{state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus();updateHUD();};if(window.safariImmersion?.request(resume))return;void ensureGameFullscreen();resume()}updateHUD()}
 // Only the hit that actually removed hull supplies the defeat explanation.
@@ -392,6 +392,19 @@ function bossShotContactTime(b,x,y,endX,endY,r){
  }
  return first;
 }
+// Aligned rounds cross the silhouette and strike the visible organ itself.
+// A miss or covered opening still collides with the normal armor volumes.
+function bossVisibleShotContactTime(b,s,oldX,oldY,endX,endY){
+ const body=bossShotContactTime(b,oldX,oldY,endX,endY,s.r);
+ if(body>1||!bossOrganic())return body;
+ const weak=bossWeakPoint(b)||(isTideEncounter()&&b.exposed>0&&b.coreAperture>=.55?bossWeakPointMount(b):null);
+ if(!weak||weak.visibility!==undefined&&weak.visibility<.18)return body;
+ const dx=endX-oldX,dy=endY-oldY,length=Math.hypot(dx,dy);if(length<.0001)return body;
+ const ux=dx/length,uy=dy/length,lateral=Math.abs((weak.x-oldX)*uy-(weak.y-oldY)*ux);
+ if(weak.forward[0]*ux+weak.forward[1]*uy>=-.12||lateral>weak.r+(s.r||0))return body;
+ const along=(weak.x-oldX)*ux+(weak.y-oldY)*uy,t=along/length;
+ return t<0?body:t<=1?t:Infinity;
+}
 function resolvePlayerShot(s,oldX,oldY){
  const endX=s.x,endY=s.y,dx=endX-oldX,dy=endY-oldY,terrain=shotTerrainHit(oldX,oldY,s);
  const terrainTime=terrain?(Math.abs(dx)>Math.abs(dy)?(terrain.x-oldX)/dx:dy?(terrain.y-oldY)/dy:0):Infinity;
@@ -403,7 +416,7 @@ function resolvePlayerShot(s,oldX,oldY){
    if(t<first){first=t;target=e;}
   }
   const obstructionTime=first;
-  if(boss&&!s.seen.has(boss)){const t=bossShotContactTime(boss,oldX,oldY,endX,endY,s.r);if(t<first){first=t;target=boss;}}
+  if(boss&&!s.seen.has(boss)){const t=bossVisibleShotContactTime(boss,s,oldX,oldY,endX,endY);if(t<first){first=t;target=boss;}}
   // Special organs/sections use the same segment and may intercept only
   // before a nearer enemy or wall. Capital sections own their hull ordering.
   s.x=endX;s.y=endY;
@@ -412,7 +425,7 @@ function resolvePlayerShot(s,oldX,oldY){
   if(!target){if(terrain){terrainImpact(terrain.x,terrain.y,s.vx,s.vy);reactTerrainImpact(terrain.x,terrain.y);s.spent=true;}break;}
   s.x=oldX+dx*first;s.y=oldY+dy*first;
   if(target.worldTarget){hitWorldBehavior(s,target);}else if(objectives.includes(target)){storyHitTarget(s,target);}
-  else if(target===boss){const multiplier=encounterDamage(boss,s);boss.hp-=bossDamage(s.damage)*multiplier;boss.hit=multiplier>1?.16:.055;s.seen.add(boss);combatImpact(s,boss,multiplier>1?'weak':'armor');s.spent=true;}
+  else if(target===boss){const multiplier=encounterDamage(boss,s);boss.hp-=bossDamage(s.damage)*multiplier;boss.hit=multiplier>1?0:.055;s.seen.add(boss);combatImpact(s,boss,multiplier>1?'weak':'armor');s.spent=true;}
   else hitEnemyWithShot(s,target);
  }
  if(!s.spent){s.x=endX;s.y=endY;}
@@ -437,7 +450,7 @@ function resolveHostileContact(b,oldX,oldY,oldShipX=ship.x,oldShipY=ship.y){
 // formation at full damage. Ordinary rounds are consumed at their first hit.
 function hitEnemyWithShot(s,e){
  if(s.spent||e.hp<=0||s.seen.has(e))return false;
- e.hp-=s.damage;e.hit=.12;s.seen.add(e);combatImpact(s,e,isOrganicEnemy(e)?'organic':'metal');
+ e.hp-=typeof openingRoleDamage==='function'?openingRoleDamage(s,e):s.damage;e.hit=.12;s.seen.add(e);combatImpact(s,e,isOrganicEnemy(e)?'organic':'metal');
  if(e.hp<=0)kill(e);
  if(!s.beam||s.seen.size>=3)s.spent=true;
  else s.damage*=.6;
@@ -467,16 +480,31 @@ function spawn(){
 
  const i=waveIndex,eliteInterval=sectors[level].systemChallenge?.eliteWaveInterval||10,elite=authored?(authored.elite||null):i===11?'hunter':sectors[level].flankWaves?.includes(i)?'ace':i%eliteInterval===Math.min(7,eliteInterval-1)?(Math.floor(i/eliteInterval)%2?'hunter':'ace'):null,type=authored?.type??(elite==='hunter'?2:elite==='ace'?0:sectors[level].roster[i%sectors[level].roster.length]),center=authored?.center??sectors[level].routes[(i+Math.floor(difficulty())*2)%sectors[level].routes.length],count=Math.min(slots,authored?.count??(elite?3:i<2?2:4+(difficulty()>0?1:0)));
  for(let n=0;n<count;n++){const leader=n===0?elite:null,memberType=elite&&n>0?0:type,offset=i%3===0?(n-(count-1)/2)*52:i%3===1?Math.sin(n*1.15)*75:(n%2?1:-1)*Math.ceil(n/2)*42,y=clamp(center+offset,100,H-100),hp=([7,9,22,13][memberType]+difficulty()*3)*(leader?2.5:1)*(sectors[level].enemyHealthScale||1);
- const placedY=authored?clamp(center+(authored.formation==='wedge'?Math.abs(n-(count-1)/2)*76:(n-(count-1)/2)*64),100,H-100):y;
- const enemy={x:W+180+n*96,y:placedY,base:placedY,type:memberType,elite:leader,aimedFire:(n===0||(storyActive()&&i>=6&&n===count-1))&&(authored?!!authored.aimed:i>=2&&i%3!==1),pressureFire:n===0&&i>=2&&(authored?!!authored.aimed||!!leader:i%3!==1||!!leader),wave:i,hp,max:hp,hit:0,age:0,phase:i*.45+n*.16,shoot:((leader?.9:1.5)+n*.38)*COMBAT_BALANCE.enemyCadence,speed:([220,180,130,205][memberType]+difficulty()*17)*(leader==='ace'?1.55:1)*(1+Math.min(i,20)*.018)*COMBAT_BALANCE.enemySpeed,r:memberType===2?39:31};prepareEnemyEntry(enemy,i,n);enemies.push(enemy);}
+ const placedY=authored?clamp(center+(authored.formation==='split'?(n-(count-1)/2)*260:authored.formation==='wedge'?Math.abs(n-(count-1)/2)*76:(n-(count-1)/2)*64),100,H-100):y;
+ const enemy={x:W+180+n*96,y:placedY,base:placedY,type:memberType,elite:leader,aimedFire:(n===0||(storyActive()&&i>=6&&n===count-1))&&(authored?!!authored.aimed:i>=2&&i%3!==1),pressureFire:n===0&&i>=2&&(authored?!!authored.aimed||!!leader:i%3!==1||!!leader),wave:i,hp,max:hp,hit:0,age:0,phase:i*.45+n*.16,shoot:((leader?.9:1.5)+n*.38)*COMBAT_BALANCE.enemyCadence,speed:([220,180,130,205][memberType]+difficulty()*17)*(leader==='ace'?1.55:1)*(1+Math.min(i,20)*.018)*COMBAT_BALANCE.enemySpeed,r:memberType===2?39:31};prepareEnemyEntry(enemy,i,n);if(typeof configureOpeningRole==='function')configureOpeningRole(enemy,authored,n);enemies.push(enemy);}
 }
 // Short, directional impacts at the contact point. Unlike explosions these
 // never generate expanding rings or shake the whole scene on every bullet.
 function combatImpact(s,target,kind='metal'){
+ if(kind==='weak'&&target===boss&&typeof openingRoleFeedback==='function'&&(!openingFeedback||time-openingFeedback.at>1.5))openingRoleFeedback('weak',target);
  const weak=kind==='weak',armored=kind==='armor',organic=kind==='organic';
+ // Event-relative and bounded: only a confirmed bonus hit wakes the tissue.
  const dx=(s.x??target.x)-target.x,dy=(s.y??target.y)-target.y,d=Math.hypot(dx,dy)||1,r=target===boss?Infinity:(target.r||31)*(target.depth||1),scale=Math.min(1,r/d);
- const x=target.x+dx*scale,y=target.y+dy*scale,angle=Math.atan2(-(s.vy||0),-(s.vx||1));
- const count=weak?9:armored?3:5;
+ let x=target.x+dx*scale,y=target.y+dy*scale;const angle=Math.atan2(-(s.vy||0),-(s.vx||1));
+ if(weak&&target===boss){
+  const organ=bossWeakPoint(boss)||(isTideEncounter()&&boss.exposed>0?bossWeakPointMount(boss):null);
+  if(organ){
+   const speed=Math.hypot(s.vx||1,s.vy||0),ux=(s.vx||1)/speed,uy=(s.vy||0)/speed;
+   // Project the contact ray onto the visible tissue, preserving its aim.
+   const lateral=clamp((x-organ.x)*-uy+(y-organ.y)*ux,-organ.r*.45,organ.r*.45);
+   const tx=organ.x-uy*lateral,ty=organ.y+ux*lateral,distance=Math.hypot(tx-x,ty-y);
+   if(distance>3&&!bossOrganic()){particles.push({x:tx,y:ty,fromX:x,fromY:y,owner:boss,offsetX:tx-boss.x,offsetY:ty-boss.y,vx:0,vy:0,life:.075,max:.075,c:s.c||'#c3fff0',r:1.3,penetration:true});}
+   x=tx;y=ty;
+  }
+ }
+ if(weak&&target===boss){target.coreImpactDuration=bossOrganic()?.14:.16;target.coreImpact=target.coreImpactDuration;}
+ // Living organs recoil and light from within; metal sparks belong to machinery.
+ const count=weak&&target===boss&&bossOrganic()?0:weak?9:armored?3:5;
  for(let i=0;i<count;i++){const a=angle+(i/(count-1)-.5)*2.2,v=(weak?145:85)+i*17,life=weak?.22:armored?.10:.15;
   particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life,max:life,c:weak?'#fff0b3':armored?'#8eafb9':organic?(i%2?'#b5dec8':'#e4f9da'):(i%2?'#ffce87':'#e9faff'),r:weak?2.4:1.6,spark:true});
  }
@@ -499,8 +527,9 @@ function updateEnemyWeapon(e,dt){
  const visible=e.x>45&&e.x<W-45&&e.y>35&&e.y<H-35&&(!e.entry||e.age>1.0);
  if(!visible){e.shotWindup=null;return;}
  if(!e.shotWindup&&e.shoot<=0){
+  if(e.openingRole==='suppressor'&&typeof openingWeaponReady==='function'&&!openingWeaponReady(e))return;
   if(Math.hypot(e.x-ship.x,e.y-ship.y)<COMBAT_BALANCE.enemyShotClearance)return;
-  e.shotWindup={age:0,targetX:ship.x,targetY:ship.y,fired:0,next:COMBAT_BALANCE.enemyWindup,count:e.pressureFire?((e.wave||0)>=12?3:2):1};
+  e.rolePressure=0;e.shotWindup={age:0,targetX:ship.x,targetY:ship.y,fired:0,next:typeof openingWeaponWarning==='function'?openingWeaponWarning(e):COMBAT_BALANCE.enemyWindup,count:(typeof openingWeaponCount==='function'?openingWeaponCount(e):null)??(e.pressureFire?((e.wave||0)>=12?3:2):1)};
  }
  const windup=e.shotWindup;if(!windup)return;
  windup.age+=dt;if(windup.age<windup.next)return;
@@ -510,7 +539,7 @@ function updateEnemyWeapon(e,dt){
  // Bound regular fire during overlapping formations; bosses retain their own patterns.
  if(hostile.length>=64){e.shotWindup=null;e.shoot=.65;return;}
  const angle=e.elite||e.aimedFire?Math.atan2(windup.targetY-rig.muzzleY,windup.targetX-rig.muzzleX):e.verticalTravel?rig.heading:(e.direction===1?0:Math.PI);
- const kind=e.elite==='hunter'?'seeker':rig.organic?organicShotKind(e):'bolt';
+ const kind=e.openingRole==='suppressor'?'bolt':e.elite==='hunter'?'seeker':rig.organic?organicShotKind(e):'bolt';
  hostile.push({x:rig.muzzleX,y:rig.muzzleY,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:7,c:sectors[level].color,kind,launchAngle:angle});
  e.muzzle=.16;windup.fired++;windup.next+=sectors[level].medium==='water'?.24:.20;
  if(windup.fired>=windup.count){e.shotWindup=null;
@@ -642,7 +671,7 @@ function enemyDefeatReward(e){
  return e.elite?750:e.type===2?300:150;
 }
 function bossClearReward(){return 3000+Math.round((sectors[level].systemChallenge?.progress||0)*1500);}
-function kill(e){const reward=enemyDefeatReward(e);score+=reward;if(reward)kills++;explode(e.x,e.y,isOrganicEnemy(e)?'#98ffc5':'#ffb26a',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));updateHUD()}
+function kill(e){if(typeof openingRoleDefeated==='function')openingRoleDefeated(e);const reward=enemyDefeatReward(e);score+=reward;if(reward)kills++;explode(e.x,e.y,isOrganicEnemy(e)?'#98ffc5':'#ffb26a',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));updateHUD()}
 function pickupUseful(type){
  if(['spread','beam','helix','wave','missile'].includes(type))return weapon!==type||power<3;
  switch(type){
@@ -779,8 +808,8 @@ const oldShipX=ship.x,oldShipY=ship.y;
 updateShipMovement(dt);
 updatePilotTurn(dt);if(fireClock<=0&&(typeof playerWeaponsActive==='function'?playerWeaponsActive():!bossDefeated)&&!shipTurning()){if(weaponOrb.owned)fire(orbPosition(),shipDirection(),true);else fire();fireClock=weapon==='missile'?.38:weapon==='wave'?.28:weapon==='beam'?.18:.13}
 updateStructures(dt);if(typeof updateWorldBehavior==='function')updateWorldBehavior(dt,oldShipX,oldShipY);if(state!=='playing')return;if(typeof updateStoryMission==='function')updateStoryMission(dt);if(state!=='playing')return;if(typeof updateFerrumMission==='function')updateFerrumMission(dt);const flare=stellarFlare();if(flare&&!flare.warning&&(flare.top?ship.y<flare.height:ship.y>H-flare.height))damage('environment');const storm=stormLane();if(storm&&!storm.warning&&Math.abs(ship.x-storm.x)<32)damage('environment');updateAcidClouds(dt);updateChallenge();while(waveIndex<flightWaveTimes().length&&time>=flightWaveTimes()[waveIndex]){spawn();waveIndex++}if(time>flightBossTime()&&!boss&&!bossDefeated){boss={x:W+180,y:H/2,r:sectors[level].bossRadius,hp:sectors[level].hp,max:sectors[level].hp,age:0,shoot:2,hit:0,special:3.5,charge:0};beginEnemyRetreat();announce('WARNING','MASSIVE HOSTILE SIGNATURE');$('#bossbar').hidden=false;$('#bossname').textContent=(sectors[level].id===ORIGIN_EXPEDITION.finalStage?'ORIGIN GUARDIAN · ':'')+sectors[level].boss;if(typeof isCapitalSiege==='function'&&isCapitalSiege(boss))initCapitalSiege(boss);beginBossEntry(boss);window.flightAudio?.bossEntrance?.()}
-for(const e of enemies){e.contactOldX=e.x;e.contactOldY=e.y;enemyKinematics(e,dt);if(typeof worldBehaviorFlow==='function')e.x+=worldBehaviorFlow(e.x,e.y)*dt*.7;e.muzzle=Math.max(0,(e.muzzle||0)-dt);e.hit=Math.max(0,e.hit-dt);updateEnemyWeapon(e,dt);if(e.hp>0&&pilotEnemyContact(e,oldShipX,oldShipY)){registerBodyImpact(e);if(!e.brood){explode(e.x,e.y,'#ffb48a',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));e.hp=0}}}
-const bossApproach=boss?1:clamp((time-(flightBossTime()-18))/18,0,1);window.flightAudio?.setBossApproach?.(bossApproach,!!boss);window.flightAudio?.setIntensity(boss?.96:Math.max(combatMusicPressure(),bossApproach*.82));if(boss){const b=boss;b.contactOldX=b.x;b.contactOldY=b.y;b.age+=dt;b.depth=1;b.muzzle=Math.max(0,(b.muzzle||0)-dt);if(b.entry){updateBossEntry(b,dt);}else{updateBossSpecial(b,dt);updateEncounter(b,dt);if(typeof updateStoryBoss==='function')updateStoryBoss(b);updateBossArms(b,dt);moveBoss(b,dt);updateBossWeapon(b,dt);}updateBossWingAudio(b);b.hit=Math.max(0,b.hit-dt);if(pilotBossContact(b,oldShipX,oldShipY))registerBodyImpact(b)}
+for(const e of enemies){e.contactOldX=e.x;e.contactOldY=e.y;enemyKinematics(e,dt);if(typeof openingRoleMotion==='function')openingRoleMotion(e,dt);if(typeof worldBehaviorFlow==='function')e.x+=worldBehaviorFlow(e.x,e.y)*dt*.7;e.muzzle=Math.max(0,(e.muzzle||0)-dt);e.hit=Math.max(0,e.hit-dt);updateEnemyWeapon(e,dt);if(e.hp>0&&pilotEnemyContact(e,oldShipX,oldShipY)){registerBodyImpact(e);if(!e.brood){explode(e.x,e.y,'#ffb48a',enemyExplosionSize(e),isOrganicEnemy(e),organicVoice(e));e.hp=0}}}
+const bossApproach=boss?1:clamp((time-(flightBossTime()-18))/18,0,1);window.flightAudio?.setBossApproach?.(bossApproach,!!boss);window.flightAudio?.setIntensity(boss?.96:Math.max(combatMusicPressure(),bossApproach*.82));if(boss){const b=boss;b.contactOldX=b.x;b.contactOldY=b.y;b.age+=dt;b.depth=1;b.muzzle=Math.max(0,(b.muzzle||0)-dt);if(b.entry){updateBossEntry(b,dt);}else{updateBossSpecial(b,dt);updateEncounter(b,dt);if(typeof updateStoryBoss==='function')updateStoryBoss(b);updateBossArms(b,dt);moveBoss(b,dt);updateBossWeapon(b,dt);}updateBossCorePresentation(b,dt);updateBossWingAudio(b);b.hit=Math.max(0,b.hit-dt);if(pilotBossContact(b,oldShipX,oldShipY))registerBodyImpact(b)}
 if(state!=='playing')return;
 updateWaterWakes(dt);
 for(const s of shots){const oldX=s.x,oldY=s.y;moveShot(s,dt);resolvePlayerShot(s,oldX,oldY);}compactActors(shots,keepPlayerShot);compactActors(enemies,keepEnemy);
@@ -796,8 +825,8 @@ function drawBossBackdropFocus(){
  const approach=boss?(boss.entry?clamp(boss.entry.age/boss.entry.duration,0,1):1):clamp((transition-3.5)/.5,0,1);
  ctx.save();ctx.fillStyle='rgba(2,8,16,'+(.18*approach)+')';ctx.fillRect(0,0,W,H);ctx.restore();
 }
-function render(dt){const actualWorld=world,rescueWorld=storyRescueWorld();if(rescueWorld!==null)world=rescueWorld;try{resizeFlightSurface();positionFlightMarkers();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();if(storyHomeSceneOpaque()){drawStoryHomecoming(storyMission.extract);return;}ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawBossBackdropFocus();drawStructures();if(typeof drawWorldBehavior==='function')drawWorldBehavior();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(campaignPrologueVisible())drawCampaignPrologueScene();else if(campaignBriefVisible())drawCampaignBriefScene();else if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();if(typeof drawFurnaceGate==='function')drawFurnaceGate();for(const e of enemies)enemyShape(e);drawBossLayer();if(typeof drawFerrumMission==='function')drawFerrumMission();if(typeof drawStoryMission==='function')drawStoryMission();for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();noGlow();if(state!=='gameover'&&!sectorBlend?.destination&&!storyPilotInCinematic()){drawShip(ship.x,ship.y);drawSilkSnare();drawPilotProtection();drawFrontShield();drawWeaponOrb();drawOrbCharge();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
-window.gpuModels?.flush(ctx);if(state!=='title'){drawExplosions(dt);if(!sectorBlend)drawNearField();if(!sectorBlend)drawWaterAtmosphere(true);if(!sectorBlend&&typeof drawOpeningMission==='function')drawOpeningMission();const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}drawOriginRecovery();drawPickupEffects();}ctx.restore();if(state!=='title'&&typeof drawFerrumSupport==='function')drawFerrumSupport();window.gpuModels?.flush(ctx);if(!sectorBlend&&storyActive())drawStoryHomecoming(storyMission?.extract);}finally{world=actualWorld;}}
+function render(dt){const actualWorld=world,rescueWorld=storyRescueWorld();if(rescueWorld!==null)world=rescueWorld;try{resizeFlightSurface();positionFlightMarkers();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();if(storyHomeSceneOpaque()){drawStoryHomecoming(storyMission.extract);return;}ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawBossBackdropFocus();drawStructures();if(typeof drawWorldBehavior==='function')drawWorldBehavior();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(campaignPrologueVisible())drawCampaignPrologueScene();else if(campaignBriefVisible())drawCampaignBriefScene();else if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();if(typeof drawFurnaceGate==='function')drawFurnaceGate();for(const e of enemies)enemyShape(e);drawBossLayer();if(typeof drawFerrumMission==='function')drawFerrumMission();if(typeof drawStoryMission==='function')drawStoryMission();for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();if(typeof drawOpeningTactics==='function')drawOpeningTactics();noGlow();if(state!=='gameover'&&!sectorBlend?.destination&&!storyPilotInCinematic()){drawShip(ship.x,ship.y);drawSilkSnare();drawPilotProtection();drawFrontShield();drawWeaponOrb();drawOrbCharge();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
+window.gpuModels?.flush(ctx);if(state!=='title'){drawExplosions(dt);if(!sectorBlend)drawNearField();if(!sectorBlend)drawWaterAtmosphere(true);if(!sectorBlend&&typeof drawOpeningMission==='function')drawOpeningMission();const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.penetration){drawTissueShot(p);}else if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}drawOriginRecovery();drawPickupEffects();}ctx.restore();if(state!=='title'&&typeof drawFerrumSupport==='function')drawFerrumSupport();window.gpuModels?.flush(ctx);if(!sectorBlend&&storyActive())drawStoryHomecoming(storyMission?.extract);}finally{world=actualWorld;}}
 let accumulator=0,frameError=null,musicUiClock=0,sectorArtPrefetched=false;
 const renderQualityLimit=matchMedia('(pointer: coarse)').matches?1:1.5;
 let renderScale=1,renderQuality=renderQualityLimit,surfaceWidth=W,surfaceDirty=true;

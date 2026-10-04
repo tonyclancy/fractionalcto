@@ -13,6 +13,27 @@ export const AUTHORED_ASSETS=Object.freeze({
  'needleling':{radius:75,habitat:'air',role:'escort'},
  'vesper-reaver':{radius:125,habitat:'air',role:'boss'}
 });
+// Enlarge the primary sensory organ in-place, including its own socket and
+// protective membrane. These are edits to native anatomy, not added geometry.
+export function prepareBossSensoryEyes(gltf,id){
+ if(!['vesper-reaver','rift-lantern'].includes(id))return;
+ const x=id==='vesper-reaver'?-37:-28,lids=[];gltf.scene.updateMatrixWorld(true);
+ gltf.scene.traverse(n=>{if(/^Sensory[_ ]shutter/.test(n.name)&&Math.abs(n.position.x-x)<.01)lids.push(n);});
+ const centers=lids.map(n=>new THREE.Vector3(n.position.x,n.position.y,n.position.z+Math.sign(n.position.z)*.2));
+ gltf.scene.traverse(n=>{
+  if(!n.isMesh||!(/Soft[_ ]tendon|Obsidian[_ ]lens|Amber[_ ]sensory[_ ]retina/.test(n.name)))return;
+  const positions=n.geometry.attributes.position,point=new THREE.Vector3(),lens=/Obsidian[_ ]lens/.test(n.name),colors=lens?new Float32Array(positions.count*3):null,base=n.material.color,eyeColor=new THREE.Color(id==='rift-lantern'?'#76bfa6':'#ceb076'),pupilColor=new THREE.Color('#172122');
+  for(let i=0;i<positions.count;i++){
+   point.fromBufferAttribute(positions,i);n.localToWorld(point);
+   const center=centers.find(c=>point.distanceTo(c)<2.8),pupil=center&&Math.abs(point.x-center.x)<.27;
+   if(center){point.sub(center).multiplyScalar(2.4).add(center);n.worldToLocal(point);positions.setXYZ(i,point.x,point.y,point.z);}
+   if(colors){const c=center?(pupil?pupilColor:eyeColor):base;colors.set([c.r,c.g,c.b],i*3);}
+  }
+  if(colors){n.material=n.material.clone();n.material.color.set('#ffffff');n.material.vertexColors=true;n.material.userData.sensoryLens=true;n.geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));}
+  positions.needsUpdate=true;n.geometry.computeVertexNormals();n.geometry.computeBoundingSphere();
+ });
+ for(const lid of lids)for(const cover of lid.children){cover.scale.multiplyScalar(2.4);cover.userData.primarySensory=true;}
+}
 export class AuthoredAssets {
  constructor(scene){this.scene=scene;this.assets=new Map();this.pending=new Map();this.loader=new GLTFLoader();this.pools=new Map();this.frame=0;this.errors=[];this.batches=new Map();this.batchedActors=0;}
  ready(ids){return ids.every(id=>!AUTHORED_ASSETS[id]||this.assets.has(id)||this.errors.includes(id));}
@@ -21,7 +42,7 @@ export class AuthoredAssets {
    if(this.ready([id]))return;
    if(this.pending.has(id))return this.pending.get(id);
    const task=(async()=>{
-    try{const url=new URL(`assets/models/${id}.glb?v=20260919-polish67`,import.meta.url);const buffer=await loadModelBuffer(url);const gltf=await this.loader.parseAsync(buffer,new URL('.',url).href);this.assets.set(id,gltf);}
+    try{const url=new URL(`assets/models/${id}.glb?v=20260919-polish67`,import.meta.url);const buffer=await loadModelBuffer(url);const gltf=await this.loader.parseAsync(buffer,new URL('.',url).href);prepareBossSensoryEyes(gltf,id);this.assets.set(id,gltf);}
     catch(error){this.errors.push(id);console.error('Authored model unavailable:',id,error);}
    })();
    this.pending.set(id,task);return task.finally(()=>this.pending.delete(id));
@@ -29,7 +50,7 @@ export class AuthoredAssets {
  }
  begin(){this.flush();this.frame++;this.batchedActors=0;for(const pool of this.pools.values()){pool.used=0;for(const item of pool.items)item.root.visible=false;}}
  flush(){for(const batch of this.batches.values()){batch.count=0;batch.object.count=0;batch.object.visible=false;}for(const pool of this.pools.values())for(const item of pool.items){item.root.visible=false;if(item.root.parent===this.scene)this.scene.remove(item.root);}}
- acquire(id,age,opacity,hit,order){
+ acquire(id,age,opacity,hit,order,exposure,coreImpact=0,coreOpening=0){
   const source=this.assets.get(id);if(!source)return null;
   let pool=this.pools.get(id);if(!pool){pool={used:0,items:[]};this.pools.set(id,pool);}
   let item=pool.items[pool.used++];
@@ -42,12 +63,23 @@ export class AuthoredAssets {
    });
    root.add(model);root.matrixAutoUpdate=false;root.visible=false;
    const mixer=new THREE.AnimationMixer(model);for(const clip of source.animations)mixer.clipAction(clip).play();
-   item={id,root,model,mixer,meshes,materials:[...materials.values()],lastUsed:this.frame};pool.items.push(item);
+   const sensoryLids=[];if(AUTHORED_ASSETS[id].role==='boss')model.traverse(node=>{if(/^Nictitating[_ ]cover/.test(node.name))sensoryLids.push({node,rest:node.position.clone(),scale:node.scale.clone()});});
+   item={id,root,model,mixer,meshes,sensoryLids,materials:[...materials.values()],lastUsed:this.frame};pool.items.push(item);
   }
   item.lastUsed=this.frame;item.opacity=opacity;item.order=order;const elapsed=age-(item.age??age);if(item.age===undefined||elapsed<0||elapsed>.2)item.mixer.setTime(age);else item.mixer.update(elapsed);item.age=age;
+  // The predator already has an eye beneath each nictitating membrane.
+  // Close that same tissue across the eye; retract it into the brow to expose
+  // the lens. Explicit rest transforms prevent pooled instances accumulating drift.
+  for(const lid of item.sensoryLids){
+   if(exposure===undefined){lid.node.position.copy(lid.rest);lid.node.scale.copy(lid.scale);continue;}
+   const amount=Math.max(0,Math.min(1,exposure)),open=amount*amount*(3-2*amount)*(1-coreImpact*.23),side=Math.sign(lid.node.parent.position.z)||1;
+   lid.node.position.copy(lid.rest);const size=lid.node.userData.primarySensory?2.4:1;lid.node.position.y=(open*1.4+.16*Math.sin(Math.PI*open)+open*.07*Math.sin(age*8.7+side*1.9))*size;lid.node.position.z=side*(.7-1.8*open)*size;
+   lid.node.scale.copy(lid.scale);lid.node.scale.y*=1.65;
+  }
   // A short warm sheen preserves material detail while automatic fire hits.
   const flash=hit>0&&age%.12<.022?.25:0;
-  item.flash=flash;for(const m of item.materials){m.transparent=opacity<.999;m.opacity=opacity;m.depthWrite=opacity>.96;m.emissive.copy(m.userData.baseEmission).addScalar(flash);m.emissiveIntensity=Math.max(m.userData.baseIntensity,flash?1:0);}
+  item.sensoryActive=exposure>0&&item.sensoryLids.length>0;
+  item.flash=Math.max(flash,coreImpact);for(const m of item.materials){m.transparent=opacity<.999;m.opacity=opacity;m.depthWrite=opacity>.96;m.emissive.copy(m.userData.baseEmission).addScalar(flash);const glint=m.userData.sensoryLens?coreOpening*.12+coreImpact*.38+(exposure||0)*(.012+.105*Math.pow(.5+.5*Math.sin(age*4.4),3)):0;m.emissive.r+=glint;m.emissive.g+=glint*.75;m.emissive.b+=glint*.5;m.emissiveIntensity=Math.max(m.userData.baseIntensity,flash||glint?1:0);}
   for(const node of item.meshes)node.renderOrder=order;
   return item;
  }
@@ -55,7 +87,7 @@ export class AuthoredAssets {
  // world transform to a bounded GPU instance batch. Fades/hit flashes keep the
  // ordinary material path so one actor never changes another actor's shading.
  submit(item){
-  if(item.root.matrix.determinant()<0||item.opacity<.999||item.flash||item.meshes.some(n=>n.isSkinnedMesh||Array.isArray(n.material))){item.root.visible=true;if(item.root.parent!==this.scene)this.scene.add(item.root);return;}
+  if(item.root.matrix.determinant()<0||item.opacity<.999||item.flash||item.sensoryActive||item.meshes.some(n=>n.isSkinnedMesh||Array.isArray(n.material))){item.root.visible=true;if(item.root.parent!==this.scene)this.scene.add(item.root);return;}
   item.root.updateMatrixWorld(true);
   for(let i=0;i<item.meshes.length;i++){
    const node=item.meshes[i],key=item.id+':'+i;

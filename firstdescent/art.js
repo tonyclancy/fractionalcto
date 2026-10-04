@@ -11,6 +11,9 @@ function loadArt(key){
  const img=new Image();img.decoding='async';img.onload=()=>{if(typeof surfaceDirty!=='undefined')surfaceDirty=true;if(key==='orisonLightning')prepareCloudLightning();queuePanoramaPreparation(key,img);};if(artCrops[key])img.solidCrop=artCrops[key];art[key]=img;img.src='assets/'+artFiles[key];if(key==='orisonGas')loadArt('orisonLightning');return img;
 }
 function queuePanoramaPreparation(key,image){
+ // Cached artwork can finish before the ordered game script defines sectors.
+ // Sector preparation will warm this image again after startup.
+ if(typeof sectors==='undefined'||typeof level==='undefined')return;
  const definitions=[sectors[level],sectors[typeof storyActive==='function'&&storyActive()?storyNextLevel():level+1],typeof campaignBriefView!=='undefined'?campaignBriefView?.definition:null];
  const definition=definitions.find(d=>d?.background===key);if(!definition)return;
  const prepare=()=>{if(art[key]===image&&imageReady(image))panoramaGeometry(image,!!definition.scrollAxis);};
@@ -355,9 +358,9 @@ function updateWaterWakes(dt){
   // so hovering in the scrolling camera still leaves a modest propulsive wake.
   if(Math.hypot(dx,dy)>100||actor.x< -80||actor.x>W+80)return;
   const pilot=actor===ship,vx=dx/dt+forward*(pilot?55:95),vy=dy/dt,speed=Math.hypot(vx,vy),effort=clamp(speed/440,.12,1),angle=Math.atan2(vy,vx);
-  track.clock+=dt;if(track.clock<.11-effort*.045)return;track.clock=0;
+  track.clock+=dt;if(track.clock<.18-effort*.04)return;track.clock=0;
   const ux=Math.cos(angle),uy=Math.sin(angle),seed=time*19+actor.y*.07;
-  waterWakes.push({x:actor.x-ux*size*.85,y:actor.y-uy*size*.85,vx:-ux*(pilot?18+effort*44:30+effort*60),vy:-uy*(pilot?18+effort*44:30+effort*60),angle,size,effort,seed,pilot,age:0,life:(pilot?.85:.65)+effort*.5});
+  waterWakes.push({x:actor.x-ux*size*.85,y:actor.y-uy*size*.85,vx:-ux*(pilot?18+effort*44:30+effort*60),vy:-uy*(pilot?18+effort*44:30+effort*60),angle,size,effort,seed,pilot,age:0,life:(pilot?.6:.45)+effort*.3});
  }
  trace(ship,28,shipDirection());
  for(const d of drops)if(!d.suppressed)trace(d,9,-1);
@@ -367,13 +370,13 @@ function updateWaterWakes(dt){
 }
 function drawWaterWakes(){
  if(sectors[level].medium!=='water')return;ctx.save();ctx.lineCap='round';
- for(const p of waterWakes){const fade=(1-p.age/p.life)**2,width=p.size*(.4+p.age*(p.pilot?1.05:.9)),length=18+p.effort*42+p.age*(p.pilot?18:30);
+ for(const p of waterWakes){const fade=(1-p.age/p.life)**2,width=p.size*(.4+p.age*(p.pilot?1.05:.9)),length=(12+p.effort*24+p.age*12)*(1+.12*Math.sin(p.seed));
   // A rotation-safe bound skips only turbulence entirely outside the view.
   const reach=Math.hypot(length,width)+6;if(p.x+reach<0||p.x-reach>W||p.y+reach<0||p.y-reach>H)continue;
-  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);ctx.globalAlpha=fade*(.22+p.effort*.28);ctx.strokeStyle='#b8e5dc';ctx.lineWidth=2.4;
-  // Disjoint edges share a stroke submission while retaining both curves.
-  ctx.beginPath();for(const side of [-1,1]){ctx.moveTo(3,side*width*.35);ctx.bezierCurveTo(-length*.3,side*width*.85,-length*.65,side*width,-length,side*width*.75);}ctx.stroke();
-  ctx.globalAlpha=fade*(.16+p.effort*.18);ctx.strokeStyle='#c9f5ec';ctx.lineWidth=.85;
+  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);ctx.globalAlpha=fade*Math.min(1,p.age/.08)*(.08+p.effort*.10);ctx.strokeStyle='#b8e5dc';ctx.lineWidth=1.2;
+  // A faint, alternating eddy avoids a repeated fishbone outline.
+  ctx.beginPath();for(const side of [Math.sin(p.seed)>0?1:-1]){ctx.moveTo(3,side*width*.35);ctx.bezierCurveTo(-length*.3,side*width*.85,-length*.65,side*width,-length,side*width*.75);}ctx.stroke();
+  ctx.globalAlpha=fade*(.06+p.effort*.08);ctx.strokeStyle='#c9f5ec';ctx.lineWidth=.85;
   for(let i=0;i<3;i++){const x=-length*(i/3+.1),y=Math.sin(p.seed+i*2.1+p.age*4)*width*.52,r=(1.3+i*.75)*(1+p.age*.5);ctx.beginPath();ctx.arc(x,y,r*.7,3.5+i*.22,5.1+i*.22);ctx.stroke();}
   ctx.restore();
  }ctx.restore();
@@ -630,7 +633,7 @@ if(isBoss&&bossDesign()){const d=bossDesign(),p=bossFlightPose(e),local=d.guns?d
  // The barrel is a separate articulated mount. Its local muzzle points along -X.
  const heading=isBoss&&e.fireHeading!=null?e.fireHeading:!isBoss&&!e.elite?(e.direction===1?0:Math.PI):Math.atan2(ship.y-y,ship.x-x),pitch=Math.atan2(Math.sin(heading-Math.PI),Math.cos(heading-Math.PI)),yaw=0;
  const v=rotateVertex([-29,0,0],yaw,0,pitch,0,0),f=460/(460+v[2]);return{organic,scale,yaw,pitch,x,y,heading,muzzleX:x+v[0]*f*scale,muzzleY:y+v[1]*f*scale}}
-function drawEmitter(e,isBoss=false){const r=firingRig(e,isBoss),pulse=Math.max(0,e.muzzle||0)/.16;if(!r.native){ctx.save();ctx.translate(r.x,r.y);ctx.scale(1,1+(r.organic?pulse*.22:0));drawModel(meshes[r.organic?'siphon':'cannon'],0,0,r.scale,r.yaw,0,r.pitch,e.age);ctx.restore();}if(!isBoss&&e.shotWindup){const charge=clamp(e.shotWindup.age/COMBAT_BALANCE.enemyWindup,0,1);orb(r.muzzleX,r.muzzleY,8+charge*10,r.organic?'#ffcf83':'#ffb36a',.35+charge*.5);}if(isBoss&&e.attack&&e.attack.age<.7){const charge=e.attack.age/.7;orb(r.muzzleX,r.muzzleY,12+charge*22,r.organic?'#b8ef89':'#ffd8a1',.2+charge*.5);}if(pulse>0)orb(r.muzzleX,r.muzzleY,12*r.scale,r.organic?'#b8ef89':'#ffd8a1',pulse*.55)}
+function drawEmitter(e,isBoss=false){const r=firingRig(e,isBoss),pulse=Math.max(0,e.muzzle||0)/.16;if(!r.native){ctx.save();ctx.translate(r.x,r.y);ctx.scale(1,1+(r.organic?pulse*.22:0));drawModel(meshes[r.organic?'siphon':'cannon'],0,0,r.scale,r.yaw,0,r.pitch,e.age);ctx.restore();}if(!isBoss&&e.shotWindup){const charge=clamp(e.shotWindup.age/(typeof openingWeaponWarning==='function'?openingWeaponWarning(e):COMBAT_BALANCE.enemyWindup),0,1);orb(r.muzzleX,r.muzzleY,8+charge*10,r.organic?'#ffcf83':'#ffb36a',.35+charge*.5);}if(isBoss&&e.attack&&e.attack.age<.7){const charge=e.attack.age/.7;orb(r.muzzleX,r.muzzleY,12+charge*22,r.organic?'#b8ef89':'#ffd8a1',.2+charge*.5);}if(pulse>0)orb(r.muzzleX,r.muzzleY,12*r.scale,r.organic?'#b8ef89':'#ffd8a1',pulse*.55)}
 // A complete roll around the hull's longitudinal axis; no scale changes.
 function mechanicalFlightRoll(e){
  const age=e.age+(e.phase||0)*.3;
@@ -680,7 +683,7 @@ function drawHabitatEquipment(e,yaw,roll,pitch){
 }
 function drawEnemy(e){
  if(e.x< -180||e.x>W+180||e.y< -180||e.y>H+180)return;
- const native=nativeSpeciesMesh(e);if(native?.nativeAnatomy){const p=speciesFlightPose(e);drawNativePropulsion(e,native,p);drawModel(native,e.x,e.y,p.scale,p.yaw,p.roll,p.pitch,p.age,e.hit);drawEmitter(e);if(e.brood||e.elite||e.hp<e.max)healthBar(e.x,e.y-(e.brood?85:e.r+24),e.brood?100:64,e.hp,e.max,isOrganicEnemy(e)?'#9cffc3':'#ffb797');return;}
+ const native=nativeSpeciesMesh(e);if(native?.nativeAnatomy){const p=speciesFlightPose(e);drawNativePropulsion(e,native,p);drawModel(native,e.x,e.y,p.scale,p.yaw,p.roll,p.pitch,p.age,e.hit);drawEmitter(e);if(e.brood||e.elite||e.hp<e.max||e.relayRevealedUntil>time)healthBar(e.x,e.y-(e.brood?85:e.r+24),e.brood?100:64,e.hp,e.max,isOrganicEnemy(e)?'#9cffc3':'#ffb797');return;}
  if(e.brood){const p=speciesFlightPose(e);drawModel(meshes[e.escortProfile?.model||'broodMother'],e.x,e.y,p.scale,p.yaw,p.roll,p.pitch,p.age,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'octopus');drawEmitter(e);healthBar(e.x,e.y-97,100,e.hp,e.max,'#b4f1b1');return}
  if(e.satellite){const a=e.age*TAU/.75+e.orbit;orb(e.x,e.y,23,'#80ffd5',.13);drawModel(meshes[e.escortProfile?.escort||'swarmlet'],e.x,e.y,e.escortProfile?.5:.82,e.travelYaw||0,a,e.travelPitch||0,e.age+e.phase,e.hit,e.escortProfile&&(!e.escortProfile.organic||e.escortProfile.rig==='appendages')?null:'squid');if(e.escortProfile)drawEmitter(e);if(e.hit>0)healthBar(e.x,e.y-30,32,e.hp,e.max,'#b4f1b1');return}
 
@@ -693,7 +696,7 @@ function drawEnemy(e){
  if(e.type===1&&e.stroke>.75){const p=projectHull([29,0,0],yaw,roll,pitch);orb(e.x+p.x+8,e.y+p.y,18,'#6cdbb2',(e.stroke-.75)*.5)}
  if(themeIndex()===2&&e.type===3&&!meshes[sectors[level].models[e.type]].fauna)for(const side of [-1,1]){const hinge=projectHull([0,side*12,0],yaw,roll,pitch),fold=side*(.4+Math.sin((e.age+e.phase)*9)*.85);drawModel(meshes.scarabWing,e.x+hinge.x,e.y+hinge.y,1,yaw,roll+(side===1?fold:Math.PI-fold),pitch,e.age,e.hit);}
  if(themeIndex()===1&&!organic)for(const side of [-1,1]){const mount=projectHull([28,side*(e.type===2?27:20),-10],yaw,roll,pitch),vector=clamp((e.travelPitch||0)*1.1,-.35,.35);drawModel(meshes.vectorEngine,e.x+mount.x,e.y+mount.y,1,yaw,roll,pitch+vector,e.age,e.hit);orb(e.x+mount.x+22,e.y+mount.y,13,'#ffb067',.3+(e.stroke||0)*.3);}
- drawEmitter(e);if(e.elite){ctx.save();ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle=e.elite==='hunter'?'#ffbc79':'#ff849f';ctx.fillText(e.elite==='hunter'?'MISSILE HUNTER':'ACE INTERCEPTOR',e.x,e.y-e.r-34);ctx.restore()}if(e.max>5&&(e.hp<e.max||e.elite))healthBar(e.x,e.y-e.r-24,e.elite?80:e.type===2?64:46,e.hp,e.max,e.hit>0?'#fff':organic?'#9cffc3':'#ffb797');
+ drawEmitter(e);if(e.elite){ctx.save();ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle=e.elite==='hunter'?'#ffbc79':'#ff849f';ctx.fillText(e.elite==='hunter'?'MISSILE HUNTER':'ACE INTERCEPTOR',e.x,e.y-e.r-34);ctx.restore()}if((e.max>5&&(e.hp<e.max||e.elite))||e.relayRevealedUntil>time)healthBar(e.x,e.y-e.r-24,e.elite?80:e.type===2?64:46,e.hp,e.max,e.hit>0?'#fff':organic?'#9cffc3':'#ffb797');
 }
 function bossFlightPose(b){return{yaw:(b.turnYaw||0)+(b.flightYaw||0),pitch:(b.flightPitch||0)+(b.beamPitch||0),roll:(b.flightBank||0)+(b.maneuverRoll||0)+(b.barrelRoll||0),depth:1};}
 // A separately aimed organic cannon is mounted in the front-facing cheek socket.
@@ -778,7 +781,7 @@ function drawBossDrives(b,d){
  }
  ctx.restore();
 }
-function drawDesignedBoss(b,d){const k=bossIndex(),p=bossFlightPose(b);if(!d.procedural){if(bossOrganic())window.animateAlienBoss(k,b,d);else animateMachineBoss(k,b);}drawBossDrives(b,d);drawModel(d.mesh,b.x,b.y,d.scale*p.depth,p.yaw,p.roll,p.pitch,(isOriginGuardian(b)?b.origin?.wingAge??b.age:b.variationWingAge??b.age)*(d.mesh.development?.appendageRate||1),b.hit);const m=bossMount(b,d.mouth),pulse=clamp((b.muzzle||0)/.16,0,1);if(pulse)orb(m.x,m.y,8+6*pulse,bossOrganic()?'#e9a976':'#b7e7ff',pulse*.55);if(k===4&&hazards.length){const h=hazards[0],charge=clamp(h.age/h.warning,0,1);orb(m.x,m.y,8+charge*23,'#b6efff',.3+charge*.45);}}
+function drawDesignedBoss(b,d){const k=bossIndex(),p=bossFlightPose(b);if(!d.procedural){if(bossOrganic())window.animateAlienBoss(k,b,d);else animateMachineBoss(k,b);}d.mesh.coreExposure=b.coreAperture??(b.exposed>0?1:0);d.mesh.coreOpening=b.coreOpening||0;d.mesh.coreImpact=Math.pow(clamp((b.coreImpact||0)/(b.coreImpactDuration||.16),0,1),2);drawBossDrives(b,d);drawModel(d.mesh,b.x,b.y,d.scale*p.depth,p.yaw,p.roll,p.pitch,(isOriginGuardian(b)?b.origin?.wingAge??b.age:b.variationWingAge??b.age)*(d.mesh.development?.appendageRate||1),b.hit);const m=bossMount(b,d.mouth),pulse=clamp((b.muzzle||0)/.16,0,1);if(pulse)orb(m.x,m.y,8+6*pulse,bossOrganic()?'#e9a976':'#b7e7ff',pulse*.55);if(k===4&&hazards.length){const h=hazards[0],charge=clamp(h.age/h.warning,0,1);orb(m.x,m.y,8+charge*23,'#b6efff',.3+charge*.45);}}
 function drawMenace(b){
  const design=bossDesign();if(design){drawDesignedBoss(b,design);return;}
  if(bossIndex()===0){drawWardenCreature(b);return;}
@@ -853,13 +856,14 @@ function beginBossArsenal(b){
  const profile=bossArsenal(sectors[level],b.variationCycle||0);if(!profile)return false;b.variationCycle=(b.variationCycle||0)+1;
  b.arsenal={profile,age:0,fired:0,target:{x:ship.x,y:ship.y}};
  if(profile.effect)Object.assign(b.arsenal,{kind:profile.effect,warning:profile.warning,duration:profile.duration,origin:{x:b.x,y:b.y},previous:{x:ship.x,y:ship.y}});
+ if(profile.effect==='crystal'){const center=clamp(ship.x,290,W-290);b.arsenal.lanes=[-180,0,180].map((dx,i)=>bossCrystalLane(center+dx,i,profile.warning)).filter(Boolean);}
  if(profile.effect==='sonic')planBossSonicGap(b,b.arsenal);
  b.arsenalLastCycle=b.specialCount||0;b.special=bossEncounterProfile(sectors[level]).cooldown*COMBAT_BALANCE.specialRest;
  b.capacitorSalvo=null;holdBossSalvo(b);announce(profile.name,profile.hint);
  window.flightAudio?.weaponCue?.(profile.id,'warn',b.x,profile.warning);return true;
 }
 function updateBossArsenal(b,dt){
- const a=b.arsenal;if(!a)return;if(a.profile.effect){updateExplorationSignature(b,dt);return;}const p=a.profile;a.age+=dt;holdBossSalvo(b);
+ const a=b.arsenal;if(!a)return;if(a.profile.effect==='crystal'){updateBossCrystal(b,dt);return;}if(a.profile.effect){updateExplorationSignature(b,dt);return;}const p=a.profile;a.age+=dt;holdBossSalvo(b);
  if(a.age>=p.warning+a.fired*p.interval&&a.fired<p.count){
   const m=arsenalSocket(b),aim=Math.atan2(a.target.y-m.y,a.target.x-m.x),side=a.fired%2?1:-1;
   const offset=p.id==='mine'?(a.fired-1)*.46:p.id==='ion'?side*.32:p.id==='scythe'?side*.27:side*.12,angle=aim+offset;
@@ -867,6 +871,38 @@ function updateBossArsenal(b,dt){
   a.fired++;b.muzzle=.15;window.flightAudio?.weaponCue?.(p.id,'fire',m.x,.35);
  }
  if(a.fired===p.count&&a.age>p.warning+(p.count-1)*p.interval+.45){b.arsenal=null;b.recovery=2;b.exposed=Math.max(b.exposed||0,2.8);}
+}
+function bossCrystalLane(x,i,warning){
+ const direction=i===1?-1:1,at=warning+i*.32,distance=sceneryDistance();
+ // Form inside the real corridor, including the shore's motion during charge.
+ // A hidden crystal embedded in scenery would be neither readable nor useful.
+ for(let inset=224;inset<=320;inset+=16){const y=direction>0?inset:H-inset;
+  const clear=[0,.6,1.2,1.8,2.5].every(t=>!sceneryBorderContact(x,y,26,42,distance+t*SCROLL_SPEED));
+  if(clear&&obstacles.flatMap(obstacleSolids).every(r=>x+26<r.x||x-26>r.x+r.w||y+42<r.y||y-42>r.y+r.h))return{x,y,direction,at,fired:false};
+ }
+ return null;
+}
+function updateBossCrystal(b,dt){
+ const a=b.arsenal;a.age+=dt;holdBossSalvo(b);
+ for(const lane of a.lanes)if(!lane.fired&&a.age>=lane.at){
+  lane.fired=true;a.fired++;
+  hostile.push({x:lane.x,y:lane.y,vx:0,vy:lane.direction*560,r:13,age:0,kind:'arsenal',arsenal:'crystal',c:a.profile.color,life:1.4,baseSpeed:560,bossShot:true});
+  window.flightAudio?.weaponCue?.('crystal','fire',lane.x,.35);
+ }
+ if(a.age>=a.warning+a.duration){b.arsenal=null;b.recovery=2;b.exposed=Math.max(b.exposed||0,2.8);}
+}
+function drawBossCrystal(b){
+ const a=b.arsenal;ctx.save();ctx.lineCap='round';
+ for(const lane of a.lanes){
+  if(lane.fired)continue;
+  const charge=clamp(a.age/lane.at,0,1),tip=lane.y+lane.direction*35;
+  ctx.globalAlpha=.25+charge*.55;ctx.setLineDash([9,12]);ctx.lineWidth=5;ctx.strokeStyle='#102b48';ctx.beginPath();ctx.moveTo(lane.x,tip);ctx.lineTo(lane.x,lane.direction>0?H-90:90);ctx.stroke();ctx.strokeStyle='#c7f2ff';ctx.lineWidth=1.8;ctx.stroke();ctx.setLineDash([]);
+  // Facets form at the actual launch point; the marked column never tracks.
+  ctx.globalAlpha=.35+charge*.65;ctx.fillStyle='#74aaca';ctx.beginPath();ctx.moveTo(lane.x-12,lane.y);ctx.lineTo(lane.x,lane.y-lane.direction*15);ctx.lineTo(lane.x+12,lane.y);ctx.lineTo(lane.x,tip);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#effcff';ctx.beginPath();ctx.moveTo(lane.x,lane.y-lane.direction*15);ctx.lineTo(lane.x+12,lane.y);ctx.lineTo(lane.x,tip);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#b9edff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(lane.x,lane.y,24,-Math.PI/2,-Math.PI/2+TAU*charge);ctx.stroke();
+ }
+ ctx.restore();
 }
 function steerArsenalRound(b,dt){
  if(b.age>=b.life){b.expired=true;return;}
@@ -888,7 +924,10 @@ function steerArsenalRound(b,dt){
 }
 function drawArsenalRound(b){
  ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));const t=b.age||0;ctx.strokeStyle=b.c;ctx.fillStyle=b.c;ctx.lineWidth=2;ctx.lineCap='round';
- if(b.arsenal==='silk'){
+ if(b.arsenal==='crystal'){
+  ctx.fillStyle='#74aaca';ctx.beginPath();ctx.moveTo(30,0);ctx.lineTo(-13,-12);ctx.lineTo(-24,0);ctx.lineTo(-13,12);ctx.closePath();ctx.fill();ctx.fillStyle='#effcff';ctx.beginPath();ctx.moveTo(30,0);ctx.lineTo(-13,-12);ctx.lineTo(-24,0);ctx.closePath();ctx.fill();
+  ctx.globalAlpha=.4;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-25,0);ctx.lineTo(-55,0);ctx.stroke();
+ }else if(b.arsenal==='silk'){
   ctx.rotate(t*2);for(let i=0;i<7;i++){const a=i*TAU/7;ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(Math.cos(a+.3)*7,Math.sin(a+.3)*7,Math.cos(a)*17,Math.sin(a)*17);ctx.stroke();}for(const r of [6,12]){ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.stroke();}orb(0,0,5,'#f6ffdb',.7);
  }else if(b.arsenal==='scythe'||b.arsenal==='chitin'){
   // A solid curved cutting edge, with a darker back, readable at flight scale.
@@ -906,12 +945,12 @@ function drawArsenalRound(b){
  }
  ctx.restore();
 }
-function drawArsenalCharge(b){const a=b.arsenal;if(!a)return;if(a.profile.effect){drawOriginGuardian(b,{attack:a,phase:0});return;}const m=arsenalSocket(b),p=a.profile,q=clamp(a.age/p.warning,0,1);orb(m.x,m.y,12+q*22,p.color,.15+q*.3);ctx.save();ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(m.x,m.y,8+q*9,-Math.PI/2,-Math.PI/2+TAU*q);ctx.stroke();ctx.restore();}
+function drawArsenalCharge(b){const a=b.arsenal;if(!a)return;if(a.profile.effect==='crystal'){drawBossCrystal(b);return;}if(a.profile.effect){drawOriginGuardian(b,{attack:a,phase:0});return;}const m=arsenalSocket(b),p=a.profile,q=clamp(a.age/p.warning,0,1);orb(m.x,m.y,12+q*22,p.color,.15+q*.3);ctx.save();ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(m.x,m.y,8+q*9,-Math.PI/2,-Math.PI/2+TAU*q);ctx.stroke();ctx.restore();}
 
 function bossCombatPhase(b){const ratio=b.max>0?b.hp/b.max:1;return ratio<.28?2:ratio<.62?1:0;}
 function bossPatternBusy(b){return !!(b.arsenal||bossIndex()===0&&b.exposed>0||b.venom||(b.pass&&b.pass.stage!=='rear')||b.breath||b.charge>0||b.rush>0||b.vacuum>0||b.barrage>0||b.rackShots>0||b.sporePods?.length||b.salvoWindup||hazards.length||acidClouds.some(h=>h.bossTrap));}
 function holdBossSalvo(b){b.shoot=Math.max(b.shoot||0,.52);b.attack=null;b.fireHeading=null;}
-function bossEncounterHint(b){if(isOriginGuardian(b))return originGuardianHint(b);if(isTideEncounter())return b.exposed>0?'MANTLE OPEN · BONUS DAMAGE':'BREAK TIDE KNOTS · ESCAPE THROUGH THE RING GAPS';const k=bossIndex(),phase=bossCombatPhase(b);if(b.arsenal)return b.arsenal.profile.hint;if(b.exposed>0)return 'ALIGN WITH THE GLOWING WEAK POINT · BONUS DAMAGE';if(b.pass)return 'DODGE THE CHARGE · FLIP TO FACE THE BOSS';if(k===0)return b.breath?.kind==='wind'?'WINGSTORM · CUT ACROSS THE PRESSURE':b.breath?'FIRE BREATH · WATCH ITS MOUTH':bossTechnique(sectors[level]).response;if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return b.capacitorSalvo?'CAPACITOR LOCK · SIDESTEP THE BURST':'ARMORED · BAIT THE SWEEP THEN AIM AT THE VENT';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → DIVE → VENOM TEMPEST'+(phase===2?' · ENRAGED':'');return '';}
+function bossEncounterHint(b){if(isOriginGuardian(b))return originGuardianHint(b);if(isTideEncounter())return b.exposed>0?'MANTLE OPEN · BONUS DAMAGE':'BREAK TIDE KNOTS · ESCAPE THROUGH THE RING GAPS';const k=bossIndex(),phase=bossCombatPhase(b);if(b.arsenal)return b.arsenal.profile.hint;if(b.exposed>0)return bossOrganic()?'AIM INSIDE THE OPENING':'REACTOR OPEN · AIM FOR THE CORE';if(b.pass)return 'DODGE THE CHARGE · FLIP TO FACE THE BOSS';if(k===0)return b.breath?.kind==='wind'?'WINGSTORM · CUT ACROSS THE PRESSURE':b.breath?'FIRE BREATH · WATCH ITS MOUTH':bossTechnique(sectors[level]).response;if(k===2)return 'PRESSURE SWEEPS · MOVE AHEAD OF THE STREAM';if(k===3)return b.vacuum>0?'FIGHT THE PULL · ESCAPE ABOVE OR BELOW':'SPORE TRAPS · KEEP THE CLEAR CORRIDOR';if(k===4)return b.capacitorSalvo?'CAPACITOR LOCK · SIDESTEP THE BURST':'ARMORED · BAIT THE SWEEP THEN AIM AT THE VENT';if(k===5)return b.broodWatch?'BREAK THE GUARDIAN BROOD':'BROOD → DIVE → VENOM TEMPEST'+(phase===2?' · ENRAGED':'');return '';}
 function updateBossSpecial(b,dt){
  if(sectors[level].bossVariation)b.variationWingAge=(b.variationWingAge??b.age)+dt*(b.arsenal?.kind==='sonic'&&sectors[level].bossVariation.winged?(b.arsenal.age<b.arsenal.warning?.3:2.4):1);
  if(isOriginGuardian(b)){updateOriginGuardian(b,dt);return;}
@@ -990,6 +1029,14 @@ function drawHazards(){if(boss){drawBreath(boss);drawArsenalCharge(boss);}for(co
 function moveShot(s,dt){s.age+=dt;const point=s.trail.length===12?s.trail.shift():{};point.x=s.x;point.y=s.y;s.trail.push(point);
  if(s.kind==='missile'){const direction=s.direction||1;let target=typeof isCapitalSiege==='function'&&isCapitalSiege(boss)?capitalShotTarget(s):(boss&&(boss.x-s.x)*direction>0?boss:null);for(const e of enemies){if(e.hp>0&&(e.x-s.x)*direction>-40&&(!target||Math.hypot(e.x-s.x,e.y-s.y)<Math.hypot(target.x-s.x,target.y-s.y)))target=e}if(typeof storyHomingTarget==='function')target=storyHomingTarget(s,target);if(target){const a=Math.atan2(target.y-s.y,target.x-s.x);s.vx+=(Math.cos(a)*600-s.vx)*Math.min(1,dt*5);s.vy+=(Math.sin(a)*600-s.vy)*Math.min(1,dt*5)}}
  s.x+=s.vx*dt;s.base+=s.vy*dt;s.y=s.kind==='helix'?s.base+Math.sin(s.age*17)*s.side*(23+power*5):s.base;
+}
+// A short moving round bridges hull contact to the exposed organ. It stays
+// attached to that boss and never draws an actor-to-actor connection line.
+function drawTissueShot(p){
+ if(p.owner!==boss||!boss||boss.hp<=0)return;
+ const dx=p.x-p.fromX,dy=p.y-p.fromY,length=Math.hypot(dx,dy)||1,u=clamp((1-p.life/p.max)/.65,0,1),endX=boss.x+p.offsetX,endY=boss.y+p.offsetY;
+ const x=endX-dx*(1-u),y=endY-dy*(1-u),tail=Math.min(18,length*u),fade=u<1?1:clamp(p.life/(p.max*.35),0,1);
+ ctx.save();ctx.globalAlpha=fade;ctx.translate(x,y);ctx.rotate(Math.atan2(dy,dx));ctx.lineCap='round';ctx.strokeStyle=p.c;ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-tail,0);ctx.lineTo(0,0);ctx.stroke();ctx.strokeStyle='#fff8ed';ctx.lineWidth=2;ctx.stroke();ctx.restore();
 }
 function drawProjectile(s){ctx.save();const c=s.c;
  if(s.trail.length>1){ctx.strokeStyle=c;ctx.lineWidth=s.kind==='wave'?3:s.kind==='beam'?4:2;ctx.lineCap='round';ctx.globalAlpha=s.kind==='wave'?.22:.3;ctx.beginPath();s.trail.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.globalAlpha=1}
@@ -2770,7 +2817,17 @@ function updateEncounter(b,dt){if(isOriginGuardian(b))return;if(isTideEncounter(
 // whole-body bonus to every stray round. Capital/tide encounters have their own nodes.
 function bossWeakPointMount(b){
  const d=bossDesign(),pose=bossFlightPose(b),forward=rotateVertex([-1,0,0],pose.yaw,pose.roll,pose.pitch,0,0);
- if(!d||bossOrganic())return{...organicMouth(b),forward};
+ if(!d)return{...organicMouth(b),forward};
+ if(bossOrganic()){
+  // Select the visible flank, using the same rigid transform as its skin.
+  // Authored predators use their existing sensory eyes and eyelids.
+  const authored=window.gpuModels?.authoredReady?.(d.mesh.authoredAsset)?d.mesh.authoredAsset:null,eye=authored==='vesper-reaver'?[-37,-1,14.74]:authored==='rift-lantern'?[-28,-2,22.62]:null;
+  const chambers=eye?[-1,1].map(side=>({local:[eye[0],eye[1],side*eye[2]],side,radius:3.3,kind:'eye'})):(d.mesh.exposureChambers||[]);
+  if(!chambers.length)return{...organicMouth(b),forward};
+  const chamber=chambers.reduce((a,c)=>rotateVertex(c.normal||[0,0,c.side],pose.yaw,pose.roll,pose.pitch,0,0)[2]<rotateVertex(a.normal||[0,0,a.side],pose.yaw,pose.roll,pose.pitch,0,0)[2]?c:a);
+  const visibility=-rotateVertex(chamber.normal||[0,0,chamber.side],pose.yaw,pose.roll,pose.pitch,0,0)[2];
+  return{...bossMount(b,chamber.local),forward,r:chamber.radius*d.scale*pose.depth,visibility,anatomy:chamber.kind};
+ }
  // A muzzle-relative offset is not a hull attachment: differently sized rocket
  // frames used to display their weak point in empty air. Use the actual solid
  // central nacelle, whose centre stays inside its visible silhouette at every
@@ -2784,10 +2841,11 @@ function bossWeakPointMount(b){
 }
 function bossWeakPoint(b){
  if(isTideEncounter()||typeof isCapitalSiege==='function'&&isCapitalSiege(b))return null;
- const k=bossIndex(),open=k===1?b.shieldBroken:b.exposed>0;
- if(!open||k===5&&enemies.some(e=>e.guardian&&e.hp>0))return null;
+ const k=bossIndex(),open=k===1&&!isTideEncounter()?b.shieldBroken:b.exposed>0;
+ if(!open||k===5&&enemies.some(e=>e.guardian&&e.hp>0)||bossOrganic()&&b.coreAperture!==undefined&&b.coreAperture<.55)return null;
  const p=bossWeakPointMount(b);
- return {...p,r:k===4?18:28,multiplier:k===4?8:6.5};
+ if(p.visibility!==undefined&&p.visibility<.18)return null;
+ return {...p,r:p.r??(k===4?18:28),multiplier:isTideEncounter()?2.2:k===4?8:6.5};
 }
 function encounterDamage(b,s){
  if(isTideEncounter())return b.exposed>0?2.2:.65+.15*(b.tide?.pods.filter(p=>p.hp<=0).length||0);
@@ -2795,10 +2853,55 @@ function encounterDamage(b,s){
  const weak=bossWeakPoint(b),vx=s.vx??(s.direction||1),vy=s.vy||0,speed=Math.hypot(vx,vy)||1;
  // Compare the incoming ray with the same visible attachment, including angled
  // shots and a rolled/pitched hull. Rear impacts cannot claim the front opening.
- if(weak&&(weak.forward[0]*vx+weak.forward[1]*vy)/speed<-.12&&Math.abs((weak.x-s.x)*vy-(weak.y-s.y)*vx)/speed<weak.r+(s.r||0))return weak.multiplier;
+ if(weak&&(weak.forward[0]*vx+weak.forward[1]*vy)/speed<-.12&&Math.abs((weak.x-(s.x??weak.x))*vy-(weak.y-s.y)*vx)/speed<weak.r+(s.r||0))return weak.multiplier;
  return bossIndex()===4?.04:.25;
 }
-function drawBossWeakPoint(b){const p=bossWeakPoint(b);if(!p)return;ctx.save();const c=bossIndex()===4?'#ffe1a0':'#a6ffcd';orb(p.x,p.y,p.r,c,.3);ctx.strokeStyle=c;ctx.lineWidth=2;ctx.globalAlpha=.8;ctx.beginPath();ctx.arc(p.x,p.y,p.r+3,0,TAU);ctx.stroke();ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillStyle=c;ctx.fillText('EXPOSED',p.x,p.y-p.r-8);ctx.restore();}
+const bossCoreSurfaces=new Map();
+function bossCoreSurface(kind){
+ if(bossCoreSurfaces.has(kind))return bossCoreSurfaces.get(kind);
+ const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),warm=kind==='machine';
+ const pearl=g.createRadialGradient(45,39,2,66,67,58);
+ for(const [at,color] of [[0,'#ffffff'],[.23,warm?'#fff6d5':'#edfff9'],[.55,warm?'#dfc28d':'#9bd9da'],[.8,warm?'#987853':'#477d99'],[1,'#152936']])pearl.addColorStop(at,color);
+ g.fillStyle=pearl;g.beginPath();g.arc(64,64,56,0,TAU);g.fill();
+ // A glossy corneal highlight and reflected crescent, not a blinking ring.
+ g.fillStyle='#ffffff';g.globalAlpha=.9;g.beginPath();g.ellipse(45,36,14,7,-.45,0,TAU);g.fill();
+ g.globalAlpha=.4;g.strokeStyle=warm?'#ffe8bb':'#b7fcff';g.lineWidth=3;g.beginPath();g.arc(64,64,49,.15,1.7);g.stroke();
+ bossCoreSurfaces.set(kind,c);return c;
+}
+function updateBossCorePresentation(b,dt){
+ b.coreImpact=Math.max(0,(b.coreImpact||0)-dt);
+ if(typeof isCapitalSiege==='function'&&isCapitalSiege(b)){for(const n of b.siege?.nodes||[]){n.coreImpact=Math.max(0,(n.coreImpact||0)-dt);n.coreAperture=clamp((n.coreAperture||0)+(capitalSectionDamageScale(n)>1?1:-1)*dt*7,0,1);}return;}
+ const k=bossIndex(),open=(k===1&&!isTideEncounter()?b.shieldBroken:b.exposed>0)&&!(k===5&&enemies.some(e=>e.guardian&&e.hp>0));b.coreAperture??=0;
+ if(open&&!b.coreWasOpen)b.coreOpeningAge=0;
+ b.coreWasOpen=!!open;b.coreOpeningAge=(b.coreOpeningAge??.75)+dt;
+ b.coreAperture=clamp(b.coreAperture+dt*(open?(bossOrganic()?2.5:4):-4),0,1);
+ // One swell of light follows the physical reveal, then settles into breathing.
+ b.coreOpening=open?Math.pow(Math.sin(Math.PI*clamp(b.coreOpeningAge/.75,0,1)),2)*b.coreAperture:0;
+}
+function drawPearlCore(p,aperture,kind='organic',angle=0,tilt=1,impact=0){
+ if(aperture<=0)return;
+ ctx.save();ctx.translate(p.x,p.y);ctx.rotate(angle);ctx.scale(tilt,1);
+ const r=p.r,open=clamp(aperture,0,1),hole=r*open;
+ ctx.fillStyle='#0a1720';ctx.beginPath();ctx.ellipse(0,0,r*1.18,r*1.12,0,0,TAU);ctx.fill();
+ if(open>0){ctx.save();ctx.beginPath();ctx.arc(0,0,hole,0,TAU);ctx.clip();ctx.rotate(-angle);ctx.drawImage(bossCoreSurface(kind),-r*1.14,-r*1.14,r*2.28,r*2.28);if(impact>0){ctx.globalAlpha*=.10*Math.pow(clamp(impact/.16,0,1),2);ctx.fillStyle='#ffead1';ctx.fillRect(-r,-r,r*2,r*2);}ctx.restore();}
+ // Six overlapping armor leaves retract into the rim; the pearl stays solid
+ // and constant-sized beneath them. The socket follows the same hull anchor
+ // used by collision, including bank and facing changes.
+ for(let i=0;i<6;i++){
+  const a=i*TAU/6+.18*open,next=a+TAU/6;
+  ctx.fillStyle=i<3?(kind==='machine'?'#887c66':'#354d56'):(kind==='machine'?'#4d4941':'#182f39');
+  ctx.beginPath();ctx.moveTo(Math.cos(a)*r*1.15,Math.sin(a)*r*1.15);ctx.arc(0,0,r*1.15,a,next);ctx.lineTo(Math.cos(next-.12)*hole,Math.sin(next-.12)*hole);ctx.arc(0,0,hole,next-.12,a-.12,true);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=i<3?'#a8bab8':'#152d37';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(Math.cos(a)*r*1.15,Math.sin(a)*r*1.15);ctx.lineTo(Math.cos(a-.12)*hole,Math.sin(a-.12)*hole);ctx.stroke();
+ }
+ ctx.restore();
+}
+function drawBossWeakPoint(b){
+ if(bossOrganic())return; // Native skin/eyelid geometry reveals the target in 3D.
+ if(isTideEncounter()||typeof isCapitalSiege==='function'&&isCapitalSiege(b))return;
+ const weak=bossWeakPoint(b),p=weak||{...bossWeakPointMount(b),r:bossIndex()===4?18:28},aperture=b.coreAperture??(weak?1:0),pose=bossFlightPose(b);
+ drawPearlCore(p,aperture,bossOrganic()?'organic':'machine',Math.atan2(p.forward[1],p.forward[0]),.72+.28*Math.abs(Math.cos(pose.yaw)),b.coreImpact);
+}
+
 function hitEncounterNode(s,oldX=s.trail?.at(-1)?.x??s.x,oldY=s.trail?.at(-1)?.y??s.y,limit=1){
  const start={x:oldX,y:oldY};
  if(isTideEncounter())return hitTideNode(s,limit,start);

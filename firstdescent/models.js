@@ -79,9 +79,9 @@ function rotateVertex(v,yaw,roll,pitch,age,flex){let [x,y,z]=v;if(flex){const tu
 function drawModel(mesh,x,y,scale,yaw,roll,pitch,age,hit=0,rig=null){
  if(mesh.fauna)rig=mesh.organicRig;
  if(window.gpuModels){window.gpuModels.draw(mesh,ctx,x,y,scale,yaw,roll,pitch,age,hit,rig);return;}
- const faces=mesh.map(f=>{const v=f.v.map(p=>{let q=f.blink?[p[0],f.blink[0]+(p[1]-f.blink[0])*(1-.97*naturalBlink(age,f.blink[1])),p[2]]:p;if(f.joint)q=faunaJointVertex(q,age,f.joint);if(rig==='ray')q=rayVertex(q,age);if(!f.joint&&(rig==='squid'||rig==='octopus'))q=organicVertex(q,age,rig);return rotateVertex(q,yaw,roll,pitch,age,(rig==='squid'||rig==='octopus'||rig==='ray')?0:f.flex)});return{...f,v,z:v.reduce((a,p)=>a+p[2],0)/v.length}}).sort((a,b)=>b.z-a.z);
+ const faces=mesh.map(f=>{const v=f.v.map((p,vi)=>{let q=f.blink?[p[0],f.blink[0]+(p[1]-f.blink[0])*(1-.97*naturalBlink(age,f.blink[1])),p[2]]:p;if(f.joints?.[vi]||f.joint)q=faunaJointVertex(q,age,f.joints?.[vi]||f.joint,mesh.coreExposure||0,mesh.coreImpact||0);if(rig==='ray')q=rayVertex(q,age);if(!f.joint&&(rig==='squid'||rig==='octopus'))q=organicVertex(q,age,rig);return rotateVertex(q,yaw,roll,pitch,age,(rig==='squid'||rig==='octopus'||rig==='ray')?0:f.flex)});return{...f,v,z:v.reduce((a,p)=>a+p[2],0)/v.length}}).sort((a,b)=>b.z-a.z);
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);ctx.lineJoin='round';
- for(const f of faces){const [a,b,c]=f.v,u=b.map((v,i)=>v-a[i]),v=c.map((n,i)=>n-a[i]);let normal=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.hypot(...normal)||1;normal=normal.map(n=>n/len);const diffuse=Math.abs(normal[0]*-.3+normal[1]*-.6+normal[2]*-.74),spec=Math.pow(Math.abs(normal[2]*-.85+normal[1]*-.45),18)*.42;const light=.3+diffuse*.64+spec+f.em*.6;const pulse=hit>0&&((age% .12)<.022)?.55:0;const color=`rgb(${f.c.map(n=>{const base=Math.min(255,n*light+spec*110);return Math.round(base+(255-base)*pulse)}).join(',')})`;ctx.beginPath();f.v.forEach((p,i)=>{const perspective=mesh.portalMachinery?1:460/(460+p[2]);i?ctx.lineTo(p[0]*perspective,p[1]*perspective):ctx.moveTo(p[0]*perspective,p[1]*perspective)});ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=.45;ctx.stroke();}
+ for(const f of faces){const [a,b,c]=f.v,u=b.map((v,i)=>v-a[i]),v=c.map((n,i)=>n-a[i]);let normal=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.hypot(...normal)||1;normal=normal.map(n=>n/len);const diffuse=Math.abs(normal[0]*-.3+normal[1]*-.6+normal[2]*-.74),spec=Math.pow(Math.abs(normal[2]*-.85+normal[1]*-.45),18)*.42;const light=.3+diffuse*.64+spec+f.em*.6;const pulse=f.joint?.[3]===13?.025+.16*Math.pow(.5+.5*Math.sin(age*4.4),3)+(mesh.coreOpening||0)*.22+(mesh.coreImpact||0)*.58:hit>0&&((age% .12)<.022)?.55:0;const color=`rgb(${f.c.map(n=>{const base=Math.min(255,n*light+spec*110);return Math.round(base+(255-base)*pulse)}).join(',')})`;ctx.beginPath();f.v.forEach((p,i)=>{const perspective=mesh.portalMachinery?1:460/(460+p[2]);i?ctx.lineTo(p[0]*perspective,p[1]*perspective):ctx.moveTo(p[0]*perspective,p[1]*perspective)});ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=.45;ctx.stroke();}
  ctx.restore();
 }
 // Individually modeled armor ribs, vents, chitin ridges and luminous organs.
@@ -636,9 +636,12 @@ const faunaCatalog={};
 let buildFaunaMesh;
 // Joint modes: flap, claw, fin, spine, bell, jaw, feeler, turbine, trailing tentacle.
 // Matched by speciesJoint in the GPU shader; all pivots remain fixed.
-function faunaJointVertex(p,age,joint){
+function faunaJointVertex(p,age,joint,exposure=0,impact=0){
  if(!joint||!joint[3])return p;const [px,py,pz,mode]=joint,x=p[0]-px,y=p[1]-py,z=p[2]-pz,side=pz<0?-1:1,w=Math.min(1,Math.hypot(x,y,z)/35);
  let a,axis='xy';
+ if(mode===12){const e=exposure*exposure*(3-2*exposure),breath=.975+.025*Math.sin(age*3+p[0]*.13)+.14*Math.sin(Math.PI*e);return p.map((v,i)=>v+joint[i]*e*breath);}
+ if(mode===13){const pulse=1+exposure*.055*Math.sin(age*4.1+px*.27)-impact*.22,flutter=exposure*(Math.sin(age*9.1+x*.31+py*.17)*.065+Math.sin(age*6.7+x*.53+z*.21)*.025);return[px+x,py+y*(pulse+flutter),pz+z*(pulse-flutter*.55)];}
+ if(mode>=10){const a=(mode===10?1:-1)*side*exposure*1.12,c=Math.cos(a),sn=Math.sin(a);return[p[0],py+y*c-z*sn,pz+y*sn+z*c];}
  if(mode===9){
   // A travelling helix with a quiet, buried collar. Each arm has its own
   // phase; the shared jet pulse gathers the bundle before releasing it.
@@ -1044,7 +1047,54 @@ function buildDevelopedOrganism(spec){
   return profile[a].map((v,i)=>{const p=profile[Math.max(0,a-1)][i],b=profile[a+1][i],n=profile[Math.min(profile.length-1,a+2)][i],r=.5*(2*v+(-p+b)*t+(2*p-5*v+4*b-n)*t*t+(-p+3*v-3*b+n)*t*t*t);return i>1?Math.max(.25,r):r;});}
  function surface(u,a,offset=0){const p=section(u);return[p[0],p[1]-Math.cos(a)*(p[2]+offset),Math.sin(a)*(p[3]+offset)];}
  const rows=(profile.length-1)*4,sides=28,rings=Array.from({length:rows+1},(_,i)=>Array.from({length:sides},(_,j)=>surface(i/rows,j/sides*Math.PI*2)));
- for(let i=0;i<rows;i++)for(let j=0;j<sides;j++)m.faces.push({v:[rings[i][j],rings[i][(j+1)%sides],rings[i+1][(j+1)%sides],rings[i+1][j]],c:skin,em:0,flex:0,textureWeight:.65});
+ const chambers=[],chamberStart=Math.floor(rows*.28),chamberEnd=chamberStart+(soft?5:6),chamberCenter=plan==='moth'?10:7,chamberAngle=chamberCenter/sides*Math.PI*2;
+ // Taper the seam to an almond-shaped breathing slit, with pointed ends.
+ // Adjacent body faces share these vertices, so it is a hole in the skin.
+ if(boss)for(let i=chamberStart;i<=chamberEnd;i++)for(const center of [chamberCenter,sides-chamberCenter]){
+  const u=(i-chamberStart)/(chamberEnd-chamberStart),width=.07+.93*Math.pow(Math.sin(Math.PI*u),.65);
+  for(let j=center-2;j<=center+2;j++)rings[i][j]=surface(i/rows,(center+(j-center)*width)/sides*Math.PI*2);
+ }
+
+ for(let i=0;i<rows;i++)for(let j=0;j<sides;j++){
+  const side=j<14?1:-1,center=side>0?chamberCenter:sides-chamberCenter,inChamber=boss&&i>=chamberStart&&i<chamberEnd&&j>=center-2&&j<center+2;
+  const face={v:[rings[i][j],rings[i][(j+1)%sides],rings[i+1][(j+1)%sides],rings[i+1][j]],c:skin,em:0,flex:0,textureWeight:.65};
+  if(inChamber){
+   // Skin retracts along its own curved surface. The seam tips and outer edge
+   // remain fixed: no hinged plates or loose flaps hanging off the creature.
+   const direction=j<center?-1:1;
+   face.joints=[[i,j],[i,j+1],[i+1,j+1],[i+1,j]].map(([row,col],vi)=>{
+    const u=(row-chamberStart)/(chamberEnd-chamberStart),edge=Math.abs(col-center)/2;
+    const taper=.07+.93*Math.pow(Math.sin(Math.PI*u),.65),pull=Math.pow(Math.sin(Math.PI*u),.7)*(1-edge)*.93;
+    const a=(center+direction*2*(edge+pull)*taper)/sides*Math.PI*2,target=surface(row/rows,a);
+    return[...target.map((v,k)=>v-face.v[vi][k]),12];
+   });face.coreCover=true;
+  }
+  m.faces.push(face);
+ }
+ if(boss)for(const side of [-1,1]){
+  const center=side>0?chamberCenter:sides-chamberCenter,point=surface((chamberStart+chamberEnd)/2/rows,side*chamberAngle),tissue=soft?[179,101,115]:[202,137,93];
+  point[2]-=side*3.5;
+  chambers.push({local:point,side,normal:[0,-Math.cos(chamberAngle),side*Math.sin(chamberAngle)],kind:soft?'gill':'carapace',radius:5.2});
+  // The original skin panels become hinged covers. Behind them is a closed,
+  // recessed bowl of dark tissue, with living folds rather than a separate orb.
+  for(let i=chamberStart;i<chamberEnd;i++)for(let j=center-2;j<center+2;j++){
+   const outer=[rings[i][j],rings[i][j+1],rings[i+1][j+1],rings[i+1][j]],inner=outer.map(v=>[v[0],v[1],v[2]-side*4]);
+   m.faces.push({v:inner,c:dark,em:0,flex:0,textureWeight:.1});
+   for(let k=0;k<4;k++)if(k===0&&i===chamberStart||k===2&&i===chamberEnd-1||k===3&&j===center-2||k===1&&j===center+1)m.faces.push({v:[outer[k],outer[(k+1)%4],inner[(k+1)%4],inner[k]],c:edge,em:0,flex:0,textureWeight:.2});
+  }
+  // A continuous corrugated respiratory membrane, with an uneven wet surface.
+  // Its folds breathe together; there is no separate ball inside the creature.
+  const flesh=soft?[208,117,126]:[224,144,93],vein=soft?[123,61,82]:[148,74,49];
+  const membrane=(i,j)=>{const u=i/10*2-1,v=j/6*2-1,edge=Math.sqrt(Math.max(0,1-u*u));return[point[0]+u*6,point[1]+v*3.1*edge,point[2]+side*(.12+(1-u*u)*(1-v*v)*(1+.18*Math.sin(u*9+v*3)))];};
+  for(let i=0;i<10;i++)for(let j=0;j<6;j++)m.faces.push({v:[membrane(i,j),membrane(i+1,j),membrane(i+1,j+1),membrane(i,j+1)],c:flesh.map(v=>Math.round(v*(.82+.12*Math.sin(i*.71+j*.3)))),em:0,flex:0,wet:1,textureWeight:0,joint:[...point,13]});
+  for(let k=0;k<7;k++){
+   const u=(chamberStart+.7+k*(chamberEnd-chamberStart-1.4)/6)/rows,p=surface(u,side*chamberAngle);p[2]-=side*2.25;
+   const h=2.1+Math.sin(k*1.9)*.6,start=m.faces.length;
+   tube([[p[0]-.5,p[1]-h,p[2]-side*.3],[p[0]-1.1,p[1]-.4,p[2]+side*.25],[p[0]+.6,p[1]+h,p[2]-side*.25]],.5, k%3?flesh:vein,[...p,13],6,3);
+   for(let f=start;f<m.faces.length;f++){m.faces[f].wet=1;m.faces[f].textureWeight=0;}
+  }
+ }
+
  m.faces.push({v:rings[0].slice().reverse(),c:skin,em:0,flex:0},{v:rings.at(-1),c:skin,em:0,flex:0});
  const bodyFaceCount=m.faces.length,armAttachments=[];
  const muzzle=[profile[0][0]-.5,profile[0][1]+.5,0];
@@ -1115,6 +1165,8 @@ function buildDevelopedOrganism(spec){
   const shell=(t,a)=>{const bend=.018*Math.cos(a*2.2+i*.6),raise=.16+Math.pow(Math.sin(Math.PI*t),2)*(1.3+.5*Math.cos(a))*Math.pow(Math.cos(a/2),2);return surface(u+t*w+bend,a,raise);};
   for(let t=0;t<nu;t++)for(let a=0;a<na;a++){
    const p=-1.65+a/na*3.3,q=-1.65+(a+1)/na*3.3;
+   // Keep the armor seam clear so the underlying native plates can open.
+   if(boss&&u+(t+.5)/nu*w>=chamberStart/rows-.025&&u+(t+.5)/nu*w<=chamberEnd/rows+.025&&Math.abs((p+q)/2)>1.02)continue;
    const pigment=.84+.1*Math.sin(t/nu*Math.PI)+.035*Math.cos(a*.7+i);
    m.faces.push({v:[shell(t/nu,p),shell(t/nu,q),shell((t+1)/nu,q),shell((t+1)/nu,p)],c:skin.map(v=>Math.round(v*pigment)),em:0,flex:0,textureWeight:.95});
   }
@@ -1153,15 +1205,18 @@ function buildDevelopedOrganism(spec){
   m.faces.push({v:[surface(u,a-.1,.4),surface(u+w*.6,a-.115,.9),surface(u+w,a,.65),surface(u+w*.6,a+.115,.9),surface(u,a+.1,.4)],c,em:0,flex:0,textureWeight:.8});
  }
  // Breathing slits are embedded along the flank and follow its curvature.
- for(const side of [-1,1])for(let i=0;i<(boss?5:3);i++){const u=.39+i*.047;const pts=[surface(u,side*1.2,.6),surface(u+.008,side*1.55,.6),surface(u+.018,side*1.9,.6)];tube(pts,.8,dark);}
+ for(const side of [-1,1])for(let i=0;i<(boss?5:3);i++){const u=.39+i*.047;if(boss&&u>=chamberStart/rows-.02&&u<=chamberEnd/rows+.02)continue;const pts=[surface(u,side*1.2,.6),surface(u+.008,side*1.55,.6),surface(u+.018,side*1.9,.6)];tube(pts,.8,dark);}
  // Subtle two-scale pigmentation gives structure without neon checkerboards.
  // Sample pigment at shared vertices, never once per polygon. The GPU
  // interpolates it across the skin without adding geometry or shader work.
  for(const f of m.faces){if(f.textureWeight===0)continue;f.vertexColors=f.v.map(p=>{const q=g.patternScale,v=g.pattern==='bands'?Math.sin(p[0]*q):g.pattern==='freckles'?Math.pow(Math.max(0,Math.sin(p[0]*q)*Math.cos(p[2]*q*1.8)),5)*2-1:g.pattern==='reticulate'?Math.sin(p[0]*q+Math.sin(p[2]*q))*Math.cos(p[1]*q):Math.sin(p[0]*q*.5+Math.sin(p[2]*q)*2),belly=(1+Math.tanh((p[1]-4)*.16))*.035;return f.c.map((n,i)=>Math.max(0,Math.min(245,n*(.92+v*.10)+light[i]*belly)));});}
  const scale=(spec.small||1)*(boss?1:.88),transform=p=>p.map(v=>v*scale);
- for(const f of m.faces){f.v=f.v.map(transform);if(f.joint)f.joint=[...transform(f.joint.slice(0,3)),f.joint[3]];if(f.blink)f.blink=[f.blink[0]*scale,f.blink[1]];}
+ for(const f of m.faces){f.v=f.v.map(transform);if(f.joint)f.joint=[...transform(f.joint.slice(0,3)),f.joint[3]];if(f.joints)f.joints=f.joints.map(j=>[...transform(j.slice(0,3)),j[3]]);if(f.blink)f.blink=[f.blink[0]*scale,f.blink[1]];}
  const bodyVolumes=[.25,.5,.73].map(u=>{const p=section(u);return{center:transform([p[0],p[1],0]),radii:transform([18,p[2]*.94,p[3]*.94])};});
- Object.assign(m.faces,{skin:true,fauna:true,organicRig:'anatomical',alienMaterial:soft?'flesh':'chitin',nativeAnatomy:true,anatomy:plan,development:g,anatomyProgram:plan,muzzle:transform(muzzle),ports:ports.map(transform),bodyVolumes,bodyFaceCount,armAttachments:armAttachments.map(a=>({pivot:transform(a.pivot),mode:a.mode,tip:transform(a.tip),skinPoint:transform(a.skinPoint),rootRing:a.rootRing.map(transform)})),anatomyMetrics:{limbPairs:plan==='crab'?4:plan==='mantis'?3:plan==='beetle'||plan==='moth'?3:2,integratedSkull:true}});return m.faces;
+ // Include the actual recessed tissue in collision, even when a narrow mantle
+ // turns beyond the old three-ellipsoid approximation.
+ for(const c of chambers)bodyVolumes.push({center:transform([c.local[0],c.local[1],c.local[2]+c.side*.4]),radii:transform([4.8,3.1,1.15])});
+ Object.assign(m.faces,{skin:true,fauna:true,organicRig:'anatomical',alienMaterial:soft?'flesh':'chitin',nativeAnatomy:true,anatomy:plan,development:g,anatomyProgram:plan,exposureChambers:chambers.map(c=>({...c,local:transform(c.local),radius:c.radius*scale})),muzzle:transform(muzzle),ports:ports.map(transform),bodyVolumes,bodyFaceCount,armAttachments:armAttachments.map(a=>({pivot:transform(a.pivot),mode:a.mode,tip:transform(a.tip),skinPoint:transform(a.skinPoint),rootRing:a.rootRing.map(transform)})),anatomyMetrics:{limbPairs:plan==='crab'?4:plan==='mantis'?3:plan==='beetle'||plan==='moth'?3:2,integratedSkull:true}});return m.faces;
 }
 function buildDevelopedMachine(spec){
  const g=spec.genome,m=meshBuilder(),c=spec.color,accent=spec.accent,steel=[130,151,164],dark=[24,33,43],ports=[],hullVolumes=[],scale=spec.small||1;
