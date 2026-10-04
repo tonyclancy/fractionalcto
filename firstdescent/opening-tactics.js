@@ -66,19 +66,23 @@ function openingRoleDefeated(e){
  }else if(e.openingRole==='flanker')openingRoleFeedback('flank',e);
 }
 function openingRoleMesh(role){
+ if(role!=='coordinator'&&role!=='suppressor')return null;
  if(openingRoleMeshes.has(role))return openingRoleMeshes.get(role);const m=meshBuilder();
- const c=role==='coordinator'?[244,188,99]:role==='flanker'?[228,120,184]:[129,198,247];
+ const c=role==='coordinator'?[244,188,99]:[129,198,247];
  if(role==='coordinator')for(const side of [-1,1]){
   m.wedge([-12,side*21,-17],[14,side*24,-17],[24,side*37,-10],4,c);
   m.tube([[-8,side*26,-20],[10,side*30,-20]],1.8,[255,232,174],0,.5,6,1);
  }else if(role==='suppressor'){
   for(const side of [-1,1])m.tube([[-30,side*9,-19],[-2,side*9,-19]],3,c,0,.25,8,1);
- }else for(const side of [-1,1])m.wedge([6,side*20,-15],[22,side*25,-12],[-9,side*34,-8],3,c);
+ }
  m.faces.industrial=true;openingRoleMeshes.set(role,m.faces);return m.faces;
 }
 function drawOpeningRole(e){
  if(!e.openingRole||e.hp<=0||e.x<0||e.x>W)return;
- const p=speciesFlightPose(e);drawModel(openingRoleMesh(e.openingRole),e.x,e.y,p.scale,p.yaw,p.roll,p.pitch,p.age,0);
+ // Rear-entry warnings and movement identify flankers; detached decorative
+ // fins do not fit the native creatures' bodies.
+ const mesh=openingRoleMesh(e.openingRole);if(!mesh)return;
+ const p=speciesFlightPose(e);drawModel(mesh,e.x,e.y,p.scale,p.yaw,p.roll,p.pitch,p.age,0);
 }
 function drawOpeningTactics(){
  if(!openingTacticsActive()||sectorBlend||state==='title')return;
