@@ -226,7 +226,7 @@ function animateCapitalHull(b){
 
 function isCapitalSiege(b=boss){return !!b&&!!sectors[level].siege&&bossIndex()===1;}
 function capitalDevelopmentHull(spec){
- const generated=buildDevelopedMachine({...spec,small:1}),scale=1.65,mesh=generated.map(f=>({...f,v:f.v.map(p=>[p[0]*scale,p[1]*scale,p[2]*scale+8]),joint:f.joint?[f.joint[0]*scale,f.joint[1]*scale,f.joint[2]*scale+8,f.joint[3]]:undefined}));
+ const generated=buildDevelopedMachine({...spec,small:1}),scale=1.65,mesh=generated.map(f=>({...f,v:f.v.map(p=>[p[0]*scale,p[1]*scale,p[2]*scale+8]),joint:f.joint?[f.joint[0]*scale,f.joint[1]*scale,f.joint[2]*scale+(f.joint[3]===15?0:8),f.joint[3]]:undefined}));
  const m=meshBuilder(),g=spec.genome,c=g.protection==='cryo'?[143,166,181]:g.protection==='stellar'?[147,124,83]:spec.color.map((n,i)=>Math.round(n*.35+[96,112,119][i]*.65)),steel=[143,159,163],dark=[21,30,37];
  for(const f of mesh)if(!f.em)f.c=f.c.map((n,i)=>Math.round(n*.45+c[i]*.55));
  // Layered service panels, alternating armor courses and recessed conduits
@@ -299,12 +299,23 @@ function capitalNodeShape(b,n,padding=0){
  const axes=radii.map((r,i)=>{const a=[0,0,0];a[i]=r*scale+padding;return rotateVertex(a,pose.yaw,pose.roll,pose.pitch,0,0);});
  let xx=0,xy=0,yy=0;for(const a of axes){xx+=a[0]*a[0];xy+=a[0]*a[1];yy+=a[1]*a[1];}
  q={x:c.position.x,y:c.position.y,xx,xy,yy,det:xx*yy-xy*xy};
+ // Raised service bays are physical targets as well as part of the section.
+ // Cache their projected shape with the hull so banking never strands the
+ // visible machinery outside the older, central section ellipsoid.
+ const normal=rotateVertex([0,0,-1],pose.yaw,pose.roll,pose.pitch,0,0),bay=normal[2]<0?n.coreChamber:n.coreChamberBack;
+ if(bay&&Math.abs(normal[2])>.18){
+  const p=bossMount(b,bay.reactorMount),r=bay.reactorRadius,axes=[r*.78,r*.78,r*.16].map((v,i)=>{const a=[0,0,0];a[i]=v*scale+padding;return rotateVertex(a,pose.yaw,pose.roll,pose.pitch,0,0);});
+  let xx=0,xy=0,yy=0;for(const a of axes){xx+=a[0]*a[0];xy+=a[0]*a[1];yy+=a[1]*a[1];}
+  q.reactor={x:p.x,y:p.y,xx,xy,yy,det:xx*yy-xy*xy};
+ }
  if(c.shapes.size>=8)c.shapes.clear();c.shapes.set(padding,q);return q;
 }
 function capitalNodeIntersection(b,n,a,z,padding=0){
- const q=capitalNodeShape(b,n,padding),x=a.x-q.x,y=a.y-q.y,dx=z.x-a.x,dy=z.y-a.y;
- const A=q.yy*dx*dx-2*q.xy*dx*dy+q.xx*dy*dy,B=2*(q.yy*x*dx-q.xy*(x*dy+y*dx)+q.xx*y*dy),C=q.yy*x*x-2*q.xy*x*y+q.xx*y*y-q.det;
- if(C<=0)return 0;if(A<1e-12)return Infinity;const D=B*B-4*A*C;if(D<0)return Infinity;const t=(-B-Math.sqrt(D))/(2*A);return t>=0&&t<=1?t:Infinity;
+ const main=capitalNodeShape(b,n,padding);
+ const intersect=q=>{const x=a.x-q.x,y=a.y-q.y,dx=z.x-a.x,dy=z.y-a.y;
+  const A=q.yy*dx*dx-2*q.xy*dx*dy+q.xx*dy*dy,B=2*(q.yy*x*dx-q.xy*(x*dy+y*dx)+q.xx*y*dy),C=q.yy*x*x-2*q.xy*x*y+q.xx*y*y-q.det;
+  if(C<=0)return 0;if(A<1e-12)return Infinity;const D=B*B-4*A*C;if(D<0)return Infinity;const t=(-B-Math.sqrt(D))/(2*A);return t>=0&&t<=1?t:Infinity;};
+ return Math.min(intersect(main),main.reactor?intersect(main.reactor):Infinity);
 }
 function capitalFirstHullHit(b,a,z,padding=0){
  // Reuse the collider's cached projected ellipsoids. An analytic segment
@@ -580,6 +591,24 @@ function queueCapitalDamageVolume(b,n){
  const anchor=capitalDamageAnchor(b,n),site=fire.site,pose=bossFlightPose(b),set=capitalDamageSprite(n.id),section=capitalSectionMesh(b,n);
  window.gpuModels.drawDamageVolume(ctx,{id:n.id,x:b.x,y:b.y,scale:capitalShipDesign(b).scale,yaw:pose.yaw,roll:pose.roll,pitch:pose.pitch,mount:anchor.local,facing:clamp(anchor.facing*5,0,1),scar:set?.scar,surfaceMesh:section.damageBase||section,surfaceCenter:n.local,span:site.span,severity:fire.severity,width:fire.width,height:fire.length,age:b.age,speed:site.speed,seed:site.seed,lean:site.lean,kind:['dorsal','ventral','reactor','core'].indexOf(n.id)});
 }
+// Seat the reverse service bay on the actual opposite broadside. Its floor
+// stays in front of the section geometry, and the plinth sinks into the hull.
+// This is computed once per node; no per-frame mesh queries or allocations.
+function capitalReactorBackPoint(b,n,r){
+ const section=capitalSectionMesh(b,n),faces=[...capitalShipDesign(b).mesh,...(section.damageBase||[]),...section];
+ let surface=-Infinity;
+ for(const dx of [-1.1,-.43,0,.43,1.1])for(const dy of [-1.65,-.45,0,.45,1.65]){
+  const x=n.local[0]+dx*r,y=n.local[1]+dy*r;
+  for(const f of faces)for(let i=1;i<f.v.length-1;i++){
+   const [a,c,d]=[f.v[0],f.v[i],f.v[i+1]],den=(c[1]-d[1])*(a[0]-d[0])+(d[0]-c[0])*(a[1]-d[1]);
+   if(Math.abs(den)<1e-8)continue;
+   const u=((c[1]-d[1])*(x-d[0])+(d[0]-c[0])*(y-d[1]))/den,v=((d[1]-a[1])*(x-d[0])+(a[0]-d[0])*(y-d[1]))/den;
+   if(u>=0&&v>=0&&u+v<=1)surface=Math.max(surface,a[2]*u+c[2]*v+d[2]*(1-u-v));
+  }
+ }
+ if(!Number.isFinite(surface))surface=n.local[2]+n.radii[2];
+ return[n.local[0],n.local[1],surface+r*.40+.2];
+}
 function drawCapitalSiege(b){
  const s=initCapitalSiege(b),pose=bossFlightPose(b),scale=capitalShipDesign(b).scale;
  const mesh=(m,hit=0)=>drawModel(m,b.x,b.y,scale,pose.yaw,pose.roll,pose.pitch,b.age,hit);
@@ -587,6 +616,10 @@ function drawCapitalSiege(b){
  for(const n of s.nodes)if(capitalNodeArmed(b,n))for(const gun of capitalGunMounts(b,n))drawModel(meshes.cannon,gun.baseX,gun.baseY,.8,0,0,gun.heading-Math.PI,b.age,n.hit);
  // Flush modules before drawing their targeting information, keeping labels
  // clear while the actual objects remain solid GPU-rendered geometry.
+ for(const n of s.nodes)if(n.hp>0&&capitalNodeActive(b,n)){
+  if(!n.coreChamber){const anchor=capitalDamageAnchor(b,n),r=Math.min(28,n.radius*.55)/scale;n.coreChamber=buildReactorChamber([anchor.local[0],anchor.local[1],anchor.local[2]-.8],r,-1,[95,85,69]);n.coreChamberBack=buildReactorChamber(capitalReactorBackPoint(b,n,r),r,1,[95,85,69]);n.projectionCache=null;}
+  for(const bay of [n.coreChamber,n.coreChamberBack]){bay.coreExposure=n.coreAperture??0;bay.coreImpact=Math.pow(clamp((n.coreImpact||0)/.16,0,1),2);mesh(bay);}
+ }
  for(const n of s.nodes)queueCapitalDamageVolume(b,n);
  window.gpuModels?.flush(ctx);
  drawCapitalDischarges(b);
@@ -596,7 +629,6 @@ function drawCapitalSiege(b){
   if(active){
    const above=n.id==='dorsal'||n.id==='core',yy=clamp(p.y+(above?-1:1)*(n.radius+22),35,H-40),label=n.id==='dorsal'?'UPPER STABILIZER':n.id==='ventral'?'LOWER STABILIZER':n.id==='reactor'?'AFT REACTOR':'COMMAND CORE';
    const nearHeader=above&&yy<125,barY=nearHeader?Math.max(138,p.y-15):yy,labelY=barY+(above?-9:19),labelX=clamp(p.x+(nearHeader?n.radius+118:0),86,W-86);
-   drawPearlCore({...p,r:Math.min(28,n.radius*.55)},n.coreAperture??(capitalSectionDamageScale(n)>1?1:0),'machine',pose.roll,1,n.coreImpact);
    ctx.fillStyle='rgba(3,15,23,.87)';ctx.fillRect(labelX-81,labelY-13,162,19);
    ctx.font='bold 12px "DM Sans",sans-serif';ctx.fillStyle='#d4fff0';ctx.fillText(n.sabotage>0?'JAMMED · FIRE':n.recovery>0?'OVERHEATED · FIRE':label,labelX,labelY);
    healthBar(labelX,barY,92,n.hp,n.max,'#8fffd5');

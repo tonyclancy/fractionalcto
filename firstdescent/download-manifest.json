@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "quality": "unchanged",
-  "bytes": 75558763,
+  "bytes": 75572970,
   "assets": [
     {
       "path": "ASTEROID-CREDITS.txt",
@@ -10,8 +10,8 @@
     },
     {
       "path": "art.js",
-      "bytes": 479229,
-      "sha256": "2530987b44b98913ae9d26d367e5bb4d4efa8fcba5673cef1fc53185ccb99ac7"
+      "bytes": 479325,
+      "sha256": "cc1fba1786b8a333ba1659484090485ec56c20d8f54d428af36e176d08f58de4"
     },
     {
       "path": "assets/abyss-panorama-thumb.webp",
@@ -1591,8 +1591,8 @@
     },
     {
       "path": "authored-assets.js",
-      "bytes": 9541,
-      "sha256": "b896a07edd60b1b54ac1f26ebb032db7c65c0afc0e8ab1cd0d1e47df06b85a61"
+      "bytes": 13760,
+      "sha256": "755c07e51a2eca02308c39daae4c6173dba6e5b38264c7f9205c42b892a494c2"
     },
     {
       "path": "boss-creatures.js",
@@ -1606,8 +1606,8 @@
     },
     {
       "path": "capital-ship.js",
-      "bytes": 50903,
-      "sha256": "98bec6065ef9027bc60c7a298b98de3ff06e108bf8b7b2ee8cd1352bf32391e8"
+      "bytes": 53172,
+      "sha256": "ff14763a4d2be617fa198cc42d8780b8cdf25c8fdbd05c349204d23b065803c2"
     },
     {
       "path": "cloud-config.js",
@@ -1631,13 +1631,13 @@
     },
     {
       "path": "game.js",
-      "bytes": 120111,
-      "sha256": "f9bcdfeff3de0d3b542ca65828bd52a8a3a2cc2fa140eb5c6f35afac7b5ea236"
+      "bytes": 120405,
+      "sha256": "ecada27a93bb8e28a6a6d3960595f692d2cd11648f784591ac5a6f354bb0e396"
     },
     {
       "path": "index.html",
-      "bytes": 7529,
-      "sha256": "b6e7347b46e21ec93fa81f883bb36f316e7c6e2d24c101ecc5982449cb3a16f6"
+      "bytes": 7527,
+      "sha256": "2e5231c9595a6b3d0ab6f09a72d398b23849037c1232337e32c933c2a36e836b"
     },
     {
       "path": "levels.js",
@@ -1656,8 +1656,8 @@
     },
     {
       "path": "models.js",
-      "bytes": 132279,
-      "sha256": "a93602bd8199d369ac60fa0c41f0a8c2be58e1ab58aec0aecf9a6b175a8b7869"
+      "bytes": 138324,
+      "sha256": "62b24d27510c7a7fd195459c4730725df7d149a5f21c5fbf6fce00fd44ebeb62"
     },
     {
       "path": "music/dark-current155.m4a",
@@ -1671,8 +1671,8 @@
     },
     {
       "path": "renderer3d.js",
-      "bytes": 53822,
-      "sha256": "e631bd5bd01496b423b577942682d19dfb9fcb66bee253c32543b8df4618be8a"
+      "bytes": 55108,
+      "sha256": "32be245671bf535a10a14fa53949fea9780350c4b47acbe76227cba16b563fc6"
     },
     {
       "path": "runs.js",

@@ -81,7 +81,7 @@ function drawModel(mesh,x,y,scale,yaw,roll,pitch,age,hit=0,rig=null){
  if(window.gpuModels){window.gpuModels.draw(mesh,ctx,x,y,scale,yaw,roll,pitch,age,hit,rig);return;}
  const faces=mesh.map(f=>{const v=f.v.map((p,vi)=>{let q=f.blink?[p[0],f.blink[0]+(p[1]-f.blink[0])*(1-.97*naturalBlink(age,f.blink[1])),p[2]]:p;if(f.joints?.[vi]||f.joint)q=faunaJointVertex(q,age,f.joints?.[vi]||f.joint,mesh.coreExposure||0,mesh.coreImpact||0);if(rig==='ray')q=rayVertex(q,age);if(!f.joint&&(rig==='squid'||rig==='octopus'))q=organicVertex(q,age,rig);return rotateVertex(q,yaw,roll,pitch,age,(rig==='squid'||rig==='octopus'||rig==='ray')?0:f.flex)});return{...f,v,z:v.reduce((a,p)=>a+p[2],0)/v.length}}).sort((a,b)=>b.z-a.z);
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);ctx.lineJoin='round';
- for(const f of faces){const [a,b,c]=f.v,u=b.map((v,i)=>v-a[i]),v=c.map((n,i)=>n-a[i]);let normal=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.hypot(...normal)||1;normal=normal.map(n=>n/len);const diffuse=Math.abs(normal[0]*-.3+normal[1]*-.6+normal[2]*-.74),spec=Math.pow(Math.abs(normal[2]*-.85+normal[1]*-.45),18)*.42;const light=.3+diffuse*.64+spec+f.em*.6;const pulse=f.joint?.[3]===13?.025+.16*Math.pow(.5+.5*Math.sin(age*4.4),3)+(mesh.coreOpening||0)*.22+(mesh.coreImpact||0)*.58:hit>0&&((age% .12)<.022)?.55:0;const color=`rgb(${f.c.map(n=>{const base=Math.min(255,n*light+spec*110);return Math.round(base+(255-base)*pulse)}).join(',')})`;ctx.beginPath();f.v.forEach((p,i)=>{const perspective=mesh.portalMachinery?1:460/(460+p[2]);i?ctx.lineTo(p[0]*perspective,p[1]*perspective):ctx.moveTo(p[0]*perspective,p[1]*perspective)});ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=.45;ctx.stroke();}
+ for(const f of faces){const [a,b,c]=f.v,u=b.map((v,i)=>v-a[i]),v=c.map((n,i)=>n-a[i]);let normal=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.hypot(...normal)||1;normal=normal.map(n=>n/len);const diffuse=Math.abs(normal[0]*-.3+normal[1]*-.6+normal[2]*-.74),spec=Math.pow(Math.abs(normal[2]*-.85+normal[1]*-.45),18)*.42;const light=.3+diffuse*.64+spec+f.em*.6;const pulse=(f.joint?.[3]===13||f.joint?.[3]===14)?.025+.16*Math.pow(.5+.5*Math.sin(age*4.4),3)+(mesh.coreOpening||0)*.22+(mesh.coreImpact||0)*.58:hit>0&&((age% .12)<.022)?.55:0;const color=`rgb(${f.c.map(n=>{const base=Math.min(255,n*light+spec*110);return Math.round(base+(255-base)*pulse)}).join(',')})`;ctx.beginPath();f.v.forEach((p,i)=>{const perspective=mesh.portalMachinery?1:460/(460+p[2]);i?ctx.lineTo(p[0]*perspective,p[1]*perspective):ctx.moveTo(p[0]*perspective,p[1]*perspective)});ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=.45;ctx.stroke();}
  ctx.restore();
 }
 // Individually modeled armor ribs, vents, chitin ridges and luminous organs.
@@ -639,7 +639,10 @@ let buildFaunaMesh;
 function faunaJointVertex(p,age,joint,exposure=0,impact=0){
  if(!joint||!joint[3])return p;const [px,py,pz,mode]=joint,x=p[0]-px,y=p[1]-py,z=p[2]-pz,side=pz<0?-1:1,w=Math.min(1,Math.hypot(x,y,z)/35);
  let a,axis='xy';
- if(mode===12){const e=exposure*exposure*(3-2*exposure),breath=.975+.025*Math.sin(age*3+p[0]*.13)+.14*Math.sin(Math.PI*e);return p.map((v,i)=>v+joint[i]*e*breath);}
+ if(mode===12){const e=exposure*exposure*(3-2*exposure),breath=.975+.025*Math.sin(age*3+p[0]*.13)+.14*Math.sin(Math.PI*e);const curl=Math.sin(Math.PI*e)*Math.hypot(joint[0],joint[1])*.16;return p.map((v,i)=>v+joint[i]*e*breath+(i===2?Math.sign(p[2])*curl:0));}
+ if(mode===14)return[px+x,py+y,pz+z-side*impact*.24]; // Rigid nacre: only a tiny seated recoil.
+ if(mode===16){const a=side*age*1.6,c=Math.cos(a),sn=Math.sin(a);return[px+x*c-y*sn,py+x*sn+y*c,p[2]];}
+ if(mode===15){const e=exposure*exposure*(3-2*exposure);return[p[0],p[1]+py*e,p[2]+pz*e];}
  if(mode===13){const pulse=1+exposure*.055*Math.sin(age*4.1+px*.27)-impact*.22,flutter=exposure*(Math.sin(age*9.1+x*.31+py*.17)*.065+Math.sin(age*6.7+x*.53+z*.21)*.025);return[px+x,py+y*(pulse+flutter),pz+z*(pulse-flutter*.55)];}
  if(mode>=10){const a=(mode===10?1:-1)*side*exposure*1.12,c=Math.cos(a),sn=Math.sin(a);return[p[0],py+y*c-z*sn,pz+y*sn+z*c];}
  if(mode===9){
@@ -1046,17 +1049,17 @@ function buildDevelopedOrganism(spec){
  function section(u){const a=Math.min(profile.length-2,Math.floor(u*(profile.length-1))),t=u*(profile.length-1)-a;
   return profile[a].map((v,i)=>{const p=profile[Math.max(0,a-1)][i],b=profile[a+1][i],n=profile[Math.min(profile.length-1,a+2)][i],r=.5*(2*v+(-p+b)*t+(2*p-5*v+4*b-n)*t*t+(-p+3*v-3*b+n)*t*t*t);return i>1?Math.max(.25,r):r;});}
  function surface(u,a,offset=0){const p=section(u);return[p[0],p[1]-Math.cos(a)*(p[2]+offset),Math.sin(a)*(p[3]+offset)];}
- const rows=(profile.length-1)*4,sides=28,rings=Array.from({length:rows+1},(_,i)=>Array.from({length:sides},(_,j)=>surface(i/rows,j/sides*Math.PI*2)));
- const chambers=[],chamberStart=Math.floor(rows*.28),chamberEnd=chamberStart+(soft?5:6),chamberCenter=plan==='moth'?10:7,chamberAngle=chamberCenter/sides*Math.PI*2;
- // Taper the seam to an almond-shaped breathing slit, with pointed ends.
- // Adjacent body faces share these vertices, so it is a hole in the skin.
+ const rows=(profile.length-1)*(boss?6:4),sides=boss?40:28,rings=Array.from({length:rows+1},(_,i)=>Array.from({length:sides},(_,j)=>surface(i/rows,j/sides*Math.PI*2)));
+ const chambers=[],chamberStart=Math.floor(rows*.28),chamberEnd=chamberStart+(soft?5:6),chamberCenter=plan==='moth'?Math.round(sides*.357):sides/4,chamberAngle=chamberCenter/sides*Math.PI*2;
+ // A compact rounded socket is part of the continuous body surface.
+ // Denser skin rows keep the opening soft instead of making an angular hatch.
  if(boss)for(let i=chamberStart;i<=chamberEnd;i++)for(const center of [chamberCenter,sides-chamberCenter]){
-  const u=(i-chamberStart)/(chamberEnd-chamberStart),width=.07+.93*Math.pow(Math.sin(Math.PI*u),.65);
+  const u=(i-chamberStart)/(chamberEnd-chamberStart),width=.12+.88*Math.pow(Math.sin(Math.PI*u),.48);
   for(let j=center-2;j<=center+2;j++)rings[i][j]=surface(i/rows,(center+(j-center)*width)/sides*Math.PI*2);
  }
 
  for(let i=0;i<rows;i++)for(let j=0;j<sides;j++){
-  const side=j<14?1:-1,center=side>0?chamberCenter:sides-chamberCenter,inChamber=boss&&i>=chamberStart&&i<chamberEnd&&j>=center-2&&j<center+2;
+  const side=j<sides/2?1:-1,center=side>0?chamberCenter:sides-chamberCenter,inChamber=boss&&i>=chamberStart&&i<chamberEnd&&j>=center-2&&j<center+2;
   const face={v:[rings[i][j],rings[i][(j+1)%sides],rings[i+1][(j+1)%sides],rings[i+1][j]],c:skin,em:0,flex:0,textureWeight:.65};
   if(inChamber){
    // Skin retracts along its own curved surface. The seam tips and outer edge
@@ -1064,7 +1067,7 @@ function buildDevelopedOrganism(spec){
    const direction=j<center?-1:1;
    face.joints=[[i,j],[i,j+1],[i+1,j+1],[i+1,j]].map(([row,col],vi)=>{
     const u=(row-chamberStart)/(chamberEnd-chamberStart),edge=Math.abs(col-center)/2;
-    const taper=.07+.93*Math.pow(Math.sin(Math.PI*u),.65),pull=Math.pow(Math.sin(Math.PI*u),.7)*(1-edge)*.93;
+    const taper=.12+.88*Math.pow(Math.sin(Math.PI*u),.48),pull=Math.pow(Math.sin(Math.PI*u),.48)*(1-edge)*.97;
     const a=(center+direction*2*(edge+pull)*taper)/sides*Math.PI*2,target=surface(row/rows,a);
     return[...target.map((v,k)=>v-face.v[vi][k]),12];
    });face.coreCover=true;
@@ -1073,25 +1076,36 @@ function buildDevelopedOrganism(spec){
  }
  if(boss)for(const side of [-1,1]){
   const center=side>0?chamberCenter:sides-chamberCenter,point=surface((chamberStart+chamberEnd)/2/rows,side*chamberAngle),tissue=soft?[179,101,115]:[202,137,93];
-  point[2]-=side*3.5;
-  chambers.push({local:point,side,normal:[0,-Math.cos(chamberAngle),side*Math.sin(chamberAngle)],kind:soft?'gill':'carapace',radius:5.2});
-  // The original skin panels become hinged covers. Behind them is a closed,
-  // recessed bowl of dark tissue, with living folds rather than a separate orb.
+  point[2]-=side*1.5;
+  chambers.push({local:point,side,normal:[0,-Math.cos(chamberAngle),side*Math.sin(chamberAngle)],kind:'pearl',radius:6.4});
+  // A warm, recessed tissue bed supports the pearl. It shares the skin edge
+  // and has no flat black backing or separate cap floating above the body.
   for(let i=chamberStart;i<chamberEnd;i++)for(let j=center-2;j<center+2;j++){
-   const outer=[rings[i][j],rings[i][j+1],rings[i+1][j+1],rings[i+1][j]],inner=outer.map(v=>[v[0],v[1],v[2]-side*4]);
-   m.faces.push({v:inner,c:dark,em:0,flex:0,textureWeight:.1});
+   const outer=[rings[i][j],rings[i][j+1],rings[i+1][j+1],rings[i+1][j]],inner=outer.map(v=>[v[0],v[1],v[2]-side*9]);
+   m.faces.push({v:inner,c:skin.map((v,k)=>Math.round(v*.42+tissue[k]*.18)),em:0,flex:0,textureWeight:.1});
    for(let k=0;k<4;k++)if(k===0&&i===chamberStart||k===2&&i===chamberEnd-1||k===3&&j===center-2||k===1&&j===center+1)m.faces.push({v:[outer[k],outer[(k+1)%4],inner[(k+1)%4],inner[k]],c:edge,em:0,flex:0,textureWeight:.2});
   }
-  // A continuous corrugated respiratory membrane, with an uneven wet surface.
-  // Its folds breathe together; there is no separate ball inside the creature.
-  const flesh=soft?[208,117,126]:[224,144,93],vein=soft?[123,61,82]:[148,74,49];
-  const membrane=(i,j)=>{const u=i/10*2-1,v=j/6*2-1,edge=Math.sqrt(Math.max(0,1-u*u));return[point[0]+u*6,point[1]+v*3.1*edge,point[2]+side*(.12+(1-u*u)*(1-v*v)*(1+.18*Math.sin(u*9+v*3)))];};
-  for(let i=0;i<10;i++)for(let j=0;j<6;j++)m.faces.push({v:[membrane(i,j),membrane(i+1,j),membrane(i+1,j+1),membrane(i,j+1)],c:flesh.map(v=>Math.round(v*(.82+.12*Math.sin(i*.71+j*.3)))),em:0,flex:0,wet:1,textureWeight:0,joint:[...point,13]});
-  for(let k=0;k<7;k++){
-   const u=(chamberStart+.7+k*(chamberEnd-chamberStart-1.4)/6)/rows,p=surface(u,side*chamberAngle);p[2]-=side*2.25;
-   const h=2.1+Math.sin(k*1.9)*.6,start=m.faces.length;
-   tube([[p[0]-.5,p[1]-h,p[2]-side*.3],[p[0]-1.1,p[1]-.4,p[2]+side*.25],[p[0]+.6,p[1]+h,p[2]-side*.25]],.5, k%3?flesh:vein,[...p,13],6,3);
-   for(let f=start;f<m.faces.length;f++){m.faces[f].wet=1;m.faces[f].textureWeight=0;}
+  // A solid nacre dome is seated below the skin, cradled by living tissue.
+  // Its front pole and the damage/contact mount share the same point.
+  const pearlStart=m.faces.length,pearlCenter=[point[0],point[1],point[2]-side*5.6];
+  m.ellipsoid(...pearlCenter,6.2,5.5,5.6,soft?[221,242,236]:[244,229,213],0,32,20);
+  for(let f=pearlStart;f<m.faces.length;f++)Object.assign(m.faces[f],{wet:2,pearl:true,textureWeight:0,smoothGroup:'nacre-'+side,joint:[...pearlCenter,14]});
+  // Suspensory muscle grows from the socket wall into the back of the lens.
+  // A few irregular folded lobes, rather than a separate ring, explain how
+  // the sensory core is held and refocused during its recovery window.
+  const flesh=skin.map((v,k)=>Math.round(v*.7+tissue[k]*.3));
+  for(let lobe=0;lobe<9;lobe++){
+   const a=lobe*Math.PI*2/9+.1*Math.sin(lobe*2.3),dx=Math.cos(a),dy=Math.sin(a);
+   const u=(dx+1)*.5,taper=.12+.88*Math.pow(Math.sin(Math.PI*u),.48);
+   const wall=surface((chamberStart+u*(chamberEnd-chamberStart))/rows,(center+Math.sign(dy)*2*taper)/sides*Math.PI*2);
+   wall[2]-=side*.55;
+   const seated=[point[0]+dx*5.9,point[1]+dy*5.2,point[2]-side*4.7],width=.5+.18*Math.sin(lobe*1.7);
+   const fold=(t,v)=>{const bend=Math.sin(Math.PI*t),ridge=Math.cos(v*Math.PI/2),q=wall.map((n,k)=>n+(seated[k]-n)*t);
+    q[0]+=-dy*v*width*(.45+.55*bend);q[1]+=dx*v*width*(.45+.55*bend);q[2]+=side*bend*(.25+.7*ridge);return q;};
+   for(let along=0;along<6;along++)for(let across=0;across<4;across++){
+    const t=along/6,next=(along+1)/6,v=across/2-1,w=(across+1)/2-1;
+    m.faces.push({v:[fold(t,v),fold(t,w),fold(next,w),fold(next,v)],c:flesh,em:0,flex:0,wet:.35,textureWeight:.24,joint:[...wall,13],sensorySupport:true});
+   }
   }
  }
 
@@ -1215,8 +1229,66 @@ function buildDevelopedOrganism(spec){
  const bodyVolumes=[.25,.5,.73].map(u=>{const p=section(u);return{center:transform([p[0],p[1],0]),radii:transform([18,p[2]*.94,p[3]*.94])};});
  // Include the actual recessed tissue in collision, even when a narrow mantle
  // turns beyond the old three-ellipsoid approximation.
- for(const c of chambers)bodyVolumes.push({center:transform([c.local[0],c.local[1],c.local[2]+c.side*.4]),radii:transform([4.8,3.1,1.15])});
+ for(const c of chambers)bodyVolumes.push({center:transform([c.local[0],c.local[1],c.local[2]+c.side*.4]),radii:transform([6.7,4.2,1.5])});
  Object.assign(m.faces,{skin:true,fauna:true,organicRig:'anatomical',alienMaterial:soft?'flesh':'chitin',nativeAnatomy:true,anatomy:plan,development:g,anatomyProgram:plan,exposureChambers:chambers.map(c=>({...c,local:transform(c.local),radius:c.radius*scale})),muzzle:transform(muzzle),ports:ports.map(transform),bodyVolumes,bodyFaceCount,armAttachments:armAttachments.map(a=>({pivot:transform(a.pivot),mode:a.mode,tip:transform(a.tip),skinPoint:transform(a.skinPoint),rootRing:a.rootRing.map(transform)})),anatomyMetrics:{limbPairs:plan==='crab'?4:plan==='mantis'?3:plan==='beetle'||plan==='moth'?3:2,integratedSkull:true}});return m.faces;
+}
+// A recessed reactor under two sliding armored doors. The winding remains
+// fixed in the housing while the doors retract; all parts share the hull pose.
+function buildReactorChamber(point,radius,side= -1,color=[88,108,123]){
+ const m=meshBuilder(),r=radius,at=(x,y,z)=>[point[0]+x*r,point[1]+y*r,point[2]+side*z*r];
+ const steel=[139,165,179],dark=[17,29,39],copper=[157,102,58],ceramic=[143,169,180];
+ const tint=(c,n)=>c.map(v=>Math.round(v*n)),face=(v,c,extra={})=>m.faces.push({v,c,em:0,flex:0,textureWeight:.14,...extra});
+ function outline(cx,cy,x,y,z,cut=.14){cut=Math.min(cut,x*.4,y*.4);return[[cx-x+cut,cy-y],[cx+x-cut,cy-y],[cx+x,cy-y+cut],[cx+x,cy+y-cut],[cx+x-cut,cy+y],[cx-x+cut,cy+y],[cx-x,cy+y-cut],[cx-x,cy-y+cut]].map(([a,b])=>at(a,b,z));}
+ function plate(cx,cy,x,y,back,front,c,extra={}){
+  const bevel=Math.min(.045,(front-back)*.28,x*.18,y*.18),base=outline(cx,cy,x,y,back),rim=outline(cx,cy,x,y,front-bevel),top=outline(cx,cy,x-bevel,y-bevel,front);
+  face(top,c,extra);face(base.slice().reverse(),tint(c,.48),extra);
+  for(let i=0;i<8;i++){const j=(i+1)%8;face([rim[i],rim[j],top[j],top[i]],tint(c,1.20),extra);face([base[i],base[j],rim[j],rim[i]],tint(c,.65),extra);}
+ }
+ // A single bed is sunk into the hull. Its shoulders enclose the complete
+ // shutter travel: opened armor is retained inside the two actuator pockets.
+ const housing={reactorHousing:true};
+ plate(0,0,1.12,1.70,-.48,-.36,tint(color,.65),housing);
+ plate(0,0,.88,.87,-.35,-.30,dark,housing);
+ for(const sx of [-1,1]){
+  plate(sx*.99,0,.13,1.48,-.37,.12,color,housing);
+  plate(sx*.83,0,.042,.83,-.22,.07,steel,housing);
+ }
+ // A deep ceramic cartridge contains the power path. Broad copper busbars
+ // and compression clamps make the energy source readable even at game size.
+ const core={reactorCore:true,wet:.6,textureWeight:0,joint:[...point,14]};
+ plate(0,0,.52,.70,-.28,-.19,tint(ceramic,.63),core);
+ for(const sx of [-1,1]){
+  plate(sx*.43,0,.075,.61,-.18,-.055,copper,core);
+  for(const sy of [-1,1])plate(sx*.35,sy*.55,.16,.10,-.10,-.015,steel,core);
+ }
+ plate(0,0,.19,.49,-.18,-.065,[27,91,112],core);
+ for(let i=0;i<5;i++){
+  const y=(i-2)*.18;plate(0,y,.16,.057,-.065,0,[105,225,242],{...core,wet:3,em:.36,reactorEnergy:true});
+  plate(-.25,y,.062,.032,-.08,-.015,copper,core);plate(.25,y,.062,.032,-.08,-.015,copper,core);
+ }
+ // A recessed cooling impeller rotates as a solid assembly behind the
+ // stationary cartridge. Its vanes catch light; no sphere or glass material.
+ const rotor={reactorRotor:true,joint:[...at(0,0,-.13),16],textureWeight:.06};
+ for(let i=0;i<12;i++){
+  const a=i*Math.PI/6,polar=(radius,angle,z)=>at(Math.cos(angle)*radius,Math.sin(angle)*radius,z);
+  face([polar(.63,a,-.18),polar(.74,a+.22,-.18),polar(.74,a+.43,-.1),polar(.58,a+.29,-.1)],i%3?steel:copper,rotor);
+  face([polar(.74,a+.22,-.18),polar(.77,a+.22,-.25),polar(.77,a+.43,-.25),polar(.74,a+.43,-.1)],dark,rotor);
+ }
+ // Beveled shutter halves and inset locking strips slide behind fixed cowls.
+ for(const direction of [-1,1]){
+  const moving={coreCover:true,joint:[0,direction*r*.85,0,15],textureWeight:.16};
+  plate(0,direction*.418,.80,.422,.045,.17,color,moving);
+  plate(0,direction*.57,.50,.055,.17,.192,tint(color,.62),moving);
+  plate(direction*.51,direction*.13,.14,.045,.17,.19,copper,moving);
+  plate(0,direction*1.28,1.10,.42,-.32,.34,color,housing);
+  plate(0,direction*.88,.86,.036,.23,.36,steel,housing);
+  for(let vent=0;vent<5;vent++)plate(-.64+vent*.32,direction*1.27,.085,.23,.34,.35,dark,housing);
+  for(const sx of [-1,1]){
+   plate(sx*.93,direction*1.43,.065,.065,.34,.385,steel,housing);
+   plate(sx*.61,direction*.98,.14,.025,.34,.365,[87,193,207],{...housing,em:.15});
+  }
+ }
+ Object.assign(m.faces,{industrial:true,reactorMount:point.slice(),reactorRadius:r,reactorSide:side});return m.faces;
 }
 function buildDevelopedMachine(spec){
  const g=spec.genome,m=meshBuilder(),c=spec.color,accent=spec.accent,steel=[130,151,164],dark=[24,33,43],ports=[],hullVolumes=[],scale=spec.small||1;
@@ -1261,8 +1333,20 @@ function buildDevelopedMachine(spec){
   if(thermal==='cryo')tube([[x-5,y,15],[x,y+side*5,16],[x+5,y,15]],.8,accent);
  }
  if(thermal==='stellar'){for(const side of [-1,1]){m.wedge([muzzle[0]+5,side*3,7],[-g.nose*.55,side*(spread*.7+9),11],[-g.nose*.4,side*4,17],6,armorColor);tube([[5,side*14,-3],[20,side*(spread+10),-5],[35,side*18,-3]],2,steel);}}
- for(const f of m.faces){f.textureWeight=.22;f.v=f.v.map(p=>p.map(v=>v*scale));if(f.joint)f.joint=[...f.joint.slice(0,3).map(n=>n*scale),f.joint[3]];}
- Object.assign(m.faces,{industrial:true,nativeAnatomy:true,anatomy:frame,development:g,hullVolumes:hullVolumes.map(v=>({structural:v.structural,center:v.center.map(n=>n*scale),radii:v.radii.map(n=>n*scale)})),muzzle:muzzle.map(v=>v*scale),ports:ports.map(p=>p.map(v=>v*scale)),bodyVolumes:[{center:[0,0,0],radii:[(g.nose+10)*scale,(spread*.8+10)*scale,20*scale]}]});return m.faces;
+ const chambers=[];
+ if(g.boss){
+  const structural=hullVolumes.filter(v=>v.structural),centralHull=structural.reduce((a,v)=>Math.hypot(v.center[1],v.center[2])<Math.hypot(a.center[1],a.center[2])?v:a);
+  for(const side of [-1,1]){
+   // Put radial machines' service hatch on the nearest central nacelle,
+   // so an outboard engine cannot mask a target deeper inside the frame.
+   const hull=frame==='radial'?structural.filter(v=>Math.abs(v.center[1])<1).reduce((a,v)=>side*v.center[2]+v.radii[2]>side*a.center[2]+a.radii[2]?v:a):centralHull;
+   const r=Math.min(6.4,hull.radii[1]*(frame==='radial'?.8:.54)),point=[hull.center[0]-hull.radii[0]*.34,hull.center[1],hull.center[2]+side*(hull.radii[2]*.97+r*.43)];
+   m.faces.push(...buildReactorChamber(point,r,side,c));chambers.push({local:point,side,normal:[0,0,side],radius:r*.87,kind:'reactor'});
+   hullVolumes.push({center:point.slice(),radii:[r,r,r*.5]});
+  }
+ }
+ for(const f of m.faces){f.textureWeight??=.22;f.v=f.v.map(p=>p.map(v=>v*scale));if(f.joint)f.joint=[...f.joint.slice(0,3).map(n=>n*scale),f.joint[3]];}
+ Object.assign(m.faces,{industrial:true,nativeAnatomy:true,anatomy:frame,development:g,exposureChambers:chambers.map(c=>({...c,local:c.local.map(n=>n*scale),radius:c.radius*scale})),hullVolumes:hullVolumes.map(v=>({structural:v.structural,center:v.center.map(n=>n*scale),radii:v.radii.map(n=>n*scale)})),muzzle:muzzle.map(v=>v*scale),ports:ports.map(p=>p.map(v=>v*scale)),bodyVolumes:[{center:[0,0,0],radii:[(g.nose+10)*scale,(spread*.8+10)*scale,20*scale]},...chambers.map(c=>({center:c.local.map(n=>n*scale),radii:[c.radius*scale,c.radius*scale,c.radius*.5*scale]}))]});return m.faces;
 }
 
 // Compact rigid boss ordnance: ceramic nose, plated motor, recessed nozzle and

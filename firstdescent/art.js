@@ -781,7 +781,7 @@ function drawBossDrives(b,d){
  }
  ctx.restore();
 }
-function drawDesignedBoss(b,d){const k=bossIndex(),p=bossFlightPose(b);if(!d.procedural){if(bossOrganic())window.animateAlienBoss(k,b,d);else animateMachineBoss(k,b);}d.mesh.coreExposure=b.coreAperture??(b.exposed>0?1:0);d.mesh.coreOpening=b.coreOpening||0;d.mesh.coreImpact=Math.pow(clamp((b.coreImpact||0)/(b.coreImpactDuration||.16),0,1),2);drawBossDrives(b,d);drawModel(d.mesh,b.x,b.y,d.scale*p.depth,p.yaw,p.roll,p.pitch,(isOriginGuardian(b)?b.origin?.wingAge??b.age:b.variationWingAge??b.age)*(d.mesh.development?.appendageRate||1),b.hit);const m=bossMount(b,d.mouth),pulse=clamp((b.muzzle||0)/.16,0,1);if(pulse)orb(m.x,m.y,8+6*pulse,bossOrganic()?'#e9a976':'#b7e7ff',pulse*.55);if(k===4&&hazards.length){const h=hazards[0],charge=clamp(h.age/h.warning,0,1);orb(m.x,m.y,8+charge*23,'#b6efff',.3+charge*.45);}}
+function drawDesignedBoss(b,d){const k=bossIndex(),p=bossFlightPose(b);if(!d.procedural){if(bossOrganic())window.animateAlienBoss(k,b,d);else animateMachineBoss(k,b);}d.mesh.coreExposure=b.coreAperture??(b.exposed>0?1:0);d.mesh.coreOpening=b.coreOpening||0;d.mesh.coreStrike=b.coreStrike||[0,0];d.mesh.coreImpact=Math.pow(clamp((b.coreImpact||0)/(b.coreImpactDuration||.16),0,1),2);drawBossDrives(b,d);drawModel(d.mesh,b.x,b.y,d.scale*p.depth,p.yaw,p.roll,p.pitch,(isOriginGuardian(b)?b.origin?.wingAge??b.age:b.variationWingAge??b.age)*(d.mesh.development?.appendageRate||1),b.hit);const m=bossMount(b,d.mouth),pulse=clamp((b.muzzle||0)/.16,0,1);if(pulse)orb(m.x,m.y,8+6*pulse,bossOrganic()?'#e9a976':'#b7e7ff',pulse*.55);if(k===4&&hazards.length){const h=hazards[0],charge=clamp(h.age/h.warning,0,1);orb(m.x,m.y,8+charge*23,'#b6efff',.3+charge*.45);}}
 function drawMenace(b){
  const design=bossDesign();if(design){drawDesignedBoss(b,design);return;}
  if(bossIndex()===0){drawWardenCreature(b);return;}
@@ -2818,11 +2818,11 @@ function updateEncounter(b,dt){if(isOriginGuardian(b))return;if(isTideEncounter(
 function bossWeakPointMount(b){
  const d=bossDesign(),pose=bossFlightPose(b),forward=rotateVertex([-1,0,0],pose.yaw,pose.roll,pose.pitch,0,0);
  if(!d)return{...organicMouth(b),forward};
- if(bossOrganic()){
+ if(bossOrganic()||d.mesh.exposureChambers?.length){
   // Select the visible flank, using the same rigid transform as its skin.
   // Authored predators use their existing sensory eyes and eyelids.
   const authored=window.gpuModels?.authoredReady?.(d.mesh.authoredAsset)?d.mesh.authoredAsset:null,eye=authored==='vesper-reaver'?[-37,-1,14.74]:authored==='rift-lantern'?[-28,-2,22.62]:null;
-  const chambers=eye?[-1,1].map(side=>({local:[eye[0],eye[1],side*eye[2]],side,radius:3.3,kind:'eye'})):(d.mesh.exposureChambers||[]);
+  const chambers=eye?[-1,1].map(side=>({local:[eye[0],eye[1],side*eye[2]],side,radius:4.1,kind:'pearl'})):(d.mesh.exposureChambers||[]);
   if(!chambers.length)return{...organicMouth(b),forward};
   const chamber=chambers.reduce((a,c)=>rotateVertex(c.normal||[0,0,c.side],pose.yaw,pose.roll,pose.pitch,0,0)[2]<rotateVertex(a.normal||[0,0,a.side],pose.yaw,pose.roll,pose.pitch,0,0)[2]?c:a);
   const visibility=-rotateVertex(chamber.normal||[0,0,chamber.side],pose.yaw,pose.roll,pose.pitch,0,0)[2];
@@ -2842,7 +2842,7 @@ function bossWeakPointMount(b){
 function bossWeakPoint(b){
  if(isTideEncounter()||typeof isCapitalSiege==='function'&&isCapitalSiege(b))return null;
  const k=bossIndex(),open=k===1&&!isTideEncounter()?b.shieldBroken:b.exposed>0;
- if(!open||k===5&&enemies.some(e=>e.guardian&&e.hp>0)||bossOrganic()&&b.coreAperture!==undefined&&b.coreAperture<.55)return null;
+ if(!open||k===5&&enemies.some(e=>e.guardian&&e.hp>0)||b.coreAperture!==undefined&&b.coreAperture<.55)return null;
  const p=bossWeakPointMount(b);
  if(p.visibility!==undefined&&p.visibility<.18)return null;
  return {...p,r:p.r??(k===4?18:28),multiplier:isTideEncounter()?2.2:k===4?8:6.5};
@@ -2896,7 +2896,7 @@ function drawPearlCore(p,aperture,kind='organic',angle=0,tilt=1,impact=0){
  ctx.restore();
 }
 function drawBossWeakPoint(b){
- if(bossOrganic())return; // Native skin/eyelid geometry reveals the target in 3D.
+ if(bossOrganic()||bossDesign()?.mesh.exposureChambers?.length)return; // Native skin or armor reveals solid 3D targets.
  if(isTideEncounter()||typeof isCapitalSiege==='function'&&isCapitalSiege(b))return;
  const weak=bossWeakPoint(b),p=weak||{...bossWeakPointMount(b),r:bossIndex()===4?18:28},aperture=b.coreAperture??(weak?1:0),pose=bossFlightPose(b);
  drawPearlCore(p,aperture,bossOrganic()?'organic':'machine',Math.atan2(p.forward[1],p.forward[0]),.72+.28*Math.abs(Math.cos(pose.yaw)),b.coreImpact);

@@ -396,7 +396,7 @@ function bossShotContactTime(b,x,y,endX,endY,r){
 // A miss or covered opening still collides with the normal armor volumes.
 function bossVisibleShotContactTime(b,s,oldX,oldY,endX,endY){
  const body=bossShotContactTime(b,oldX,oldY,endX,endY,s.r);
- if(body>1||!bossOrganic())return body;
+ if(body>1||!bossOrganic()&&!bossDesign()?.mesh.exposureChambers?.length)return body;
  const weak=bossWeakPoint(b)||(isTideEncounter()&&b.exposed>0&&b.coreAperture>=.55?bossWeakPointMount(b):null);
  if(!weak||weak.visibility!==undefined&&weak.visibility<.18)return body;
  const dx=endX-oldX,dy=endY-oldY,length=Math.hypot(dx,dy);if(length<.0001)return body;
@@ -499,6 +499,9 @@ function combatImpact(s,target,kind='metal'){
    const lateral=clamp((x-organ.x)*-uy+(y-organ.y)*ux,-organ.r*.45,organ.r*.45);
    const tx=organ.x-uy*lateral,ty=organ.y+ux*lateral,distance=Math.hypot(tx-x,ty-y);
    if(distance>3&&!bossOrganic()){particles.push({x:tx,y:ty,fromX:x,fromY:y,owner:boss,offsetX:tx-boss.x,offsetY:ty-boss.y,vx:0,vy:0,life:.075,max:.075,c:s.c||'#c3fff0',r:1.3,penetration:true});}
+   // Surface-space origin for the optical response: the glint follows the
+   // actual contact across the visible core, including shots from either side.
+   boss.coreStrike=[clamp((tx-organ.x)/organ.r,-.6,.6),clamp(-(ty-organ.y)/organ.r,-.6,.6)];
    x=tx;y=ty;
   }
  }
