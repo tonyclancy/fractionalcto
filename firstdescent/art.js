@@ -757,11 +757,13 @@ function bossEntryRadius(b){
 function beginBossEntry(b){
  const radius=bossEntryRadius(b),toX=isCapitalSiege(b)?900:W*.72;
  b.x=W+radius+48;b.y=H*.5;b.navVX=b.navVY=0;
- b.entry={age:0,fromX:b.x,toX,radius,duration:clamp((b.x-toX)/300,2.4,4.4)};
+ // Caelus arrives at speed and brakes into view, after its existing warning.
+ const intercept=typeof storyActive==='function'&&storyActive()&&storyIndex()===0;
+ b.entry={age:0,fromX:b.x,toX,radius,intercept,duration:intercept?3:clamp((b.x-toX)/300,2.4,4.4)};
  window.gpuModels?.prepare?.([bossDesign().mesh]);
 }
 function updateBossEntry(b,dt){
- const e=b.entry,oldX=b.x;e.age+=dt;const u=clamp(e.age/e.duration,0,1),ease=u*u*(3-2*u);
+ const e=b.entry,oldX=b.x;e.age+=dt;const u=clamp(e.age/e.duration,0,1),ease=e.intercept?1-Math.pow(1-u,3):u*u*(3-2*u);
  b.x=e.fromX+(e.toX-e.fromX)*ease;b.navVX=(b.x-oldX)/dt;
  updateBossAttitude(b,dt,b.navVX,0);
  if(u===1){b.x=e.toX;b.navVX=b.navVY=0;b.entry=null;}
@@ -3665,8 +3667,11 @@ function drawPickupEffects(){
   }
   ctx.restore();
  }
- const latest=pickupEffects.at(-1),t=latest.age,alpha=Math.min(1,t/.1)*(1-navigationEase((t-1.65)/.55));
- const x=clamp(ship.x,190,W-190),y=ship.y<145?ship.y+82:ship.y-100-Math.min(14,t*8);
+ const latest=pickupEffects.at(-1);if(latest.announced)return;
+ const t=latest.age,alpha=Math.min(1,t/.1)*(1-navigationEase((t-1.65)/.55));
+ // If a higher-priority announcement owns the HUD, keep the receipt in a
+ // fixed corner. Never trail a text box through the player's firing lane.
+ const x=210,y=H-62;
  ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle='#071621e8';ctx.fillRect(x-184,y-23,368,51);ctx.fillStyle=latest.c;ctx.fillRect(x-184,y-23,3,51);ctx.textAlign='center';ctx.fillStyle='#edfff8';ctx.font='bold 15px system-ui';ctx.fillText(latest.title,x,y-3);ctx.fillStyle='#bfdbdf';ctx.font='11px system-ui';ctx.fillText(latest.detail,x,y+17);ctx.restore();
 }
 // Shared, bounded signatures alternate with each world's established encounter.

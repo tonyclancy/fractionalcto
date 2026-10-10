@@ -732,7 +732,9 @@ function collect(d){
  else if(d.type==='nova')novas=Math.min(3,novas+1);
  const receipt=pickupReceipt(d.type,before);queuePickupEffect(d.type,receipt,d);
  score+=50;burst(d.x,d.y,lootColors[d.type]||'#a8ffdb',12);window.flightAudio?.pickup(d.x,d.type);
- if(announce(receipt.title,receipt.detail,0))annTimer=1.8;updateHUD();return true;
+ // One receipt owns the text; the hull animation remains independent.
+ const shown=announce(receipt.title,receipt.detail,0);pickupEffects.at(-1).announced=shown;
+ if(shown)annTimer=1.8;updateHUD();return true;
 }
 // Capture once at the sector boundary. Blurring a small cached image avoids
 // filtering the full live scene on every frame of the transition.

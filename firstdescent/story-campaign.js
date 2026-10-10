@@ -697,7 +697,12 @@ function openingMissionTask(){
  if(storyIndex()===1&&time>=7&&time<13)return {title:'BREAK THE FORMATION',detail:'Amber leader protects its escorts · destroy it to disrupt their weapons'};
  if(boss){if(boss.siege)return {title:'DISMANTLE THE DREADNOUGHT',detail:capitalSiegeHint(boss)};return {title:boss.exposed>0?'COUNTERATTACK NOW':'DEFEAT THE SKY GUARDIAN',detail:bossEncounterHint(boss)};}
  if(storyIndex()===1&&time>=16&&time<30){const m=ferrumMission;return m?.boarded?{title:'ENGINEER ABOARD',detail:'Drone jams one boss weapon · attack its green opening'}:m?.status==='missed'?{title:'DISTRESS CALL PASSED',detail:'Rescue optional · the route remains open'}:plan.beats[1];}
- return plan.beats[openingMissionBeat()];
+ const beat=plan.beats[openingMissionBeat()];
+ if(storyIndex()===0&&(beat.title==='CONTACT BEHIND YOU'||beat.title==='CROSSWIND AMBUSH')){
+  const rear=enemies.some(e=>e.hp>0&&!e.retreat&&e.entry==='left'&&e.x<ship.x-60&&e.x> -500);
+  if(!rear)return shipDirection()<0?{title:'FACE THE NEXT WAVE',detail:'Space / double tap to face right'}:{title:'KEEP PUSHING',detail:'Collect supplies · watch for the next formation'};
+ }
+ return beat;
 }
 function updateOpeningMissionHUD(){
  updateOpeningRescueMarker();updateStoryInteractionHUD();
