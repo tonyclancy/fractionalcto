@@ -438,7 +438,7 @@ function updateCapitalDischarges(b,dt){
  const siege=b.siege;
  for(const node of siege.nodes){const a=node.special;if(!a||!capitalNodeActive(b,node))continue;const previous=a.age;a.age+=dt;
   if(previous<a.warning&&a.age>=a.warning){const frame=capitalDischargeFrame(b,a.kind);if(a.kind==='purge')window.flightAudio?.thrusterBurst?.(a.duration);else window.flightAudio?.laserBeam(.35);if(a.kind==='pulse')siege.pulses.push({...frame,age:0,r:28,width:18,gap:a.gap,life:1.9});}
-  if(a.kind==='purge'&&a.age>=a.warning&&a.age<a.warning+a.duration&&capitalPurgeContact(capitalDischargeFrame(b,a.kind),ship.x,ship.y))damage();
+  if(a.kind==='purge'&&a.age>=a.warning&&a.age<a.warning+a.duration&&capitalPurgeContact(capitalDischargeFrame(b,a.kind),ship.x,ship.y))damage('exhaust');
   if(a.age>=a.warning+a.duration){node.special=null;node.recovery=2.4;}
  }
  for(const pulse of siege.pulses){pulse.age+=dt;pulse.r=28+pulse.age*510;if(capitalPulseContact(pulse,ship.x,ship.y))damage('shockwave');}

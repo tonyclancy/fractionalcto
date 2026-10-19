@@ -103,16 +103,16 @@
 
 /* The sector card can grow: destination and mission lines must never be clipped. */
 .hud-sector{min-width:0}.hud-sector .mission-hud{display:block}.hud-sector strong{line-height:1.2}
-.console:is(:fullscreen,.native-fullscreen),.console.expanded{--flight-hud:94px;--flight-equipment:60px;position:fixed;inset:0;z-index:9999;width:100%;height:100dvh;max-width:none;display:flex;flex-direction:column;border:0;border-radius:0;background:#050b13}
-.console:is(:fullscreen,.native-fullscreen) .hud,.console.expanded .hud{height:auto;min-height:var(--flight-hud);flex:none;padding:12px 20px;gap:20px;line-height:1.2}
-.console:is(:fullscreen,.native-fullscreen) .hud-sector,.console.expanded .hud-sector{max-width:65%}
-.console:is(:fullscreen,.native-fullscreen) .equipment,.console.expanded .equipment{height:auto;min-height:var(--flight-equipment);flex:none;padding:10px 20px;gap:22px;flex-wrap:wrap}
-.console:is(:fullscreen,.native-fullscreen) .stage,.console.expanded .stage{flex:1;min-height:0;width:100%;aspect-ratio:auto;display:flex;align-items:center;justify-content:center;container-type:size}
-.console:is(:fullscreen,.native-fullscreen) #game,.console.expanded #game{width:min(100vw,calc((100dvh - var(--flight-hud) - var(--flight-equipment))*1.89473684));height:auto;max-width:100%;max-height:100%;aspect-ratio:1440/760;flex:none;object-fit:contain}
-@supports(width:1cqw){.console:is(:fullscreen,.native-fullscreen) #game,.console.expanded #game{width:min(100cqw,189.473684cqh);height:min(100cqh,52.777778cqw)}}
-.console:is(:fullscreen,.native-fullscreen) canvas:focus,.console:is(:fullscreen,.native-fullscreen) canvas:focus-visible,.console.expanded canvas:focus,.console.expanded canvas:focus-visible{outline:none;outline-offset:0}
-.console:is(:fullscreen,.native-fullscreen) .progress-wrap,.console.expanded .progress-wrap{display:block;min-width:90px;width:18%}
-@media(max-height:550px){.console:is(:fullscreen,.native-fullscreen),.console.expanded{--flight-hud:76px;--flight-equipment:46px}.console:is(:fullscreen,.native-fullscreen) .hud strong,.console.expanded .hud strong{font-size:11px;margin-top:4px}.console:is(:fullscreen,.native-fullscreen) .scoreblock strong,.console.expanded .scoreblock strong{font-size:18px}.console:is(:fullscreen,.native-fullscreen) .equipment,.console.expanded .equipment{padding:5px 12px;gap:15px}.console:is(:fullscreen,.native-fullscreen) .equipment strong,.console.expanded .equipment strong{font-size:9px;margin-top:3px}.console:is(:fullscreen,.native-fullscreen) .equipment-icon,.console.expanded .equipment-icon{font-size:21px}.console:is(:fullscreen,.native-fullscreen) .eyebrow,.console.expanded .eyebrow{font-size:8px}}
+.console:is(:fullscreen,.desktop-fit,.native-fullscreen),.console.expanded{--flight-hud:94px;--flight-equipment:60px;position:fixed;inset:0;z-index:9999;width:100%;height:100dvh;max-width:none;display:flex;flex-direction:column;border:0;border-radius:0;background:#050b13}
+.console:is(:fullscreen,.desktop-fit,.native-fullscreen) .hud,.console.expanded .hud{height:auto;min-height:var(--flight-hud);flex:none;padding:12px 20px;gap:20px;line-height:1.2}
+.console:is(:fullscreen,.desktop-fit,.native-fullscreen) .hud-sector,.console.expanded .hud-sector{max-width:65%}
+.console:is(:fullscreen,.desktop-fit,.native-fullscreen) .equipment,.console.expanded .equipment{height:auto;min-height:var(--flight-equipment);flex:none;padding:10px 20px;gap:22px;flex-wrap:wrap}
+.console:is(:fullscreen,.desktop-fit,.native-fullscreen) .stage,.console.expanded .stage{flex:1;min-height:0;width:100%;aspect-ratio:auto;display:flex;align-items:center;justify-content:center;container-type:size}
+.console:is(:fullscreen,.desktop-fit,.native-fullscreen) #game,.console.expanded #game{width:min(100vw,calc((100dvh - var(--flight-hud) - var(--flight-equipment))*1.89473684));height:auto;max-width:100%;max-height:100%;aspect-ratio:1440/760;flex:none;object-fit:contain}
+@supports(width:1cqw){.console:is(:fullscreen,.desktop-fit,.native-fullscreen) #game,.console.expanded #game{width:min(100cqw,189.473684cqh);height:min(100cqh,52.777778cqw)}}
+.console:is(:fullscreen,.desktop-fit,.native-fullscreen) canvas:focus,.console:is(:fullscreen,.desktop-fit,.native-fullscreen) canvas:focus-visible,.console.expanded canvas:focus,.console.expanded canvas:focus-visible{outline:none;outline-offset:0}
+.console:is(:fullscreen,.desktop-fit,.native-fullscreen) .progress-wrap,.console.expanded .progress-wrap{display:block;min-width:90px;width:18%}
+@media(max-height:550px){.console:is(:fullscreen,.desktop-fit,.native-fullscreen),.console.expanded{--flight-hud:76px;--flight-equipment:46px}.console:is(:fullscreen,.desktop-fit,.native-fullscreen) .hud strong,.console.expanded .hud strong{font-size:11px;margin-top:4px}.console:is(:fullscreen,.desktop-fit,.native-fullscreen) .scoreblock strong,.console.expanded .scoreblock strong{font-size:18px}.console:is(:fullscreen,.desktop-fit,.native-fullscreen) .equipment,.console.expanded .equipment{padding:5px 12px;gap:15px}.console:is(:fullscreen,.desktop-fit,.native-fullscreen) .equipment strong,.console.expanded .equipment strong{font-size:9px;margin-top:3px}.console:is(:fullscreen,.desktop-fit,.native-fullscreen) .equipment-icon,.console.expanded .equipment-icon{font-size:21px}.console:is(:fullscreen,.desktop-fit,.native-fullscreen) .eyebrow,.console.expanded .eyebrow{font-size:8px}}
 
 #homeScreenHint{margin:12px auto;padding:12px 16px;max-width:640px;color:#b5c9d1;background:#13202b;border:1px solid #35404b;border-radius:4px;font-size:13px;line-height:1.5}
 @media(display-mode:standalone){.console.expanded{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}.console.expanded canvas{max-width:100%;object-fit:contain}}
@@ -226,43 +226,43 @@ body.game-expanded{overscroll-behavior:none}
 /* Touch cockpits use the entire viewport for flight. Information floats over
    the scene instead of taking two opaque rows out of the play area. */
 @media(pointer:coarse),(max-width:680px),(max-width:960px) and (max-height:600px){
- .console:is(:fullscreen,.native-fullscreen,.expanded){--flight-hud:0px;--flight-equipment:0px;--flight-safe-top:env(safe-area-inset-top,0px);--flight-safe-bottom:env(safe-area-inset-bottom,0px);--flight-safe-left:env(safe-area-inset-left,0px);--flight-safe-right:env(safe-area-inset-right,0px);display:block;padding:0;isolation:isolate}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .stage{position:absolute;inset:0;min-height:0;height:100%;width:100%;padding:0;container-type:size}
- .console:is(:fullscreen,.native-fullscreen,.expanded) #game{width:min(100vw,189.473684dvh);height:auto;max-height:100%;max-width:100%;object-fit:contain}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .hud{position:absolute;z-index:14;top:calc(var(--flight-safe-top) + 8px);left:calc(var(--flight-safe-left) + 10px);right:calc(var(--flight-safe-right) + 126px);height:auto;min-height:44px;padding:7px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;background:linear-gradient(110deg,#06121bd9,#07162186);border:1px solid #d4fff014;border-radius:7px;box-shadow:0 2px 12px #0002;pointer-events:none;text-shadow:0 1px 3px #000}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .hud-sector{max-width:none;min-width:0}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .hud .eyebrow{font-size:7px;letter-spacing:1px;white-space:nowrap}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .hud .eyebrow b{margin-left:5px}
- .console:is(:fullscreen,.native-fullscreen,.expanded) #sectorName{font-size:10px;line-height:1.25;letter-spacing:.6px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
- .console:is(:fullscreen,.native-fullscreen,.expanded) #destinationProgress,.console:is(:fullscreen,.native-fullscreen,.expanded) #missionHud,.console:is(:fullscreen,.native-fullscreen,.expanded) #hearts{display:none}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .scoreblock strong{font-size:14px;line-height:1.2;letter-spacing:1px;margin-top:4px}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .hull-meter{width:80px;height:7px;margin:6px 0 1px}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment{position:absolute;z-index:14;bottom:calc(var(--flight-safe-bottom) + 10px);left:calc(var(--flight-safe-left) + 140px);right:calc(var(--flight-safe-right) + 10px);height:auto;min-height:0;width:auto;padding:7px 10px;display:flex;gap:18px;justify-content:flex-end;flex-wrap:nowrap;border-radius:7px;background:linear-gradient(270deg,#06121bd9,#07162170);pointer-events:none;text-shadow:0 1px 3px #000}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment>div{gap:0;min-width:0}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment .eyebrow{font-size:7px;letter-spacing:.8px}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment strong{font-size:9px;line-height:1.2;letter-spacing:.7px;margin-top:3px}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment-icon,.console:is(:fullscreen,.native-fullscreen,.expanded) .equipment .loadout{display:none}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment .progress-wrap{width:100px;min-width:75px;margin-left:0;flex-shrink:0}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .progress{margin-top:6px;height:2px}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .expand-game{top:calc(var(--flight-safe-top) + 8px);right:calc(var(--flight-safe-right) + 60px);width:58px;min-height:44px;padding:5px;font-size:8px;line-height:1.35;letter-spacing:.4px;background:#06121bab;z-index:16}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .pause{top:calc(var(--flight-safe-top) + 8px);right:calc(var(--flight-safe-right) + 10px);width:44px;min-height:44px;padding:8px;font-size:16px;background:#06121bab;z-index:16}
- .console:is(:fullscreen,.native-fullscreen,.expanded) #touchControls.active{position:absolute;z-index:15;left:calc(var(--flight-safe-left) + 10px);right:auto;bottom:calc(var(--flight-safe-bottom) + 8px);display:flex;align-items:center;gap:10px;width:auto;pointer-events:none}
- .console:is(:fullscreen,.native-fullscreen,.expanded) #touchControls button{width:54px;height:54px;font-size:9px;border:1px solid #9ee8d578;border-radius:50%;background:#071b25a6;box-shadow:0 2px 8px #0003;pointer-events:auto}
- .console:is(:fullscreen,.native-fullscreen,.expanded) #touchControls span{display:none}
- .console:is(:fullscreen,.native-fullscreen,.expanded) #bossbar{top:calc(var(--flight-safe-top) + 64px);left:25%;width:50%;pointer-events:none}
- .console:is(:fullscreen,.native-fullscreen,.expanded) #bossbar span{font-size:9px;letter-spacing:2px}
- .console:is(:fullscreen,.native-fullscreen,.expanded) #bosstactic{font-size:8px;line-height:1.35;margin-top:5px}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .origin-recovery{bottom:calc(var(--flight-safe-bottom) + 58px);max-width:72%;pointer-events:none}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .overlay{padding:calc(var(--flight-safe-top) + 12px) calc(var(--flight-safe-right) + 12px) calc(var(--flight-safe-bottom) + 12px) calc(var(--flight-safe-left) + 12px);z-index:15}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded){--flight-hud:0px;--flight-equipment:0px;--flight-safe-top:env(safe-area-inset-top,0px);--flight-safe-bottom:env(safe-area-inset-bottom,0px);--flight-safe-left:env(safe-area-inset-left,0px);--flight-safe-right:env(safe-area-inset-right,0px);display:block;padding:0;isolation:isolate}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .stage{position:absolute;inset:0;min-height:0;height:100%;width:100%;padding:0;container-type:size}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #game{width:min(100vw,189.473684dvh);height:auto;max-height:100%;max-width:100%;object-fit:contain}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .hud{position:absolute;z-index:14;top:calc(var(--flight-safe-top) + 8px);left:calc(var(--flight-safe-left) + 10px);right:calc(var(--flight-safe-right) + 126px);height:auto;min-height:44px;padding:7px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;background:linear-gradient(110deg,#06121bd9,#07162186);border:1px solid #d4fff014;border-radius:7px;box-shadow:0 2px 12px #0002;pointer-events:none;text-shadow:0 1px 3px #000}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .hud-sector{max-width:none;min-width:0}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .hud .eyebrow{font-size:7px;letter-spacing:1px;white-space:nowrap}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .hud .eyebrow b{margin-left:5px}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #sectorName{font-size:10px;line-height:1.25;letter-spacing:.6px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #destinationProgress,.console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #missionHud,.console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #hearts{display:none}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .scoreblock strong{font-size:14px;line-height:1.2;letter-spacing:1px;margin-top:4px}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .hull-meter{width:80px;height:7px;margin:6px 0 1px}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .equipment{position:absolute;z-index:14;bottom:calc(var(--flight-safe-bottom) + 10px);left:calc(var(--flight-safe-left) + 140px);right:calc(var(--flight-safe-right) + 10px);height:auto;min-height:0;width:auto;padding:7px 10px;display:flex;gap:18px;justify-content:flex-end;flex-wrap:nowrap;border-radius:7px;background:linear-gradient(270deg,#06121bd9,#07162170);pointer-events:none;text-shadow:0 1px 3px #000}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .equipment>div{gap:0;min-width:0}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .equipment .eyebrow{font-size:7px;letter-spacing:.8px}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .equipment strong{font-size:9px;line-height:1.2;letter-spacing:.7px;margin-top:3px}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .equipment-icon,.console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .equipment .loadout{display:none}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .equipment .progress-wrap{width:100px;min-width:75px;margin-left:0;flex-shrink:0}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .progress{margin-top:6px;height:2px}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .expand-game{top:calc(var(--flight-safe-top) + 8px);right:calc(var(--flight-safe-right) + 60px);width:58px;min-height:44px;padding:5px;font-size:8px;line-height:1.35;letter-spacing:.4px;background:#06121bab;z-index:16}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .pause{top:calc(var(--flight-safe-top) + 8px);right:calc(var(--flight-safe-right) + 10px);width:44px;min-height:44px;padding:8px;font-size:16px;background:#06121bab;z-index:16}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #touchControls.active{position:absolute;z-index:15;left:calc(var(--flight-safe-left) + 10px);right:auto;bottom:calc(var(--flight-safe-bottom) + 8px);display:flex;align-items:center;gap:10px;width:auto;pointer-events:none}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #touchControls button{width:54px;height:54px;font-size:9px;border:1px solid #9ee8d578;border-radius:50%;background:#071b25a6;box-shadow:0 2px 8px #0003;pointer-events:auto}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #touchControls span{display:none}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #bossbar{top:calc(var(--flight-safe-top) + 64px);left:25%;width:50%;pointer-events:none}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #bossbar span{font-size:9px;letter-spacing:2px}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #bosstactic{font-size:8px;line-height:1.35;margin-top:5px}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .origin-recovery{bottom:calc(var(--flight-safe-bottom) + 58px);max-width:72%;pointer-events:none}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .overlay{padding:calc(var(--flight-safe-top) + 12px) calc(var(--flight-safe-right) + 12px) calc(var(--flight-safe-bottom) + 12px) calc(var(--flight-safe-left) + 12px);z-index:15}
  html.safari-locked .console.expanded{padding:0}
- @supports(width:1cqw){.console:is(:fullscreen,.native-fullscreen,.expanded) #game,html.safari-locked .console.expanded #game{width:min(100cqw,189.473684cqh);height:min(100cqh,52.777778cqw)}}
+ @supports(width:1cqw){.console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #game,html.safari-locked .console.expanded #game{width:min(100cqw,189.473684cqh);height:min(100cqh,52.777778cqw)}}
 }
 @media(pointer:coarse) and (orientation:portrait),(max-width:680px) and (orientation:portrait){
- .console:is(:fullscreen,.native-fullscreen,.expanded) .hud{top:calc(var(--flight-safe-top) + 64px);right:calc(var(--flight-safe-right) + 10px);gap:10px}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .orientation-hint{display:block;position:absolute;top:calc(var(--flight-safe-top) + 124px);left:16px;right:16px;text-align:center;color:#a0f5d8;font-size:11px;z-index:13}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment .progress-wrap{display:none}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .equipment{gap:10px;padding:7px}
- .console:is(:fullscreen,.native-fullscreen,.expanded) #bossbar{top:calc(var(--flight-safe-top) + 156px);left:15%;width:70%}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .hud{top:calc(var(--flight-safe-top) + 64px);right:calc(var(--flight-safe-right) + 10px);gap:10px}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .orientation-hint{display:block;position:absolute;top:calc(var(--flight-safe-top) + 124px);left:16px;right:16px;text-align:center;color:#a0f5d8;font-size:11px;z-index:13}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .equipment .progress-wrap{display:none}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .equipment{gap:10px;padding:7px}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #bossbar{top:calc(var(--flight-safe-top) + 156px);left:15%;width:70%}
 }
 
 /* Flight polish: quieter chrome, readable signals, and no competing text layers. */
@@ -283,16 +283,16 @@ body.game-expanded{overscroll-behavior:none}
  #announcement.compact small{font-size:9px;letter-spacing:.4px;margin-top:3px}
 }
 @media(pointer:coarse){
- .console:is(:fullscreen,.native-fullscreen,.expanded) .stage:has(#bossbar:not([hidden])) #announcement.compact{bottom:calc(env(safe-area-inset-bottom,0px) + 76px);max-width:70%}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .stage:has(#bossbar:not([hidden])) #announcement.compact{bottom:calc(env(safe-area-inset-bottom,0px) + 76px);max-width:min(calc(60% - 48px),560px)}
 }
 @media(prefers-reduced-motion:reduce){#bosshealth{transition:none}}
 
 @media(max-width:680px){
- .console:not(:fullscreen):not(.native-fullscreen):not(.expanded) .hud{height:auto;min-height:94px;padding:11px 14px;gap:10px}
- .console:not(:fullscreen):not(.native-fullscreen):not(.expanded) .hud-sector{flex:1;min-width:0}
- .console:not(:fullscreen):not(.native-fullscreen):not(.expanded) .hud-sector .eyebrow{line-height:1.5}
- .console:not(:fullscreen):not(.native-fullscreen):not(.expanded) #sectorName{font-size:10px;letter-spacing:.6px;margin-top:5px}
- .console:not(:fullscreen):not(.native-fullscreen):not(.expanded) #destinationProgress{font-size:8px;line-height:1.4}
+ .console:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded) .hud{height:auto;min-height:94px;padding:11px 14px;gap:10px}
+ .console:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded) .hud-sector{flex:1;min-width:0}
+ .console:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded) .hud-sector .eyebrow{line-height:1.5}
+ .console:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded) #sectorName{font-size:10px;letter-spacing:.6px;margin-top:5px}
+ .console:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded) #destinationProgress{font-size:8px;line-height:1.4}
 }
 
 /* A single authored mission shares the expedition log and its responsive shell. */
@@ -320,7 +320,7 @@ body.game-expanded{overscroll-behavior:none}
 @media(max-height:500px) and (min-width:600px){.overlay.story-transmission{padding:9px 18px}.transmission-card{padding:12px 18px;width:min(470px,64%)}.transmission-card h2{font-size:21px}.transmission-link{margin:3px 0 7px;padding-top:23px}.transmission-link svg{height:23px}.transmission-channel{margin-bottom:5px}.transmission-task{margin:7px 0}.transmission-stops{margin:9px 0}.transmission-service,.transmission-crew{margin:6px 0}.transmission-actions .primary{min-height:44px;padding:10px 13px}}
 @media(prefers-reduced-motion:reduce){.transmission-card,.transmission-link svg *,.transmission-stops .next i{animation:none}.transmission-route-progress{stroke-dashoffset:0}}
 .overlay.story-transmission{pointer-events:none}.transmission-card{pointer-events:auto}
-.console:is(:fullscreen,.native-fullscreen,.expanded) .overlay.story-transmission{z-index:16}
+.console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .overlay.story-transmission{z-index:16}
 @container(max-height:400px){.overlay.story-transmission{padding:8px 14px}.transmission-card{padding:12px 17px}.transmission-card h2{font-size:20px}.transmission-link{padding-top:24px;margin:4px 0 8px}.transmission-link svg{height:24px}.transmission-task{margin:8px 0;font-size:12px}.transmission-stops{margin:10px 0}.transmission-service,.transmission-crew{margin:6px 0;font-size:10px}.transmission-channel{margin-bottom:5px}.transmission-actions .primary{min-height:44px;padding:11px 13px}}
 @container(max-height:310px){.transmission-card h2{font-size:18px}.transmission-link{padding-top:20px;margin:3px 0 6px}.transmission-link svg{height:20px}.transmission-stops{margin:8px 0}.transmission-task{margin:6px 0;font-size:11px}.transmission-heading .eyebrow,.transmission-channel{font-size:8px}.transmission-service,.transmission-crew{margin:5px 0}.transmission-card{padding:10px 14px}}
 @container(max-height:250px){.transmission-card{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;width:min(600px,100%)}.transmission-heading,.transmission-actions{grid-column:1/-1}.transmission-link,.transmission-channel{display:none}.transmission-card h2{font-size:17px;grid-row:2/span 2}.transmission-task,.transmission-service,.transmission-crew,.transmission-stops{margin:0}.transmission-stops{grid-column:1/-1}.transmission-stops li{font-size:8px}}
@@ -408,10 +408,10 @@ body.game-expanded{overscroll-behavior:none}
 /* Compact embedded games use the available frame width, even in a wide page. */
 .console{container-type:inline-size}
 @container(max-width:480px){
- .console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded))>.hud{height:auto;min-height:0;display:grid;grid-template-columns:1fr auto;padding:10px 12px;gap:8px}
- .console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .hud-sector{grid-column:1/-1;min-width:0}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .hud-sector strong{font-size:12px;margin-top:4px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .hud-sector .eyebrow{font-size:8px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .hud-sector #destinationProgress{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .hud-sector .mission-hud{font-size:9px}
- .console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .scoreblock{text-align:left}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .scoreblock strong{font-size:18px;margin-top:3px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .scoreblock .eyebrow,.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .hullblock .eyebrow{font-size:8px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .hullblock{min-width:145px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) #hearts{font-size:16px}
- .console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .equipment{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:12px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .equipment>div{min-width:0}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .equipment .loadout{margin:0}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .equipment .progress-wrap{width:100%;margin:0}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .equipment strong{font-size:10px;letter-spacing:.5px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.expanded)) .equipment .eyebrow{font-size:8px}
+ .console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded))>.hud{height:auto;min-height:0;display:grid;grid-template-columns:1fr auto;padding:10px 12px;gap:8px}
+ .console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .hud-sector{grid-column:1/-1;min-width:0}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .hud-sector strong{font-size:12px;margin-top:4px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .hud-sector .eyebrow{font-size:8px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .hud-sector #destinationProgress{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .hud-sector .mission-hud{font-size:9px}
+ .console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .scoreblock{text-align:left}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .scoreblock strong{font-size:18px;margin-top:3px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .scoreblock .eyebrow,.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .hullblock .eyebrow{font-size:8px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .hullblock{min-width:145px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) #hearts{font-size:16px}
+ .console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .equipment{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:12px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .equipment>div{min-width:0}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .equipment .loadout{margin:0}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .equipment .progress-wrap{width:100%;margin:0}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .equipment strong{font-size:10px;letter-spacing:.5px}.console:where(:not(:fullscreen):not(.native-fullscreen):not(.desktop-fit):not(.expanded)) .equipment .eyebrow{font-size:8px}
 }
 
 /* Simulation-timed homecoming typography stays crisp at every screen size. */
@@ -432,16 +432,63 @@ body.game-expanded{overscroll-behavior:none}
 .retry-content{min-width:0;flex:1}.retry-card h2{margin:12px 0;font-size:clamp(24px,4cqw,40px);line-height:1.08}.retry-hint{font-size:15px;line-height:1.5;color:#cedee2;margin:0 0 18px}.retry-restored{display:flex;gap:18px;border-block:1px solid #6db1b433;padding:14px 0}.retry-restored span{font-size:11px;line-height:1.5;color:#a2bec5}.retry-restored b{display:block;font-size:16px;color:#a4f4de}.retry-kept{font-size:12px;line-height:1.4;color:#b1c9cd;margin:14px 0}.retry-card .primary{width:100%;min-width:0;min-height:44px;padding:14px 18px;font-size:13px}.retry-card .eyebrow{font-size:11px;letter-spacing:1.3px}
 @container (max-height:450px){.overlay.flight-retry{padding:12px}.retry-card{padding:16px;gap:16px;max-width:610px}.retry-emblem{width:60px;height:60px;font-size:38px}.retry-card h2{margin:7px 0;font-size:25px}.retry-hint{font-size:12px;margin:0 0 9px}.retry-restored{padding:7px 0}.retry-kept{margin:8px 0;font-size:11px}.retry-card .primary{padding:10px 14px}}
 @container (max-width:480px){.retry-card{padding:16px;gap:0}.retry-emblem{display:none}.retry-card .eyebrow{font-size:10px}.retry-restored{gap:16px}}
-.overlay.flight-retry,.console:is(:fullscreen,.native-fullscreen,.expanded) .overlay.flight-retry{z-index:17}
+.overlay.flight-retry,.console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .overlay.flight-retry{z-index:17}
 
 /* Tactical receipts share one readable lane with mission instructions. */
 .stage:has(.flight-objective:not([hidden])) #announcement{visibility:hidden}
 @media(pointer:coarse),(max-width:680px),(max-width:960px) and (max-height:600px){
- .console:is(:fullscreen,.native-fullscreen,.expanded) .flight-objective{top:calc(env(safe-area-inset-top,0px) + 64px);left:calc(env(safe-area-inset-left,0px) + 14px);max-width:min(440px,68%)}
- .console:is(:fullscreen,.native-fullscreen,.expanded) .stage:has(#bossbar:not([hidden])) .flight-objective{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 76px)}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .flight-objective{top:calc(env(safe-area-inset-top,0px) + 64px);left:calc(env(safe-area-inset-left,0px) + 14px);max-width:min(440px,68%)}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .stage:has(#bossbar:not([hidden])) .flight-objective{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 76px)}
 }
 @media(pointer:coarse) and (orientation:portrait),(max-width:680px) and (orientation:portrait){
- .console:is(:fullscreen,.native-fullscreen,.expanded) .flight-objective{top:calc(env(safe-area-inset-top,0px) + 154px);max-width:calc(100% - 28px)}
+ .console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .flight-objective{top:calc(env(safe-area-inset-top,0px) + 154px);max-width:calc(100% - 28px)}
 }
 
 .mission-target.compact-discovery{width:auto;max-width:calc(100% - 100px);padding:6px 10px;text-align:left;border:0;border-left:2px solid #a3edd8;border-radius:0;background:#071d28b8}.mission-target.compact-discovery strong{font-size:11px;letter-spacing:.04em}.mission-target.compact-discovery span{font-size:11px}
+
+.progress-transfer{border-top:1px solid #426c71;margin-top:20px;padding-top:16px}.progress-transfer summary{cursor:pointer;min-height:36px;color:#a4f4df;font-weight:600}.progress-transfer p{font-size:14px}.progress-file-actions{display:flex;flex-wrap:wrap;gap:8px}.progress-transfer button{min-height:44px}.progress-transfer [data-preview]{padding:12px;border:1px solid #547d85;border-radius:8px;margin-top:14px}.progress-transfer [data-message]{min-height:1.5em}.progress-transfer :focus-visible{outline:2px solid #e9fffa;outline-offset:3px}
+
+/* Startup feedback stays independent of the canvas and module loader. */
+.startup-status{position:fixed;z-index:10000;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(460px,calc(100vw - 32px));box-sizing:border-box;padding:20px 24px;background:#0a1c26;color:#e9fff8;border:1px solid #78c9ba;border-radius:12px;box-shadow:0 12px 40px #0009;font:16px/1.5 system-ui,sans-serif}.startup-status[hidden]{display:none}.startup-status strong{font-size:20px}.startup-status p{margin:8px 0}.startup-status a{display:inline-block;text-decoration:none;box-sizing:border-box;margin-top:8px;min-height:44px;padding:10px 18px;background:#a1f1dc;color:#09231f;border:0;border-radius:6px;font:700 14px system-ui;cursor:pointer}.startup-status a:focus-visible{outline:3px solid white;outline-offset:4px}
+
+.startup-status a[hidden]{display:none}
+
+.retry-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.retry-actions button{flex:1;min-height:44px;padding:8px 12px;font-size:12px;white-space:normal;color:#c5e4df;background:#0a202a;border:1px solid #42636c;border-radius:6px}.retry-actions button:focus-visible{outline:2px solid #a4f4de;outline-offset:3px}
+/* Keep fullscreen escape reachable above the defeat overlay. */
+.stage:has(.overlay.flight-retry:not(.hidden)) .expand-game{z-index:18}
+
+/* Menus still need an exit when the console covers the page header. */
+.console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) .stage:has(.overlay:not(.hidden)) #fullscreenStage{display:block!important;z-index:30;right:16px;top:12px;width:auto;min-height:44px;padding:10px 12px;background:#06121be8}
+.overlay.flight-pause{z-index:17;padding:24px;overflow:auto;background:#030c16aa;backdrop-filter:blur(3px)}
+.flight-pause .intro{width:min(560px,100%);max-width:100%;margin:auto;padding:28px;border:1px solid #487179;border-radius:20px;background:linear-gradient(125deg,#102c36f2,#07151ef5);box-shadow:0 20px 65px #0007}
+.flight-pause .result-title{font-size:clamp(34px,5vw,54px);line-height:1;margin:18px 0}.flight-pause .result-title br{display:none}.flight-pause .result-title em::before{content:' '}
+.flight-pause .introcopy{margin-bottom:20px;font-size:14px}.flight-pause .primary{width:100%;min-width:0;min-height:48px}.flight-pause .launch-caption{font-size:10px;line-height:1.4}
+.pause-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}.pause-actions button{min-height:44px;padding:10px;background:#142b36;color:#ccefe6;border:1px solid #436369;border-radius:6px;font-size:11px;letter-spacing:.7px}.pause-actions button:hover{background:#20404a}
+.stage:has(.flight-pause:not(.hidden)) :is(#pause,#announcement,#flightObjective,#missionTarget,#rescueTarget,#portalObjective){visibility:hidden}
+@media(max-height:600px){.overlay.flight-pause{padding:12px}.flight-pause .intro{padding:16px}.flight-pause .result-title{font-size:32px;margin:8px 0}.flight-pause .introcopy{margin-bottom:12px}.pause-actions{margin-top:12px;gap:8px}}
+
+
+/* A desktop window is a cockpit, not a vertically scrolling web page.
+   Keep the utility bar and credits reachable without consuming flight height. */
+body:has(.console.desktop-fit){overflow:hidden}
+body:has(.console.desktop-fit) main{padding:0;max-width:none}
+body:has(.console.desktop-fit) main>header{position:fixed;inset:0 0 auto;height:52px;padding:0 16px;gap:12px;background:#080c16}
+body:has(.console.desktop-fit) .brand{font-size:18px;gap:8px;flex:none}
+body:has(.console.desktop-fit) .sigil{font-size:28px}
+body:has(.console.desktop-fit) :is(.brandline,.edition,.footer-note,.mobile-hint){display:none}
+body:has(.console.desktop-fit) .header-right{gap:16px;min-width:0}
+body:has(.console.desktop-fit) .header-right button{font-size:10px;min-height:44px;padding:8px 0;white-space:nowrap}
+body:has(.console.desktop-fit) main>footer{position:fixed;inset:auto 0 0;height:32px;padding:0 16px;gap:12px;background:#080c16}
+body:has(.console.desktop-fit) footer .controls{gap:12px;font-size:10px}
+body:has(.console.desktop-fit) footer button{min-height:28px;padding:4px 8px;font-size:10px}
+.console.desktop-fit:not(.native-fullscreen):not(:fullscreen){inset:52px 0 32px;height:calc(100dvh - 84px)}
+@media(max-width:960px){body:has(.console.desktop-fit) .header-right{gap:10px}body:has(.console.desktop-fit) footer .controls{font-size:9px;letter-spacing:.3px}}
+
+/* Separate simultaneous pickup receipts and attack instructions. */
+#pickupReceipt{position:absolute;right:18px;bottom:22px;width:min(40%,368px);padding:8px 12px;border-left:3px solid var(--mint);border-radius:0 5px 5px 0;background:#071621ed;pointer-events:none;color:#edfff8;line-height:1.35}
+#pickupReceipt strong{display:block;font-size:clamp(11px,1.2vw,15px)}
+#pickupReceipt span{display:block;margin-top:4px;font-size:clamp(9px,1vw,11px);color:#bfdbdf}
+.stage:has(#bossbar:not([hidden])) #announcement.compact{max-width:min(calc(60% - 48px),560px)}
+@media(max-width:680px){#pickupReceipt{right:12px;bottom:18px;padding:7px 9px}}
+@media(pointer:coarse){.console:is(:fullscreen,.desktop-fit,.native-fullscreen,.expanded) #pickupReceipt{bottom:calc(env(safe-area-inset-bottom,0px) + 76px)}}
+.stage:has(.overlay:not(.hidden)) #pickupReceipt{visibility:hidden}

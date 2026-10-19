@@ -9,7 +9,47 @@ function createRunStore(storage){
  function list(ruleset,campaignVersion){return read().filter(r=>r.ruleset===ruleset&&r.campaignVersion===campaignVersion&&r.scope!=='mission-resume').sort((a,b)=>(b.outcome==='victory')-(a.outcome==='victory')||b.score-a.score||a.retries-b.retries||a.activeTicks-b.activeTicks).slice(0,10);}
  return{save,list,exportJSON:()=>JSON.stringify(read(),null,2)};
 }
-let runStorage;try{runStorage=window.localStorage;}catch{}
+// Local campaign recovery is separate from portable completed-mission progress.
+// Store only bounded checkpoint data, never live entities, scripts or account tokens.
+function createCampaignCheckpointStore(storage,route){
+ const memory=new Map(),revision=1,definitions=()=>typeof route==='function'?route():route;
+ const key=owner=>'first-descent-checkpoint-v1:'+encodeURIComponent(owner||'guest');
+ const integer=(v,min,max)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
+ function clean(raw,owner){
+  if(!raw||raw.revision!==revision||raw.owner!==(owner||null))return null;
+  const list=definitions(),index=list.findIndex(m=>m.id===raw.mission),definition=list[index],c=raw.checkpoint,s=c?.story;
+  if(!definition||raw.layout!==JSON.stringify(definition.checkpoints)||!c||!s||s.index!==index||s.complete!==false)return null;
+  if(!integer(c.section,0,definition.checkpoints.length-1)||!Number.isFinite(c.sceneLead)||c.sceneLead<0||c.sceneLead>120)return null;
+  if(!integer(c.score,0,1e9)||!integer(c.kills,0,1e7)||!['pulse','spread','beam','helix','wave','missile'].includes(c.weapon))return null;
+  if(!integer(c.power,1,3)||!integer(c.speedLevel,0,3)||!integer(c.companion,0,2)||!integer(c.novas,0,3)||typeof c.orbOwned!=='boolean'||![0,Math.PI].includes(c.pilotHeading))return null;
+  // Older checkpoints never recorded this consumable. Preserve their progress
+  // without guessing an unused charge from today's equipment selection.
+  if(c.rescueCharge!==undefined&&!integer(c.rescueCharge,0,1)||c.loadout!==undefined&&!['strike','relay-recovery'].includes(c.loadout))return null;
+  if(!integer(s.done,0,3)||['guardian','engineer','extract'].some(k=>typeof s[k]!=='boolean')||s.extract&&(index!==5||!s.guardian))return null;
+  // Legacy saves resume defense; only a validated final extraction can be secured.
+  if(s.returning!==undefined&&typeof s.returning!=='boolean'||s.returning&&(!s.extract||!s.guardian||index!==5))return null;
+  const f=c.ferrum;
+  if(f&&(!['waiting','active','missed','aboard'].includes(f.status)||typeof f.boarded!=='boolean'||typeof f.warned!=='boolean'))return null;
+  return {revision,owner:owner||null,mission:definition.id,layout:raw.layout,checkpoint:{section:c.section,sceneLead:c.sceneLead,score:c.score,kills:c.kills,weapon:c.weapon,power:c.power,speedLevel:c.speedLevel,companion:c.companion,novas:c.novas,rescueCharge:c.rescueCharge??0,loadout:c.loadout||'strike',orbOwned:c.orbOwned,pilotHeading:c.pilotHeading,story:{index,done:s.done,guardian:s.guardian,complete:false,engineer:s.engineer,extract:s.extract,returning:s.returning??false},ferrum:f?{status:f.status,boarded:f.boarded,warned:f.warned}:null}};
+ }
+ function read(owner){
+  const k=key(owner);let cached=memory.get(k);
+  if(cached&&!cached.durable)return cached.value?{...JSON.parse(JSON.stringify(cached.value)),durable:false}:null;
+  try{const text=storage?.getItem(k);if(storage){const value=typeof text==='string'&&text.length<=8192?clean(JSON.parse(text),owner):null;cached={value,durable:true};memory.set(k,cached);}}catch{if(cached)cached={...cached,durable:false};}
+  return cached?.value?{...JSON.parse(JSON.stringify(cached.value)),durable:cached.durable}:null;
+ }
+ function write(owner,mission,checkpoint){
+  const definition=definitions().find(m=>m.id===mission),value=clean({revision,owner:owner||null,mission,layout:JSON.stringify(definition?.checkpoints),checkpoint},owner);
+  if(!value)return false;
+  const k=key(owner),text=JSON.stringify(value);let durable=false;
+  try{storage?.setItem(k,text);durable=!!storage&&storage.getItem(k)===text;}catch{}
+  memory.set(k,{value,durable});return durable;
+ }
+ function clear(owner){const k=key(owner);memory.set(k,{value:null,durable:false});try{storage?.setItem(k,'null');}catch{}}
+ return {read,write,clear};
+}
+
+let runStorage;try{runStorage=window.flightDemo?window.flightDemo.storage:window.localStorage;}catch{}
 const missionPreview=typeof document!=='undefined'&&document.documentElement?.hasAttribute?.('data-mission-preview');
 const runStore=createRunStore(missionPreview?null:runStorage);
 let flightRun=null,runSequence=0;
@@ -19,8 +59,9 @@ function showLocalScores(){
  const oldState=state;if(state==='playing')pause();
  const rows=runStore.list(GAME_RULESET,CAMPAIGN_VERSION);
  const description=rows.length?rows.map((r,i)=>`${i+1}. ${String(r.score).padStart(6,'0')} · ${r.outcome==='victory'?'CLEARED':'DEFEAT'} · ${r.retries} retries`).join('<br>'):'Complete a flight to set your first local score.';
- panel('FLIGHT<br><em>RECORDS</em>',description+'<br><small>Saved on this device · Online rankings coming later</small>','BACK',()=>{
+ panel('FLIGHT<br><em>RECORDS</em>',description+'<br><small>Saved on this device</small>','BACK',()=>{
   if(oldState==='title'){showTitleScreen();}
+  else if(oldState==='error'){showFrameError();}
   else if(oldState==='playing'||oldState==='paused'){state='paused';panel('FLIGHT<br><em>PAUSED</em>','Ready when you are.','RESUME MISSION',pause);}
   else panel(oldState==='victory'?'SYSTEM<br><em>SECURED</em>':'SIGNAL<br><em>LOST</em>',oldState==='victory'?'Campaign complete.':`Resume section ${checkpoint.section+1} of 4.`,oldState==='victory'?'FLY AGAIN':'CONTINUE DESCENT',oldState==='victory'?start:retrySection);
  });

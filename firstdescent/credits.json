@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "title": "The people and science behind the journey",
+  "intro": "First Descent brings fictional worlds to life with original game work, open-source software, freely licensed fonts and credited astronomical observations.",
+  "galaxies": [
+    {
+      "name": "THE EVENTIDE CORE",
+      "reference": "NGC 1275",
+      "source": "https://esahubble.org/images/heic0817a/",
+      "credit": "NASA, ESA and Andy Fabian (University of Cambridge, UK)",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE PALE SPIRAL",
+      "reference": "M101",
+      "source": "https://esahubble.org/images/heic0602a/",
+      "credit": "Original game artwork; spiral structure inspired by M101.",
+      "observation": false,
+      "license": null
+    },
+    {
+      "name": "THE EMBER VEIL",
+      "reference": "NGC 1300",
+      "source": "https://esahubble.org/images/opo0501a/",
+      "credit": "NASA, ESA, and The Hubble Heritage Team (STScI/AURA)",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE AZURE DRIFT",
+      "reference": "NGC 4449",
+      "source": "https://esahubble.org/images/heic0711a/",
+      "credit": "NASA, ESA, A. Aloisi (STScI/ESA), and The Hubble Heritage (STScI/AURA)-ESA/Hubble Collaboration",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE COPPER SEA",
+      "reference": "M104 / Sombrero",
+      "source": "https://esahubble.org/images/opo0328a/",
+      "credit": "NASA/ESA and The Hubble Heritage Team (STScI/AURA)",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE SILENT ARC",
+      "reference": "Hoag’s Object",
+      "source": "https://esahubble.org/images/opo0221a/",
+      "credit": "NASA/ESA and The Hubble Heritage Team (STScI/AURA)",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE VIOLET WAKE",
+      "reference": "Cartwheel",
+      "source": "https://esahubble.org/images/potw1036a/",
+      "credit": "ESA/Hubble & NASA",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE GOLDEN RIFT",
+      "reference": "Centaurus A",
+      "source": "https://www.eso.org/public/images/eso1221a/",
+      "credit": "ESO",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE GLASS SPIRAL",
+      "reference": "M74",
+      "source": "https://esahubble.org/images/heic0719a/",
+      "credit": "NASA, ESA, and The Hubble Heritage (STScI/AURA)-ESA/Hubble Collaboration",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE SCARLET REACH",
+      "reference": "M82",
+      "source": "https://esahubble.org/images/heic0604a/",
+      "credit": "NASA, ESA and the Hubble Heritage Team (STScI/AURA). Acknowledgment: J. Gallagher (University of Wisconsin), M. Mountain (STScI) and P. Puxley (NSF).",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE LAST LANTERN",
+      "reference": "M87",
+      "source": "https://esahubble.org/images/heic0815f/",
+      "credit": "NASA, ESA, and the Hubble Heritage Team (STScI/AURA) Acknowledgment: P. Cote (Herzberg Institute of Astrophysics) and E. Baltz (Stanford University)",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE INDIGO TIDE",
+      "reference": "NGC 1512 / NGC 1510",
+      "source": "https://esahubble.org/images/heic1712a/",
+      "credit": "ESA/Hubble, NASA",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE ROSE EXPANSE",
+      "reference": "Antennae",
+      "source": "https://esahubble.org/images/potw1345a/",
+      "credit": "ESA/Hubble & NASA",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE IRON NEBULA",
+      "reference": "NGC 5866",
+      "source": "https://esahubble.org/images/opo0624a/",
+      "credit": "NASA, ESA, and The Hubble Heritage Team (STScI/AURA)",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE PEARL RIVER",
+      "reference": "NGC 4565",
+      "source": "https://esahubble.org/images/potw1228a/",
+      "credit": "ESA/Hubble & NASA",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE AUBURN VEIL",
+      "reference": "NGC 2841",
+      "source": "https://esahubble.org/images/heic1104a/",
+      "credit": "NASA, ESA and the Hubble Heritage (STScI/AURA)-ESA/Hubble Collaboration Acknowledgment: M. Crockett and S. Kaviraj (Oxford University, UK), R. O'Connell (University of Virginia), B. Whitmore (STScI) and the WFC3 Scientific Oversight Committee.",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE SILVER REACH",
+      "reference": "NGC 4631",
+      "source": "https://esahubble.org/images/potw1146a/",
+      "credit": "NASA & ESA",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE OCHRE SPIRAL",
+      "reference": "NGC 1365",
+      "source": "https://esahubble.org/images/potw2040a/",
+      "credit": "ESA/Hubble & NASA, J. Lee and the PHANGS-HST Team Acknowledgement: Judy Schmidt (Geckzilla)",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE CELADON DRIFT",
+      "reference": "NGC 922",
+      "source": "https://esahubble.org/images/heic1218a/",
+      "credit": "NASA, ESA",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE OBSIDIAN CROWN",
+      "reference": "NGC 4650A",
+      "source": "https://esahubble.org/images/opo9916a/",
+      "credit": "The Hubble Heritage Team (AURA/STScI/NASA/ESA)",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "name": "THE DISTANT BLOOM",
+      "reference": "UGC 10214 / Tadpole",
+      "source": "https://esahubble.org/images/heic0206a/",
+      "credit": "NASA, Holland Ford (JHU), the ACS Science Team and ESA",
+      "observation": true,
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    }
+  ],
+  "adaptations": "Observation images are resized, WebP-encoded and softly blended into the starfield. Destinations, rotation and travel times are fictional. No endorsement by the credited organizations is implied.",
+  "notices": [
+    {
+      "title": "Three.js r180",
+      "file": "vendor/THREE-LICENSE.txt",
+      "source": "https://github.com/mrdoob/three.js/tree/r180",
+      "note": "The renderer and loaders use Three.js. Loader import paths are adapted to bundled modules.",
+      "text": "The MIT License\n\nCopyright © 2010-2025 three.js authors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\nTHE SOFTWARE.\n"
+    },
+    {
+      "title": "Barlow Condensed",
+      "file": "assets/barlowcondensed-OFL.txt",
+      "source": "https://github.com/jpt/barlow",
+      "note": "Version 1.408. Font files are losslessly compressed to WOFF2 for delivery.",
+      "text": "Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow)\n\nThis Font Software is licensed under the SIL Open Font License, Version 1.1.\nThis license is copied below, and is also available with a FAQ at:\nhttp://scripts.sil.org/OFL\n\n\n-----------------------------------------------------------\nSIL OPEN FONT LICENSE Version 1.1 - 26 February 2007\n-----------------------------------------------------------\n\nPREAMBLE\nThe goals of the Open Font License (OFL) are to stimulate worldwide\ndevelopment of collaborative font projects, to support the font creation\nefforts of academic and linguistic communities, and to provide a free and\nopen framework in which fonts may be shared and improved in partnership\nwith others.\n\nThe OFL allows the licensed fonts to be used, studied, modified and\nredistributed freely as long as they are not sold by themselves. The\nfonts, including any derivative works, can be bundled, embedded, \nredistributed and/or sold with any software provided that any reserved\nnames are not used by derivative works. The fonts and derivatives,\nhowever, cannot be released under any other type of license. The\nrequirement for fonts to remain under this license does not apply\nto any document created using the fonts or their derivatives.\n\nDEFINITIONS\n\"Font Software\" refers to the set of files released by the Copyright\nHolder(s) under this license and clearly marked as such. This may\ninclude source files, build scripts and documentation.\n\n\"Reserved Font Name\" refers to any names specified as such after the\ncopyright statement(s).\n\n\"Original Version\" refers to the collection of Font Software components as\ndistributed by the Copyright Holder(s).\n\n\"Modified Version\" refers to any derivative made by adding to, deleting,\nor substituting -- in part or in whole -- any of the components of the\nOriginal Version, by changing formats or by porting the Font Software to a\nnew environment.\n\n\"Author\" refers to any designer, engineer, programmer, technical\nwriter or other person who contributed to the Font Software.\n\nPERMISSION & CONDITIONS\nPermission is hereby granted, free of charge, to any person obtaining\na copy of the Font Software, to use, study, copy, merge, embed, modify,\nredistribute, and sell modified and unmodified copies of the Font\nSoftware, subject to the following conditions:\n\n1) Neither the Font Software nor any of its individual components,\nin Original or Modified Versions, may be sold by itself.\n\n2) Original or Modified Versions of the Font Software may be bundled,\nredistributed and/or sold with any software, provided that each copy\ncontains the above copyright notice and this license. These can be\nincluded either as stand-alone text files, human-readable headers or\nin the appropriate machine-readable metadata fields within text or\nbinary files as long as those fields can be easily viewed by the user.\n\n3) No Modified Version of the Font Software may use the Reserved Font\nName(s) unless explicit written permission is granted by the corresponding\nCopyright Holder. This restriction only applies to the primary font name as\npresented to the users.\n\n4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font\nSoftware shall not be used to promote, endorse or advertise any\nModified Version, except to acknowledge the contribution(s) of the\nCopyright Holder(s) and the Author(s) or with their explicit written\npermission.\n\n5) The Font Software, modified or unmodified, in part or in whole,\nmust be distributed entirely under this license, and must not be\ndistributed under any other license. The requirement for fonts to\nremain under this license does not apply to any document created\nusing the Font Software.\n\nTERMINATION\nThis license becomes null and void if any of the above conditions are\nnot met.\n\nDISCLAIMER\nTHE FONT SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\nOF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE\nCOPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,\nINCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL\nDAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\nFROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM\nOTHER DEALINGS IN THE FONT SOFTWARE.\n"
+    },
+    {
+      "title": "DM Sans",
+      "file": "assets/dmsans-OFL.txt",
+      "source": "https://github.com/googlefonts/dm-fonts",
+      "note": "Version 4.004. Font files are losslessly compressed to WOFF2 for delivery.",
+      "text": "Copyright 2014 The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts)\r\n\r\nThis Font Software is licensed under the SIL Open Font License, Version 1.1.\r\nThis license is copied below, and is also available with a FAQ at:\r\nhttps://scripts.sil.org/OFL\r\n\r\n\r\n-----------------------------------------------------------\r\nSIL OPEN FONT LICENSE Version 1.1 - 26 February 2007\r\n-----------------------------------------------------------\r\n\r\nPREAMBLE\r\nThe goals of the Open Font License (OFL) are to stimulate worldwide\r\ndevelopment of collaborative font projects, to support the font creation\r\nefforts of academic and linguistic communities, and to provide a free and\r\nopen framework in which fonts may be shared and improved in partnership\r\nwith others.\r\n\r\nThe OFL allows the licensed fonts to be used, studied, modified and\r\nredistributed freely as long as they are not sold by themselves. The\r\nfonts, including any derivative works, can be bundled, embedded, \r\nredistributed and/or sold with any software provided that any reserved\r\nnames are not used by derivative works. The fonts and derivatives,\r\nhowever, cannot be released under any other type of license. The\r\nrequirement for fonts to remain under this license does not apply\r\nto any document created using the fonts or their derivatives.\r\n\r\nDEFINITIONS\r\n\"Font Software\" refers to the set of files released by the Copyright\r\nHolder(s) under this license and clearly marked as such. This may\r\ninclude source files, build scripts and documentation.\r\n\r\n\"Reserved Font Name\" refers to any names specified as such after the\r\ncopyright statement(s).\r\n\r\n\"Original Version\" refers to the collection of Font Software components as\r\ndistributed by the Copyright Holder(s).\r\n\r\n\"Modified Version\" refers to any derivative made by adding to, deleting,\r\nor substituting -- in part or in whole -- any of the components of the\r\nOriginal Version, by changing formats or by porting the Font Software to a\r\nnew environment.\r\n\r\n\"Author\" refers to any designer, engineer, programmer, technical\r\nwriter or other person who contributed to the Font Software.\r\n\r\nPERMISSION & CONDITIONS\r\nPermission is hereby granted, free of charge, to any person obtaining\r\na copy of the Font Software, to use, study, copy, merge, embed, modify,\r\nredistribute, and sell modified and unmodified copies of the Font\r\nSoftware, subject to the following conditions:\r\n\r\n1) Neither the Font Software nor any of its individual components,\r\nin Original or Modified Versions, may be sold by itself.\r\n\r\n2) Original or Modified Versions of the Font Software may be bundled,\r\nredistributed and/or sold with any software, provided that each copy\r\ncontains the above copyright notice and this license. These can be\r\nincluded either as stand-alone text files, human-readable headers or\r\nin the appropriate machine-readable metadata fields within text or\r\nbinary files as long as those fields can be easily viewed by the user.\r\n\r\n3) No Modified Version of the Font Software may use the Reserved Font\r\nName(s) unless explicit written permission is granted by the corresponding\r\nCopyright Holder. This restriction only applies to the primary font name as\r\npresented to the users.\r\n\r\n4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font\r\nSoftware shall not be used to promote, endorse or advertise any\r\nModified Version, except to acknowledge the contribution(s) of the\r\nCopyright Holder(s) and the Author(s) or with their explicit written\r\npermission.\r\n\r\n5) The Font Software, modified or unmodified, in part or in whole,\r\nmust be distributed entirely under this license, and must not be\r\ndistributed under any other license. The requirement for fonts to\r\nremain under this license does not apply to any document created\r\nusing the Font Software.\r\n\r\nTERMINATION\r\nThis license becomes null and void if any of the above conditions are\r\nnot met.\r\n\r\nDISCLAIMER\r\nTHE FONT SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\r\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF\r\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\r\nOF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE\r\nCOPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,\r\nINCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL\r\nDAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\r\nFROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM\r\nOTHER DEALINGS IN THE FONT SOFTWARE.\r\n"
+    },
+    {
+      "title": "Asteroid models and surfaces",
+      "file": "ASTEROID-CREDITS.txt",
+      "source": "https://science.nasa.gov/resource/eros-3d-model/",
+      "note": "Eros and Bennu visualization models adapted for the game.",
+      "text": "Asteroid reference models and surface maps: NASA Visualization Technology Applications and Development (VTAD).\nEros: https://science.nasa.gov/resource/eros-3d-model/\nBennu: https://science.nasa.gov/resource/bennu-3d-model/\nAdapted for First Descent: quantized geometry, compressed texture encoding, small silhouette variations, material tint and game animation. NASA does not endorse this game. These visualization models are not presented as scientific reconstructions.\n"
+    }
+  ]
+}

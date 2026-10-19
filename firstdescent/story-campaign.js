@@ -10,29 +10,40 @@ const STORY_ROUTE=[
 ];
 const STORY_DEFINITION={id:'origin-route-001',version:1,finalStage:STORY_ROUTE[5].id,systems:['Vesper','Orison','Eventide'].map(name=>({id:name,name,discovery:name+' route decoded',stages:STORY_ROUTE.filter(m=>m.system===name).map(m=>({id:m.id,name:m.world,kind:'core'}))})),milestones:[]};
 const storyStore=createOriginStore(missionPreview?null:runStorage,STORY_DEFINITION);
+const campaignCheckpointStore=createCampaignCheckpointStore(missionPreview?null:runStorage,()=>STORY_ROUTE.map(m=>({id:m.id,checkpoints:campaign.find(s=>s.id===m.id).checkpoints})));
 let storyMission=null;
+function savedCampaignCheckpoint(){
+ const saved=campaignCheckpointStore.read(storyStore.account()),p=storyStore.snapshot();
+ return saved&&(window.flightDemo?saved.mission==='verdant-reach':!p.complete&&saved.mission===p.next)?saved:null;
+}
+function persistCampaignCheckpoint(){
+ if(!storyActive()||flightRun.storyOwner!==storyStore.account())return false;
+ if(checkpoint.story?.complete){campaignCheckpointStore.clear(storyStore.account());return false;}
+ return campaignCheckpointStore.write(storyStore.account(),sectors[level].id,checkpoint);
+}
+
 function migrateStoryVictories(){for(const m of STORY_ROUTE.slice(0,2))if(originStore.has(m.id))storyStore.collect(m.id);}
 function storyIndex(){return flightRun?.story===STORY_DEFINITION.id?STORY_ROUTE.findIndex(m=>m.id===sectors[level].id):-1;}
 function storyActive(){return storyIndex()>=0;}
-function storyNextLevel(){const next=STORY_ROUTE[storyIndex()+1];return next?sectors.findIndex(s=>s.id===next.id):-1;}
+function storyNextLevel(){if(window.flightDemo)return -1;const next=STORY_ROUTE[storyIndex()+1];return next?sectors.findIndex(s=>s.id===next.id):-1;}
 function prepareStoryMission(){const i=storyIndex();storyMission=i<0?null:{index:i,done:0,charge:0,node:null,guardian:false,complete:false,age:0,extract:null,relayEchoes:[],bossPhase:-1,pendingPhase:false};if(i>=0){if(flightRun.storyEngineer===undefined)flightRun.storyEngineer=i>1&&relayStore.snapshot().unlocked;const kind=STORY_ROUTE[i].kind;if(kind==='seal')window.gpuModels?.prepare([0,1,2,3].map(archiveIceMesh).concat([archiveFragmentMesh(),storyMesh('relay')]),sectors[level].id);if(kind==='furnace'){prepareStoryDestination();window.gpuModels?.prepare([furnaceCouplingMesh(false),furnaceCouplingMesh(true)],sectors[level].id);}if(kind==='extraction')prepareStoryPortal();if(kind!=='guardian')window.gpuModels?.prepare([storyMesh(kind==='extraction'?'beacon':kind),...(['relay','furnace'].includes(kind)?[storyMesh(kind).rotor]:[]),...(kind==='extraction'?[storyMesh('raider'),storyMesh('carrier')]:[])],sectors[level].id);}}
-function storyCheckpoint(){if(!storyActive()||!storyMission)return null;return{index:storyMission.index,done:storyMission.done,guardian:storyMission.guardian,complete:storyMission.complete,reward:storyMission.reward,engineer:!!flightRun.storyEngineer,extract:!!storyMission.extract};}
-function restoreStoryCheckpoint(saved){if(!storyActive()||saved?.index!==storyIndex())return;storyMission.done=Math.max(0,Math.min(3,saved.done||0));storyMission.guardian=!!saved.guardian;storyMission.complete=!!saved.complete;storyMission.reward=saved.reward;flightRun.storyEngineer=!!saved.engineer;if(saved.guardian){bossDefeated=true;transition=4;time=Math.max(time,sectors[level].duration+.01);world=time*SCROLL_SPEED;}if(saved.extract&&!saved.complete)beginStoryExtraction();}
+function storyCheckpoint(){if(!storyActive()||!storyMission)return null;return{index:storyMission.index,done:storyMission.done,guardian:storyMission.guardian,complete:storyMission.complete,reward:storyMission.reward,engineer:!!flightRun.storyEngineer,extract:!!storyMission.extract,returning:!!storyMission.extract?.returning};}
+function restoreStoryCheckpoint(saved){if(!storyActive()||saved?.index!==storyIndex())return;storyMission.done=Math.max(0,Math.min(3,saved.done||0));storyMission.guardian=!!saved.guardian;storyMission.complete=!!saved.complete;storyMission.reward=saved.reward;flightRun.storyEngineer=!!saved.engineer;if(saved.guardian){bossDefeated=true;transition=4;time=Math.max(time,sectors[level].duration+.01);world=time*SCROLL_SPEED;}if(saved.extract&&!saved.complete)beginStoryExtraction(!!saved.returning);}
 function storyObjective(){const m=storyMission,d=STORY_ROUTE[storyIndex()];if(!d||!m)return '';if(m.complete)return 'SIGNAL SHARD SECURED · ROUTE UPDATED';if(m.extract){const e=m.extract;return e.returning&&e.returnAge>=storyPilotCrossingAge()?`EXPEDITION SAFE · WELCOME HOME`:e.returning&&e.returnAge>=storyPilotLaunchAge()?`EXPEDITION 5/5 SAFE · HEADING HOME`:e.returning?`RESCUING EXPEDITION ${e.evacuated}/5 · FRIENDLY CARRIERS · WEAPONS SAFE`:`DEFEND PORTAL · SAVE YOUR PEOPLE · ${e.age>=32?'CLEAR THE APPROACH':Math.ceil(32-e.age)+'s'} · INTEGRITY ${e.hp}/${e.max}${e.engineer&&!e.repaired?' · ENGINEER ON STANDBY':''}`;}
  const opening=openingMissionTask();if(opening&&!m.guardian)return `${m.index+1}/6 · ${opening.title}`;
  const task=d.kind==='relay'?`LINK RELAYS ${m.done}/3 · HOLD INSIDE RING`:d.kind==='seal'?`BREAK SEALS ${m.done}/3 · SHOOT THE CORE`:d.kind==='furnace'?`GATE POWER ${m.done}/3 · BREAK ARMOR · LINK TERMINAL`:d.kind==='extraction'?'DEFEAT GUARDIAN · THEN DEFEND THE PORTAL':d.world==='Ferrum'?'DEFEAT DREADNOUGHT · ENGINEER RESCUE OPTIONAL':'DEFEAT GUARDIAN · RECOVER SIGNAL';return `${m.index+1}/6 · ${m.done===3?'OBJECTIVE COMPLETE · DEFEAT GUARDIAN':task}${m.guardian?' · GUARDIAN DOWN':''}`;}
-function beginStory(target){migrateStoryVictories();const p=storyStore.snapshot();const index=target===undefined?(p.complete?0:STORY_ROUTE.findIndex(m=>m.id===p.next)):target;if(!Number.isInteger(index)||index<0||index>=6)return;if(STORY_ROUTE.slice(0,index).some(m=>!storyStore.has(m.id)))return;beginDescent(sectors.findIndex(s=>s.id===STORY_ROUTE[index].id),'story');}
+function beginStory(target){if(window.flightDemo)target=0;migrateStoryVictories();const p=storyStore.snapshot();const index=target===undefined?(p.complete?0:STORY_ROUTE.findIndex(m=>m.id===p.next)):target;if(!Number.isInteger(index)||index<0||index>=6)return;if(STORY_ROUTE.slice(0,index).some(m=>!storyStore.has(m.id)))return;const saved=savedCampaignCheckpoint();beginDescent(sectors.findIndex(s=>s.id===STORY_ROUTE[index].id),'story',saved?.mission===STORY_ROUTE[index].id?saved.checkpoint:null);}
 function storySocketMarkup(){const p=storyStore.snapshot();return `<div class="story-route">${STORY_ROUTE.map((m,i)=>{const done=storyStore.has(m.id),open=STORY_ROUTE.slice(0,i).every(s=>storyStore.has(s.id));return `<article class="story-stop ${done?'secured':open?'available':'locked'}"><span class="eyebrow">${m.system} · ${String(i+1).padStart(2,'0')}</span><h3><span aria-label="${done?'Shard secured':'Empty socket'}">${done?'◆':'◇'}</span> ${m.world}</h3><strong>${m.title}</strong><p>${m.brief}</p><p class="story-benefit">${m.benefit}</p><small>${done?'SHARD SECURED':open?'ROUTE OPEN':'ROUTE LOCKED'} · ${m.socket}</small></article>`;}).join('')}</div>`;}
-function showStoryMap(resume=false){if(state!=='title'&&state!=='paused')return;const previous=state;migrateStoryVictories();const p=storyStore.snapshot(),next=STORY_ROUTE.find(m=>m.id===p.next),overlay=$('#overlay');atlasOpen=true;atlasSystemId=null;overlay.className='overlay universe-atlas origin-log';overlay.onclick=null;overlay.innerHTML=`<div class="atlas-shell story-shell"><header class="atlas-header"><div><span class="eyebrow mint">THE ORIGIN SIGNAL · SIX MISSIONS</span><h2>BRING THEM HOME</h2><p>Find the lost expedition. Rebuild its route through three solar systems.</p></div><button id="storyBack">${resume?'RESUME FLIGHT':'← MAIN MENU'}</button></header><section class="origin-summary"><div><span class="eyebrow">SIGNAL SHARDS</span><strong>${p.count}<small> / 6 secured</small></strong><progress max="6" value="${p.count}" aria-label="Story route progress"></progress></div><div><h3>${p.complete?'The expedition is home.':next.world+' · '+next.title}</h3><p>${p.complete?'All six signals form a route home. Your full universe archive remains available to explore.':next.brief}</p>${resume?'':`<button id="storyLaunch" class="primary">${p.complete?'REPLAY STORY':'CONTINUE STORY'} ↗</button>`}</div></section>${storySocketMarkup()}<p class="atlas-note">${p.durable?'Saved on this device.':'Session preview · progress resets on reload.'} Completed missions survive defeat. Signal Shards open the next mission automatically. The engineer is optional.</p>${resume?'':typeof relayLoadoutMarkup==='function'?'<section class="relay-card"><div><h3>FLIGHT EQUIPMENT</h3><p>Rescue the engineer on Ferrum to unlock the Recovery Kit.</p>'+relayLoadoutMarkup()+'</div></section>':''}<div class="relay-actions">${resume?'':`<button id="storyArchive">EXPLORATION ARCHIVE · ${originStore.snapshot().count}/92</button>`}${resume?'':'<button id="storyExplore">FLY EXPLORATION ROUTE ↗</button>'}</div><p class="atlas-note">Your exploration archive is separate. Story missions do not require collecting all 92 crystals.</p></div>`;
+function showStoryMap(resume=false){if(window.flightDemo)return; if(state!=='title'&&state!=='paused')return;const previous=state;migrateStoryVictories();const p=storyStore.snapshot(),next=STORY_ROUTE.find(m=>m.id===p.next),overlay=$('#overlay');atlasOpen=true;atlasSystemId=null;overlay.className='overlay universe-atlas origin-log';overlay.onclick=null;overlay.innerHTML=`<div class="atlas-shell story-shell"><header class="atlas-header"><div><span class="eyebrow mint">THE ORIGIN SIGNAL · SIX MISSIONS</span><h2>BRING THEM HOME</h2><p>Find the lost expedition. Rebuild its route through three solar systems.</p></div><button id="storyBack">${resume?'RESUME FLIGHT':'← MAIN MENU'}</button></header><section class="origin-summary"><div><span class="eyebrow">SIGNAL SHARDS</span><strong>${p.count}<small> / 6 secured</small></strong><progress max="6" value="${p.count}" aria-label="Story route progress"></progress></div><div><h3>${p.complete?'The expedition is home.':next.world+' · '+next.title}</h3><p>${p.complete?'All six signals form a route home. Your full universe archive remains available to explore.':next.brief}</p>${resume?'':`<button id="storyLaunch" class="primary">${p.complete?'REPLAY STORY':'CONTINUE STORY'} ↗</button>`}</div></section>${storySocketMarkup()}<p class="atlas-note">${p.durable?'Saved on this device.':'Session preview · progress resets on reload.'} Completed missions survive defeat. Signal Shards open the next mission automatically. The engineer is optional.</p>${resume?'':typeof relayLoadoutMarkup==='function'?'<section class="relay-card"><div><h3>FLIGHT EQUIPMENT</h3><p>'+(relayStore.snapshot().unlocked?'Recovery Kit unlocked. Choose your starting equipment for the next flight.':'Rescue the engineer and defeat the Dreadnought to unlock the Recovery Kit.')+'</p>'+relayLoadoutMarkup()+'</div></section>':''}<div class="relay-actions">${resume?'':`<button id="storyArchive">EXPLORATION ARCHIVE · ${originStore.snapshot().count}/92</button>`}${resume?'':'<button id="storyExplore">FLY EXPLORATION ROUTE ↗</button>'}</div><p class="atlas-note">Your exploration archive is separate. Story missions do not require collecting all 92 crystals.</p></div>`;
  $('#storyBack').onclick=()=>{atlasOpen=false;if(resume&&previous==='paused'){state='paused';pause();}else showTitleScreen();};if(!resume){$('#storyLaunch').onclick=()=>beginStory();$('#storyExplore').onclick=()=>beginDescent(0,'exploration');}if(!resume)$('#storyArchive').onclick=()=>{if(resume)return;atlasOpen=false;state='title';showOriginMission();};if(!resume)for(const mode of ['standard','support']){const button=$('[data-relay-loadout="'+mode+'"]');if(button)button.onclick=()=>{if(mode==='support'&&!relayStore.snapshot().unlocked)return;relayLoadout=mode;showStoryMap();};}$('#storyBack').focus();}
 function storyGuardianDefeated(b){if(!storyActive()||b!==boss||b.hp>0)return false;storyMission.guardian=true;ship.silk=0;if(isOriginGuardian(b)){storyMission.originLocks=3;hostile=[];}if(storyIndex()===1)flightRun.storyEngineer=!!ferrumMission?.boarded;storyMission.shardSource={x:b.x,y:b.y};if(flightRun.storyOwner===originStore.account())originStore.collect(sectors[level].id);saveCheckpoint();return true;}
 // Rewards follow the reached route, rather than granting all replay unlocks at launch.
 function storyBenefits(){const i=storyIndex();return{uplink:i>2,telemetry:i>3,engineer:!!flightRun?.storyEngineer};}
-function beginStoryExtraction(){
+function beginStoryExtraction(returning=false){
  const benefits=storyBenefits(),max=benefits.uplink?8:6;
  storyMission.extract={age:0,hp:max,max,next:2,spawned:0,raiders:[],x:W/2,y:H/2,previousShip:{x:ship.x,y:ship.y},engineer:benefits.engineer,repaired:false,repairGlow:0,returning:false,returnAge:0,evacuated:0};
  ship.hp=Math.max(ship.hp,3);ship.inv=Math.min(ship.inv,2);
- prepareStoryPortal();announce('DEFEND THE PORTAL','PROTECT BOTH SIDES · BRING YOUR PEOPLE HOME',3);window.flightAudio?.setRescueCelebration?.(false);window.flightAudio?.setMusicActive(true);
+ prepareStoryPortal();if(returning){beginStoryReturn(storyMission.extract,false);return;}announce('DEFEND THE PORTAL','PROTECT BOTH SIDES · BRING YOUR PEOPLE HOME',3);window.flightAudio?.setRescueCelebration?.(false);window.flightAudio?.setMusicActive(true);
 }
 function updateStoryBoss(b){
  if(!storyActive()||!storyMission||b.entry||isOriginGuardian(b))return;
@@ -55,9 +66,12 @@ function updateStoryBoss(b){
 function repairStoryBeacon(e){
  if(e.engineer&&!e.repaired&&e.hp<=3&&e.hp>0){e.repaired=true;e.hp=Math.min(e.max,e.hp+3);e.repairGlow=2;burst(e.x,e.y,'#b8ffe4',20);announce('ENGINEER · BEACON REPAIRED','INTEGRITY +3 · REPAIR CHARGE USED',3);window.flightAudio?.pickup?.(e.x,'repair');}
 }
-function beginStoryReturn(e){
+function beginStoryReturn(e,persist=true){
+ if(e.returning)return;
  e.returning=true;e.portalStamp=null;e.returnAge=0;flash=shake=0;particles=[];rings=[];pickupEffects=[];e.sceneWorld=world;e.escortStart={x:ship.x,y:ship.y};e.raiders=[];shots=[];muzzleFlash=0;explosions=[];hostile=[];hazards=[];acidClouds=[];enemies=[];ship.inv=Math.max(ship.inv,8);
  keys.clear();pointer=null;announce('PORTAL SECURED','OPENING THE WAY HOME · WEAPONS SAFE',3);window.flightAudio?.setBossApproach?.(0);window.flightAudio?.setRescueCelebration?.(true);window.flightAudio?.setMusicActive(true);
+ // Save the completed defense before homecoming; failed storage stays session-only.
+ if(persist&&storyMission?.extract===e)saveCheckpoint();
 }
 const STORY_RETURN_FLIGHT=Object.freeze({launch:3,spacing:.7,approach:3.4,settle:.45});
 function storyCarrierCrossingAge(i){return STORY_RETURN_FLIGHT.launch+i*STORY_RETURN_FLIGHT.spacing+STORY_RETURN_FLIGHT.approach;}
@@ -472,11 +486,12 @@ function storyServiceReceipt(){const r=storyMission?.reward||{},items=[];
 }
 function storyTransmissionRoute(index){return `<ol class="transmission-stops" aria-label="Six-mission journey">${STORY_ROUTE.map((m,i)=>`<li class="${i<=index?'secured':i===index+1?'next':''}" ${i===index+1?'aria-current="step"':''}><i aria-hidden="true">${i<=index?'◆':'◇'}</i><span>${m.world}</span><span class="sr-only">${i<=index?' secured':i===index+1?' next':' ahead'}</span></li>`).join('')}</ol>`;}
 function showStoryDebrief(){
+ if(window.flightDemo){window.flightDemo.complete();return;}
  const index=storyIndex(),d=STORY_ROUTE[index],next=STORY_ROUTE[index+1],final=!next,message=STORY_TRANSMISSIONS[index],r=typeof relayDebrief!=='undefined'?relayDebrief:null;
  if(typeof relayDebrief!=='undefined')relayDebrief=null;
  state=final?'victory':'debrief';if(final)recordFlightRun(true);atlasOpen=false;keys.clear();pointer=null;touchContacts.clear();annTimer=0;$('#announcement').style.opacity=0;$('#pause').hidden=true;$('#touchControls').classList.remove('active');$('#originRecoveryPanel').hidden=true;window.flightAudio?.setBossApproach?.(0);window.flightAudio?.setIntensity?.(.12);if(final)window.flightAudio?.setRescueCelebration?.(true);window.flightAudio?.setMusicActive(true);
  const overlay=$('#overlay');overlay.onclick=null;
- const receipt=storyServiceReceipt(),crew=index===1&&flightRun?.storyEngineer?'ENGINEER ABOARD · SABOTAGE DRONE ONLINE':index===1&&r&&!r.rescued?'Engineer not aboard · the rescue can still succeed':final&&flightRun?.storyEngineer?'Your engineer helped bring them home.':'';
+ const receipt=storyServiceReceipt(),crew=index===1&&flightRun?.storyEngineer?'ENGINEER ABOARD · Recovery Kit unlocked · one portal repair in the finale':index===1&&r&&!r.rescued?'Engineer not aboard · the rescue can still succeed':final&&flightRun?.storyEngineer?'Your engineer helped bring them home.':'';
  let routePresented=false;
  const renderTransmission=()=>{
   overlay.className='overlay story-transmission';overlay.scrollTop=0;
@@ -659,7 +674,7 @@ const OPENING_MISSIONS=Object.freeze([
  ],beats:[
   {at:0,title:'FOLLOW THE SIGNAL',detail:'Recover the first coordinates · move to dodge · weapons fire automatically'},
   {at:7,title:'READ THE AIM',detail:'Leave the amber sightline · hit it while it charges to interrupt'},
-  {at:11,title:'CONTACT BEHIND YOU',detail:'Space / double tap to face left · clear the rear formation'},
+  {at:11,title:'CONTACT BEHIND YOU',get detail(){return (window.flightControls?.hint('flip')||'Space / double tap')+' to face left · clear the rear formation';}},
   {at:17,title:'COUNTERATTACK',detail:'Blue barrels charge · break their aim or move clear'},
   {at:29,title:'KEEP PUSHING',detail:'Collect supplies as you fight · more contacts ahead'},
   {at:33,title:'CROSSWIND AMBUSH',detail:'Attackers on both sides · turn to meet them'},
@@ -700,9 +715,9 @@ function openingMissionTask(){
  const beat=plan.beats[openingMissionBeat()];
  if(storyIndex()===0&&(beat.title==='CONTACT BEHIND YOU'||beat.title==='CROSSWIND AMBUSH')){
   const rear=enemies.some(e=>e.hp>0&&!e.retreat&&e.entry==='left'&&e.x<ship.x-60&&e.x> -500);
-  if(!rear)return shipDirection()<0?{title:'FACE THE NEXT WAVE',detail:'Space / double tap to face right'}:{title:'KEEP PUSHING',detail:'Collect supplies · watch for the next formation'};
+  if(!rear)return shipDirection()<0?{title:'FACE THE NEXT WAVE',detail:(window.flightControls?.hint('flip')||'Space / double tap')+' to face right'}:{title:'KEEP PUSHING',detail:'Collect supplies · watch for the next formation'};
  }
- return beat;
+ return beat.title==='CONTACT BEHIND YOU'?{...beat,detail:(window.flightControls?.hint('flip')||'Space / double tap')+' to face left · clear the rear formation'}:beat;
 }
 function updateOpeningMissionHUD(){
  updateOpeningRescueMarker();updateStoryInteractionHUD();
@@ -1252,12 +1267,35 @@ function refreshStoryLobby(){
  else if(campaignBriefVisible()&&(campaignBriefView.owner!==storyStore.account()||campaignBriefView.progress!==storyStore.snapshot().count))showCampaignBrief();
 }
 
+function storyResumeInstruction(index,saved){
+ const mission=STORY_ROUTE[index],cp=saved?.mission===mission.id?saved.checkpoint:null;
+ if(!cp)return STORY_ACTIONS[index];
+ if(index===1&&cp.ferrum?.boarded)return 'Engineer aboard. Break the Dreadnought; your drone will jam one weapon.';
+ const progress=cp.story;
+ if(!progress||progress.index!==index)return STORY_ACTIONS[index];
+ if(['relay','seal','furnace'].includes(mission.kind)){
+  const done=Math.max(0,Math.min(3,progress.done||0));
+  if(done===3){
+   const result=mission.kind==='relay'?'All relays connected. Survivors located.':mission.kind==='seal'?'Archive seals broken. Navigation records recovered.':'Furnace controls linked. Rescue gate powered.';
+   return result+(progress.guardian?' Recover the signal shard.':' Defeat the guardian.');
+  }
+  const action=mission.kind==='relay'?`${done}/3 relays connected. Hold inside the remaining rings.`:mission.kind==='seal'?`${done}/3 archive seals broken. Shoot the remaining seals.`:`${done}/3 furnace controls linked. Break the remaining couplings and link their terminals.`;
+  return action+(progress.guardian?' Guardian defeated.':'');
+ }
+ if(mission.kind==='extraction'&&progress.guardian&&progress.extract&&progress.returning)return 'Portal secured. Resume the homecoming and bring everyone home.';
+ if(progress.guardian)return mission.kind==='extraction'?'Guardian defeated. Defend both sides of the portal to save the five carriers.':'Guardian defeated. Recover the signal shard.';
+ return STORY_ACTIONS[index];
+}
+
 function showCampaignBrief(){
+ if(window.flightDemo){window.flightDemo.brief();return;}
  if(state!=='title')return;campaignPrologue=null;migrateStoryVictories();const {p,index,next,recap}=storyResumeInfo();atlasOpen=true;sectorBlend=null;
  prepareCampaignBrief(index);
- const returning=p.count&&!p.complete;
+ const saved=savedCampaignCheckpoint(),returning=!!saved||p.count&&!p.complete;
+ const engineerAboard=index===1&&saved?.mission===next.id&&!!saved.checkpoint.ferrum?.boarded;
+ const instruction=storyResumeInstruction(index,saved);
  const overlay=$('#overlay');overlay.className='overlay story-transmission campaign-intro';overlay.onclick=null;
- overlay.innerHTML=`<section class="campaign-scene" aria-label="Next mission preview: ${next.world}"><div class="campaign-scene-heading"><span class="eyebrow"><i aria-hidden="true"></i>${returning?'YOUR JOURNEY CONTINUES':'YOUR JOURNEY BEGINS'}</span><h3>${next.world}</h3><p>${next.system} · ${next.title}</p></div><div class="campaign-scene-route"><span class="eyebrow">THE ROUTE HOME · ${p.complete?0:p.count} / 6 COORDINATES</span><ol>${STORY_ROUTE.map((m,i)=>`<li class="${i<index?'secured':i===index?'next':''}"><i aria-hidden="true">${i<index?'◆':'◇'}</i><span>${m.world}</span></li>`).join('')}</ol><p>Recover coordinates → restore the gate → bring them home.</p></div></section><section class="transmission-card campaign-brief" aria-labelledby="campaignBriefTitle"><span class="eyebrow mint">${returning?'RESCUE IN PROGRESS · '+p.count+'/6 COORDINATES':'SIX MISSIONS · THREE SOLAR SYSTEMS'}</span><h2 id="campaignBriefTitle">${returning?'The rescue continues.':'Bring them home.'}</h2><p class="brief-destination">${returning?'RESUMING':'FIRST DESTINATION'} · ${next.world.toUpperCase()} · ${next.title}</p><p class="brief-instruction">${STORY_ACTIONS[index]}</p><div class="transmission-actions"><button id="campaignTakeoff" class="primary">${returning?'CONTINUE':'BEGIN'} CAMPAIGN ↗</button><button id="storyBack" class="transmission-secondary">Back</button></div><details id="campaignStory" class="brief-details"><summary>The story &amp; saved progress</summary><p class="brief-story">An expedition followed the Origin Signal. Their return gate failed. Five carriers are stranded. You are their way home.</p><p class="transmission-task">${returning?recap:'Recover six coordinates across three systems. Restore the gate and defend their escape.'}</p><p class="transmission-service">${p.durable?'Missions saved on this device.':'Session progress · keep this tab open.'} ${index===1?'Engineer rescue is optional.':'Progress survives defeat.'}</p></details></section>`;
+ overlay.innerHTML=`<section class="campaign-scene" aria-label="Next mission preview: ${next.world}"><div class="campaign-scene-heading"><span class="eyebrow"><i aria-hidden="true"></i>${returning?'YOUR JOURNEY CONTINUES':'YOUR JOURNEY BEGINS'}</span><h3>${next.world}</h3><p>${next.system} · ${next.title}</p></div><div class="campaign-scene-route"><span class="eyebrow">THE ROUTE HOME · ${p.complete?0:p.count} / 6 COORDINATES</span><ol>${STORY_ROUTE.map((m,i)=>`<li class="${i<index?'secured':i===index?'next':''}"><i aria-hidden="true">${i<index?'◆':'◇'}</i><span>${m.world}</span></li>`).join('')}</ol><p>Recover coordinates → restore the gate → bring them home.</p></div></section><section class="transmission-card campaign-brief" aria-labelledby="campaignBriefTitle"><span class="eyebrow mint">${returning?'RESCUE IN PROGRESS · '+p.count+'/6 COORDINATES':'SIX MISSIONS · THREE SOLAR SYSTEMS'}</span><h2 id="campaignBriefTitle">${returning?'The rescue continues.':'Bring them home.'}</h2><p class="brief-destination">${saved?'RESUME SECTION '+(saved.checkpoint.section+1)+'/4':returning?'RESUMING':'FIRST DESTINATION'} · ${next.world.toUpperCase()} · ${next.title}</p><p class="brief-instruction">${instruction}</p><div class="transmission-actions"><button id="campaignTakeoff" class="primary">${returning?'CONTINUE':'BEGIN'} CAMPAIGN ↗</button><button id="storyBack" class="transmission-secondary">Back</button></div><details id="campaignStory" class="brief-details"><summary>The story &amp; saved progress</summary><p class="brief-story">An expedition followed the Origin Signal. Their return gate failed. Five carriers are stranded. You are their way home.</p><p class="transmission-task">${returning?recap:'Recover six coordinates across three systems. Restore the gate and defend their escape.'}</p><p class="transmission-service">${saved?(saved.durable?'Checkpoint saved on this device.':'Checkpoint available for this session only.'):p.durable?'Completed missions saved on this device.':'Session progress · keep this tab open.'} ${engineerAboard?'Rescued crew retained at this checkpoint.':index===1?'Engineer rescue is optional.':'Progress survives defeat.'}</p></details></section>`;
  $('#storyBack').onclick=showTitleScreen;$('#campaignTakeoff').onclick=()=>{campaignBriefView=null;atlasOpen=false;beginStory(index);};$('#campaignTakeoff').focus({preventScroll:true});
 }
 
@@ -1414,7 +1452,7 @@ function drawOriginGuardian(b,g=b.origin){
  }ctx.restore();
 }
 function applySilkSnare(){
- if(ship.inv>0)return;if(ship.shield>0){damage();return;}if((ship.silkGrace||0)>0)return;
+ if(ship.inv>0)return;if(ship.shield>0){damage('projectile');return;}if((ship.silkGrace||0)>0)return;
  ship.silk=2.2;ship.silkGrace=4.2;window.flightAudio?.weaponCue?.('silk','attach',ship.x);announce('SILK SNARE','THRUST REDUCED BRIEFLY · NOVA BREAKS THE WEB',3);
 }
 function updateSilkSnare(dt){ship.silk=Math.max(0,(ship.silk||0)-dt);ship.silkGrace=Math.max(0,(ship.silkGrace||0)-dt);}

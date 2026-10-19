@@ -6,14 +6,14 @@ let flightLaunchToken=0;
 function showTitleScreen(){
  flightLaunchToken++;
  campaignBriefView=null;campaignPrologue=null;atlasOpen=false;atlasSystemId=null;sectorBlend=null;
- keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;
+ keys.clear();window.flightControls?.clearKeyboard();window.flightControls?.resetPad();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;
  flash=shake=0;particles=[];rings=[];explosions=[];pickupEffects=[];originRecovery=null;
  const overlay=$('#overlay');overlay.onclick=null;overlay.onkeydown=null;state='title';annTimer=0;
  $('#announcement').style.opacity=0;$('#pause').hidden=true;$('#bossbar').hidden=true;$('#touchControls').classList.remove('active');
  for(const id of ['#rescueTarget','#missionTarget','#originRecoveryPanel'])if($(id))$(id).hidden=true;
  updateStoryPortalHUD();updateOpeningMissionHUD();window.flightAudio?.clear();
  overlay.className='overlay title-screen';overlay.innerHTML=titleMarkup;$('#launch').onclick=showCampaignEntry;
- bindUniverseButton();const music=$('#introMusic');if(music)music.onclick=()=>$('#music').onclick();
+ bindUniverseButton();const music=$('#introMusic');if(music)music.onclick=()=>toggleFlightMusic(true);
  window.flightAudio?.setTitle(!document.hidden);musicControls();updateExpeditionIntro();drawNavigationChart();window.refreshCollectionButtons?.();
 }
 let atlasSystemId=null,atlasOpen=false;
@@ -21,6 +21,7 @@ function bindUniverseButton(){const mission=$('#mission');if(mission)mission.onc
 function universeCatalog(){return [...expeditionSystems.values()].map(system=>({system,galaxy:GALAXIES[system.galaxyId],worlds:system.destinations}));}
 function galaxyAttribution(galaxy){return '<p class="atlas-credit"><strong>'+galaxy.name+'</strong> · <a href="'+galaxy.source+'" target="_blank" rel="noopener">'+galaxy.reference+'</a><br>'+galaxy.credit+'</p>';}
 function showUniverseAtlas(selectedId=null){
+ if(window.flightDemo)return;
  if(state!=='title')return;atlasOpen=true;atlasSystemId=selectedId;const catalog=universeCatalog(),entry=catalog.find(e=>e.system.id===selectedId),overlay=$('#overlay');
  const counts=`${new Set(catalog.map(e=>e.galaxy.id)).size} GALAXIES · ${catalog.reduce((n,e)=>n+systemCensus(e.system).suns,0)} SUNS · ${catalog.reduce((sum,e)=>sum+e.worlds.length,0)} DESTINATIONS`;
  overlay.className='overlay universe-atlas';overlay.innerHTML=`<div class="atlas-shell"><header class="atlas-header"><div><span class="eyebrow mint">EXPEDITION ATLAS</span><h2>${entry?entry.system.name+' SYSTEM':'THE KNOWN UNIVERSE'}</h2><p>${entry?entry.galaxy.name+' · '+systemCensusLabel(entry.system):counts}</p></div><button id="atlasBack">${entry?'← ALL GALAXIES':'← MAIN MENU'}</button></header>${entry?`<div class="atlas-detail"><canvas id="atlasMap" width="800" height="550" aria-label="${entry.system.name} orbital map"></canvas><div class="atlas-worlds">${galaxyAttribution(entry.galaxy)}<p class="atlas-note">Conquest route · one encounter per destination</p>${entry.worlds.map((d,i)=>{const stage=campaign.find(s=>s.id===d.stages[0]);return `<article><span class="atlas-number">${String(i+1).padStart(2,'0')}</span><div><h3>${d.name}${d.rings?' <small>RINGED</small>':''}</h3><p>${ENVIRONMENTS[stage.environment]?.label||stage.environment} · ${d.stellarBody?.type||d.climate.toUpperCase()} · ${d.stellarBody?'STELLAR ORBIT':d.orbit+' AU'}</p><p>${stage.name}</p>${stage.id==='ember-forge'&&typeof relayStore!=='undefined'?`<p class="atlas-note relay-earned">${relayStore.snapshot().unlocked?'SUPPORT RELAY ONLINE · RECOVERY KIT AVAILABLE':'DISTRESS CALL · THE LAST ENGINEER'}</p>`:''}<p class="atlas-note">NATIVE LIFE · ${stage.biosphere.names.join(" · ")}</p></div></article>`;}).join('')}<p class="atlas-note">${systemFocus(entry.system).name} · ${systemFocus(entry.system).type}<br>${entry.system.centralBody?systemCensus(entry.system).suns+' stellar coronas · no planetary landings.':'Hot inner orbits → cold outer worlds.'}</p></div></div>`:`<p class="atlas-note">Begin in Vesper. Conquer its three planets, then cross to the next galaxy. Select a galaxy to explore its worlds.</p><div class="atlas-grid">${catalog.map((e,i)=>`<button class="atlas-card" data-system="${e.system.id}"><img class="atlas-galaxy" style="${galaxyThumbnailMask(e.galaxy)}" src="assets/${galaxyThumbnailFile(e.galaxy)}" alt="${e.galaxy.morphology} galaxy inspired by ${e.galaxy.reference}" loading="lazy" decoding="async" width="480" height="300"><span class="atlas-number">${String(i+1).padStart(2,'0')}</span><span class="atlas-kind">${e.galaxy.morphology.replaceAll('-',' ').toUpperCase()}</span><strong>${e.galaxy.name}</strong><span>${e.system.name} · ${systemCensusLabel(e.system)}</span><small>${e.worlds.map(d=>d.name).join(' · ')}</small>${e.system.id==='vesper-system'&&typeof relayStore!=='undefined'&&relayStore.snapshot().unlocked?'<small class="relay-earned">FERRUM · SUPPORT RELAY ONLINE</small>':''}</button>`).join('')}</div><section class="atlas-credits"><h3>THE REAL UNIVERSE BEHIND THE JOURNEY</h3><p>Fictional destinations, grounded in observed galaxy forms. Telescope colours represent the captured wavelengths; rotation and travel time are compressed for the game. Images resized and softly blended into the starfield.</p>${catalog.map(e=>galaxyAttribution(e.galaxy)).join('')}<p>Observation images used under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. No endorsement is implied.</p></section>`}</div>`;
@@ -86,7 +87,7 @@ let sectors=campaign;
 const themeIndex=()=>LEVEL_THEMES[sectors[level].theme],bossIndex=()=>BOSS_KINDS[sectors[level].bossKind],difficulty=()=>sectors[level].difficulty;
 const levelPacing=()=>sectors[level].pacing||{pickupGap:2.4,maxPickups:1,maxActiveEnemies:10,pickupX:650,preBossRelief:true};
 const currentSection=()=>sectors[level].checkpoints.reduce((section,at,i)=>time>=at?i:section,0);
-let state='title',level=0,time=0,world=0,last=0,spawnClock=0,score=0,weapon='pulse',power=1,novas=3,fireClock=0,shake=0,flash=0,boss=null,bossDefeated=false,transition=0,kills=0,annTimer=0,annPriority=0,sound=true;
+let state='title',level=0,time=0,world=0,last=0,spawnClock=0,score=0,weapon='pulse',power=1,novas=3,fireClock=0,shake=0,flash=0,boss=null,bossDefeated=false,transition=0,kills=0,annTimer=0,annPriority=0,sound=window.flightSettings?.snapshot().effectsEnabled!==false;
 let enemies=[],shots=[],hostile=[],particles=[],drops=[],rings=[],explosions=[],hazards=[],acidClouds=[];
 let speedLevel=0,companion=0,companionClock=0,waveIndex=0,waveDispatchedAt=-Infinity,gateIndex=0,supplyIndex=0;
 let queuedSupplies=[],queuedSupplyLevel=-1,lastSupplySpawn=-Infinity,preBossRelief=false;
@@ -139,7 +140,7 @@ function blockWithOrb(b,oldX,oldY){
 }
 
 
-function saveCheckpoint(){checkpoint={section:currentSection(),sceneLead:sectorIntroLead,score,kills,weapon,power,speedLevel,companion,novas,orbOwned:weaponOrb.owned,pilotHeading:pilotTurn.target,story:typeof storyCheckpoint==='function'?storyCheckpoint():null,ferrum:typeof ferrumCheckpoint==='function'?ferrumCheckpoint():null};}
+function saveCheckpoint(persist=true){checkpoint={section:currentSection(),sceneLead:sectorIntroLead,score,kills,weapon,power,speedLevel,companion,novas,rescueCharge,loadout:flightRun?.loadout||'strike',orbOwned:weaponOrb.owned,pilotHeading:pilotTurn.target,story:typeof storyCheckpoint==='function'?storyCheckpoint():null,ferrum:typeof ferrumCheckpoint==='function'?ferrumCheckpoint():null};if(persist&&typeof persistCampaignCheckpoint==='function')persistCampaignCheckpoint();}
 // Restored scenery can cross the old fixed spawn. Choose clear positions from
 // the actual collision profiles, with deterministic preferences and full ship clearance.
 function placeCheckpointRecovery(){
@@ -160,13 +161,14 @@ function placeCheckpointRecovery(){
   return item;
  });
 }
-function retrySection(){
+function retrySection(countRetry=true){
  queuedSupplies=[];queuedSupplyLevel=level;lastSupplySpawn=-Infinity;preBossRelief=false;
- if(flightRun)flightRun.retries++;
- const saved={...checkpoint};weaponOrb={owned:saved.orbOwned,flash:0};pilotTurn={angle:saved.pilotHeading||0,target:saved.pilotHeading||0};resetSector();checkpoint=saved;sectorIntroLead=saved.sceneLead||0;time=sectors[level].checkpoints[saved.section];world=time*SCROLL_SPEED;
+ if(flightRun&&countRetry)flightRun.retries++;
+ const saved={...checkpoint};weaponOrb={owned:saved.orbOwned,flash:0};pilotTurn={angle:saved.pilotHeading||0,target:saved.pilotHeading||0};resetSector(false,false);checkpoint=saved;sectorIntroLead=saved.sceneLead||0;time=sectors[level].checkpoints[saved.section];world=time*SCROLL_SPEED;
  if(typeof restoreFerrumCheckpoint==='function')restoreFerrumCheckpoint(saved.ferrum);
  if(typeof restoreStoryCheckpoint==='function')restoreStoryCheckpoint(saved.story);
  ({score,kills,weapon,power,speedLevel,companion,novas}=saved);novas=Math.max(1,novas);
+ rescueCharge=saved.rescueCharge??0;if(flightRun)flightRun.loadout=saved.loadout||'strike';
  challengeState.wave=(sectors[level].challenge?.waves||[]).filter(at=>at<time).length;
  waveIndex=flightWaveTimes().filter(at=>at<time).length;gateIndex=gatePlans[level].filter(g=>g.at<time).length;supplyIndex=supplyPlans[level].filter(d=>d.at<time).length;
  obstacles=gatePlans[level].slice(0,gateIndex).map((g,id)=>({...g,id,x:W+100-(time-g.at)*SCROLL_SPEED,w:g.width||82+difficulty()*8})).filter(o=>{updateAsteroidDynamics(o);return obstacleStillVisible(o)});
@@ -179,11 +181,16 @@ function retrySection(){
   }
  }
  ship={x:210,y:380,vx:0,vy:0,hp:5,inv:3,shield:1,frontShield:0,frontFlash:0};
- flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;shake=flash=0;accumulator=0;companionClock=0;
+ flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};keys.clear();window.flightControls?.clearKeyboard();window.flightControls?.resetPad();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;shake=flash=0;accumulator=0;companionClock=0;
  // Keep the same recovery slots and routes; omit equipment already at its cap.
  placeCheckpointRecovery();
+ const returning=typeof storyActive==='function'&&storyActive()&&storyMission?.extract?.returning;
+ if(returning){storyMission.extract.escortStart={x:ship.x,y:ship.y};drops=[];}
+ if(typeof persistCampaignCheckpoint==='function')persistCampaignCheckpoint();
  state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();
- announce('SECTION '+(saved.section+1)+' / 4','CHECKPOINT RESTORED · '+(drops.some(d=>d.type==='power')?'POWER + SHIELD AHEAD':'SHIELD AHEAD'));updateHUD();
+ if(returning)announce('PORTAL SECURED','RESUMING THE HOMECOMING · WEAPONS SAFE',3);
+ else announce('SECTION '+(saved.section+1)+' / 4','CHECKPOINT RESTORED · '+(drops.some(d=>d.type==='power')?'POWER + SHIELD AHEAD':'SHIELD AHEAD'));
+ updateHUD();if(flightInactive())pause();
 }
 function bossDamage(amount){return amount/(sectors[level].bossArmor||1);}
 
@@ -236,10 +243,11 @@ function sectorHUDInfo(){
 function updateHUD(){updateOriginPresentation();hudText('#score',String(score).padStart(6,'0'));const info=sectorHUDInfo();hudText('#sectorNum',typeof storyActive==='function'&&storyActive()?String(storyIndex()+1).padStart(2,'0')+' / 06':info.number);hudText('#sectorName',info.name);hudText('#destinationProgress',info.destination);hudText('#hearts','▰ '.repeat(Math.max(0,ship.hp))+'▱ '.repeat(5-Math.max(0,ship.hp)));hudText('#weapon',`${weaponNames[weapon]} / MK ${['I','II','III'][power-1]}${ship.shield>0?' + SHIELD':''}`);hudText('#loadout',`BOOST ${speedLevel}/3 · DRONES ${companion}/2${ship.frontShield?' · GUARD '+ship.frontShield:''}${weaponOrb.owned?' · ORB GUARD':''} · FACING ${shipDirection()===1?'RIGHT':'LEFT'}`);hudText('#novas','● '.repeat(novas)+'○ '.repeat(3-novas));hudText('#progressLabel',`${!flightRun&&state!=='title'?'TEST FLIGHT · ':''}${sectors[level].scrollAxis==='down'?'DESCENT · ':sectors[level].scrollAxis==='up'?'ASCENT · ':''}SECTION ${currentSection()+1} / 4`);hudWidth('#progress',Math.min(100,time/flightBossTime()*100)+'%');hudText('#status',state==='playing'?(boss?'BOSS ENGAGED':`SECTION ${currentSection()+1} / 4`):state==='title'?'AWAITING PILOT':state.toUpperCase());if(boss){hudWidth('#bosshealth',Math.max(0,boss.hp/boss.max*100)+'%');const hint=$('#bosstactic');if(hint)hudText('#bosstactic',(boss.arsenal?.profile.name||bossEncounterProfile(sectors[level]).signature)+' · '+(typeof isCapitalSiege==='function'&&isCapitalSiege(boss)?capitalSiegeHint(boss):typeof bossEncounterHint==='function'?bossEncounterHint(boss):boss.exposed>0?'EXPOSED · ATTACK NOW':encounterRules[sectors[level].bossKind].hint));}refreshHullMeter();if(typeof updateStoryPortalHUD==='function')updateStoryPortalHUD();if(typeof updateOpeningMissionHUD==='function')updateOpeningMissionHUD();}
 function fullscreenPanel(){const panel=$('.console')||$('.stage');if(panel?.classList){panel.classList.contains??=()=>false;panel.classList.toggle??=()=>{};}return panel;}
 function nativeFullscreenElement(){return document.fullscreenElement||document.webkitFullscreenElement;}
-function ensureGameFullscreen(){if(!nativeFullscreenElement()&&!fullscreenPanel().classList.contains('expanded'))return toggleGameFullscreen();return requestLandscape();}
+function ensureGameFullscreen(){if(window.flightNativeWindow)return;if(!nativeFullscreenElement()&&!fullscreenPanel().classList.contains('expanded'))return toggleGameFullscreen();return requestLandscape();}
 // Resume audio before fullscreen consumes the browser user activation.
-function beginDescent(target,mode='exploration'){
+function beginDescent(target,mode='exploration',resume=null){
  if(!Number.isInteger(target)){if(typeof showCampaignEntry==='function'){showCampaignEntry();return;}target=0;}
+ if(window.flightDemo&&!window.flightDemo.allowed(target,mode))return;
  if(mode!=='story'&&campaign[target]?.id===ORIGIN_EXPEDITION.finalStage&&!originStore.snapshot().unlocked)target=campaign.findIndex(s=>s.id===originStore.snapshot().next);
  target=target>=0&&target<campaign.length?target:0;
  const definition=campaign[target],token=++flightLaunchToken,owner=typeof storyStore!=='undefined'?storyStore.account():null;
@@ -252,15 +260,42 @@ function beginDescent(target,mode='exploration'){
    $('#cancelFlight').onclick=showTitleScreen;
    void window.gpuModels.loadAssets(sectorAuthoredAssets(definition)).then(launch);return;
   }
-  start(target,mode);sectorBlend={arrival:true,systemEntry:true,age:0,duration:15.5/NAVIGATION_SPEED,destination:expedition.locations[sectors[level].id]};$('#announcement').style.opacity=0;annTimer=0;render(0);
+  start(target,mode,resume);if(mode==='story'&&resume){checkpoint=resume;retrySection(false);flightRun.scope='mission-resume';if(state==='playing')pause();$('#overlay .introcopy').textContent='Section '+(resume.section+1)+' restored. Your checkpoint equipment and full hull are ready.';render(0);return;}sectorBlend={arrival:true,systemEntry:true,age:0,duration:15.5/NAVIGATION_SPEED,destination:expedition.locations[sectors[level].id]};$('#announcement').style.opacity=0;annTimer=0;render(0);
  };
  // Keep audio and fullscreen within the initiating gesture, including Safari.
  if(window.safariImmersion?.request(launch))return;void ensureGameFullscreen();launch();
 }
-function start(target=0,mode='exploration'){flightLaunchToken++;sectors=mode==='story'?storyCombatSectors():campaign;campaignPrologue=null;campaignBriefView=null;$('#overlay').classList.remove('loading-flight','story-prologue','campaign-intro','universe-atlas','origin-log','story-transmission','story-journey','flight-retry');originRecovery=null;originFinalePending=false;const recoveryPanel=$('#originRecoveryPanel');if(recoveryPanel){recoveryPanel.hidden=true;recoveryPanel.classList.remove('story-recovery');}rescueCharge=0;weaponOrb={owned:false,flash:0};pilotTurn={angle:0,target:0};beginFlightRun();if(mode==='story'&&typeof STORY_DEFINITION!=='undefined'){flightRun.story=STORY_DEFINITION.id;flightRun.storyOwner=storyStore.account();}if(target>0)flightRun.scope='mission-resume';frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=Number.isInteger(target)&&target>=0&&target<sectors.length?target:0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:1,frontShield:0,frontFlash:0};if(typeof applyRelayLoadout==='function')applyRelayLoadout();resetSector();state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();if(typeof storyActive==='function'&&storyActive())announce(STORY_ROUTE[storyIndex()].title,storyObjective());else announce(expedition.locations[sectors[level].id].destinationName,sectors[level].name);updateHUD()}
-function resetSector(deferPreparation=false){if(typeof resetOpeningTactics==='function')resetOpeningTactics();if(typeof resetWorldBehavior==='function')resetWorldBehavior();annTimer=0;annPriority=0;$('#announcement').style.opacity=0;originRecovery=null;originFinalePending=false;const recoveryPanel=$('#originRecoveryPanel');if(recoveryPanel){recoveryPanel.hidden=true;recoveryPanel.classList.remove('story-recovery');}flash=0;shake=0;if(sectors[level].stellar)requestStellarPhotosphere();resetWaterWakes();trimSectorArt(sectors[level],sectors[typeof storyActive==='function'&&storyActive()?storyNextLevel():level+1]);if(!deferPreparation)prepareSectorArt(sectors[level]);queueSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;ship.silk=ship.silkGrace=0;challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setEnvironment?.(sectors[level].medium,sectors[level].theme,sectors[level].environment,sectors[level].worldIdentity);window.flightAudio?.setSector(sectors[level].music,sectors[level].id,{kind:bossIndex(),organic:bossOrganic(),anatomy:bossDesign()?.mesh.anatomyProgram||sectors[level].biosphere?.boss.anatomy,habitat:sectors[level].medium,seed:sectors[level].biosphere?.boss.genome?.seed,protection:sectors[level].biosphere?.boss.genome?.protection});window.flightAudio?.setBossApproach?.(0);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];pickupEffects=[];waveIndex=0;waveDispatchedAt=-Infinity;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.edgeBounceX=ship.edgeBounceY=null;ship.protectionKind='arrival';ship.inv=3;if(typeof prepareFerrumMission==='function')prepareFerrumMission();if(typeof prepareStoryMission==='function')prepareStoryMission();saveCheckpoint();updateHUD()}
-function panel(title,description,label,action){$('#overlay').classList.remove('loading-flight','story-prologue','campaign-intro','hidden','records-view','title-screen','universe-atlas','origin-log','story-transmission','story-journey','flight-retry');$('#overlay').innerHTML=`<div class="intro"><div class="eyebrow mint">FIRST DESCENT / FLIGHT RECORD</div><h1 class="result-title">${title}</h1><p class="introcopy">${description}</p><button class="primary" id="panelAction">${label}<span>↗</span></button><div class="launch-caption">SCORE ${String(score).padStart(6,'0')} · ${expedition.locations[sectors[level].id].systemName} · SECTOR ${systemStageProgress(expedition.locations[sectors[level].id]).number} / ${systemStageProgress(expedition.locations[sectors[level].id]).total}</div></div>`;$('#panelAction').onclick=action;$('#panelAction').focus()}
-function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause);if(typeof storyActive==='function'&&storyActive()){const button=document.createElement('button');button.textContent='MISSION ROUTE';button.onclick=()=>showStoryMap(true);$('#overlay').append(button);}}else if(state==='paused'){enableAudio();const resume=()=>{state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus();updateHUD();};if(window.safariImmersion?.request(resume))return;void ensureGameFullscreen();resume()}updateHUD()}
+function flightInactive(){return document.hidden||window.flightNativeInput?.active()===false;}
+function start(target=0,mode='exploration',resume=null){if(window.flightDemo&&!window.flightDemo.allowed(target,mode))return;flightLaunchToken++;sectors=mode==='story'?storyCombatSectors():campaign;campaignPrologue=null;campaignBriefView=null;$('#overlay').classList.remove('loading-flight','story-prologue','campaign-intro','universe-atlas','origin-log','story-transmission','story-journey','flight-retry','flight-pause');originRecovery=null;originFinalePending=false;const recoveryPanel=$('#originRecoveryPanel');if(recoveryPanel){recoveryPanel.hidden=true;recoveryPanel.classList.remove('story-recovery');}rescueCharge=0;weaponOrb={owned:false,flash:0};pilotTurn={angle:0,target:0};beginFlightRun();if(mode==='story'&&typeof STORY_DEFINITION!=='undefined'){flightRun.story=STORY_DEFINITION.id;flightRun.storyOwner=storyStore.account();}if(target>0)flightRun.scope='mission-resume';frameError=null;resizeFlightSurface();window.flightAudio?.setTitle(false);enableAudio();window.flightAudio?.intro();keys.clear();window.flightControls?.clearKeyboard();window.flightControls?.resetPad();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;flash=0;shake=0;world=0;accumulator=0;flightPose={pitch:0,roll:0,yaw:0,thrust:0,vx:0,vy:0};level=Number.isInteger(target)&&target>=0&&target<sectors.length?target:0;score=0;power=1;weapon='pulse';novas=3;kills=0;speedLevel=0;companion=0;companionClock=0;ship={x:210,y:380,hp:5,inv:2,shield:1,frontShield:0,frontFlash:0};if(typeof applyRelayLoadout==='function')applyRelayLoadout();resetSector(false,!resume);state='playing';$('#overlay').classList.add('hidden');$('#pause').hidden=false;$('#touchControls').classList.add('active');canvas.focus();if(typeof storyActive==='function'&&storyActive())announce(STORY_ROUTE[storyIndex()].title,storyObjective());else announce(expedition.locations[sectors[level].id].destinationName,sectors[level].name);updateHUD();if(flightInactive())pause()}
+function resetSector(deferPreparation=false,persist=true){if(typeof resetOpeningTactics==='function')resetOpeningTactics();if(typeof resetWorldBehavior==='function')resetWorldBehavior();annTimer=0;annPriority=0;$('#announcement').style.opacity=0;originRecovery=null;originFinalePending=false;const recoveryPanel=$('#originRecoveryPanel');if(recoveryPanel){recoveryPanel.hidden=true;recoveryPanel.classList.remove('story-recovery');}flash=0;shake=0;if(sectors[level].stellar)requestStellarPhotosphere();resetWaterWakes();trimSectorArt(sectors[level],sectors[typeof storyActive==='function'&&storyActive()?storyNextLevel():level+1]);if(!deferPreparation)prepareSectorArt(sectors[level]);queueSectorArt(sectors[level]);sectorArtPrefetched=false;sectorBlend=null;sectorIntroLead=0;ship.silk=ship.silkGrace=0;challengeState={wave:0,gate:false,warned:false,reward:false};window.flightAudio?.setEnvironment?.(sectors[level].medium,sectors[level].theme,sectors[level].environment,sectors[level].worldIdentity);window.flightAudio?.setSector(sectors[level].music,sectors[level].id,{kind:bossIndex(),organic:bossOrganic(),anatomy:bossDesign()?.mesh.anatomyProgram||sectors[level].biosphere?.boss.anatomy,habitat:sectors[level].medium,seed:sectors[level].biosphere?.boss.genome?.seed,protection:sectors[level].biosphere?.boss.genome?.protection});window.flightAudio?.setBossApproach?.(0);time=0;spawnClock=1;fireClock=0;enemies=[];shots=[];hostile=[];particles=[];drops=[];rings=[];explosions=[];hazards=[];acidClouds=[];pickupEffects=[];waveIndex=0;waveDispatchedAt=-Infinity;gateIndex=0;supplyIndex=0;obstacles=[];boss=null;bossDefeated=false;transition=0;$('#bossbar').hidden=true;ship.x=210;ship.y=380;ship.vx=0;ship.vy=0;ship.edgeBounceX=ship.edgeBounceY=null;ship.protectionKind='arrival';ship.inv=3;if(typeof prepareFerrumMission==='function')prepareFerrumMission();if(typeof prepareStoryMission==='function')prepareStoryMission();saveCheckpoint(persist);updateHUD()}
+function panel(title,description,label,action){$('#overlay').classList.remove('loading-flight','story-prologue','campaign-intro','hidden','records-view','title-screen','universe-atlas','origin-log','story-transmission','story-journey','flight-retry','flight-pause');$('#overlay').innerHTML=`<div class="intro"><div class="eyebrow mint">FIRST DESCENT / FLIGHT RECORD</div><h1 class="result-title">${title}</h1><p class="introcopy">${description}</p><button class="primary" id="panelAction">${label}<span>↗</span></button><div class="launch-caption">SCORE ${String(score).padStart(6,'0')} · ${expedition.locations[sectors[level].id].systemName} · PLANET ${systemStageProgress(expedition.locations[sectors[level].id]).number} / ${systemStageProgress(expedition.locations[sectors[level].id]).total}</div></div>`;$('#panelAction').onclick=action;$('#panelAction').focus()}
+function flightExitMessage(){
+ const story=storyActive(),durable=(story?storyStore:originStore).snapshot().durable;
+ const saved=story&&savedCampaignCheckpoint();
+ if(saved)return saved.durable?'Section '+(saved.checkpoint.section+1)+' of this mission is saved on this device. You can resume here when you return. Completed missions stay saved.':'Section '+(saved.checkpoint.section+1)+' is available while the game stays open. Device saving is unavailable; closing the game will lose this checkpoint.';
+ return (story?'This mission will restart when you return. Completed missions ':'Your current exploration run will end. Discoveries ')+(durable?'stay saved on this device.':'remain available in this session. Device saving is unavailable; keep the game open to retain them.');
+}
+function confirmReturnToMenu(){
+ if(!['paused','gameover'].includes(state))return;
+ const returnFocus=document.activeElement;
+ const dialog=document.createElement('dialog');dialog.className='flight-settings';dialog.setAttribute('aria-labelledby','leaveMissionTitle');
+ dialog.innerHTML='<h2 id="leaveMissionTitle">Leave this mission?</h2><p>'+flightExitMessage()+'</p><button id="stayInMission" type="button">STAY HERE</button><button id="leaveMission" type="button">RETURN TO MAIN MENU</button>';
+ fullscreenPanel().append(dialog);
+ dialog.querySelector('#stayInMission').onclick=()=>dialog.close();
+ dialog.querySelector('#leaveMission').onclick=()=>{dialog.close();showTitleScreen();$('#launch').focus();};
+ dialog.addEventListener('keydown',event=>event.stopPropagation());dialog.addEventListener('keyup',event=>event.stopPropagation());
+ dialog.addEventListener('close',()=>{dialog.remove();if(returnFocus?.isConnected)returnFocus.focus();});dialog.showModal();dialog.querySelector('#stayInMission').focus();
+}
+function pause(){if(state==='playing'){state='paused';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();window.flightControls?.clearKeyboard();window.flightControls?.resetPad();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;panel('FLIGHT<br><em>PAUSED</em>','Take a breath. The galaxy can wait.','RESUME MISSION',pause);
+ const overlay=$('#overlay');overlay.classList.add('flight-pause');
+ const actions=document.createElement('div');actions.className='pause-actions';
+ const add=(text,action)=>{const button=document.createElement('button');button.type='button';button.textContent=text;button.onclick=action;actions.append(button);};
+ if(window.flightSettingsUI)add('SETTINGS',()=>window.flightSettingsUI.open());
+ if(window.flightCreditsUI)add('CREDITS',()=>window.flightCreditsUI.open());
+ add('MAIN MENU',confirmReturnToMenu);
+ if(storyActive())add('MISSION ROUTE',()=>showStoryMap(true));
+ overlay.querySelector('.intro').append(actions);
+ }else if(state==='paused'){enableAudio();const token=flightLaunchToken,resume=()=>{if(token!==flightLaunchToken||state!=='paused'||flightInactive())return;state='playing';window.flightAudio?.setMusicActive(true);$('#overlay').classList.add('hidden');canvas.focus();updateHUD();};if(window.safariImmersion?.request(resume))return;void ensureGameFullscreen();resume()}updateHUD()}
 // Only the hit that actually removed hull supplies the defeat explanation.
 function flightDefeatAdvice(){
  if(storyActive()&&storyMission?.extract?.hp<=0)return ['Portal overwhelmed','Switch sides to intercept raiders before they reach the gate.'];
@@ -271,6 +306,11 @@ function flightDefeatAdvice(){
   environment:['Environmental strike','Leave the marked danger zone before it activates.'],
   laser:['Laser strike','Move out of the warning sightline before it fires.'],
   shockwave:['Shockwave','Move through the opening in the expanding wave.'],
+  spores:['Spore cloud','Leave the spore cloud before it ripens. Keep to the clear corridor.'],
+  acid:['Acid cloud','Leave the forming acid cloud before it becomes active.'],
+  breath:['Breath attack','Move across the breath stream to leave its path.'],
+  suction:['Caught at the mouth','Keep clear of the mouth while the creature draws you in.'],
+  exhaust:['Engine exhaust','Move out of the warned exhaust cone before the engine discharges.'],
   hazard:['Hull lost','Watch the attack warnings and use a nova when boxed in.']
  };return advice[ship.lastHullHit]||advice.hazard;
 }
@@ -279,8 +319,10 @@ function showFlightRetry(){
  const worldName=storyActive()?STORY_ROUTE[storyIndex()].world:expedition.locations[sectors[level].id].destinationName;
  const overlay=$('#overlay');overlay.className='overlay flight-retry';overlay.onclick=null;overlay.onkeydown=null;
  annTimer=0;$('#announcement').style.opacity=0;
- overlay.innerHTML=`<section class="retry-card" aria-labelledby="retryTitle"><div class="retry-emblem" aria-hidden="true">↗</div><div class="retry-content"><span class="eyebrow mint">${worldName} · ${extraction?'PORTAL DEFENSE':'CHECKPOINT '+(saved.section+1)+'/4'}</span><h2 id="retryTitle">${cause}</h2><p class="retry-hint">${hint}</p><div class="retry-restored"><span><b>5 / 5</b> Hull restored</span><span><b>${Math.max(1,saved.novas)}</b> Novas ready</span><span><b>${({pulse:'Pulse',spread:'Spread',beam:'Beam',helix:'Helix',wave:'Wave',missile:'Missiles'})[saved.weapon]||'Pulse'}</b> Mk ${saved.power} restored</span></div><p class="retry-kept">${extraction?'Guardian defeated · retry the portal defense':storyActive()?'Completed objectives and rescued crew retained':'Checkpoint equipment retained'}</p><button class="primary" id="panelAction">${extraction?'RETRY EXTRACTION':'RETRY CHECKPOINT'} <span aria-hidden="true">↗</span></button></div></section>`;
- $('#panelAction').onclick=retrySection;$('#panelAction').focus();
+ overlay.innerHTML=`<section class="retry-card" aria-labelledby="retryTitle"><div class="retry-emblem" aria-hidden="true">↗</div><div class="retry-content"><span class="eyebrow mint">${worldName} · ${extraction?'PORTAL DEFENSE':'CHECKPOINT '+(saved.section+1)+'/4'}</span><h2 id="retryTitle">${cause}</h2><p class="retry-hint">${hint}</p><div class="retry-restored"><span><b>5 / 5</b> Hull restored</span><span><b>${Math.max(1,saved.novas)}</b> Novas ready</span><span><b>${({pulse:'Pulse',spread:'Spread',beam:'Beam',helix:'Helix',wave:'Wave',missile:'Missiles'})[saved.weapon]||'Pulse'}</b> Mk ${saved.power} restored</span></div><p class="retry-kept">${extraction?'Guardian defeated · retry the portal defense':storyActive()?'Completed objectives and rescued crew retained':'Checkpoint equipment retained'}</p><button class="primary" id="panelAction">${extraction?'RETRY EXTRACTION':'RETRY CHECKPOINT'} <span aria-hidden="true">↗</span></button><div class="retry-actions">${window.flightSettingsUI?'<button type="button" id="retrySettings">SETTINGS &amp; CONTROLS</button>':''}<button type="button" id="retryMenu">MAIN MENU</button></div></div></section>`;
+ $('#panelAction').onclick=retrySection;
+ if(window.flightSettingsUI)$('#retrySettings').onclick=()=>window.flightSettingsUI.open();
+ $('#retryMenu').onclick=confirmReturnToMenu;$('#panelAction').focus();
 }
 function end(win){if(!win&&flightRun)flightRun.deaths++;recordFlightRun(win);window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();state=win?'victory':'gameover';$('#pause').hidden=true;$('#touchControls').classList.remove('active');$('#bossbar').hidden=true;
  if(!win){showFlightRetry();updateHUD();return;}
@@ -499,6 +541,7 @@ function spawn(){
 function combatImpact(s,target,kind='metal'){
  if(kind==='weak'&&target===boss&&typeof openingRoleFeedback==='function'&&(!openingFeedback||time-openingFeedback.at>1.5))openingRoleFeedback('weak',target);
  const weak=kind==='weak',armored=kind==='armor',organic=kind==='organic';
+ const counterHit=weak&&caelusCounterattack(target),newRipple=!counterHit||!(target.coreImpact>.09);
  // Event-relative and bounded: only a confirmed bonus hit wakes the tissue.
  const dx=(s.x??target.x)-target.x,dy=(s.y??target.y)-target.y,d=Math.hypot(dx,dy)||1,r=target===boss?Infinity:(target.r||31)*(target.depth||1),scale=Math.min(1,r/d);
  let x=target.x+dx*scale,y=target.y+dy*scale;const angle=Math.atan2(-(s.vy||0),-(s.vx||1));
@@ -512,11 +555,14 @@ function combatImpact(s,target,kind='metal'){
    if(distance>3&&!bossOrganic()){particles.push({x:tx,y:ty,fromX:x,fromY:y,owner:boss,offsetX:tx-boss.x,offsetY:ty-boss.y,vx:0,vy:0,life:.075,max:.075,c:s.c||'#c3fff0',r:1.3,penetration:true});}
    // Surface-space origin for the optical response: the glint follows the
    // actual contact across the visible core, including shots from either side.
-   boss.coreStrike=[clamp((tx-organ.x)/organ.r,-.6,.6),clamp(-(ty-organ.y)/organ.r,-.6,.6)];
+   if(newRipple)boss.coreStrike=[clamp((tx-organ.x)/organ.r,-.6,.6),clamp(-(ty-organ.y)/organ.r,-.6,.6)];
    x=tx;y=ty;
   }
  }
- if(weak&&target===boss){target.coreImpactDuration=bossOrganic()?.14:.16;target.coreImpact=target.coreImpactDuration;}
+ if(weak&&target===boss&&newRipple){target.coreImpactDuration=counterHit?.30:bossOrganic()?.14:.16;target.coreImpact=target.coreImpactDuration;}
+ // Let the curved ripple travel before retriggering; continuous fire cannot
+ // pin it at its first frame. Recoil is bounded; mounts and collision follow the same body pose.
+ if(counterHit)target.counterRecoil=Math.min(.065,(target.counterRecoil||0)+.035);
  // Living organs recoil and light from within; metal sparks belong to machinery.
  const count=weak&&target===boss&&bossOrganic()?0:weak?9:armored?3:5;
  for(let i=0;i<count;i++){const a=angle+(i/(count-1)-.5)*2.2,v=(weak?145:85)+i*17,life=weak?.22:armored?.10:.15;
@@ -524,7 +570,7 @@ function combatImpact(s,target,kind='metal'){
  }
  if(particles.length>900)particles.splice(0,particles.length-900);
  target.hitKick=armored?0:clamp(s.damage*.008,.025,.11)*(dy<0?-1:1);
- window.flightAudio?.impact?.(x,kind);
+ window.flightAudio?.impact?.(x,counterHit?'glass-weak':kind);
 }
 function updateStructures(dt){
  if(sceneryBorderContact(ship.x,ship.y))damage('terrain');
@@ -702,7 +748,7 @@ function pickupUseful(type){
  }
 }
 const PICKUP_PURPOSE={
- orb:'Blocks two shots · recharges between bursts',speed:'Faster movement and dodging',companion:'A wingmate fires alongside you',power:'More cannon damage',frontShield:'Blocks shots coming from the front',shield:'Absorbs incoming hits',repair:'Restores damaged hull',rescue:'Restores hull after one fatal hit',nova:'Screen-clearing blast · X / NOVA',
+ orb:'Blocks two shots · recharges between bursts',speed:'Faster movement and dodging',companion:'A wingmate fires alongside you',power:'More cannon damage',frontShield:'Blocks shots coming from the front',shield:'Absorbs incoming hits',repair:'Restores damaged hull',rescue:'Restores hull after one fatal hit',get nova(){return 'Screen-clearing blast · '+(window.flightControls?.hint('nova')||'X / NOVA');},
  spread:'Wide fan of shots',beam:'Pierces up to three enemies',helix:'Twin winding streams',wave:'Broad energy waves',missile:'Missiles seek nearby enemies'
 };
 let pickupEffects=[];
@@ -740,6 +786,7 @@ function collect(d){
 // filtering the full live scene on every frame of the transition.
 function sectorSceneTime(){return time+sectorIntroLead+(sectorBlend?.age||0);}
 function advanceSector(target){
+ if(window.flightDemo)return;
  if(target===undefined)target=typeof storyActive==='function'&&storyActive()?storyNextLevel():level+1;
  if(!Number.isInteger(target)||target<0||target>=sectors.length)return;
  if(flightRun&&!flightRun.story&&sectors[target].id===ORIGIN_EXPEDITION.finalStage&&!originStore.snapshot().unlocked)target=sectors.findIndex(s=>s.id===originStore.snapshot().next);
@@ -788,8 +835,9 @@ function pilotEdgeBounce(axis,value,min,max,input,dt){
 const terrainMovementSolids=[];
 function updateShipMovement(dt,environment=true){if(storyActive()&&storyMission?.extract?.returning)return;
 let dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
+const pad=window.flightControls?.movement();if(pad){dx+=pad.x;dy+=pad.y;}
 const water=environment&&sectors[level].medium==='water',mobility=(water?WATER_HANDLING.pilotSpeed:1)*(environment&&ship.silk>0?.62:1);
-const len=Math.hypot(dx,dy)||1,maxSpeed=(390+speedLevel*75)*mobility;
+const len=Math.max(1,Math.hypot(dx,dy)),maxSpeed=(390+speedLevel*75)*mobility;
 let targetVX=dx/len*maxSpeed,targetVY=dy/len*maxSpeed;
 const drag=pointer?.relative?{x:(pointer.moveX||0)*mobility,y:(pointer.moveY||0)*mobility}:null;
 if(drag){pointer.moveX=pointer.moveY=0;const magnitude=Math.hypot(drag.x,drag.y)/dt,scale=Math.min(1,maxSpeed/(magnitude||1));targetVX=drag.x/dt*scale;targetVY=drag.y/dt*scale}
@@ -841,30 +889,51 @@ function drawBossBackdropFocus(){
  const approach=boss?(boss.entry?clamp(boss.entry.age/boss.entry.duration,0,1):1):clamp((transition-3.5)/.5,0,1);
  ctx.save();ctx.fillStyle='rgba(2,8,16,'+(.18*approach)+')';ctx.fillRect(0,0,W,H);ctx.restore();
 }
-function render(dt){const actualWorld=world,rescueWorld=storyRescueWorld();if(rescueWorld!==null)world=rescueWorld;try{resizeFlightSurface();positionFlightMarkers();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();if(storyHomeSceneOpaque()){drawStoryHomecoming(storyMission.extract);return;}ctx.save();if(shake)ctx.translate(rand(-shake,shake),rand(-shake,shake));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawBossBackdropFocus();drawStructures();if(typeof drawWorldBehavior==='function')drawWorldBehavior();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(campaignPrologueVisible())drawCampaignPrologueScene();else if(campaignBriefVisible())drawCampaignBriefScene();else if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();if(typeof drawFurnaceGate==='function')drawFurnaceGate();for(const e of enemies)enemyShape(e);drawBossLayer();if(typeof drawFerrumMission==='function')drawFerrumMission();if(typeof drawStoryMission==='function')drawStoryMission();for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();if(typeof drawOpeningTactics==='function')drawOpeningTactics();noGlow();if(state!=='gameover'&&!sectorBlend?.destination&&!storyPilotInCinematic()){drawShip(ship.x,ship.y);drawSilkSnare();drawPilotProtection();drawFrontShield();drawWeaponOrb();drawOrbCharge();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
-window.gpuModels?.flush(ctx);if(state!=='title'){drawExplosions(dt);if(!sectorBlend)drawNearField();if(!sectorBlend)drawWaterAtmosphere(true);if(!sectorBlend&&typeof drawOpeningMission==='function')drawOpeningMission();const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.penetration){drawTissueShot(p);}else if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}drawOriginRecovery();drawPickupEffects();}ctx.restore();if(state!=='title'&&typeof drawFerrumSupport==='function')drawFerrumSupport();window.gpuModels?.flush(ctx);if(!sectorBlend&&storyActive())drawStoryHomecoming(storyMission?.extract);}finally{world=actualWorld;}}
+function render(dt){updatePickupReceipt();const actualWorld=world,rescueWorld=storyRescueWorld();if(rescueWorld!==null)world=rescueWorld;try{resizeFlightSurface();positionFlightMarkers();ctx.setTransform(renderScale,0,0,renderScale,0,0);window.gpuModels?.begin();if(storyHomeSceneOpaque()){drawStoryHomecoming(storyMission.extract);return;}ctx.save();const shakeAmount=shake*(window.flightSettings?.get('shake')??1);if(shakeAmount)ctx.translate(rand(-shakeAmount,shakeAmount),rand(-shakeAmount,shakeAmount));ctx.fillStyle='#020610';ctx.fillRect(0,0,W,H);const navigationOpaque=sectorBlend?.destination&&navigationSurfaceReveal(sectorBlend)===0;if(state==='title'){ctx.fillStyle='#030a14';ctx.fillRect(0,0,W,H);drawNavigationStars();}else if(!navigationOpaque){background(dt);drawDreamAtmosphere();drawBossBackdropFocus();drawStructures();if(typeof drawWorldBehavior==='function')drawWorldBehavior();}if(sectorBlend){window.gpuModels?.flush(ctx);if(!navigationOpaque)drawNearField();drawSectorBlend();}if(state==='title'){if(campaignPrologueVisible())drawCampaignPrologueScene();else if(campaignBriefVisible())drawCampaignBriefScene();else if(atlasOpen)drawUniverseAtlas();else drawNavigationChart();}else{if(!sectorBlend)drawWaterWakes();if(typeof drawFurnaceGate==='function')drawFurnaceGate();for(const e of enemies)enemyShape(e);drawBossLayer();if(typeof drawFerrumMission==='function')drawFerrumMission();if(typeof drawStoryMission==='function')drawStoryMission();for(const d of drops)drawPickup(d);for(const s of shots)drawProjectile(s);for(const b of hostile)drawHostile(b);drawHazards();drawAcidClouds();drawSectorRule();drawEntryWarnings();if(typeof drawOpeningTactics==='function')drawOpeningTactics();noGlow();if(state!=='gameover'&&!sectorBlend?.destination&&!storyPilotInCinematic()){drawShip(ship.x,ship.y);drawSilkSnare();drawPilotProtection();drawFrontShield();drawWeaponOrb();drawOrbCharge();for(let i=0;i<companion;i++)drawDrone(i);if(ship.shield>0){ctx.strokeStyle='#99eaff';ctx.lineWidth=2;glow('#69caff',12);ctx.beginPath();ctx.arc(ship.x,ship.y,48+Math.sin(world*.04)*3,0,TAU);ctx.stroke();noGlow()}}}
+window.gpuModels?.flush(ctx);if(state!=='title'){drawExplosions(dt);if(!sectorBlend)drawNearField();if(!sectorBlend)drawWaterAtmosphere(true);if(!sectorBlend&&typeof drawOpeningMission==='function')drawOpeningMission();const active=state!=='paused';for(const p of particles){if(active){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.c;if(p.penetration){drawTissueShot(p);}else if(p.spark){ctx.strokeStyle=p.c;ctx.lineWidth=p.r;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);ctx.stroke()}else ctx.fillRect(p.x,p.y,p.r,p.r)}ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);for(const r of rings){if(active){r.life-=dt;r.r+=dt*550}ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.c;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,TAU);ctx.stroke()}rings=rings.filter(r=>r.life>0);ctx.globalAlpha=1;if(flash>0&&!window.flightSettings?.get('reduceFlashes')){ctx.fillStyle=`rgba(166,255,227,${Math.min(.7,flash)})`;ctx.fillRect(0,0,W,H)}drawOriginRecovery();drawPickupEffects();}ctx.restore();if(state!=='title'&&typeof drawFerrumSupport==='function')drawFerrumSupport();window.gpuModels?.flush(ctx);if(!sectorBlend&&storyActive())drawStoryHomecoming(storyMission?.extract);}finally{world=actualWorld;}}
 let accumulator=0,frameError=null,musicUiClock=0,sectorArtPrefetched=false;
 const renderQualityLimit=matchMedia('(pointer: coarse)').matches?1:1.5;
 let renderScale=1,renderQuality=renderQualityLimit,surfaceWidth=W,surfaceDirty=true;
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{surfaceDirty=true;}).observe(canvas);
 window.addEventListener('resize',()=>{surfaceDirty=true;});
-function resizeFlightSurface(){if(surfaceDirty){surfaceWidth=canvas.getBoundingClientRect?.().width||W;surfaceDirty=false;}const width=surfaceWidth;const ratio=Math.max(.75,Math.min(renderQuality,width*(window.devicePixelRatio||1)/W));if(Math.abs(renderScale-ratio)>.03||canvas.width!==Math.round(W*ratio)){renderScale=ratio;canvas.width=Math.round(W*ratio);canvas.height=Math.round(H*ratio);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';}window.flightRenderScale=renderScale;window.flightEffectsQuality=renderQuality<=.75?.65:1;}
+// Match the GPU drawing buffer (Three.js floors fractional pixel sizes).
+// A one-pixel mismatch forces resampling on every model-to-canvas copy.
+function resizeFlightSurface(){if(surfaceDirty){surfaceWidth=canvas.getBoundingClientRect?.().width||W;surfaceDirty=false;}const width=surfaceWidth;const ratio=Math.max(.75,Math.min(renderQuality,width*(window.devicePixelRatio||1)/W));if(Math.abs(renderScale-ratio)>.03||canvas.width!==Math.floor(W*ratio)){renderScale=ratio;canvas.width=Math.floor(W*ratio);canvas.height=Math.floor(H*ratio);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';}window.flightRenderScale=renderScale;window.flightEffectsQuality=renderQuality<=.75?.65:1;}
 
+function flightReloadMessage(){
+ const menu='Reload to return to the menu. ';
+ try{
+  const story=storyActive(),saved=story&&savedCampaignCheckpoint();
+  if(saved?.durable){const name=STORY_ROUTE.find(m=>m.id===saved.mission).world;return menu+'Section '+(saved.checkpoint.section+1)+' of '+name+' is saved on this device. '+(window.flightDemo?'Continue Demo':'Continue Campaign')+' resumes from there.';}
+  if(saved||!(story?storyStore:originStore).snapshot().durable)return menu+'Device saving is unavailable. Reloading loses this session’s unsaved progress. Previously saved progress is not erased.';
+  return menu+(story?'Completed missions stay saved; this mission starts again.':'This exploration flight will restart. Saved discoveries are kept.');
+ }catch{return menu+'Only progress already saved on this device can be recovered.';}
+}
+function showFrameError(){
+ panel('FLIGHT<br><em>INTERRUPTED</em>','The game encountered a graphics or simulation error.<br>'+flightReloadMessage(),'RELOAD GAME',()=>location.reload());
+ const detail=document.createElement('p');detail.className='launch-caption';detail.textContent=`Sector ${frameError.sector} · ${frameError.time}s · ${frameError.message}`;$('#overlay').append(detail);
+}
 function reportFrameError(error){
  if(frameError)return;
+ flightLaunchToken++; // Pending asset/immersion callbacks cannot restart a failed flight.
  frameError={message:String(error?.message||error),stack:String(error?.stack||''),sector:level+1,time:Number(time.toFixed(2))};
  console.error('First Descent flight interrupted',frameError);
- state='error';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;accumulator=0;
- $('#pause').hidden=true;$('#touchControls').classList.remove('active');
- panel('FLIGHT<br><em>INTERRUPTED</em>','The game encountered a graphics or simulation error.<br>Reload to restore the mission.','RELOAD GAME',()=>location.reload());
- const detail=document.createElement('p');detail.className='launch-caption';detail.textContent=`Sector ${frameError.sector} · ${frameError.time}s · ${frameError.message}`;$('#overlay').append(detail);
+ state='error';window.flightAudio?.setMusicActive(false);window.flightAudio?.clear();keys.clear();window.flightControls?.clearKeyboard();window.flightControls?.resetPad();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;accumulator=0;
+ $('#pause').hidden=true;$('#touchControls').classList.remove('active');showFrameError();
 }
 window.addEventListener('game-render-error',event=>reportFrameError(event.detail));
 function frame(now){
  requestAnimationFrame(frame);
- const elapsed=(now-last)/1000,dt=Math.min(elapsed,.1);last=now;if(!document.hidden&&state==='playing'&&elapsed>0&&elapsed<.5)trackFrame(elapsed);
- if(frameError)return;
- if(document.hidden){accumulator=0;return;}
+ const elapsed=(now-last)/1000,dt=Math.min(elapsed,.1);last=now;
+ if(frameError||window.flightStartupPending)return;
+ // Recheck activity every frame: an asynchronous launch can finish after the
+ // host's focus notification. A return to the app must never resume that flight.
+ if(flightInactive()){
+  if(state==='playing')pause();
+  accumulator=0;window.flightControls?.resetPad();return;
+ }
+ if(state==='playing'&&elapsed>0&&elapsed<.5)trackFrame(elapsed);
+ window.pollFlightController?.(now);
  musicUiClock+=dt;if(musicUiClock>=.2){musicUiClock=0;musicControls();}
  // Fetch the following sector well before the transition, after startup.
  if(state==='paused'&&!surfaceDirty){accumulator=0;return;}
@@ -888,7 +957,28 @@ function testLevelHotkey(e){
  if(target!==level){advanceSector(target);sectorBlend.testing=true;}else{resetSector();sectorBlend={arrival:true,systemEntry:true,testing:true,age:0,duration:15.5/NAVIGATION_SPEED,destination:expedition.locations[sectors[level].id]};$('#announcement').style.opacity=0;annTimer=0;}
  canvas.focus();updateHUD();return true;
 }
-window.addEventListener('keydown',e=>{if(atlasOpen){if(e.key==='Escape'){e.preventDefault();const back=$('#storyBack');if(back&&typeof back.onclick==='function')back.onclick();else atlasSystemId?showUniverseAtlas():closeUniverseAtlas();}return;}if(testLevelHotkey(e))return;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys.add(k);if(e.repeat)return;if(k===' '&&skipSectorTravel()){keys.delete(k);return;}if(k==='Enter'&&state==='title'&&!e.target?.closest?.('button,a')){e.preventDefault();beginDescent(undefined);return;}if(k==='p'||k==='Escape')pause();if(k==='x')nova();if(k===' ')flipShip()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{const touchDevice=matchMedia('(pointer: coarse)').matches||(window.navigator?.maxTouchPoints||0)>0;keys.clear();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;if(state==='playing'&&(!touchDevice||document.hidden))pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause()});
+function flightKeyDown(e){
+ if(window.flightStartupPending)return;
+ if(window.flightSettingsUI?.isOpen()||e.target?.isContentEditable||e.target?.closest?.('input,textarea,select,[contenteditable="true"]')||e.metaKey||e.ctrlKey||e.altKey)return;
+ if([' ','Enter'].includes(e.key)&&e.target?.closest?.('button,a,summary'))return;
+ if(atlasOpen){if(e.key==='Escape'){e.preventDefault();const back=$('#storyBack');if(back&&typeof back.onclick==='function')back.onclick();else atlasSystemId?showUniverseAtlas():closeUniverseAtlas();}return;}
+ if(testLevelHotkey(e))return;
+ const controls=window.flightControls,legacy=e.key.length===1?e.key.toLowerCase():e.key;
+ const action=controls?.down(e),key=controls?(action?controls.canonical[action]:null):legacy;
+ if(!key&&e.key!=='Enter')return;
+ if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(key))e.preventDefault();
+ controls?.useKeyboard();if(key)keys.add(key);if(e.repeat)return;
+ if(key===' '&&skipSectorTravel()){keys.delete(key);return;}
+ if(e.key==='Enter'&&state==='title'&&!e.target?.closest?.('button,a')){e.preventDefault();beginDescent(undefined);return;}
+ if(key==='p'||key==='Escape')pause();if(key==='x')nova();if(key===' ')flipShip();
+}
+function flightKeyUp(e){
+ const controls=window.flightControls;if(!controls){keys.delete(e.key.length===1?e.key.toLowerCase():e.key);return;}
+ const action=controls.up(e);if(action&&!controls.isHeld(action))keys.delete(controls.canonical[action]);
+}
+window.addEventListener('keydown',flightKeyDown);window.addEventListener('keyup',flightKeyUp);
+window.addEventListener('blur',()=>{const touchDevice=matchMedia('(pointer: coarse)').matches||(window.navigator?.maxTouchPoints||0)>0;keys.clear();window.flightControls?.clearKeyboard();window.flightControls?.resetPad();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;if(state==='playing'&&(!touchDevice||document.hidden))pause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){window.flightControls?.resetPad();if(state==='playing')pause();}});
 // Relative dragging preserves the finger-to-ship offset. A stationary finger
 // is neutral, and lifting/repositioning never attracts the ship to the contact.
 function setPointer(e){
@@ -917,6 +1007,7 @@ function releasePointer(e,tap=false){
 function flightPointerDown(e){
  if(state!=='playing')return;
  e.preventDefault();
+ if(['touch','pen'].includes(e.pointerType))window.flightControls?.useTouch();
  if(e.pointerType==='touch'){
   touchContacts.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(touchContacts.size===2){const [a,b]=[...touchContacts.values()],distance=Math.hypot(a.x-b.x,a.y-b.y);if(distance>=48&&distance<=300)pinchGesture={distance,starts:[{...a},{...b}],ids:[...touchContacts.keys()]};}
@@ -954,21 +1045,23 @@ flightSurface.addEventListener('touchmove',e=>{if(state==='playing'&&e.cancelabl
 
 $('#launch').onclick=showCampaignEntry;$('#pause').onclick=pause;$('#novaTouch').onclick=nova;$('#flipTouch').onclick=flipShip;$('#sound').onclick=()=>{sound=!sound;enableAudio();$('#sound').textContent=sound?'SFX ON':'SFX OFF';$('#sound').setAttribute('aria-label',sound?'Mute sound effects':'Enable sound effects');if(sound){if(state!=='title')tone(660,.12,'sine',.05)}};async function requestLandscape(){try{await window.screen?.orientation?.lock?.('landscape');}catch{ /* Phones without orientation locking show the rotate hint. */ }}
 async function toggleGameFullscreen(){
+ if(window.flightNativeWindow){window.flightNativeWindow.requestFullscreen(!window.flightNativeWindow.fullscreen);return;}
  const stage=fullscreenPanel();
  if(stage.classList.contains('expanded')){window.safariImmersion?.release();stage.classList.remove('expanded');document.body?.classList.remove('game-expanded');window.screen?.orientation?.unlock?.();}
  else if(nativeFullscreenElement()){const exit=document.exitFullscreen||document.webkitExitFullscreen;await exit.call(document);window.screen?.orientation?.unlock?.();}
  else{if(window.safariImmersion?.eligible()){if(state==='playing')pause();window.safariImmersion.request(()=>{});return;}try{const request=stage.requestFullscreen||stage.webkitRequestFullscreen;if(!request)throw new Error('unsupported');await request.call(stage,{navigationUI:'hide'});}catch{stage.classList.add('expanded');document.body?.classList.add('game-expanded');}await requestLandscape();}
  updateFullscreenButtons();
 }
-function updateFullscreenButtons(){const active=!!nativeFullscreenElement()||fullscreenPanel().classList.contains('expanded');fullscreenPanel().classList.toggle('native-fullscreen',!!nativeFullscreenElement());for(const id of ['#fullscreen','#fullscreenStage']){const button=$(id);if(button){const native=!!(fullscreenPanel().requestFullscreen||fullscreenPanel().webkitRequestFullscreen);button.textContent=active?(native?'EXIT FULLSCREEN':'EXIT EXPANDED VIEW'):(native?'FULLSCREEN':'EXPAND GAME');button.setAttribute('aria-label',active?(native?'Exit fullscreen':'Exit expanded view'):(native?'Enter fullscreen':'Expand game'));}}}
-$('#fullscreen').onclick=toggleGameFullscreen;if($('#fullscreenStage'))$('#fullscreenStage').onclick=toggleGameFullscreen;document.addEventListener('fullscreenchange',updateFullscreenButtons);document.addEventListener('webkitfullscreenchange',updateFullscreenButtons);
+function updateFullscreenButtons(){fullscreenPanel().classList.toggle('desktop-fit',!!window.flightNativeWindow);const hostActive=!!window.flightNativeWindow?.fullscreen;const active=hostActive||!!nativeFullscreenElement()||fullscreenPanel().classList.contains('expanded');fullscreenPanel().classList.toggle('native-fullscreen',hostActive||!!nativeFullscreenElement());for(const id of ['#fullscreen','#fullscreenStage']){const button=$(id);if(button){const native=!!(window.flightNativeWindow||fullscreenPanel().requestFullscreen||fullscreenPanel().webkitRequestFullscreen);button.textContent=active?(native?'EXIT FULLSCREEN':'EXIT EXPANDED VIEW'):(native?'FULLSCREEN':'EXPAND GAME');button.setAttribute('aria-label',active?(native?'Exit fullscreen':'Exit expanded view'):(native?'Enter fullscreen':'Expand game'));}}}
+$('#fullscreen').onclick=toggleGameFullscreen;if($('#fullscreenStage'))$('#fullscreenStage').onclick=toggleGameFullscreen;document.addEventListener('flight-fullscreenchange',updateFullscreenButtons);document.addEventListener('fullscreenchange',updateFullscreenButtons);document.addEventListener('webkitfullscreenchange',updateFullscreenButtons);
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_game_status',description:'Read the current First Descent flight status.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:(input)=>{if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length)throw new Error('Expected an empty object');return {state,sector:level+1,score,hull:ship.hp,weapon,power,novas,speedLevel,companion,renderer:window.gpuModels?.stats()||{engine:'Canvas compatibility'},performance:window.flightPerformance||null}}})).catch(()=>{})}catch{}}
 function updateExpeditionIntro(){
- migrateStoryVictories();const {p,next,recap}=storyResumeInfo();
- $('#campaignCaption').textContent=p.complete?'EXPEDITION HOME · CAMPAIGN COMPLETE':p.count?`RESCUE ${p.count}/6 · NEXT: ${next.world.toUpperCase()}`:'6 MISSIONS · 3 SOLAR SYSTEMS · ONE ROUTE HOME';
+ if(window.flightDemo){window.flightDemo.title();return;}
+ migrateStoryVictories();const {p,next,recap}=storyResumeInfo(),saved=savedCampaignCheckpoint();
+ $('#campaignCaption').textContent=saved?`RESUME ${next.world.toUpperCase()} · SECTION ${saved.checkpoint.section+1}/4`:p.complete?'EXPEDITION HOME · CAMPAIGN COMPLETE':p.count?`RESCUE ${p.count}/6 · NEXT: ${next.world.toUpperCase()}`:'6 MISSIONS · 3 SOLAR SYSTEMS · ONE ROUTE HOME';
  const copy=$('.introcopy');if(copy)copy.textContent=p.count?recap:'Their gate failed. Five carriers are stranded. You are their way home.';
  const mission=$('#mission');if(mission)mission.textContent=`RESCUE ROUTE · ${p.count}/6 ↗`;
- const launch=$('#launch');if(launch)launch.innerHTML=(p.complete?'REPLAY CAMPAIGN':p.count?'CONTINUE CAMPAIGN':'LAUNCH CAMPAIGN')+' <span>↗</span>';
+ const launch=$('#launch');if(launch)launch.innerHTML=(p.complete?'REPLAY CAMPAIGN':saved||p.count?'CONTINUE CAMPAIGN':'LAUNCH CAMPAIGN')+' <span>↗</span>';
  const rail=$('#routeCount');if(rail)rail.textContent='VESPER → ORISON → EVENTIDE';
 }
 
@@ -978,9 +1071,18 @@ updateHUD();requestAnimationFrame(frame);
 queueSectorArt(sectors[level]);
 
 // Title music is independently switchable; the first gesture unlocks browser audio.
-function musicControls(){const info=window.flightAudio?.status?.()||window.flightAudio?.stats();if(!info)return;const button=$('#music');const label=!info.musicEnabled?'MUSIC OFF':info.musicPlaying||state!=='title'?'MUSIC ON':'PLAY MUSIC';if(button.textContent!==label){button.textContent=label;button.setAttribute('aria-label',info.musicEnabled&&(info.musicPlaying||state!=='title')?'Turn off music':'Play music');button.setAttribute('aria-pressed',String(info.musicEnabled));}const titleButton=$('#introMusic'),titleLabel=$('#introMusicLabel');if(titleButton&&titleLabel){const playing=info.musicEnabled&&info.musicPlaying,label=playing?'PAUSE THE THEME':'PLAY THE THEME';if(titleLabel.textContent===label&&titleButton.flightMusicPlaying===playing)return;titleButton.flightMusicPlaying=playing;titleLabel.textContent=label;titleButton.setAttribute('aria-label',playing?'Pause the theme':'Play the theme');titleButton.setAttribute('aria-pressed',String(playing));titleButton.classList.toggle('playing',playing);}}
-$('#music').onclick=()=>{const info=window.flightAudio?.status?.()||window.flightAudio?.stats();if(!info)return;window.flightAudio.setMusicEnabled(!info.musicEnabled||(state==='title'&&info.state!=='running'));if(state==='title')window.flightAudio.setTitle(!document.hidden);else window.flightAudio.setMusicActive(['playing','debrief','victory'].includes(state)&&!document.hidden);enableAudio();musicControls()};
-function unlockTitleMusic(event){if(state!=='title'||event.target?.closest?.('button,a'))return;window.flightAudio?.setTitle(true);enableAudio()}
+function audioNeedsGesture(info){return info.state!=='running'&&((info.enabled!==false&&(info.effectsVolume??1)>0)||(info.musicEnabled&&(info.musicVolume??1)>0));}
+function musicControls(){const info=window.flightAudio?.status?.()||window.flightAudio?.stats();if(!info)return;const button=$('#music');const label=audioNeedsGesture(info)?'ENABLE AUDIO':!info.musicEnabled?'MUSIC OFF':info.musicPlaying||state!=='title'?'MUSIC ON':'PLAY MUSIC';if(button.textContent!==label){button.textContent=label;button.setAttribute('aria-label',audioNeedsGesture(info)?'Click or press a keyboard key to enable sound':info.musicEnabled&&(info.musicPlaying||state!=='title')?'Turn off music':'Play music');button.setAttribute('aria-pressed',String(info.musicEnabled));}const titleButton=$('#introMusic'),titleLabel=$('#introMusicLabel');if(titleButton&&titleLabel){const playing=info.musicEnabled&&info.musicPlaying,label=playing?'PAUSE THE THEME':'PLAY THE THEME';if(titleLabel.textContent===label&&titleButton.flightMusicPlaying===playing)return;titleButton.flightMusicPlaying=playing;titleLabel.textContent=label;titleButton.setAttribute('aria-label',playing?'Pause the theme':'Play the theme');titleButton.setAttribute('aria-pressed',String(playing));titleButton.classList.toggle('playing',playing);}}
+function toggleFlightMusic(themeButton=false){
+ const audio=window.flightAudio,info=audio?.status?.()||audio?.stats();if(!info)return;
+ // The theme button promises music; the general audio-unlock button preserves effects-only play.
+ if(themeButton)audio.setMusicEnabled(!(info.musicEnabled&&info.musicPlaying&&info.state==='running'));
+ else if(!audioNeedsGesture(info))audio.setMusicEnabled(!info.musicEnabled||(state==='title'&&info.state!=='running'));
+ if(state==='title')audio.setTitle(!document.hidden);else audio.setMusicActive(['playing','debrief','victory'].includes(state)&&!document.hidden);
+ enableAudio();musicControls();
+}
+$('#music').onclick=()=>toggleFlightMusic();
+function unlockTitleMusic(event){if(state!=='title'||window.flightSettingsUI?.isOpen()||event.target?.closest?.('button,a,input,dialog'))return;window.flightAudio?.setTitle(true);enableAudio()}
 window.addEventListener('pointerdown',unlockTitleMusic);window.addEventListener('keydown',unlockTitleMusic);
 // Capture also reaches the Safari setup overlay, whose gestures stop propagation.
 function recoverGestureAudio(event){
@@ -992,7 +1094,7 @@ for(const name of ['touchend','pointerup','keydown'])document.addEventListener(n
 
 document.addEventListener('visibilitychange',()=>{if(state==='title')window.flightAudio?.setTitle(!document.hidden);else window.flightAudio?.setMusicActive(['playing','debrief','victory'].includes(state)&&!document.hidden)});
 window.flightAudio?.setTitle(true);musicControls();
-if($('#introMusic'))$('#introMusic').onclick=()=>$('#music').onclick();
+if($('#introMusic'))$('#introMusic').onclick=()=>toggleFlightMusic(true);
 
 function updateChallenge(){if(typeof openingMissionPlan==='function'&&openingMissionPlan())return;const c=sectors[level].challenge;if(!c)return;
  if(time>=c.at&&!challengeState.warned&&time<c.end){challengeState.warned=true;announce(c.title,themeIndex()===0?'ASTEROID NARROWS · FOLLOW THE OPEN CHANNEL':sectors[level].scrollAxis?'CHANGING SHAFT · FOLLOW THE OPEN CHANNEL':'OFFSET GATES AHEAD · FOLLOW THE OPEN CHANNEL');}
@@ -1069,3 +1171,18 @@ window.flightImmersionChanged=updateFullscreenButtons;
 for(const eventName of ['selectstart','contextmenu'])document.addEventListener(eventName,event=>{
  if(event.target?.closest?.('.console, .safari-swipe'))event.preventDefault();
 });
+
+// Settings do not own simulation state: opening pauses, closing never resumes.
+window.flightSettingsBridge={
+ prepare(){if(state==='playing')pause();keys.clear();window.flightControls?.clearKeyboard();window.flightControls?.resetPad();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;},
+ isPaused:()=>state==='paused',
+ clearInput(){keys.clear();window.flightControls?.clearKeyboard();window.flightControls?.resetPad();pointer=null;lastTouchTap=null;touchContacts.clear();pinchGesture=null;},
+ apply(){
+  const prefs=window.flightSettings.snapshot();sound=prefs.effectsEnabled;
+  window.flightAudio?.setVolumes(prefs.musicVolume,prefs.effectsVolume);window.flightAudio?.setEnabled(sound);
+  $('#sound').textContent=sound?'SFX ON':'SFX OFF';$('#sound').setAttribute('aria-label',sound?'Mute sound effects':'Enable sound effects');
+  surfaceDirty=true;
+ },
+ music(enabled){window.flightAudio?.setMusicEnabled(enabled);if(state==='title')window.flightAudio?.setTitle(!document.hidden);else window.flightAudio?.setMusicActive(['playing','debrief','victory'].includes(state)&&!document.hidden);enableAudio();musicControls();}
+};
+if(window.flightSettings)window.flightSettingsBridge.apply();

@@ -2,7 +2,9 @@
 // Local Web Audio synthesis works in browsers and native web-view wrappers.
 window.flightAudio=(()=>{
  let context,master,compressor,enabled=true,lastSwim=-1,lastBlast=-1,lastMajorBlast=-1,lastShieldHit=-1,noiseBuffer,arcadeNoise,guitarCurve,noiseSerial=0;
- let worldBus,worldFilter,worldDucker,room,roomSend,roomReturn,cueMusicBus,pressureNoise;
+ let worldBus,worldFilter,worldDucker,room,roomSend,roomReturn,cueMusicBus,pressureNoise,musicVolumeBus;
+ let {musicVolume=1,effectsVolume=1}=window.flightSettings?.snapshot()||{};
+ enabled=window.flightSettings?.snapshot().effectsEnabled!==false;
  let environment='air',pendingBossCue=null,bossCueCount=0,lastBossCueAt=-10,bossCueKind='none',worldDuckUntil=0;
  const instrumentWaves={},roomBuffers=new Map();
  const acoustics={
@@ -90,7 +92,7 @@ window.flightAudio=(()=>{
   try{if(window.navigator?.audioSession)window.navigator.audioSession.type='playback';}catch{}
   if(!context){
    const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return false;
-   context=new Audio();master=context.createGain();master.gain.value=enabled?.8:0;
+   context=new Audio();master=context.createGain();master.gain.value=enabled?.8*effectsVolume:0;
    compressor=context.createDynamicsCompressor();compressor.threshold.value=-3;compressor.knee.value=3;compressor.ratio.value=8;if(compressor.attack)compressor.attack.value=.003;if(compressor.release)compressor.release.value=.20;
    // Keep the pressure body, but avoid a bass-heavy blanket over transients.
    const bass=context.createBiquadFilter(),air=context.createBiquadFilter();
@@ -103,12 +105,13 @@ window.flightAudio=(()=>{
    // must not push the whole score down through a single shared compressor.
    const effectsCompressor=context.createDynamicsCompressor();effectsCompressor.threshold.value=-14;effectsCompressor.knee.value=6;effectsCompressor.ratio.value=2.5;effectsCompressor.attack.value=.020;effectsCompressor.release.value=.10;
    worldDucker=context.createGain();worldDucker.gain.value=1;const effectsPresence=context.createBiquadFilter();effectsPresence.type='peaking';effectsPresence.frequency.value=2600;effectsPresence.Q.value=.7;effectsPresence.gain.value=2;worldBus.connect(effectsPresence);effectsPresence.connect(effectsCompressor);effectsCompressor.connect(worldFilter);worldFilter.connect(worldDucker);worldDucker.connect(master);
-   cueMusicBus=context.createGain();cueMusicBus.gain.value=.62;cueMusicBus.connect(bass);
+   musicVolumeBus=context.createGain();musicVolumeBus.gain.value=musicVolume;musicVolumeBus.connect(bass);
+   cueMusicBus=context.createGain();cueMusicBus.gain.value=.62;cueMusicBus.connect(musicVolumeBus);
    if(context.createConvolver){room=context.createConvolver();roomSend=context.createGain();roomReturn=context.createGain();roomReturn.gain.value=.24;worldFilter.connect(roomSend);roomSend.connect(room);room.connect(roomReturn);roomReturn.connect(worldDucker);}
    musicBus=context.createGain();musicBus.gain.value=1.45;musicDucker=context.createGain();musicDucker.gain.value=1;
    const musicBody=context.createBiquadFilter();musicBody.type='peaking';musicBody.frequency.value=250;musicBody.Q.value=.8;musicBody.gain.value=-2;
    const musicPresence=context.createBiquadFilter();musicPresence.type='peaking';musicPresence.frequency.value=2200;musicPresence.Q.value=.7;musicPresence.gain.value=-2;
-   musicBus.connect(musicBody);musicBody.connect(musicPresence);musicPresence.connect(musicDucker);musicDucker.connect(bass);
+   musicBus.connect(musicBody);musicBody.connect(musicPresence);musicPresence.connect(musicDucker);musicDucker.connect(musicVolumeBus);
    // Brighten only the mastered theme; world effects retain their own acoustics.
    // Trim low/mid masking and keep a little extra gameplay headroom for effects.
    currentMusicEQ=context.createBiquadFilter();currentMusicEQ.type='lowshelf';currentMusicEQ.frequency.value=180;currentMusicEQ.gain.value=-2;
@@ -176,12 +179,24 @@ window.flightAudio=(()=>{
   if(!victim){voiceCounters.dropped++;return false;}
   releaseVoice(victim);voiceCounters.stolen++;return true;
  }
- function trackVoice(osc,amp,nodes,music,priority,now,duration){
-  const voice={osc,amp,music,priority,endAt:now+duration+.012,disposed:false,dispose(){if(this.disposed)return;this.disposed=true;for(const node of nodes)node?.disconnect();voices.delete(voice);releasing.delete(voice)}};
+ function trackVoice(osc,amp,nodes,music,priority,now,duration,modulator=null){
+  // The FM oscillator has its own scheduled lifetime. Disconnecting it alone
+  // leaves it scheduled until the original note end after a pause or steal.
+  const voice={osc,amp,music,priority,endAt:now+duration+.012,disposed:false,dispose(){if(this.disposed)return;this.disposed=true;if(modulator){try{modulator.stop()}catch{}}for(const node of nodes)node?.disconnect();voices.delete(voice);releasing.delete(voice)}};
   voices.add(voice);voiceCounters.started++;voiceCounters.peak=Math.max(voiceCounters.peak,voices.size+releasing.size);osc.onended=()=>voice.dispose();return voice;
  }
  function clear(){weaponCueTimes.clear();lastImpactAt=lastWeakImpactAt=-1;lastMajorBlast=-1;if(worldDucker){worldDuckUntil=0;worldDucker.gain.cancelScheduledValues(context.currentTime);worldDucker.gain.setTargetAtTime(1,context.currentTime,.08);}lastCries.clear();for(const v of voices)if(!v.music)stopVoice(v);for(const v of releasing)if(!v.music)stopVoice(v);lastSwim=-1;lastBlast=-1;lastShieldHit=-1;duckUntil=0;duckDepth=1;if(musicDucker){musicDucker.gain.cancelScheduledValues(context.currentTime);musicDucker.gain.setTargetAtTime(1,context.currentTime,.12)}}
- function setEnabled(value){enabled=value;if(!enabled)clear();if(master){master.gain.cancelScheduledValues(context.currentTime);master.gain.setTargetAtTime(enabled?.8:0,context.currentTime,.015)}}
+ // User levels sit after ducking/EQ so theme changes and boss cues cannot reset them.
+ function setVolumes(music,effects){
+  if(Number.isFinite(music))musicVolume=Math.max(0,Math.min(1,music));
+  if(Number.isFinite(effects))effectsVolume=Math.max(0,Math.min(1,effects));
+  window.flightSettings?.update({musicVolume,effectsVolume});
+  if(!context)return;
+  for(const [node,value] of [[musicVolumeBus,musicVolume],[master,enabled?.8*effectsVolume:0]]){
+   node.gain.cancelScheduledValues(context.currentTime);node.gain.setTargetAtTime(value,context.currentTime,.025);
+  }
+ }
+ function setEnabled(value){enabled=!!value;window.flightSettings?.update({effectsEnabled:enabled});if(!enabled)clear();if(master){master.gain.cancelScheduledValues(context.currentTime);master.gain.setTargetAtTime(enabled?.8*effectsVolume:0,context.currentTime,.015)}}
  function note({frequency=440,end=frequency,duration=.12,gain=.04,type='sine',pan=0,offset=0,attack=.006,hold=0,cutoff=2800,space=false,music=false,guitar=false,guitarBend=.965,endPan=null,cutoffEnd=null,vibrato=0,vibratoRate=5,cue=false,instrument=null,priority=cue?6:music?1:3}={}){
   if(!(music?musicEnabled:enabled)||!context||context.state!=='running'||!allocateVoice(priority,music))return;
   const now=context.currentTime+offset,osc=context.createOscillator(),amp=context.createGain(),filter=context.createBiquadFilter(),panner=context.createStereoPanner();
@@ -202,7 +217,7 @@ window.flightAudio=(()=>{
   // spectrum: a bright attack settles into a warm body, rather than a static beep.
   const fm=music&&['ribbon','crystal','rubber'].includes(timbre)?context.createOscillator():null,depth=fm?context.createGain():null;
   if(fm){fm.type='sine';fm.frequency.setValueAtTime(frequency*(timbre==='crystal'?2:1),now);depth.gain.setValueAtTime(frequency*(timbre==='crystal'?.65:timbre==='rubber'?1.1:.28),now);depth.gain.exponentialRampToValueAtTime(frequency*.012,now+duration*.8);fm.connect(depth);depth.connect(osc.frequency);filter.Q.value=.7;}
-  const voice=trackVoice(osc,amp,[osc,drive,filter,amp,panner,send,fm,depth],music,priority,now,duration);osc.start(now);osc.stop(voice.endAt);if(fm){fm.start(now);fm.stop(voice.endAt);}
+  const voice=trackVoice(osc,amp,[osc,drive,filter,amp,panner,send,fm,depth],music,priority,now,duration,fm);osc.start(now);osc.stop(voice.endAt);if(fm){fm.start(now);fm.stop(voice.endAt);}
  }
  // Reuse one noise buffer; transient sources are stopped and disconnected.
  function noise({duration=.15,gain=.04,cutoff=2400,end=300,pan=0,offset=0,band=false,resonance=1.4,arcade=false,body=false,wet=false,music=false,highpass=0,hold=0,tremolo=0,cue=false,pressure=false,priority=cue?6:music?1:3}={}){
@@ -527,7 +542,7 @@ window.flightAudio=(()=>{
   }
  }
  function startTitleLoop(){
-  if(!titleActive||!musicEnabled||!context||context.state!=='running'||musicTimer!==null)return;
+  if(window.flightNativeInput?.active()===false||!titleActive||!musicEnabled||!context||context.state!=='running'||musicTimer!==null)return;
   if(rescueCelebration){startRescueScore();return;}
   if(currentBuffer){startCurrentTheme();return;}
   // Don't briefly switch to the previous score during loading, even at a boss.
@@ -619,9 +634,9 @@ window.flightAudio=(()=>{
    for(const [i,pitch] of [62,66,69,74,78].entries())note({frequency:hz(pitch),duration:2,attack:.03,hold:.7,gain:.036,instrument:'glass',cutoff:5200,pan:(i-2)*.2,offset:i*.11,space:true,cue:true,priority:5});
   }
  }
- function setTitle(active){if(rescueCelebration){stopTitleLoop();rescueCelebration=false;rescueStep=0;}if(active){pendingBossCue=null;bossApproach=0;bossEngaged=false;}if(active&&sectorTrack!==-1){stopTitleLoop();musicStep=0;}if(active){sectorTrack=-1;intensity=0;}titleActive=active;if(active)startTitleLoop();else stopTitleLoop()}
+ function setTitle(active){active=active&&window.flightNativeInput?.active()!==false;if(rescueCelebration){stopTitleLoop();rescueCelebration=false;rescueStep=0;}if(active){pendingBossCue=null;bossApproach=0;bossEngaged=false;}if(active&&sectorTrack!==-1){stopTitleLoop();musicStep=0;}if(active){sectorTrack=-1;intensity=0;}titleActive=active;if(active)startTitleLoop();else stopTitleLoop()}
  function setSector(sector,identity='',bossProfile={}){rescueCelebration=false;rescueStep=0;pendingBossCue=null;intensity=0;smoothedIntensity=0;bossApproach=0;smoothedApproach=0;bossEngaged=false;stopTitleLoop();musicStep=0;sectorTrack=Math.max(0,Math.min(sectorMusic.length-1,Math.trunc(sector)||0));planetMusicSeed=worldMusicIdentity(identity);setBossIdentity(bossProfile);const base={...sectorMusic[sectorTrack],...sceneScores[soundscape]},shift=identity?[0,2,-2,5,-5,3,-3][planetMusicSeed%7]:0;planetTheme={...base,track:sectorTrack,bossChords:sectorMusic[sectorTrack].chords.map(c=>c.map(n=>n+shift)),chords:base.chords.map(c=>c.map(n=>n+shift))};titleActive=true;startTitleLoop()}
- function setMusicActive(active){titleActive=active;if(active)startTitleLoop();else stopTitleLoop()}
+ function setMusicActive(active){active=active&&window.flightNativeInput?.active()!==false;titleActive=active;if(active)startTitleLoop();else stopTitleLoop()}
  function setMusicEnabled(value){musicEnabled=value;try{localStorage.setItem('neon-vanguard-title-music',value?'on':'off')}catch{}if(value)startTitleLoop();else stopTitleLoop()}
  function intro(){
   if(!context||!enabled)return;if(context.state==='suspended'){context.resume().then(()=>{if(context.state==='running')intro()}).catch(()=>{});return}clear();
@@ -912,9 +927,18 @@ window.flightAudio=(()=>{
  let lastImpactAt=-1,lastWeakImpactAt=-1;
  function impact(x=720,kind='metal'){
   if(!enabled||!context||context.state!=='running')return;
-  const weak=kind==='weak',now=context.currentTime;
-  if(weak){if(now-lastWeakImpactAt<.075)return;lastWeakImpactAt=now;}else{if(now-lastImpactAt<.11||now-lastWeakImpactAt<.06)return;lastImpactAt=now;}
+  const glass=kind==='glass-weak',weak=kind==='weak'||glass,now=context.currentTime;
+  if(weak){if(now-lastWeakImpactAt<(glass?.13:.075))return;lastWeakImpactAt=now;}else{if(now-lastImpactAt<.11||now-lastWeakImpactAt<.06)return;lastImpactAt=now;}
   const organic=kind==='organic',armor=kind==='armor',pan=(x/1440-.5)*1.2;
+  if(glass){
+   // A small bright fracture of light, with a physical low contact underneath.
+   // Inharmonic partials avoid turning repeated hits into another melody.
+   noise({duration:.045,gain:.024,cutoff:5400,end:2400,highpass:1400,pan,priority:4});
+   note({frequency:1680,end:1490,duration:.12,attack:.002,gain:.027,type:'sine',cutoff:5600,pan,priority:4});
+   note({frequency:2671,end:2440,duration:.075,attack:.002,gain:.012,type:'sine',cutoff:6200,pan,priority:4});
+   noise({duration:.10,gain:.027,cutoff:310,end:95,body:true,pan,priority:4});
+   return;
+  }
   noise({duration:weak?.15:organic?.10:.065,gain:weak?.052:armor?.013:.022,cutoff:weak?1800:organic?1200:3600,end:weak?240:organic?320:1800,highpass:armor?1100:0,body:!armor,pan,priority:weak?4:1});
   if(weak)noise({duration:.13,gain:.032,cutoff:240,end:85,body:true,pressure:true,pan,priority:4});
  }
@@ -1064,5 +1088,5 @@ window.flightAudio=(()=>{
   noise({duration:profile.length*.85,hold:.065,gain:.10+force*.02,cutoff:profile.chatter,end:150,band:true,resonance:.5,highpass:95,body:true,tremolo:rotor*1.9,pan,priority:2});
   noise({duration:.30,gain:.028,cutoff:heavy?750:1050,end:420,band:true,resonance:.5,highpass:320,body:true,tremolo:rotor*3.1,pan,priority:2});
  }
- return{init,setRescueCelebration,portalOpen,homecomingCue,setSignalProgress,signalRecovered,engineerCue,relayCue,archiveCue,furnaceCue,worldCue,tacticalCue,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,weaponCue,swim,wingbeat,note,explosion,pickup,shipHit,impact,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,status:()=>({enabled,musicEnabled,musicPlaying:musicTimer!==null,state:context?.state||'locked'}),stats:()=>{sweepVoices();let musicVoices=0;const byPriority=[0,0,0,0,0,0,0];for(const group of [voices,releasing])for(const v of group){if(v.music)musicVoices++;byPriority[v.priority]++;}const total=voices.size+releasing.size;return{mixVersion:16,musicTheme:rescueCelebration?'Homeward':currentBuffer?'Dark Current':'synthesized',musicAssetState:currentLoad,musicLoopSeconds:rescueCelebration?8*4*60/132:currentBuffer?Math.min(currentLoopSeconds,currentBuffer.duration):0,musicPosition:rescueCelebration?(rescueStep%64)*60/132/2:currentSource?(currentOffset+context.currentTime-currentStarted)%currentSource.loopEnd:currentOffset,musicBpm:rescueCelebration?132:currentBuffer?currentBpm:sectorTrack<0?148:currentSectorTheme().bpm,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:total,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices,effectsVoices:total-musicVoices,voiceLimit,musicLimit,byPriority,...voiceCounters}}};
+ return{init,setVolumes,setRescueCelebration,portalOpen,homecomingCue,setSignalProgress,signalRecovered,engineerCue,relayCue,archiveCue,furnaceCue,worldCue,tacticalCue,setEnabled,clear,setEnvironment,bossEntrance,planetArrival,intro,shot,bossAttack,weaponCue,swim,wingbeat,note,explosion,pickup,shipHit,impact,alienCry,roar,breath,laserCharge,laserBeam,thrusterBurst,setTitle,setSector,setIntensity,setBossApproach,setMusicActive,setMusicEnabled,setBossIdentity,status:()=>({enabled,musicEnabled,musicVolume,effectsVolume,musicPlaying:musicTimer!==null,state:context?.state||'locked'}),stats:()=>{sweepVoices();let musicVoices=0;const byPriority=[0,0,0,0,0,0,0];for(const group of [voices,releasing])for(const v of group){if(v.music)musicVoices++;byPriority[v.priority]++;}const total=voices.size+releasing.size;return{mixVersion:16,musicTheme:rescueCelebration?'Homeward':currentBuffer?'Dark Current':'synthesized',musicAssetState:currentLoad,musicLoopSeconds:rescueCelebration?8*4*60/132:currentBuffer?Math.min(currentLoopSeconds,currentBuffer.duration):0,musicPosition:rescueCelebration?(rescueStep%64)*60/132/2:currentSource?(currentOffset+context.currentTime-currentStarted)%currentSource.loopEnd:currentOffset,musicBpm:rescueCelebration?132:currentBuffer?currentBpm:sectorTrack<0?148:currentSectorTheme().bpm,soundscape,bossVoice:bossVoice.family,bossVoiceSeed:bossVoice.seed,planetMusicSeed,environment,bossCueCount,bossCueKind,lastBossCueAt,pendingBossCue:!!pendingBossCue,enabled,musicEnabled,sectorTrack,musicStep,bossApproach,musicPlaying:musicTimer!==null,state:context?.state||'locked',voices:total,activeVoices:voices.size,releasingVoices:releasing.size,musicVoices,effectsVoices:total-musicVoices,voiceLimit,musicLimit,byPriority,...voiceCounters}}};
 })();

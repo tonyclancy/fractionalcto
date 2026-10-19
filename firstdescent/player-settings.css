@@ -1,0 +1,35 @@
+.flight-settings{box-sizing:border-box;width:min(480px,calc(100% - 28px));max-height:calc(100vh - 28px);max-height:calc(100dvh - 28px);overflow:auto;padding:24px;color:#e9f6f5;background:#091922;border:1px solid #547d85;border-radius:16px;box-shadow:0 18px 70px #0009;font:16px/1.45 system-ui,sans-serif;text-align:left}
+.flight-settings::backdrop{background:#020910c7}
+.flight-settings h2{margin:0;font-size:26px;letter-spacing:0}
+.flight-settings p{margin:6px 0 20px;color:#b3c9cf;font-size:14px}
+.flight-settings fieldset{margin:18px 0;padding:0;border:0;min-width:0}
+.flight-settings legend{margin-bottom:12px;font-size:13px;font-weight:700;letter-spacing:.12em;color:#a4f4df}
+.flight-settings .setting-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin:14px 0;align-items:center}
+.flight-settings input[type=range]{width:100%;min-height:32px;grid-column:1/-1;accent-color:#a4f4df;cursor:pointer}
+.flight-settings input[type=checkbox]{width:22px;height:22px;accent-color:#a4f4df;cursor:pointer}
+.flight-settings output{font-variant-numeric:tabular-nums;color:#b3c9cf}
+.flight-settings label{cursor:pointer}
+.flight-settings button{min-height:44px;width:100%;padding:12px 18px;border:1px solid #a4f4df;border-radius:8px;background:#a4f4df;color:#081d24;font:700 15px system-ui,sans-serif;letter-spacing:.04em;cursor:pointer}
+.flight-settings :focus-visible{outline:3px solid #fff;outline-offset:4px}
+.flight-settings .settings-note{margin:10px 0;font-size:13px}
+.flight-settings .settings-storage{color:#ffcba8}
+.flight-settings[open]{animation:none}
+.flight-settings .control-options{border-top:1px solid #34525c;border-bottom:1px solid #34525c;margin:18px 0;padding:12px 0}
+.flight-settings summary{cursor:pointer;min-height:36px;font-weight:600;color:#a4f4df}
+.flight-settings .control-binding{display:grid;grid-template-columns:1fr 90px 90px;gap:8px;align-items:center;margin:8px 0;font-size:14px}
+.flight-settings .control-binding button,.flight-settings #resetBindings{background:#12303a;color:#e9f6f5;border-color:#547d85;padding:8px;font-size:13px}
+.flight-settings .control-binding button[aria-pressed=true]{background:#a4f4df;color:#081d24}
+.flight-settings .controller-guide{margin:16px 0 6px;font-size:13px}
+@media(max-width:390px){.flight-settings .control-binding{grid-template-columns:1fr 70px 70px;gap:5px}}
+@media(max-height:540px){.flight-settings{padding:16px 22px}.flight-settings fieldset{margin:10px 0}.flight-settings .setting-row{margin:8px 0}.flight-settings p{margin-bottom:10px}}
+
+.flight-settings #leaveMission{margin-top:10px;background:transparent;color:#e9f6f5;border-color:#547d85}
+
+.flight-credits{box-sizing:border-box;width:min(760px,calc(100vw - 24px));max-height:calc(100dvh - 32px);padding:24px;border:1px solid #42646d;border-radius:14px;background:#0b1b25;color:#dcebef;overflow:auto;font:16px/1.5 'DM Sans',sans-serif}
+.flight-credits::backdrop{background:#000b}
+.flight-credits h2{font-size:26px;margin:0 0 12px}.flight-credits h3{margin-top:28px}.flight-credits h4{margin:0 0 5px;font-size:16px}
+.flight-credits .credits-close{position:sticky;top:0;z-index:1;background:#a5f5dc;color:#082229;min-height:44px;padding:10px 18px;border:0;border-radius:6px}
+.flight-credits .credits-entry{margin:20px 0;padding:0 0 16px;border-bottom:1px solid #29424d}.flight-credits p{margin:8px 0}
+.flight-credits a{color:#a5f5dc;overflow-wrap:anywhere}.flight-credits summary{cursor:pointer;min-height:44px;padding:12px 0;box-sizing:border-box}.flight-credits pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.55 monospace}
+.flight-credits button:focus-visible,.flight-credits a:focus-visible,.flight-credits summary:focus-visible{outline:3px solid #b8fff1;outline-offset:3px}
+footer [data-flight-credits]{min-height:44px;background:none;border:0;color:#a5f5dc;padding:8px;white-space:nowrap}

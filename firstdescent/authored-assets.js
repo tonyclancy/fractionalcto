@@ -101,6 +101,21 @@ function shadeSensoryPearl(material){
  };
  material.customProgramCacheKey=()=> 'sensory-glass-impact209h';
 }
+function shadeBodyImpact(material){
+ const previous=material.onBeforeCompile,programKey=material.customProgramCacheKey();
+ const impact=material.userData.bodyImpact={value:0};
+ material.onBeforeCompile=shader=>{
+  previous.call(material,shader);
+  shader.uniforms.bodyImpact=impact;
+  shader.fragmentShader='uniform float bodyImpact;\n'+shader.fragmentShader;
+  shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',`
+   float bodyRim=pow(1.0-clamp(abs(dot(normal,normalize(vViewPosition))),0.0,1.0),3.0);
+   outgoingLight*=1.0+bodyImpact*.10;
+   outgoingLight+=bodyImpact*bodyRim*(vec3(.025,.04,.045)+diffuseColor.rgb*.08);
+   #include <opaque_fragment>`);
+ };
+ material.customProgramCacheKey=()=>programKey+'-body-impact230';
+}
 export class AuthoredAssets {
  constructor(scene){this.scene=scene;this.assets=new Map();this.pending=new Map();this.loader=new GLTFLoader();this.pools=new Map();this.frame=0;this.errors=[];this.batches=new Map();this.batchedActors=0;}
  ready(ids){return ids.every(id=>!AUTHORED_ASSETS[id]||this.assets.has(id)||this.errors.includes(id));}
@@ -125,7 +140,7 @@ export class AuthoredAssets {
    const model=source.scene.clone(true),materials=new Map(),meshes=[],root=new THREE.Group();
    model.rotation.x=Math.PI; // glTF Y-up -> game Y-down, positive Z away.
    model.traverse(node=>{if(!node.isMesh)return;meshes.push(node);node.frustumCulled=false;
-    const clone=m=>{if(materials.has(m))return materials.get(m);const copy=m.clone();copy.transparent=false;copy.forceSinglePass=true;if(copy.map)copy.color.multiplyScalar(1.32);if(copy.userData.sensoryLens)shadeSensoryPearl(copy);copy.userData.baseEmission=copy.emissive.clone();copy.userData.baseIntensity=copy.emissiveIntensity;materials.set(m,copy);return copy;};
+    const clone=m=>{if(materials.has(m))return materials.get(m);const copy=m.clone();copy.transparent=false;copy.forceSinglePass=true;if(copy.map)copy.color.multiplyScalar(1.32);if(copy.userData.sensoryLens)shadeSensoryPearl(copy);shadeBodyImpact(copy);copy.userData.baseEmission=copy.emissive.clone();copy.userData.baseIntensity=copy.emissiveIntensity;materials.set(m,copy);return copy;};
     node.material=Array.isArray(node.material)?node.material.map(clone):clone(node.material);
    });
    root.add(model);root.matrixAutoUpdate=false;root.visible=false;
@@ -144,9 +159,9 @@ export class AuthoredAssets {
    lid.node.scale.copy(lid.scale);lid.node.scale.y*=1.65;
   }
   // A short neutral sheen preserves material detail while automatic fire hits.
-  const flash=hit>0&&age%.12<.022?.25:0;
+  const flash=(globalThis.window?.flightSettings?.hitFeedback(hit)??Math.max(0,Math.min(1,hit/.12)));
   item.sensoryActive=exposure>0&&item.sensoryLids.length>0;
-  item.flash=Math.max(flash,coreImpact);for(const m of item.materials){m.transparent=opacity<.999;m.opacity=opacity;m.depthWrite=opacity>.96;m.emissive.copy(m.userData.baseEmission).addScalar(flash);const glint=m.userData.sensoryLens?coreOpening*.12+(exposure||0)*(.012+.105*Math.pow(.5+.5*Math.sin(age*4.4),3)):0;m.emissive.addScalar(glint);if(m.userData.pearlImpact)m.userData.pearlImpact.value=Math.max(0,Math.min(1,coreImpact));if(m.userData.pearlStrike)m.userData.pearlStrike.value.set(coreStrike[0],coreStrike[1]);m.emissiveIntensity=Math.max(m.userData.baseIntensity,flash||glint?1:0);}
+  item.flash=Math.max(flash,coreImpact);for(const m of item.materials){m.transparent=opacity<.999;m.opacity=opacity;m.depthWrite=opacity>.96;m.userData.bodyImpact.value=flash;m.emissive.copy(m.userData.baseEmission);const glint=m.userData.sensoryLens?coreOpening*.12+(exposure||0)*(.012+.105*Math.pow(.5+.5*Math.sin(age*4.4),3)):0;m.emissive.addScalar(glint);if(m.userData.pearlImpact)m.userData.pearlImpact.value=Math.max(0,Math.min(1,coreImpact));if(m.userData.pearlStrike)m.userData.pearlStrike.value.set(coreStrike[0],coreStrike[1]);m.emissiveIntensity=Math.max(m.userData.baseIntensity,glint?1:0);}
   for(const node of item.meshes)node.renderOrder=order;
   return item;
  }

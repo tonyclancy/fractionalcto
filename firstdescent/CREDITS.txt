@@ -1,0 +1,345 @@
+The people and science behind the journey
+
+First Descent brings fictional worlds to life with original game work, open-source software, freely licensed fonts and credited astronomical observations.
+
+Observation images are resized, WebP-encoded and softly blended into the starfield. Destinations, rotation and travel times are fictional. No endorsement by the credited organizations is implied.
+
+THE EVENTIDE CORE — NGC 1275
+NASA, ESA and Andy Fabian (University of Cambridge, UK)
+https://esahubble.org/images/heic0817a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE PALE SPIRAL — M101
+Original game artwork; spiral structure inspired by M101.
+https://esahubble.org/images/heic0602a/
+Original game artwork; observation reference only.
+
+THE EMBER VEIL — NGC 1300
+NASA, ESA, and The Hubble Heritage Team (STScI/AURA)
+https://esahubble.org/images/opo0501a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE AZURE DRIFT — NGC 4449
+NASA, ESA, A. Aloisi (STScI/ESA), and The Hubble Heritage (STScI/AURA)-ESA/Hubble Collaboration
+https://esahubble.org/images/heic0711a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE COPPER SEA — M104 / Sombrero
+NASA/ESA and The Hubble Heritage Team (STScI/AURA)
+https://esahubble.org/images/opo0328a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE SILENT ARC — Hoag’s Object
+NASA/ESA and The Hubble Heritage Team (STScI/AURA)
+https://esahubble.org/images/opo0221a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE VIOLET WAKE — Cartwheel
+ESA/Hubble & NASA
+https://esahubble.org/images/potw1036a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE GOLDEN RIFT — Centaurus A
+ESO
+https://www.eso.org/public/images/eso1221a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE GLASS SPIRAL — M74
+NASA, ESA, and The Hubble Heritage (STScI/AURA)-ESA/Hubble Collaboration
+https://esahubble.org/images/heic0719a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE SCARLET REACH — M82
+NASA, ESA and the Hubble Heritage Team (STScI/AURA). Acknowledgment: J. Gallagher (University of Wisconsin), M. Mountain (STScI) and P. Puxley (NSF).
+https://esahubble.org/images/heic0604a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE LAST LANTERN — M87
+NASA, ESA, and the Hubble Heritage Team (STScI/AURA) Acknowledgment: P. Cote (Herzberg Institute of Astrophysics) and E. Baltz (Stanford University)
+https://esahubble.org/images/heic0815f/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE INDIGO TIDE — NGC 1512 / NGC 1510
+ESA/Hubble, NASA
+https://esahubble.org/images/heic1712a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE ROSE EXPANSE — Antennae
+ESA/Hubble & NASA
+https://esahubble.org/images/potw1345a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE IRON NEBULA — NGC 5866
+NASA, ESA, and The Hubble Heritage Team (STScI/AURA)
+https://esahubble.org/images/opo0624a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE PEARL RIVER — NGC 4565
+ESA/Hubble & NASA
+https://esahubble.org/images/potw1228a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE AUBURN VEIL — NGC 2841
+NASA, ESA and the Hubble Heritage (STScI/AURA)-ESA/Hubble Collaboration Acknowledgment: M. Crockett and S. Kaviraj (Oxford University, UK), R. O'Connell (University of Virginia), B. Whitmore (STScI) and the WFC3 Scientific Oversight Committee.
+https://esahubble.org/images/heic1104a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE SILVER REACH — NGC 4631
+NASA & ESA
+https://esahubble.org/images/potw1146a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE OCHRE SPIRAL — NGC 1365
+ESA/Hubble & NASA, J. Lee and the PHANGS-HST Team Acknowledgement: Judy Schmidt (Geckzilla)
+https://esahubble.org/images/potw2040a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE CELADON DRIFT — NGC 922
+NASA, ESA
+https://esahubble.org/images/heic1218a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE OBSIDIAN CROWN — NGC 4650A
+The Hubble Heritage Team (AURA/STScI/NASA/ESA)
+https://esahubble.org/images/opo9916a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+THE DISTANT BLOOM — UGC 10214 / Tadpole
+NASA, Holland Ford (JHU), the ACS Science Team and ESA
+https://esahubble.org/images/heic0206a/
+License: https://creativecommons.org/licenses/by/4.0/
+
+Three.js r180
+https://github.com/mrdoob/three.js/tree/r180
+The renderer and loaders use Three.js. Loader import paths are adapted to bundled modules.
+
+The MIT License
+
+Copyright © 2010-2025 three.js authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+Barlow Condensed
+https://github.com/jpt/barlow
+Version 1.408. Font files are losslessly compressed to WOFF2 for delivery.
+
+Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+http://scripts.sil.org/OFL
+
+
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
+
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded, 
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.
+
+
+DM Sans
+https://github.com/googlefonts/dm-fonts
+Version 4.004. Font files are losslessly compressed to WOFF2 for delivery.
+
+Copyright 2014 The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+https://scripts.sil.org/OFL
+
+
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
+
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded, 
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.
+
+
+Asteroid models and surfaces
+https://science.nasa.gov/resource/eros-3d-model/
+Eros and Bennu visualization models adapted for the game.
+
+Asteroid reference models and surface maps: NASA Visualization Technology Applications and Development (VTAD).
+Eros: https://science.nasa.gov/resource/eros-3d-model/
+Bennu: https://science.nasa.gov/resource/bennu-3d-model/
+Adapted for First Descent: quantized geometry, compressed texture encoding, small silhouette variations, material tint and game animation. NASA does not endorse this game. These visualization models are not presented as scientific reconstructions.
+
