@@ -49,7 +49,19 @@
    pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
 --- a/tools/package_data_zip.py
 +++ b/tools/package_data_zip.py
-@@ -27,6 +27,8 @@
+@@ -7,11 +7,9 @@
+ 
+ 
+ STORED_SUFFIXES = {
+-    ".bmp",
+     ".png",
+     ".ogg",
+     ".mp3",
+-    ".wav",
+ }
+ 
+ ALLOWED_FILES = {
+@@ -27,6 +25,8 @@
  }
  
  ALLOWED_DIRS = {
@@ -58,7 +70,7 @@
      "paths",
      "prefabs",
      "sound_fx",
-@@ -36,6 +38,9 @@
+@@ -36,6 +36,9 @@
  
  
  def should_include(relative_path: Path) -> bool:

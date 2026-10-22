@@ -46,3 +46,8 @@ Other paths on tonyclancy.com use the pre-existing website.
 Physical gamepads and mobile devices require hands-on verification; the
 browser wrapper includes defaults and touch controls. Progress is local to
 one browser profile and is not synchronized between devices.
+
+Loading optimization: losslessly deflate BMP and WAV files in data.zip.
+Asset payload reduced from 45,146,409 to 27,208,077 bytes (39.7%).
+The browser downloads the WASM engine in parallel with the asset chunks.
+All 173 decompressed asset files match the prior build byte-for-byte.

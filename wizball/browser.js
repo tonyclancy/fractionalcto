@@ -168,8 +168,13 @@ window.addEventListener('error', event => {
     const response = await fetch(new URL('build.json', location.href), {cache:'no-cache'});
     if (!response.ok) throw new Error('Could not load the build manifest');
     assetBuild = await response.json();
+    // Start the engine transfer alongside assets, rather than serially afterward.
+    const wasmDownload = fetch(new URL(assetBuild.wasm, location.href)).then(response => {
+      if (!response.ok) throw new Error("Could not download game engine");
+      return response.arrayBuffer();
+    });
     let loaded = 0;
-    const buffers = await Promise.all(assetBuild.data.map(async part => {
+    const dataDownload = Promise.all(assetBuild.data.map(async part => {
       const response = await fetch(new URL(part.file, location.href));
       if (!response.ok) throw new Error('Could not download game assets');
       const reader = response.body.getReader(), chunks = []; let size = 0;
@@ -183,6 +188,8 @@ window.addEventListener('error', event => {
       for (const chunk of chunks) { result.set(chunk,offset); offset += chunk.length; }
       return result;
     }));
+    const [buffers, wasm] = await Promise.all([dataDownload, wasmDownload]);
+    Module.wasmBinary = new Uint8Array(wasm);
     preloadedData = new Uint8Array(assetBuild.bytes); let offset = 0;
     for (const part of buffers) { preloadedData.set(part,offset); offset += part.length; }
     el('load-status').textContent = 'Preparing the game…';
