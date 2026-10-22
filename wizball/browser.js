@@ -151,7 +151,9 @@ var Module = {
 window.wizballDebug = { engineLog, get started() { return started; }, get storageAvailable() { return storageAvailable; } };
 el('play').onclick = () => {
   if (!storageReady || started) return;
+  unlockGameAudio();
   started = true;
+  if (navigator.standalone || matchMedia('(display-mode: standalone)').matches) expandInPage();
   el('launch-screen').hidden = true;
   el('pause').disabled = el('sound').disabled = false;
   canvas.focus();
@@ -171,6 +173,7 @@ function pauseGame() {
   el('pause').textContent = 'Resume';
 }
 function resumeGame() {
+  unlockGameAudio();
   window.wizballPaused = false;
   el('pause-screen').hidden = true;
   el('pause').textContent = 'Pause';
@@ -178,26 +181,84 @@ function resumeGame() {
 }
 el('pause').onclick = () => window.wizballPaused ? resumeGame() : pauseGame();
 el('resume').onclick = resumeGame;
+function updateSoundButton() {
+  const context = Module.SDL2?.audioContext;
+  el('sound').textContent = muted ? 'Sound off' : context && context.state !== 'running' ? 'Enable sound' : 'Sound on';
+  el('sound').setAttribute('aria-pressed', String(muted));
+}
+function unlockGameAudio() {
+  return window.WizballMobile.unlockAudio(Module, updateSoundButton);
+}
+document.addEventListener('pointerdown', event => {
+  if (started || event.target.closest?.('#play')) unlockGameAudio();
+}, {capture:true, passive:true});
+document.addEventListener('keydown', () => { if (started) unlockGameAudio(); }, {capture:true});
 el('sound').onclick = () => {
   if (!started) return;
-  muted = !muted;
+  const suspended = Module.SDL2?.audioContext?.state !== 'running';
+  if (!muted && suspended) unlockGameAudio();
+  else muted = !muted;
   Module._WIZBALL_web_sound(muted ? 1 : 0);
-  el('sound').textContent = muted ? 'Sound off' : 'Sound on';
-  el('sound').setAttribute('aria-pressed', String(muted));
+  if (!muted) unlockGameAudio();
+  updateSoundButton();
   canvas.focus();
 };
+const stage = el('game-stage');
+let changingDisplay = false, pageScrollBeforeExpand = 0;
+const nativeFullscreen = () => document.fullscreenElement || document.webkitFullscreenElement;
+const expandedGame = () => !!nativeFullscreen() || stage.classList.contains('expanded-view');
+function syncExpandedView() {
+  const expanded = expandedGame();
+  const fallback = stage.classList.contains('expanded-view');
+  el('fullscreen').textContent = expanded ? 'Exit full screen ⛶' : window.WizballMobile.fullscreenRequest(stage,document) ? 'Fullscreen ⛶' : 'Expand game ⛶';
+  el('exit-fullscreen').textContent = fallback ? 'Exit expanded view ⛶' : 'Exit fullscreen ⛶';
+  el('exit-fullscreen').setAttribute('aria-label', fallback ? 'Exit expanded view' : 'Exit fullscreen');
+  const controls = el('touch-controls');
+  stage.classList.toggle('with-controls', expanded && !controls.hidden);
+  if (expanded && (matchMedia('(pointer:coarse)').matches || !controls.hidden)) stage.append(controls);
+  else document.querySelector('.game-toolbar').after(controls);
+}
+function expandInPage() {
+  pageScrollBeforeExpand = window.scrollY;
+  stage.classList.add('expanded-view');
+  document.body.classList.add('game-expanded');
+  syncExpandedView();
+}
+async function exitExpandedView() {
+  if (stage.classList.contains('expanded-view')) {
+    stage.classList.remove('expanded-view');
+    document.body.classList.remove('game-expanded');
+    window.scrollTo(0,pageScrollBeforeExpand);
+  } else if (document.exitFullscreen) await document.exitFullscreen();
+  else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+  syncExpandedView();
+  if (started) canvas.focus({preventScroll:true});
+}
 el('fullscreen').onclick = async () => {
+  changingDisplay = true;
   try {
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else if (el('game-stage').requestFullscreen) await el('game-stage').requestFullscreen();
-    else { el('game-hint').textContent = 'Fullscreen isn’t available in this browser. Rotate your device for more room.'; return; }
-    if (started) canvas.focus();
-  } catch (error) { el('game-hint').textContent = 'Your browser did not allow fullscreen. You can keep playing here.'; }
+    if (expandedGame()) await exitExpandedView();
+    else {
+      const request = window.WizballMobile.fullscreenRequest(stage,document);
+      if (request) { try { await request(); } catch (_) { expandInPage(); } }
+      else expandInPage();
+    }
+    unlockGameAudio();
+    if (started) canvas.focus({preventScroll:true});
+    syncExpandedView();
+  } finally { changingDisplay = false; }
 };
-el('exit-fullscreen').onclick = () => document.exitFullscreen();
-document.addEventListener('fullscreenchange', () => { el('fullscreen').innerHTML = document.fullscreenElement ? 'Exit fullscreen ⛶' : 'Fullscreen ⛶'; });
+el('exit-fullscreen').onclick = exitExpandedView;
+document.addEventListener('fullscreenchange', syncExpandedView);
+document.addEventListener('webkitfullscreenchange', syncExpandedView);
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && stage.classList.contains('expanded-view')) {
+    event.preventDefault(); event.stopImmediatePropagation(); exitExpandedView();
+  }
+}, {capture:true});
+syncExpandedView();
 document.addEventListener('visibilitychange', () => { if (document.hidden) { pauseGame(); flushSaves(); } });
-window.addEventListener('blur', pauseGame);
+window.addEventListener('blur', () => { if (!changingDisplay) pauseGame(); });
 window.addEventListener('pagehide', flushSaves);
 window.addEventListener('keydown', event => {
   if (started && document.activeElement === canvas && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(event.key)) event.preventDefault();
@@ -272,7 +333,4 @@ el('controls-toggle').onclick = () => {
   el('controls-toggle').setAttribute('aria-expanded', String(!touchControls.hidden));
   releaseTouchKeys();
 };
-document.addEventListener('fullscreenchange', () => {
-  if (document.fullscreenElement && matchMedia('(pointer:coarse)').matches) el('game-stage').append(touchControls);
-  else document.querySelector('.game-toolbar').after(touchControls);
-});
+

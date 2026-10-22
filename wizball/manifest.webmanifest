@@ -1,0 +1,10 @@
+{
+  "name": "Wizball",
+  "short_name": "Wizball",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#090e12",
+  "theme_color": "#090e12",
+  "icons": [{"src":"./icon.png","sizes":"256x256","type":"image/png"}]
+}

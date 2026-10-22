@@ -3,7 +3,7 @@ Wizball browser port — 2026-10-22
 Upstream source: https://github.com/craigchandler/wizball-remake
 Pinned revision: 12759a163929a8d4bceb11932a1dbf875f01f50a
 Web toolchain: Emscripten 6.0.13, CMake, Python 3.
-Browser shell: index.html, style.css, asset-cache.js, browser.js.
+Browser shell: index.html, style.css, asset-cache.js, mobile.js, browser.js.
 Source changes: source-port.patch, applied at the upstream repository root.
 
 The patch adds Emscripten event-loop timers, cooperative Asyncify yielding,
@@ -72,3 +72,17 @@ WASM streaming compilation overlaps startup downloads. Startup bytes stream
 straight into their final preload buffer rather than extra chunk arrays.
 Verified a complete warm reload and engine launch with binary network requests
 blocked, plus storage-denied fallback and cache namespace/file restrictions.
+
+iPhone support update: mobile.js creates/resumes the exact SDL audio context
+inside the Play gesture, before asynchronous engine startup. Later trusted
+interactions resume suspended/interrupted audio, with an Enable sound action
+when necessary. An optional Audio Session playback hint is best effort.
+Fullscreen uses standard or prefixed APIs when supported. Otherwise Expand
+game fills the viewport, including safe-area padding, touch controls, and an
+exit button. Landscape controls flank the game to maximize its height.
+Home Screen metadata and manifest enable standalone launch; Play expands the
+game automatically in standalone mode. iPhone Safari browser bars require
+launching from Home Screen rather than the unsupported element fullscreen API.
+Verified helper behavior, shared audio context, narrow/landscape fallback and
+exit, and desktop native fullscreen. Physical iPhone audio remains unverified.
+Original music files and game binaries are unchanged.
