@@ -1,0 +1,19 @@
+{
+  "wasm": "engine-7dc7a9ee92f8.wasm",
+  "data": [
+    {
+      "file": "assets-7e6e6cdd2d63-0.bin",
+      "bytes": 16777216
+    },
+    {
+      "file": "assets-6b8bc00e5a5d-1.bin",
+      "bytes": 16777216
+    },
+    {
+      "file": "assets-cce9b699f866-2.bin",
+      "bytes": 11591977
+    }
+  ],
+  "bytes": 45146409,
+  "version": "2026.10.22.1"
+}

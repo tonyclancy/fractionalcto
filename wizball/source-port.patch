@@ -1,0 +1,931 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -18,6 +18,7 @@
+ # ---------------------------
+ set(WIZBALL_SOURCES
+   third_party/physfs/extras/physfsrwops.c
++  wizball/atomic_file.cpp
+   wizball/ai_nodes.cpp
+   wizball/ai_zones.cpp
+   wizball/arrays.cpp
+@@ -63,6 +64,10 @@
+   wizball/world_collision.cpp
+ )
+ 
++if(APPLE)
++  list(APPEND WIZBALL_SOURCES wizball/mac_desktop.cpp)
++endif()
++
+ if(WIN32)
+   list(APPEND WIZBALL_SOURCES wizball/windows_resource.rc)
+ endif()
+@@ -144,6 +149,27 @@
+     # Statically link libgcc and libstdc++ to avoid distributing their DLLs
+     target_link_options(wizball PRIVATE "-static-libgcc" "-static-libstdc++")
+   endif()
++elseif(EMSCRIPTEN)
++  target_compile_options(wizball PRIVATE -sUSE_SDL=2 -sUSE_SDL_MIXER=2 -sUSE_SDL_IMAGE=2)
++  target_link_options(wizball PRIVATE
++    -sUSE_SDL=2 -sUSE_SDL_MIXER=2 -sUSE_SDL_IMAGE=2
++    "-sSDL2_MIXER_FORMATS=[\"mp3\",\"ogg\"]"
++    "-sSDL2_IMAGE_FORMATS=[\"png\",\"bmp\"]"
++    -sASYNCIFY -sASYNCIFY_STACK_SIZE=131072
++    -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=268435456 -sMAXIMUM_MEMORY=2147483648
++    -sSTACK_SIZE=8388608 -sFORCE_FILESYSTEM=1 -sEXIT_RUNTIME=0
++    "-sEXPORTED_RUNTIME_METHODS=[\"callMain\",\"FS\",\"IDBFS\"]"
++    -lidbfs.js
++    --preload-file "${CMAKE_SOURCE_DIR}/../wizball-browser/dist/data.zip@/data.zip"
++  )
++  set_target_properties(wizball PROPERTIES SUFFIX ".js")
++elseif(APPLE)
++  find_path(SDL2_INCLUDE_DIR SDL.h PATH_SUFFIXES SDL2 REQUIRED)
++  find_library(SDL2_LIB SDL2 REQUIRED)
++  find_library(SDL2_MIXER_LIB SDL2_mixer REQUIRED)
++  find_library(SDL2_IMAGE_LIB SDL2_image REQUIRED)
++  target_include_directories(wizball PRIVATE ${SDL2_INCLUDE_DIR})
++  target_link_libraries(wizball PRIVATE ${SDL2_LIB} ${SDL2_MIXER_LIB} ${SDL2_IMAGE_LIB})
+ else()
+   find_package(PkgConfig REQUIRED)
+   pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
+--- a/tools/package_data_zip.py
++++ b/tools/package_data_zip.py
+@@ -27,6 +27,8 @@
+ }
+ 
+ ALLOWED_DIRS = {
++    "tilemaps",
++    "tilesets",
+     "paths",
+     "prefabs",
+     "sound_fx",
+@@ -36,6 +38,9 @@
+ 
+ 
+ def should_include(relative_path: Path) -> bool:
++    if len(relative_path.parts) == 1 and relative_path.suffix == ".txt":
++        return True
++
+     if relative_path.name in ALLOWED_FILES:
+         return True
+ 
+--- a/wizball/control.cpp
++++ b/wizball/control.cpp
+@@ -141,6 +141,10 @@
+ // through to the game proper.
+ 
+ buttons controls [MAX_PLAYERS][NUM_BUTTONS];
++#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
++static int controller_ticks[MAX_PLAYERS][NUM_BUTTONS] = {};
++static bool controller_previous[MAX_PLAYERS][NUM_BUTTONS] = {};
++#endif
+ // Where the control defaults go.
+ // 0 = number of keyboard or pad button input.
+ // 1 = input type (0 = keyboard, 1 = pad button, 2 = pad axis y -ve, 3 = pad axis y +ve, 4 = pad axis x -ve, 5 = pad axis x +ve, 6 = pad axis z -ve, 7 = pad axis z +ve, 8 = pad roll -ve, 9 = pad roll +ve).
+@@ -1101,6 +1105,12 @@
+ 		break;
+ 	}
+ 
++#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
++	// Add standard gamepad defaults while keeping custom gamepad bindings intact.
++	if (controls[player][button].device == DEVICE_KEYBOARD && (controller_ticks[player][button] == 1))
++		result = true;
++#endif
++
+ 	if (result == true)
+ 	{
+ 		if (locked_player_input[player][button] == true)
+@@ -1184,6 +1194,12 @@
+ 		break;
+ 	}
+ 
++#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
++	// Add standard gamepad defaults while keeping custom gamepad bindings intact.
++	if (controls[player][button].device == DEVICE_KEYBOARD && (controller_ticks[player][button] > 0))
++		result = true;
++#endif
++
+ 	if (result == true)
+ 	{
+ 		if (locked_player_input[player][button] == true)
+@@ -1267,6 +1283,12 @@
+ 		break;
+ 	}
+ 
++#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
++	// Add standard gamepad defaults while keeping custom gamepad bindings intact.
++	if (controls[player][button].device == DEVICE_KEYBOARD && (controller_ticks[player][button] == 0 && controller_previous[player][button]))
++		result = true;
++#endif
++
+ 	if (result == true)
+ 	{
+ 		if (locked_player_input[player][button] == true)
+@@ -1331,6 +1353,12 @@
+ 		break;
+ 	}
+ 
++#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
++	// Add standard gamepad defaults while keeping custom gamepad bindings intact.
++	if (controls[player][button].device == DEVICE_KEYBOARD && (controller_ticks[player][button] > 0))
++		result = 255;
++#endif
++
+ 	if (result != 0)
+ 	{
+ 		if (locked_player_input[player][button] == true)
+@@ -1410,6 +1438,12 @@
+ 		// Well I don't know what the hell to do, do you?
+ 		break;
+ 	}
++
++#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
++	// Add standard gamepad defaults while keeping custom gamepad bindings intact.
++	if (controls[player][button].device == DEVICE_KEYBOARD && ((controller_ticks[player][button] == 1 && !ignore_hit) || (controller_ticks[player][button] > initial_delay && repeat_delay > 0 && (controller_ticks[player][button] - initial_delay) % repeat_delay == 0)))
++		result = true;
++#endif
+ 
+ 	if (result == true)
+ 	{
+@@ -3283,6 +3317,16 @@
+ 		CONTROL_update_mouse();
+ 	}
+ 
++#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
++	for (int player = 0; player < MAX_PLAYERS; ++player)
++		for (int button = 0; button < NUM_BUTTONS; ++button) {
++			controller_previous[player][button] = controller_ticks[player][button] > 0;
++			if (PLATFORM_INPUT_default_controller_state(player, button)) {
++				if (controller_ticks[player][button] < 1000000) ++controller_ticks[player][button];
++			} else controller_ticks[player][button] = 0;
++		}
++#endif
++
+ 	CONTROL_manage_recording ();
+ 
+ 	frame_counter++;
+--- a/wizball/file_stuff.cpp
++++ b/wizball/file_stuff.cpp
+@@ -7,6 +7,7 @@
+ #include <assert.h>
+ 
+ #include "main.h"
++#include "atomic_file.h"
+ #include "asset_vfs.h"
+ #include "string_size_constants.h"
+ #include "output.h"
+@@ -40,7 +41,7 @@
+ {
+ 	if (config_file == NULL)
+ 	{
+-		config_file = fopen(MAIN_get_project_filename("config.txt", true), "w");
++		config_file = ATOMIC_FILE_open(MAIN_get_project_filename("config.txt", true));
+ 	}
+ 	else
+ 	{
+@@ -67,7 +68,8 @@
+ 	if (config_file != NULL)
+ 	{
+ 		fputs("#END OF FILE\n", config_file);
+-		fclose(config_file);
++		if (!ATOMIC_FILE_commit(config_file, MAIN_get_project_filename("config.txt", true)))
++			OUTPUT_message("Could not save settings. The previous settings were kept.");
+ 		config_file = NULL;
+ 	}
+ 	else
+--- a/wizball/hiscores.cpp
++++ b/wizball/hiscores.cpp
+@@ -8,6 +8,7 @@
+ #include <time.h>
+ 
+ #include "main.h"
++#include "atomic_file.h"
+ #include "hiscores.h"
+ #include "textfiles.h"
+ #include "output.h"
+@@ -154,7 +155,7 @@
+ 
+ 	char *filename = TEXTFILE_get_line_by_index (filename_text_tag);
+ 
+-	FILE *fp = fopen (MAIN_get_project_filename(filename, true),"w");
++	FILE *fp = ATOMIC_FILE_open(MAIN_get_project_filename(filename, true));
+ 
+ 	if (fp != NULL)
+ 	{
+@@ -186,7 +187,8 @@
+ 
+ 		fputs("#END OF FILE\n",fp);
+ 
+-		fclose (fp);
++		if (!ATOMIC_FILE_commit(fp, MAIN_get_project_filename(filename, true)))
++			OUTPUT_message("Could not save high scores. The previous scores were kept.");
+ 	}
+ 	else
+ 	{
+--- a/wizball/main.cpp
++++ b/wizball/main.cpp
+@@ -8,7 +8,35 @@
+ #include <sys/stat.h>
+ 
+ #include <signal.h>
+-#ifdef ALLEGRO_LINUX
++#ifdef __EMSCRIPTEN__
++#include <emscripten.h>
++#include <physfs.h>
++#include <SDL_mixer.h>
++#endif
++#ifdef __APPLE__
++#include <SDL.h>
++#include <unistd.h>
++#include "mac_desktop.h"
++#include <physfs.h>
++static char macos_asset_archive[4096] = "";
++
++// Finder starts apps with an arbitrary working directory. Keep assets inside
++// the bundle and all mutable game files in the user's Application Support.
++static bool MAIN_setup_macos_bundle(void)
++{
++	char *base = SDL_GetBasePath();
++	if (base == NULL) return true;
++	if (strstr(base, ".app/Contents/") == NULL) { SDL_free(base); return true; }
++	snprintf(macos_asset_archive, sizeof(macos_asset_archive), "%sdata.zip", base);
++	SDL_free(base);
++	char *prefs = SDL_GetPrefPath("Retrospec", "Wizball");
++	if (prefs == NULL) return false;
++	int result = chdir(prefs);
++	SDL_free(prefs);
++	return result == 0;
++}
++#endif
++#if defined(ALLEGRO_LINUX) && !defined(__EMSCRIPTEN__)
+ #include <execinfo.h>
+ #endif
+ #ifdef ALLEGRO_WINDOWS
+@@ -244,6 +272,9 @@
+ 
+ void MAIN_add_to_log(char *text)
+ {
++#ifdef __EMSCRIPTEN__
++    if (output_debug_information) puts(text);
++#endif
+ 	if (output_debug_information)
+ 	{
+ 		FILE *file_pointer = fopen("logfile.txt", "a");
+@@ -532,6 +563,29 @@
+ 			PLATFORM_INPUT_clear_quit_requested();
+ 		}
+ 
++#ifdef __APPLE__
++		// Freeze simulation offscreen, discard elapsed ticks, and retain manual pause state.
++		// A quit request must still reach the scripted shutdown even in the background.
++		if (MAC_DESKTOP_suspended() && close_callback_signal == 0)
++		{
++			game_trigger = 0;
++			last_logic_tick_time = MAIN_get_wall_time_ms();
++			PLATFORM_sleep_ms(20);
++			continue;
++		}
++#endif
++#ifdef __EMSCRIPTEN__
++		static bool web_suspended = false;
++		bool should_suspend = EM_ASM_INT({ return document.hidden || !!window.wizballPaused; });
++		if (should_suspend && close_callback_signal == 0) {
++			if (!web_suspended) { Mix_Pause(-1); Mix_PauseMusic(); web_suspended = true; }
++			game_trigger = 0;
++			last_logic_tick_time = MAIN_get_wall_time_ms();
++			emscripten_sleep(50);
++			continue;
++		}
++		if (web_suspended) { Mix_Resume(-1); Mix_ResumeMusic(); web_suspended = false; game_trigger = 0; }
++#endif
+ 		// Keep simulation ticking at a fixed timer rate while rendering once per frame.
+ 		// A small cap prevents runaway catch-up when rendering stalls.
+ 		int logic_steps = 0;
+@@ -715,6 +769,9 @@
+ 			PLATFORM_sleep_ms(1);
+ 		}
+ 
++#ifdef __EMSCRIPTEN__
++		emscripten_sleep(0);
++#endif
+ 	} while (exit_game == false);
+ 
+ 	return 0;
+@@ -978,7 +1035,7 @@
+ 	{
+ 		fprintf(fp, "Signal: %d\n", sig);
+ 		fprintf(fp, "Where: %s\n", wheres_wally);
+-#ifdef ALLEGRO_LINUX
++#if defined(ALLEGRO_LINUX) && !defined(__EMSCRIPTEN__)
+ 		void *stack[64];
+ 		int depth = backtrace(stack, 64);
+ 		char **symbols = backtrace_symbols(stack, depth);
+@@ -1247,6 +1304,9 @@
+ 
+ int main(int argc, char *argv[])
+ {
++#ifdef __APPLE__
++	if (!MAIN_setup_macos_bundle()) return 1;
++#endif
+ 	const char *disable_crash_handler = getenv("WIZBALL_DISABLE_CRASH_HANDLER");
+ 	if ((disable_crash_handler == NULL) || (strcmp(disable_crash_handler, "1") != 0))
+ 	{
+@@ -1378,6 +1438,16 @@
+ 	}
+ 
+ 	ASSET_VFS_init(argv[0], project, (pack_project[0] != '\0') ? pack_project : project);
++#ifdef __EMSCRIPTEN__
++	if (!PHYSFS_mount("/data.zip", NULL, 0)) return 1;
++#endif
++#ifdef __APPLE__
++	if (macos_asset_archive[0] != '\0' && !PHYSFS_mount(macos_asset_archive, NULL, 0))
++	{
++		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Wizball", "Unable to load the bundled game assets.", NULL);
++		return 1;
++	}
++#endif
+ 
+ #ifdef ALLEGRO_WINDOWS
+ 	SystemParametersInfo(SPI_GETSCREENSAVEACTIVE, 0, &restorescreensaver, 0);
+@@ -1716,6 +1786,9 @@
+ 		result = game_main();
+ 	}
+ 
++#ifdef __APPLE__
++	MAC_DESKTOP_save();
++#endif
+ 	// Once the game is finished, destroy all the crap clogging up the memory
+ 
+ 	GAME_destroy_everything(create_dat_file);
+@@ -1768,5 +1841,8 @@
+ 
+ 	ASSET_VFS_shutdown();
+ 
++#ifdef __EMSCRIPTEN__
++	EM_ASM({ if (window.wizballSave) window.wizballSave(); if (window.wizballExited) window.wizballExited(); });
++#endif
+ 	return (result);
+ }
+--- a/wizball/new_editor.cpp
++++ b/wizball/new_editor.cpp
+@@ -413,7 +413,12 @@
+ 	TILEMAPS_load_editor_settings ();
+ 	MAIN_add_to_log ("\tOK!");
+ 
++#ifdef __EMSCRIPTEN__
++	// Native map caches serialize pointers. Load portable source data on wasm32.
++	if (true)
++#else
+ 	if (parse_all_data)
++#endif
+ 	{
+ 		MAIN_add_to_log ("Loading tilesets from verbose files...");
+ 		TILESETS_load_all ();
+--- a/wizball/output.cpp
++++ b/wizball/output.cpp
+@@ -9,6 +9,7 @@
+ 
+ #include "string_size_constants.h"
+ #include "output.h"
++#include <string>
+ #include "file_stuff.h"
+ #include "math_stuff.h"
+ #include "scripting.h"
+--- a/wizball/platform.cpp
++++ b/wizball/platform.cpp
+@@ -1,6 +1,11 @@
+ #include "platform.h"
+ 
+ #include <SDL.h>
++#ifdef __EMSCRIPTEN__
++#include <emscripten.h>
++#include <emscripten/eventloop.h>
++
++#endif
+ 
+ unsigned int PLATFORM_get_wall_time_ms(void)
+ {
+@@ -18,11 +23,17 @@
+ 
+ int PLATFORM_install_timer_callback_ms(void (*callback)(void), int ms)
+ {
++#ifdef __EMSCRIPTEN__
++    return (int)emscripten_set_interval([](void *param) {
++        reinterpret_cast<void (*)(void)>(param)();
++    }, ms, reinterpret_cast<void *>(callback));
++#else
+     return SDL_AddTimer(ms, [](Uint32 interval, void *param) -> Uint32 {
+         // Correctly cast the parameter to the callback function type and call it
+         reinterpret_cast<void (*)(void)>(param)();
+         return interval; // Continue the timer
+     }, reinterpret_cast<void *>(callback));
++#endif
+ }
+ 
+ int PLATFORM_install_timer_callback_bps(void (*callback)(void), int bps)
+@@ -34,10 +45,18 @@
+ 
+ void PLATFORM_remove_timer_callback(int time_id)
+ {
++#ifdef __EMSCRIPTEN__
++	emscripten_clear_interval(time_id);
++#else
+ 	SDL_RemoveTimer(time_id);
++#endif
+ }
+ 
+ void PLATFORM_sleep_ms(int ms)
+ {
++#ifdef __EMSCRIPTEN__
++	emscripten_sleep(ms);
++#else
+ 	SDL_Delay(ms);
++#endif
+ }
+--- a/wizball/platform_input.cpp
++++ b/wizball/platform_input.cpp
+@@ -5,6 +5,25 @@
+ // sticks/axes/buttons), but implemented purely using SDL2.
+ 
+ #include "platform_input.h"
++#ifdef __EMSCRIPTEN__
++#include <emscripten.h>
++#include <SDL_mixer.h>
++static unsigned char web_keys[KEY_MAX] = {};
++static unsigned char web_taps[KEY_MAX] = {};
++static unsigned char web_keyboard_taps[SDL_NUM_SCANCODES] = {};
++extern "C" EMSCRIPTEN_KEEPALIVE void WIZBALL_web_key(int scancode, int down) {
++    if (scancode >= 0 && scancode < KEY_MAX) {
++        web_keys[scancode] = down != 0;
++        if (down) web_taps[scancode] = 1;
++    }
++}
++extern "C" EMSCRIPTEN_KEEPALIVE void WIZBALL_web_sound(int muted) {
++    SDL_PauseAudio(muted ? 1 : 0);
++}
++#endif
++#ifdef __APPLE__
++#include "mac_desktop.h"
++#endif
+ 
+ #if __has_include(<SDL2/SDL.h>)
+ #include <SDL2/SDL.h>
+@@ -64,6 +83,9 @@
+     while (SDL_PollEvent(&e))
+     {
+         ++g_debug_event_count;
++#ifdef __APPLE__
++        if (MAC_DESKTOP_event(e)) g_quit_requested = true;
++#endif
+         switch (e.type)
+         {
+         case SDL_QUIT:
+@@ -75,6 +97,10 @@
+             g_mouse_z += e.wheel.y;
+             break;
+         case SDL_KEYDOWN:
++#ifdef __EMSCRIPTEN__
++            if (!e.key.repeat && e.key.keysym.scancode >= 0 && e.key.keysym.scancode < SDL_NUM_SCANCODES)
++                web_keyboard_taps[e.key.keysym.scancode] = 1;
++#endif
+             ++g_debug_keydown_event_count;
+             break;
+         case SDL_WINDOWEVENT:
+@@ -294,6 +320,11 @@
+     if (sdl == SDL_SCANCODE_UNKNOWN)
+         return 0;
+ 
++#ifdef __EMSCRIPTEN__
++    bool tapped = web_taps[scancode] || web_keyboard_taps[sdl];
++    web_taps[scancode] = 0; web_keyboard_taps[sdl] = 0;
++    if (web_keys[scancode] || tapped) return 1;
++#endif
+     return keys[sdl] ? 1 : 0;
+ }
+ 
+@@ -301,6 +332,26 @@
+ int PLATFORM_INPUT_mouse_y(void) { return g_mouse_y; }
+ int PLATFORM_INPUT_mouse_z(void) { return g_mouse_z; }
+ int PLATFORM_INPUT_mouse_buttons_mask(void) { return g_mouse_buttons_mask; }
++
++// Action numbers follow control.h. Keep native controller input separate from
++// keyboard events so the existing rebind screen can still identify devices.
++int PLATFORM_INPUT_default_controller_state(int port, int action)
++{
++    if (port < 0 || port >= (int)g_joyports.size()) return 0;
++    SDL_GameController *c = g_joyports[port].controller;
++    if (!c || !SDL_GameControllerGetAttached(c)) return 0;
++    const int deadzone = 16000;
++    switch (action) {
++    case 0: return SDL_GameControllerGetButton(c, SDL_CONTROLLER_BUTTON_DPAD_UP) || SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_LEFTY) < -deadzone;
++    case 1: return SDL_GameControllerGetButton(c, SDL_CONTROLLER_BUTTON_DPAD_DOWN) || SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_LEFTY) > deadzone;
++    case 2: return SDL_GameControllerGetButton(c, SDL_CONTROLLER_BUTTON_DPAD_LEFT) || SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_LEFTX) < -deadzone;
++    case 3: return SDL_GameControllerGetButton(c, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) || SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_LEFTX) > deadzone;
++    case 5: return SDL_GameControllerGetButton(c, SDL_CONTROLLER_BUTTON_A);
++    case 6: return SDL_GameControllerGetButton(c, SDL_CONTROLLER_BUTTON_B);
++    case 15: return SDL_GameControllerGetButton(c, SDL_CONTROLLER_BUTTON_START);
++    default: return 0;
++    }
++}
+ 
+ int PLATFORM_INPUT_num_joysticks(void)
+ {
+@@ -468,7 +519,11 @@
+ int PLATFORM_INPUT_install_joystick(void)
+ {
+     ensure_sdl_events();
++#ifdef __EMSCRIPTEN__
++    if (SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER) != 0)
++#else
+     if (SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != 0)
++#endif
+         return -1;
+ 
+     SDL_JoystickEventState(SDL_ENABLE);
+--- a/wizball/platform_input.h
++++ b/wizball/platform_input.h
+@@ -19,6 +19,7 @@
+ 
+ int PLATFORM_INPUT_install_joystick(void);
+ int PLATFORM_INPUT_num_joysticks(void);
++int PLATFORM_INPUT_default_controller_state(int port, int action);
+ int PLATFORM_INPUT_joystick_num_buttons(int port);
+ int PLATFORM_INPUT_joystick_button_state(int port, int button);
+ int PLATFORM_INPUT_joystick_num_sticks(int port);
+--- a/wizball/platform_renderer.cpp
++++ b/wizball/platform_renderer.cpp
+@@ -11,6 +11,9 @@
+ #endif
+ 
+ #include "platform_renderer.h"
++#ifdef __APPLE__
++#include "mac_desktop.h"
++#endif
+ #include "main.h"
+ #include "asset_vfs.h"
+ #include "output.h"
+@@ -3551,9 +3554,8 @@
+ 		return false;
+ 	}
+ 
+-	(void)SDL_RenderSetViewport(platform_renderer_sdl_renderer, NULL);
++	// Preserve SDL's logical-size letterbox viewport and the user's scale mode.
+ 	(void)SDL_RenderSetClipRect(platform_renderer_sdl_renderer, NULL);
+-	(void)SDL_RenderSetIntegerScale(platform_renderer_sdl_renderer, SDL_FALSE);
+ 	{
+ 		int out_w = 0;
+ 		int out_h = 0;
+@@ -6583,6 +6585,9 @@
+ 
+ void PLATFORM_RENDERER_clear_backbuffer(void)
+ {
++#ifdef __APPLE__
++	MAC_DESKTOP_sync_display();
++#endif
+ 	PLATFORM_RENDERER_pre_draw_flush_queues();
+ #if defined(WIZBALL_RENDER_BACKEND_GLES2)
+ 	platform_renderer_gles2_flush_clear_count++;
+@@ -11783,6 +11788,9 @@
+ 	}
+ 
+ 	Uint32 window_flags = platform_renderer_sdl_stub_show_enabled ? SDL_WINDOW_SHOWN : SDL_WINDOW_HIDDEN;
++#ifdef __APPLE__
++	window_flags |= SDL_WINDOW_ALLOW_HIGHDPI;
++#endif
+ 	if (PLATFORM_RENDERER_backend_targets_gles2())
+ 	{
+ 		window_flags |= SDL_WINDOW_OPENGL;
+@@ -12031,6 +12039,9 @@
+ 		snprintf(warn_buf, sizeof(warn_buf), "SDL_RenderSetLogicalSize(%d,%d) failed: %s", width, height, SDL_GetError());
+ 		MAIN_add_to_log(warn_buf);
+ 	}
++#ifdef __APPLE__
++	MAC_DESKTOP_setup(platform_renderer_sdl_window, platform_renderer_sdl_renderer, width, height);
++#endif
+ 	(void)PLATFORM_RENDERER_sync_sdl_render_target_size(width, height);
+ 	return true;
+ }
+--- a/wizball/scripting.cpp
++++ b/wizball/scripting.cpp
+@@ -37,6 +37,7 @@
+ #include "events.h"
+ #include "paths.h"
+ #include "savegame.h"
++#include "atomic_file.h"
+ #include "platform.h"
+ 
+ #include "fortify.h"
+@@ -12920,6 +12921,9 @@
+ 
+ 
+ 
++char *SCRIPTING_generate_checkcode_for_save_file(char *filename);
++char *SCRIPTING_get_checksum_from_save_file(char *filename);
++
+ void SCRIPTING_output_save_data_to_file (int filename_text_tag)
+ {
+ 	// Goes through each of the bits of gubbins which needs
+@@ -12942,6 +12946,10 @@
+ 	
+ 	strcpy (filename,filename_pointer);
+ 	strcat (filename,".sav");
++	STRING_lowercase(filename);
++	char destination[MAX_LINE_SIZE];
++	snprintf(destination, sizeof(destination), "%s", MAIN_get_project_filename(filename, true));
++	strcat(filename, ".pending");
+ 	STRING_uppercase (filename);
+ 	total_start_ms = PLATFORM_get_wall_time_ms();
+ 	stage_start_ms = total_start_ms;
+@@ -12958,8 +12966,9 @@
+ 	}
+ 	else
+ 	{
+-		OUTPUT_message("Cannot append Spawn Point Flags to save file!");
+-		assert(0);
++		OUTPUT_message("Cannot save game. The previous save was kept.");
++		SCRIPTING_reset_save_data();
++		return;
+ 	}
+ 	init_ms = PLATFORM_get_wall_time_ms() - stage_start_ms;
+ 
+@@ -13006,6 +13015,12 @@
+ 	stage_start_ms = PLATFORM_get_wall_time_ms();
+ 	SCRIPTING_append_checksum_to_save_file (filename);
+ 	checksum_ms = PLATFORM_get_wall_time_ms() - stage_start_ms;
++	char expected[MAX_LINE_SIZE], actual[MAX_LINE_SIZE], staged[MAX_LINE_SIZE];
++	snprintf(expected, sizeof(expected), "%s", SCRIPTING_generate_checkcode_for_save_file(filename));
++	snprintf(actual, sizeof(actual), "%s", SCRIPTING_get_checksum_from_save_file(filename));
++	snprintf(staged, sizeof(staged), "%s", MAIN_get_project_filename(STRING_lowercase(filename), true));
++	if (strcmp(expected, actual) != 0 || strcmp(actual, "UNSET") == 0 || !ATOMIC_FILE_publish(staged, destination))
++		OUTPUT_message("Could not finish saving the game. The previous save was kept.");
+ 	total_ms = PLATFORM_get_wall_time_ms() - total_start_ms;
+ 	file_size = SCRIPTING_get_save_file_size_bytes(filename);
+ 
+--- a/wizball/sound_sdl.cpp
++++ b/wizball/sound_sdl.cpp
+@@ -16,6 +16,9 @@
+ 
+ static Mix_Chunk *sound_effects[MAX_SAMPLES];
+ static Mix_Chunk *sound_streams[MAX_STREAMS];
++#ifdef __EMSCRIPTEN__
++static char web_stream_paths[MAX_STREAMS][FULL_PROJECT_NAME_LENGTH];
++#endif
+ static int stream_channel_map[MAX_STREAMS];
+ 
+ static SDL_Thread *s_stream_load_thread = NULL;
+@@ -577,6 +580,18 @@
+ 
+ 	SOUND_wait_for_streams_ready();
+ 
++#ifdef __EMSCRIPTEN__
++	// Decode music only when needed. Avoid holding every track as PCM in browser RAM.
++	for (int i = 0; i < MAX_STREAMS; ++i) {
++		int channel = stream_channel_map[i];
++		if (i != stream_number && sound_streams[i] &&
++		    (channel == UNSET || !Mix_Playing(channel) || Mix_GetChunk(channel) != sound_streams[i])) {
++			Mix_FreeChunk(sound_streams[i]); sound_streams[i] = NULL;
++		}
++	}
++	if (!sound_streams[stream_number] && web_stream_paths[stream_number][0])
++		sound_streams[stream_number] = SOUND_load_chunk_from_file(web_stream_paths[stream_number]);
++#endif
+ 	stream_sample = sound_streams[stream_number];
+ 	if (stream_sample == NULL)
+ 	{
+@@ -712,9 +727,16 @@
+ 		PATH_UTIL_build_relative_path(full_filename, sizeof(full_filename), "streams", filename);
+ 		strncpy(dest, MAIN_get_project_filename(full_filename), FULL_PROJECT_NAME_LENGTH - 1);
+ 		dest[FULL_PROJECT_NAME_LENGTH - 1] = '\0';
++#ifdef __EMSCRIPTEN__
++		if (counter < MAX_STREAMS) snprintf(web_stream_paths[counter], FULL_PROJECT_NAME_LENGTH, "%s", dest);
++#endif
+ 		counter++;
+ 	}
+ 
++#ifdef __EMSCRIPTEN__
++	free(args->filenames); free(args);
++	return;
++#endif
+ 	/* Decode MP3s on a background thread so startup is not blocked. */
+ 	s_stream_load_thread = SDL_CreateThread(SOUND_stream_loader_thread, "WizStreamLoad", args);
+ 	if (s_stream_load_thread == NULL)
+--- a/wizball/wizball/scripts/main_game_controller.txt
++++ b/wizball/wizball/scripts/main_game_controller.txt
+@@ -188,6 +188,7 @@
+ 	LOAD_SAVE_FILE (continue_game_save_tag)
+ 	OVER_WRITE_ENTITY_FROM_SAVE_FILE (own_id,9000)
+ 
++
+ 	set_global_flag (currently_on_bonus_level,false)
+ 	set_global_flag (current_existant_enemy_bullets,0)
+ 	set_global_flag (enemies_shot_in_a_row,0)
+@@ -234,7 +235,7 @@
+ 		if_flag (wizball_entity_id_flag) != CONST_UNSET then
+ 			goto continue_resume_complete
+ 		end_if
+-	end_if
++	end
+ 
+ .continue_resume_complete
+ 
+--- /dev/null
++++ b/wizball/atomic_file.h
+@@ -0,0 +1,8 @@
++#ifndef WIZBALL_ATOMIC_FILE_H
++#define WIZBALL_ATOMIC_FILE_H
++#include <stdio.h>
++// Stage beside the destination so rename is atomic on the same filesystem.
++FILE *ATOMIC_FILE_open(const char *destination);
++bool ATOMIC_FILE_commit(FILE *stream, const char *destination);
++bool ATOMIC_FILE_publish(const char *staged, const char *destination);
++#endif
+--- /dev/null
++++ b/wizball/atomic_file.cpp
+@@ -0,0 +1,50 @@
++#include "atomic_file.h"
++#include <string>
++#ifdef __EMSCRIPTEN__
++#include <emscripten.h>
++#endif
++#ifndef _WIN32
++#include <unistd.h>
++#else
++#include <io.h>
++#include <windows.h>
++#endif
++
++FILE *ATOMIC_FILE_open(const char *destination)
++{
++    std::string staged = std::string(destination) + ".pending";
++    return fopen(staged.c_str(), "w");
++}
++
++bool ATOMIC_FILE_publish(const char *staged, const char *destination)
++{
++    FILE *f = fopen(staged, "rb+");
++    if (!f) return false;
++#ifndef _WIN32
++    bool ok = fsync(fileno(f)) == 0;
++#else
++    bool ok = _commit(_fileno(f)) == 0;
++#endif
++    if (fclose(f) != 0) ok = false;
++    if (!ok) return false;
++#ifndef _WIN32
++    bool published = rename(staged, destination) == 0;
++#ifdef __EMSCRIPTEN__
++    if (published) EM_ASM({ if (window.wizballSave) window.wizballSave(); });
++#endif
++    return published;
++#else
++    return MoveFileExA(staged, destination, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
++#endif
++}
++
++bool ATOMIC_FILE_commit(FILE *stream, const char *destination)
++{
++    if (!stream) return false;
++    bool ok = ferror(stream) == 0;
++    if (fflush(stream) != 0) ok = false;
++    if (fclose(stream) != 0) ok = false;
++    if (!ok) return false;
++    std::string staged = std::string(destination) + ".pending";
++    return ATOMIC_FILE_publish(staged.c_str(), destination);
++}
+--- /dev/null
++++ b/wizball/mac_desktop.h
+@@ -0,0 +1,9 @@
++#ifndef WIZBALL_MAC_DESKTOP_H
++#define WIZBALL_MAC_DESKTOP_H
++#include <SDL.h>
++void MAC_DESKTOP_setup(SDL_Window *window, SDL_Renderer *renderer, int width, int height);
++bool MAC_DESKTOP_event(const SDL_Event &event);
++bool MAC_DESKTOP_suspended(void);
++void MAC_DESKTOP_save(void);
++void MAC_DESKTOP_sync_display(void);
++#endif
+--- /dev/null
++++ b/wizball/mac_desktop.cpp
+@@ -0,0 +1,123 @@
++#include "mac_desktop.h"
++#include "atomic_file.h"
++#include <SDL_mixer.h>
++#include <stdio.h>
++#include <algorithm>
++
++static SDL_Window *window = NULL;
++static SDL_Renderer *renderer = NULL;
++static bool unfocused = false, integer_scale = false;
++static int normal_width = 1280, normal_height = 960;
++static int logical_width = 1280, logical_height = 960;
++static int output_width = 0, output_height = 0;
++
++void MAC_DESKTOP_sync_display()
++{
++    if (!renderer) return;
++    int width = 0, height = 0;
++    if (SDL_GetRendererOutputSize(renderer, &width, &height) != 0 || width <= 0 || height <= 0) return;
++    if (width != output_width || height != output_height) {
++        // SDL2-compat can retain the previous drawable's viewport on Retina
++        // fullscreen transitions. Rebuild its logical presentation explicitly.
++        SDL_RenderSetLogicalSize(renderer, 0, 0);
++        SDL_RenderSetIntegerScale(renderer, integer_scale ? SDL_TRUE : SDL_FALSE);
++        SDL_RenderSetLogicalSize(renderer, logical_width, logical_height);
++        output_width = width; output_height = height;
++    }
++}
++static bool is_fullscreen() { return window && (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP); }
++
++void MAC_DESKTOP_save()
++{
++    if (!window) return;
++    if (!is_fullscreen()) SDL_GetWindowSize(window, &normal_width, &normal_height);
++    FILE *f = ATOMIC_FILE_open("mac-display.cfg");
++    if (!f) return;
++    fprintf(f, "%d %d %d %d\n", normal_width, normal_height, is_fullscreen() ? 1 : 0, integer_scale ? 1 : 0);
++    ATOMIC_FILE_commit(f, "mac-display.cfg");
++}
++
++void MAC_DESKTOP_setup(SDL_Window *w, SDL_Renderer *r, int width, int height)
++{
++    window = w; renderer = r; logical_width = width; logical_height = height;
++    normal_width = width; normal_height = height;
++    int fullscreen = 0, integer = 0, saved_w = 0, saved_h = 0;
++    FILE *f = fopen("mac-display.cfg", "r");
++    if (f) {
++        if (fscanf(f, "%d %d %d %d", &saved_w, &saved_h, &fullscreen, &integer) == 4 && saved_w >= 640 && saved_w <= 7680 && saved_h >= 480 && saved_h <= 4320) {
++            normal_width = saved_w; normal_height = saved_h;
++        }
++        fclose(f);
++    }
++    SDL_Rect usable;
++    if (SDL_GetDisplayUsableBounds(SDL_GetWindowDisplayIndex(w), &usable) == 0) {
++        normal_width = std::min(normal_width, std::max(640, usable.w - 40));
++        normal_height = std::min(normal_height, std::max(480, usable.h - 80));
++    }
++    SDL_SetWindowMinimumSize(w, 640, 480);
++    SDL_SetWindowSize(w, normal_width, normal_height);
++    SDL_SetWindowPosition(w, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
++    integer_scale = integer == 1;
++    SDL_RenderSetIntegerScale(r, integer_scale ? SDL_TRUE : SDL_FALSE);
++    SDL_SetWindowFullscreen(w, fullscreen == 1 ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
++    unfocused = false;
++    output_width = output_height = 0;
++    MAC_DESKTOP_sync_display();
++}
++
++bool MAC_DESKTOP_event(const SDL_Event &event)
++{
++    if (!window) return false;
++    if (event.type == SDL_KEYDOWN && !event.key.repeat) {
++        bool command = (event.key.keysym.mod & KMOD_GUI) != 0;
++        SDL_Keycode key = event.key.keysym.sym;
++        if (command && key == SDLK_q) { MAC_DESKTOP_save(); return true; }
++        if ((command && key == SDLK_f) || key == SDLK_F11) {
++            bool fullscreen = is_fullscreen();
++            if (!fullscreen) SDL_GetWindowSize(window, &normal_width, &normal_height);
++            if (SDL_SetWindowFullscreen(window, fullscreen ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP) == 0) {
++                if (fullscreen) SDL_SetWindowSize(window, normal_width, normal_height);
++                MAC_DESKTOP_save();
++            }
++        } else if (command && key == SDLK_i) {
++            integer_scale = !integer_scale;
++            output_width = output_height = 0;
++            SDL_RenderSetIntegerScale(renderer, integer_scale ? SDL_TRUE : SDL_FALSE);
++            MAC_DESKTOP_save();
++        } else if (command && key >= SDLK_1 && key <= SDLK_3 && !is_fullscreen()) {
++            int multiplier = key - SDLK_0;
++            SDL_SetWindowSize(window, 640 * multiplier, 480 * multiplier);
++            MAC_DESKTOP_save();
++        }
++    }
++    if (event.type == SDL_WINDOWEVENT && event.window.windowID == SDL_GetWindowID(window)) {
++        switch (event.window.event) {
++        case SDL_WINDOWEVENT_FOCUS_LOST:
++        case SDL_WINDOWEVENT_MINIMIZED:
++            if (!unfocused) { Mix_Pause(-1); Mix_PauseMusic(); }
++            unfocused = true;
++            MAC_DESKTOP_save();
++            break;
++        case SDL_WINDOWEVENT_FOCUS_GAINED:
++            if (unfocused) { Mix_Resume(-1); Mix_ResumeMusic(); }
++            unfocused = false;
++            break;
++        case SDL_WINDOWEVENT_SIZE_CHANGED:
++            MAC_DESKTOP_save();
++            break;
++        }
++    }
++    return false;
++}
++
++bool MAC_DESKTOP_suspended()
++{
++    if (!window) return false;
++    bool inactive = (SDL_GetWindowFlags(window) & (SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_MINIMIZED)) != SDL_WINDOW_INPUT_FOCUS;
++    if (inactive != unfocused) {
++        if (inactive) { Mix_Pause(-1); Mix_PauseMusic(); }
++        else { Mix_Resume(-1); Mix_ResumeMusic(); }
++        unfocused = inactive;
++    }
++    return unfocused;
++}

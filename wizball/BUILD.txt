@@ -1,0 +1,48 @@
+Wizball browser port — 2026-10-22
+
+Upstream source: https://github.com/craigchandler/wizball-remake
+Pinned revision: 12759a163929a8d4bceb11932a1dbf875f01f50a
+Web toolchain: Emscripten 6.0.13, CMake, Python 3.
+Browser shell: index.html, style.css, browser.js.
+Source changes: source-port.patch, applied at the upstream repository root.
+
+The patch adds Emscripten event-loop timers, cooperative Asyncify yielding,
+lazy music decoding, touch input, latched brief key presses, persistent-save
+notifications, portable text map loading, and a corrected Continue wait loop. Desktop functionality remains
+conditionally compiled. Browser saves use a namespaced IDBFS mount.
+
+BUILD / RELINK
+1. Clone the pinned source into a directory called wizball-web-source.
+2. Apply source-port.patch there with git apply.
+3. On a case-insensitive disk, restore the original Fortify headers:
+   git show HEAD:wizball/FORTIFY.H > wizball/fortify.h
+   git show HEAD:wizball/UFORTIFY.H > wizball/ufortify.h
+4. First build natively with CMake (Release, WIZBALL_PORTMASTER=OFF), then build
+   its wizball_data_zip target to generate scripts and other game data.
+   Native dependencies: SDL2, SDL2_image, SDL2_mixer, CMake, C++ compiler.
+5. Create sibling wizball-browser/dist/ and package the generated data:
+   python3 tools/package_data_zip.py --root . --output ../wizball-browser/dist/data.zip
+   The patched packager includes portable text maps; the browser ignores native
+   pointer-bearing map caches. The script compiler includes the Continue audio fix.
+6. Activate Emscripten 6.0.13 in the shell and run:
+   emcmake cmake -S wizball-web-source -B build-web -DCMAKE_BUILD_TYPE=Release -DWIZBALL_PORTMASTER=OFF
+   cmake --build build-web -j6
+7. Place generated wizball.js beside the HTML/JS shell. Split wizball.data into
+   16 MiB parts and record their file names, exact lengths and total bytes in
+   build.json. Place the generated .wasm file there under the manifest's wasm
+   name. browser.js assembles the parts and provides getPreloadedPackage.
+   File names include SHA-256 prefixes so changed binaries cannot collide
+   with previously cached assets.
+8. Serve over HTTP(S). The page must be clicked to start, allowing browser audio.
+
+All library modifications can be rebuilt and relinked using the Emscripten
+ports toolchain. The used mpg123 source is included in licenses/; the SDK's
+ports recipes provide the other upstream library sources. Licence notices
+are in licenses/ and credits.txt.
+
+Hosting: a static Cloudflare Worker handles only /wizball and /wizball/*.
+Other paths on tonyclancy.com use the pre-existing website.
+
+Physical gamepads and mobile devices require hands-on verification; the
+browser wrapper includes defaults and touch controls. Progress is local to
+one browser profile and is not synchronized between devices.

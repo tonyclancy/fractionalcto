@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Wizball — Play in your browser</title>
+<meta name="description" content="Restore the colour to Wizworld. Play the Retrospec remake of the classic Wizball, now in your browser.">
+<meta name="theme-color" content="#090e12"><link rel="icon" href="./icon.png"><link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<header class="masthead"><a class="wordmark" href="./" aria-label="Wizball home"><img src="./icon.png" width="36" height="36" alt=""><span>WIZBALL<span class="edition">THE BROWSER EDITION</span></span></a><a class="back-link" href="/">tonyclancy.com <span aria-hidden="true">↗</span></a></header>
+<main>
+<div class="game-heading"><p><span class="live-dot"></span> RETROSPEC REMAKE <span class="divider">/</span> 2007 → TODAY</p><span id="save-status" role="status">Preparing game…</span></div>
+<section class="game-stage" id="game-stage" aria-label="Wizball game">
+<button id="exit-fullscreen" class="exit-fullscreen" aria-label="Exit fullscreen">Exit fullscreen ⛶</button>
+<canvas id="canvas" tabindex="0" width="640" height="480" aria-label="Wizball. Arrow keys move, Z fires, X selects a power-up, Escape pauses." oncontextmenu="event.preventDefault()"></canvas>
+<div class="launch-screen" id="launch-screen">
+<div class="orbit" aria-hidden="true"><img src="./icon.png" alt="" width="88" height="88"></div>
+<p class="eyebrow">A LITTLE MAGIC. A LOT OF COLOUR.</p><h1>WIZBALL</h1><p class="intro">Wizworld has lost its colour.<br>You and your magical cat can bring it back.</p>
+<button class="primary" id="play" disabled>Loading game…</button>
+<div class="progress-track" id="progress-track"><div id="progress-bar"></div></div><p class="load-status" id="load-status" role="status">Loading the original game and soundtrack.</p>
+<p class="launch-note">Keyboard, gamepad, or on-screen controls · Sound starts when you play</p>
+</div>
+<div class="pause-screen" id="pause-screen" hidden><p class="eyebrow">TAKE YOUR TIME</p><h2>Magic on hold.</h2><p>Your game is paused.</p><button class="primary" id="resume">Resume game <span aria-hidden="true">↗</span></button></div>
+</section>
+<div class="game-toolbar"><span id="game-hint">Press Z to skip the intro, then choose One Player.</span><div class="toolbar-actions"><button id="controls-toggle" aria-expanded="false" title="Show on-screen controls">Controls</button><button id="pause" disabled>Pause</button><button id="sound" disabled aria-pressed="false">Sound on</button><button id="fullscreen">Fullscreen <span aria-hidden="true">⛶</span></button></div></div>
+<div class="touch-controls" id="touch-controls" hidden aria-label="On-screen game controls">
+<div class="dpad"><button data-key="84" class="up" aria-label="Move up">↑</button><button data-key="82" class="left" aria-label="Move left">←</button><button data-key="85" class="down" aria-label="Move down">↓</button><button data-key="83" class="right" aria-label="Move right">→</button></div>
+<div class="touch-actions"><button data-key="28">1 <small>New game</small></button><button data-key="30">3 <small>Continue</small></button><button data-key="67">↵ <small>Select</small></button><button data-key="59">Ⅱ <small>Pause</small></button><button data-key="24">X <small>Power-up</small></button><button data-key="26" class="fire">Z <small>Fire</small></button></div>
+</div>
+<section class="how-to" aria-labelledby="controls-title"><div class="section-label"><span>01 / HOW TO PLAY</span><h2 id="controls-title">Find your bounce.</h2></div><div class="control-grid"><p><span class="keys"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd></span><strong>Move</strong><span>You start out bouncing. Collect green pearls to unlock better control.</span></p><p><span class="keys"><kbd>Z</kbd><kbd>X</kbd></span><strong>Fire & power up</strong><span>Z fires. X activates the highlighted bonus. Unlock Catellite to collect colour.</span></p><p><span class="keys"><kbd>Esc</kbd></span><strong>Pause & save</strong><span>Choose Save and Exit from the in-game pause menu. Use Continue next time.</span></p></div></section>
+<details class="more"><summary>Gamepads, saves & credits <span aria-hidden="true">+</span></summary><div class="details-grid"><div><h3>Bring a gamepad</h3><p>Use the left stick or D-pad to move, the bottom face button to fire or select, the right face button for a power-up, and Start to pause. You can redefine controls in Options.</p></div><div><h3>Your progress stays here</h3><p>Saves and high scores are stored in this browser on this device. Use Save and Exit before leaving and wait for “Saved on this device.” Private browsing or clearing site data can remove them.</p></div><div><h3>A remake with history</h3><p>Original game: Jon Hare, Chris Yates, and Martin Galway / Sensible Software. Retrospec remake: Graham Goring, Trevor “Smila” Storey, and Infamous. Recovered source and modern revival: Craig Chandler and contributors.</p><p><a href="https://github.com/craigchandler/wizball-remake" target="_blank" rel="noopener">Recovered source ↗</a> · <a href="./credits.txt">Credits & licences</a></p></div></div></details>
+</main>
+<footer><span>A classic, with a new way to play.</span><span>WIZBALL / WEBASSEMBLY</span></footer>
+<script src="./browser.js"></script>
+</body></html>
