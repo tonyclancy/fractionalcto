@@ -3,7 +3,7 @@ Wizball browser port — 2026-10-22
 Upstream source: https://github.com/craigchandler/wizball-remake
 Pinned revision: 12759a163929a8d4bceb11932a1dbf875f01f50a
 Web toolchain: Emscripten 6.0.13, CMake, Python 3.
-Browser shell: index.html, style.css, browser.js.
+Browser shell: index.html, style.css, asset-cache.js, browser.js.
 Source changes: source-port.patch, applied at the upstream repository root.
 
 The patch adds Emscripten event-loop timers, cooperative Asyncify yielding,
@@ -60,3 +60,15 @@ First-use requests share the same download promise and wait cooperatively
 through Asyncify. Sprite dimensions are available up front; deferred images
 are decoded and uploaded as textures when drawn for the first time.
 All 173 reconstructed files match the prior assets byte-for-byte.
+
+Repeat-visit optimization: asset-cache.js stores immutable engine, startup and
+background assets in this origin's Cache Storage. Namespaces include engine
+and startup hashes; unchanged files can be reused from a prior namespace.
+After a complete cache fill, only the current and one prior build are retained.
+Storage failures fall back to ordinary network loading; browser eviction or
+clearing site data may require downloads again. HTML, JS and build.json still
+check for updates. This is an asset cache, not a full offline application.
+WASM streaming compilation overlaps startup downloads. Startup bytes stream
+straight into their final preload buffer rather than extra chunk arrays.
+Verified a complete warm reload and engine launch with binary network requests
+blocked, plus storage-denied fallback and cache namespace/file restrictions.

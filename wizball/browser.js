@@ -1,7 +1,7 @@
 'use strict';
 const el = id => document.getElementById(id);
 const canvas = el('canvas');
-let assetBuild = null, preloadedData = null;
+let assetBuild = null, preloadedData = null, assetCache = null;
 let started = false, storageReady = false, storageAvailable = false, muted = false;
 let syncing = false, syncAgain = false, saveTimer = null;
 const engineLog = [];
@@ -69,7 +69,7 @@ async function downloadPack(id) {
     let lastError;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const response = await fetch(new URL(pack.file, location.href));
+        const response = await assetCache.fetch(pack.file);
         if (!response.ok) throw new Error('Game asset download failed');
         const bytes = new Uint8Array(await response.arrayBuffer());
         if (bytes.length !== pack.bytes) throw new Error('Incomplete game asset pack');
@@ -100,6 +100,10 @@ async function prefetchGameAssets() {
     }
   };
   await Promise.all([worker(), worker()]);
+  const complete = await assetCache.settle();
+  el('cache-status').textContent = complete
+    ? (assetCache.stats.network === 0 ? 'All game assets loaded from this device.' : 'All game assets are saved for faster return visits.')
+    : 'Your browser will reuse available cached files.';
 }
 
 var Module = {
@@ -225,30 +229,36 @@ window.addEventListener('error', event => {
     const response = await fetch(new URL('build.json', location.href), {cache:'no-cache'});
     if (!response.ok) throw new Error('Could not load the build manifest');
     assetBuild = await response.json();
-    // Start the engine transfer alongside assets, rather than serially afterward.
-    const wasmDownload = fetch(new URL(assetBuild.wasm, location.href)).then(response => {
-      if (!response.ok) throw new Error("Could not download game engine");
-      return response.arrayBuffer();
-    });
-    let loaded = 0;
+    assetCache = await window.WizballAssetCache.create(assetBuild);
+    // Compile as the engine streams in, overlapping this work with asset loading.
+    const wasmDownload = assetCache.fetch(assetBuild.wasm).then(response =>
+      typeof WebAssembly.compileStreaming === 'function' && response.headers.get('Content-Type')?.split(';')[0] === 'application/wasm'
+        ? WebAssembly.compileStreaming(response)
+        : response.arrayBuffer().then(bytes => WebAssembly.compile(bytes))
+    );
+    let loaded = 0, nextOffset = 0;
+    preloadedData = new Uint8Array(assetBuild.bytes);
     const dataDownload = Promise.all(assetBuild.data.map(async part => {
-      const response = await fetch(new URL(part.file, location.href));
-      if (!response.ok) throw new Error('Could not download game assets');
-      const reader = response.body.getReader(), chunks = []; let size = 0;
+      const baseOffset = nextOffset; nextOffset += part.bytes;
+      const response = await assetCache.fetch(part.file);
+      const reader = response.body.getReader(); let size = 0;
       while (true) {
         const {done,value} = await reader.read(); if (done) break;
-        chunks.push(value); size += value.length; loaded += value.length;
-        Module.setStatus(`Downloading data... (${loaded}/${assetBuild.bytes})`);
+        if (size + value.length > part.bytes) throw new Error('Incorrect game asset length');
+        preloadedData.set(value,baseOffset+size); size += value.length; loaded += value.length;
+        Module.setStatus(`Loading startup assets... (${loaded}/${assetBuild.bytes})`);
       }
       if (size !== part.bytes) throw new Error('Incomplete game assets');
-      const result = new Uint8Array(size); let offset = 0;
-      for (const chunk of chunks) { result.set(chunk,offset); offset += chunk.length; }
-      return result;
     }));
-    const [buffers, wasm] = await Promise.all([dataDownload, wasmDownload]);
-    Module.wasmBinary = new Uint8Array(wasm);
-    preloadedData = new Uint8Array(assetBuild.bytes); let offset = 0;
-    for (const part of buffers) { preloadedData.set(part,offset); offset += part.length; }
+    const [, compiledEngine] = await Promise.all([dataDownload, wasmDownload]);
+    Module.instantiateWasm = (imports, receiveInstance) => {
+      const instance = new WebAssembly.Instance(compiledEngine, imports);
+      receiveInstance(instance, compiledEngine);
+      return instance.exports;
+    };
+    el('cache-status').textContent = assetCache.stats.network === 0
+      ? 'Startup assets loaded from this device.'
+      : 'Saving downloaded assets for faster return visits…';
     el('load-status').textContent = 'Preparing the game…';
     const script = document.createElement('script'); script.src = './wizball.js'; script.onerror = () => fail('Engine download failed'); document.body.append(script);
   } catch (error) { fail(error); }
