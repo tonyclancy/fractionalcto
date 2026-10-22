@@ -20,19 +20,20 @@ BUILD / RELINK
 4. First build natively with CMake (Release, WIZBALL_PORTMASTER=OFF), then build
    its wizball_data_zip target to generate scripts and other game data.
    Native dependencies: SDL2, SDL2_image, SDL2_mixer, CMake, C++ compiler.
-5. Create sibling wizball-browser/dist/ and package the generated data:
-   python3 tools/package_data_zip.py --root . --output ../wizball-browser/dist/data.zip
-   The patched packager includes portable text maps; the browser ignores native
-   pointer-bearing map caches. The script compiler includes the Continue audio fix.
-6. Activate Emscripten 6.0.13 in the shell and run:
+5. Create sibling wizball-browser/dist/ and package the full generated data:
+   python3 tools/package_data_zip.py --root . --output ../wizball-browser/full-data.zip
+   Then run the provided browser tools (paths below relative to this file):
+   python3 tools/stage_web_assets.py --source /path/to/full-data.zip --output /path/to/wizball-browser/dist
+   This creates data.zip for startup, hashed deferred ZIPs, and staged-assets.json.
+   The browser uses text maps rather than native pointer-bearing map caches.
+6. Activate Emscripten 6.0.13 and run:
    emcmake cmake -S wizball-web-source -B build-web -DCMAKE_BUILD_TYPE=Release -DWIZBALL_PORTMASTER=OFF
    cmake --build build-web -j6
-7. Place generated wizball.js beside the HTML/JS shell. Split wizball.data into
-   16 MiB parts and record their file names, exact lengths and total bytes in
-   build.json. Place the generated .wasm file there under the manifest's wasm
-   name. browser.js assembles the parts and provides getPreloadedPackage.
-   File names include SHA-256 prefixes so changed binaries cannot collide
-   with previously cached assets.
+7. Copy generated wizball.js, wizball.data and wizball.wasm into the staged dist
+   folder, then run:
+   python3 tools/split_web_assets.py --directory /path/to/wizball-browser/dist
+   Publish the shell, wizball.js, build.json and its referenced engine, asset
+   chunks and deferred ZIP files. Raw .data/.wasm/data.zip are not published.
 8. Serve over HTTP(S). The page must be clicked to start, allowing browser audio.
 
 All library modifications can be rebuilt and relinked using the Emscripten
@@ -51,3 +52,11 @@ Loading optimization: losslessly deflate BMP and WAV files in data.zip.
 Asset payload reduced from 45,146,409 to 27,208,077 bytes (39.7%).
 The browser downloads the WASM engine in parallel with the asset chunks.
 All 173 decompressed asset files match the prior build byte-for-byte.
+
+Staged loading update: startup assets are 9,509,523 bytes (65% less than the
+previous compressed build). Remaining music and graphics total 17,699,324 bytes
+in 35 hashed packs. Two background workers fetch packs after startup is ready.
+First-use requests share the same download promise and wait cooperatively
+through Asyncify. Sprite dimensions are available up front; deferred images
+are decoded and uploaded as textures when drawn for the first time.
+All 173 reconstructed files match the prior assets byte-for-byte.

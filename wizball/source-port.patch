@@ -80,6 +80,51 @@
      if relative_path.name in ALLOWED_FILES:
          return True
  
+--- a/wizball/asset_vfs.cpp
++++ b/wizball/asset_vfs.cpp
+@@ -1,6 +1,7 @@
+ #include "asset_vfs.h"
+ 
+ #include <physfs.h>
++
+ #include <physfsrwops.h>
+ 
+ #include <ctype.h>
+@@ -18,6 +19,24 @@
+ #endif
+ 
+ #include "string_size_constants.h"
++#ifdef __EMSCRIPTEN__
++#include <emscripten.h>
++EM_ASYNC_JS(int, WEB_wait_for_asset_pack, (int id), {
++ try { await window.wizballEnsurePack(id); return 1; }
++ catch(error) { console.error(error); return 0; }
++});
++static bool web_mounted_packs[256] = {};
++static bool WEB_mount_asset_pack(const char *path) {
++ int id = EM_ASM_INT({ return window.wizballAssetId(UTF8ToString($0)); },path);
++ if (id <= 0) return true;
++ if (id >= 256) return false;
++ if (web_mounted_packs[id]) return true;
++ if (!WEB_wait_for_asset_pack(id)) return false;
++ char filename[64]; snprintf(filename,sizeof(filename),"/web-packs/%d.zip",id);
++ if (!PHYSFS_mount(filename,NULL,1)) return false;
++ web_mounted_packs[id] = true; return true;
++}
++#endif
+ 
+ static bool g_asset_vfs_ready = false;
+ static char g_cache_root[WIZBALL_PATH_MAX] = "";
+@@ -129,6 +148,9 @@
+ 		return NULL;
+ 	}
+ 
++#ifdef __EMSCRIPTEN__
++ if (!WEB_mount_asset_pack(logical_path)) return NULL;
++#endif
+ 	ASSET_VFS_copy_string(variants[0], sizeof(variants[0]), logical_path);
+ 	ASSET_VFS_build_variant(variants[1], sizeof(variants[1]), logical_path, 1);
+ 	ASSET_VFS_build_variant(variants[2], sizeof(variants[2]), logical_path, 2);
 --- a/wizball/control.cpp
 +++ b/wizball/control.cpp
 @@ -141,6 +141,10 @@
@@ -394,7 +439,15 @@
  		TILESETS_load_all ();
 --- a/wizball/output.cpp
 +++ b/wizball/output.cpp
-@@ -9,6 +9,7 @@
+@@ -1,4 +1,7 @@
+ #include <SDL.h>
++#ifdef __EMSCRIPTEN__
++#include <emscripten.h>
++#endif
+ #include <SDL_image.h>
+ #include <assert.h>
+ #include <string.h>
+@@ -9,6 +12,7 @@
  
  #include "string_size_constants.h"
  #include "output.h"
@@ -402,6 +455,176 @@
  #include "file_stuff.h"
  #include "math_stuff.h"
  #include "scripting.h"
+@@ -49,6 +53,9 @@
+ 	SDL_Surface *surface;
+ 	SDL_Texture *texture;
+ 	unsigned int texture_handle;
++#ifdef __EMSCRIPTEN__
++ char web_deferred_path[TEXT_LINE_SIZE];
++#endif
+ 	int width;
+ 	int height;
+ 	int sprite_count;
+@@ -129,6 +136,7 @@
+ 	return &ACTIVE_BMPS[bitmap_index].sprite_list[sprite_index];
+ }
+ 
++static unsigned int OUTPUT_texture_handle(int bitmap_number);
+ static bool OUTPUT_is_valid_bitmap_index(int bitmap_number);
+ static bool OUTPUT_is_valid_sprite_frame(int bitmap_number, int frame_number);
+ static bool OUTPUT_window_queue_step(int window_number, int y_list, int *current_entity, int *step_counter);
+@@ -930,7 +938,7 @@
+ 	}
+ 
+ 	PLATFORM_RENDERER_draw_textured_quad_batch(
+-			ACTIVE_BMPS[small_font_gfx].texture_handle,
++			OUTPUT_texture_handle(small_font_gfx),
+ 			vertices,
+ 			vertex_count / 4,
+ 			true);
+@@ -1147,7 +1155,7 @@
+ 	float down = -(sp->height - sp->pivot_y);
+ 
+ 	PLATFORM_RENDERER_draw_textured_quad(
+-			ACTIVE_BMPS[bitmap_number].texture_handle,
++			OUTPUT_texture_handle(bitmap_number),
+ 			r, g, b,
+ 			x, virtual_screen_height - y, virtual_screen_height,
+ 			left, right, up, down,
+@@ -1170,7 +1178,7 @@
+ 	float down = -(sp->height - sp->pivot_y);
+ 
+ 	PLATFORM_RENDERER_draw_textured_quad(
+-			ACTIVE_BMPS[bitmap_number].texture_handle,
++			OUTPUT_texture_handle(bitmap_number),
+ 			r, g, b,
+ 			x, virtual_screen_height - y, virtual_screen_height,
+ 			left, right, up, down,
+@@ -1614,6 +1622,23 @@
+ 	}
+ }
+ 
++static unsigned int OUTPUT_texture_handle(int bitmap_number)
++{
++#ifdef __EMSCRIPTEN__
++ if (ACTIVE_BMPS[bitmap_number].web_deferred_path[0]) {
++  const char *path = ACTIVE_BMPS[bitmap_number].web_deferred_path;
++  SDL_RWops *rw = ASSET_VFS_open_rwops_read_case_fallback(path);
++  SDL_Surface *surface = rw ? IMG_Load_RW(rw,1) : NULL;
++  if (!surface) OUTPUT_fatal_exit((char *)"Unable to load game graphics. Please reload and try again.");
++  ACTIVE_BMPS[bitmap_number].texture_handle = PLATFORM_RENDERER_create_masked_texture(surface);
++  PLATFORM_RENDERER_set_texture_debug_name(ACTIVE_BMPS[bitmap_number].texture_handle,path);
++  SDL_FreeSurface(surface);
++  ACTIVE_BMPS[bitmap_number].web_deferred_path[0] = 0;
++ }
++#endif
++ return ACTIVE_BMPS[bitmap_number].texture_handle;
++}
++
+ int INPUT_load_bitmap(char *filename)
+ {
+ 	return INPUT_load_bitmap_SDL(filename, PLATFORM_RENDERER_SDL_Renderer());
+@@ -1655,6 +1680,19 @@
+ 
+ 	lowercase_last_path_components(project_filename, lower_filename, sizeof(lower_filename), 1);
+ 
++#ifdef __EMSCRIPTEN__
++ sdl_bmps[total_sdl_bitmaps_loaded].web_deferred_path[0] = 0;
++ int lazy_width = EM_ASM_INT({ return window.wizballSpriteSize(UTF8ToString($0),0); },lower_filename);
++ if (lazy_width > 0) {
++  sdl_bitmap_holder *holder = &sdl_bmps[total_sdl_bitmaps_loaded];
++  holder->width = lazy_width;
++  holder->height = EM_ASM_INT({ return window.wizballSpriteSize(UTF8ToString($0),1); },lower_filename);
++  holder->surface = NULL; holder->texture = NULL; holder->texture_handle = 0;
++  snprintf(holder->web_deferred_path,sizeof(holder->web_deferred_path),"%s",lower_filename);
++  total_sdl_bitmaps_loaded++;
++  return total_sdl_bitmaps_loaded-1;
++ }
++#endif
+ 	SDL_RWops *rw = ASSET_VFS_open_rwops_read_case_fallback(lower_filename);
+ 	SDL_Surface *surface = (rw != NULL) ? IMG_Load_RW(rw, 1) : IMG_Load(lower_filename);
+ 	if (surface == NULL)
+@@ -1759,7 +1797,7 @@
+ 	down *= scale;
+ 
+ 	PLATFORM_RENDERER_draw_textured_quad(
+-			ACTIVE_BMPS[bitmap_number].texture_handle,
++			OUTPUT_texture_handle(bitmap_number),
+ 			r, g, b,
+ 			x, virtual_screen_height - y, virtual_screen_height,
+ 			left, right, up, down,
+@@ -1787,7 +1825,7 @@
+ 	down *= scale;
+ 
+ 	PLATFORM_RENDERER_draw_textured_quad(
+-			ACTIVE_BMPS[bitmap_number].texture_handle,
++			OUTPUT_texture_handle(bitmap_number),
+ 			r, g, b,
+ 			x - left, virtual_screen_height - (y + up), virtual_screen_height,
+ 			left, right, up, down,
+@@ -2738,7 +2776,7 @@
+ 					secondary_bitmap_number = entity_pointer[ENT_SECONDARY_SPRITE];
+ 					if (OUTPUT_is_secondary_multitexture_active(texture_combiner_available, opengl_booleans, secondary_bitmap_number))
+ 					{
+-						PLATFORM_RENDERER_bind_secondary_texture(ACTIVE_BMPS[secondary_bitmap_number].texture_handle);
++						PLATFORM_RENDERER_bind_secondary_texture(OUTPUT_texture_handle(secondary_bitmap_number));
+ #ifdef RETRENGINE_DEBUG_VERSION_THE_LAST_THING_I_DID
+ 						MAIN_debug_last_thing("About to set multi-texture sprite...");
+ #endif
+@@ -2793,7 +2831,7 @@
+ 					 * some textured paths still flow through branches that are not
+ 					 * classified as bitmap-backed here.
+ 					 */
+-					PLATFORM_RENDERER_bind_texture(ACTIVE_BMPS[bitmap_number].texture_handle);
++					PLATFORM_RENDERER_bind_texture(OUTPUT_texture_handle(bitmap_number));
+ 				}
+ 				if ((bitmap_number >= 0) && (bitmap_number < GPL_list_size("BITMAPS")))
+ 				{
+@@ -3297,7 +3335,7 @@
+ 							const float split_frac = (1.0f - u1) / u_span;
+ 							const float split_x = left + split_frac * sprite_width;
+ 							PLATFORM_RENDERER_draw_sdl_window_sprite(
+-									ACTIVE_BMPS[bitmap_number].texture_handle,
++									OUTPUT_texture_handle(bitmap_number),
+ 									sprite_mod_r,
+ 									sprite_mod_g,
+ 									sprite_mod_b,
+@@ -3322,7 +3360,7 @@
+ 									false,
+ 									false);
+ 							PLATFORM_RENDERER_draw_sdl_window_sprite(
+-									ACTIVE_BMPS[bitmap_number].texture_handle,
++									OUTPUT_texture_handle(bitmap_number),
+ 									sprite_mod_r,
+ 									sprite_mod_g,
+ 									sprite_mod_b,
+@@ -3350,7 +3388,7 @@
+ 						else
+ 						{
+ 							PLATFORM_RENDERER_draw_sdl_window_sprite(
+-									ACTIVE_BMPS[bitmap_number].texture_handle,
++									OUTPUT_texture_handle(bitmap_number),
+ 									sprite_mod_r,
+ 									sprite_mod_g,
+ 									sprite_mod_b,
+@@ -3753,7 +3791,7 @@
+ 						 * bitmap. Refresh the renderer bind here so background quads do
+ 						 * not inherit whatever textured sprite happened to draw before.
+ 						 */
+-						PLATFORM_RENDERER_bind_texture(ACTIVE_BMPS[tile_graphic].texture_handle);
++						PLATFORM_RENDERER_bind_texture(OUTPUT_texture_handle(tile_graphic));
+ 					}
+ 
+ 					start_bx = entity_pointer[ENT_TILEMAP_POSITION_X];
+@@ -3946,7 +3984,7 @@
+ 						 * Tilemap-line rendering uses the tileset image directly for its
+ 						 * sprite frames, so bind that texture explicitly before drawing.
+ 						 */
+-						PLATFORM_RENDERER_bind_texture(ACTIVE_BMPS[tile_graphic].texture_handle);
++						PLATFORM_RENDERER_bind_texture(OUTPUT_texture_handle(tile_graphic));
+ 					}
+ 
+ 					start_bx = window_details[window_number].current_x;
 --- a/wizball/platform.cpp
 +++ b/wizball/platform.cpp
 @@ -1,6 +1,11 @@

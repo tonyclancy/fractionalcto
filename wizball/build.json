@@ -1,15 +1,408 @@
 {
-  "wasm": "engine-7dc7a9ee92f8.wasm",
+  "wasm": "engine-babb6b8c67ac.wasm",
   "data": [
     {
-      "file": "assets-528f6b91b07c-0.bin",
-      "bytes": 16777216
-    },
-    {
-      "file": "assets-4e3b0dd6c65a-1.bin",
-      "bytes": 10430861
+      "file": "assets-fb4bd5289332-0.bin",
+      "bytes": 9509523
     }
   ],
-  "bytes": 27208077,
-  "version": "2026.10.22.2"
+  "bytes": 9509523,
+  "version": "2026.10.22.3",
+  "packs": [
+    {
+      "id": 1,
+      "file": "pack-ab2dd436fdfe.zip",
+      "bytes": 120953,
+      "paths": [
+        "wizball/sprites/background_level_1[arb].bmp"
+      ]
+    },
+    {
+      "id": 16,
+      "file": "pack-a00f6f1e8472.zip",
+      "bytes": 201365,
+      "paths": [
+        "wizball/sprites/level_1_tiles_new[set][16][16][0][0].bmp"
+      ]
+    },
+    {
+      "id": 33,
+      "file": "pack-0bbd6c7d6b1b.zip",
+      "bytes": 4633210,
+      "paths": [
+        "wizball/streams/wizball_in_game.mp3"
+      ]
+    },
+    {
+      "id": 2,
+      "file": "pack-35cc2eb65062.zip",
+      "bytes": 110724,
+      "paths": [
+        "wizball/sprites/background_level_2[arb].bmp"
+      ]
+    },
+    {
+      "id": 3,
+      "file": "pack-e58bb59a8385.zip",
+      "bytes": 107132,
+      "paths": [
+        "wizball/sprites/background_level_3[arb].bmp"
+      ]
+    },
+    {
+      "id": 4,
+      "file": "pack-48d459978791.zip",
+      "bytes": 153905,
+      "paths": [
+        "wizball/sprites/background_level_4[arb].bmp"
+      ]
+    },
+    {
+      "id": 5,
+      "file": "pack-3f978a077a35.zip",
+      "bytes": 275624,
+      "paths": [
+        "wizball/sprites/background_level_5[arb].bmp"
+      ]
+    },
+    {
+      "id": 6,
+      "file": "pack-fd8bf3589ca9.zip",
+      "bytes": 260878,
+      "paths": [
+        "wizball/sprites/background_level_6[arb].bmp"
+      ]
+    },
+    {
+      "id": 7,
+      "file": "pack-bd0de96fd851.zip",
+      "bytes": 202120,
+      "paths": [
+        "wizball/sprites/background_level_7[arb].bmp"
+      ]
+    },
+    {
+      "id": 8,
+      "file": "pack-f66a97fb52c6.zip",
+      "bytes": 145766,
+      "paths": [
+        "wizball/sprites/background_level_8[arb].bmp"
+      ]
+    },
+    {
+      "id": 9,
+      "file": "pack-1ca926afa0e2.zip",
+      "bytes": 12804,
+      "paths": [
+        "wizball/sprites/catellite[arb].bmp"
+      ]
+    },
+    {
+      "id": 10,
+      "file": "pack-27debadcb548.zip",
+      "bytes": 131724,
+      "paths": [
+        "wizball/sprites/completion_effect[arb].bmp"
+      ]
+    },
+    {
+      "id": 11,
+      "file": "pack-75e114753c5f.zip",
+      "bytes": 66647,
+      "paths": [
+        "wizball/sprites/enemies01[set][48][48][24][24].bmp"
+      ]
+    },
+    {
+      "id": 12,
+      "file": "pack-4a288692720e.zip",
+      "bytes": 219342,
+      "paths": [
+        "wizball/sprites/enemies_01[set][48][48][24][24].bmp"
+      ]
+    },
+    {
+      "id": 13,
+      "file": "pack-ac41592111ad.zip",
+      "bytes": 267885,
+      "paths": [
+        "wizball/sprites/enemies_02[set][48][48][24][24].bmp"
+      ]
+    },
+    {
+      "id": 14,
+      "file": "pack-8a575bcee0a8.zip",
+      "bytes": 45423,
+      "paths": [
+        "wizball/sprites/fuzz_base[set][64][64][32][32].bmp"
+      ]
+    },
+    {
+      "id": 15,
+      "file": "pack-13f655e085db.zip",
+      "bytes": 19927,
+      "paths": [
+        "wizball/sprites/fuzz_overlay[set][64][64][32][32].bmp"
+      ]
+    },
+    {
+      "id": 17,
+      "file": "pack-ff42232daf07.zip",
+      "bytes": 136795,
+      "paths": [
+        "wizball/sprites/level_2_tiles_new[set][16][16][0][0].bmp"
+      ]
+    },
+    {
+      "id": 18,
+      "file": "pack-42c6d5be28e0.zip",
+      "bytes": 174814,
+      "paths": [
+        "wizball/sprites/level_3_tiles_new[set][16][16][0][0].bmp"
+      ]
+    },
+    {
+      "id": 19,
+      "file": "pack-bac8d319b391.zip",
+      "bytes": 154570,
+      "paths": [
+        "wizball/sprites/level_4_tiles_new[set][16][16][0][0].bmp"
+      ]
+    },
+    {
+      "id": 20,
+      "file": "pack-839ffad06221.zip",
+      "bytes": 138025,
+      "paths": [
+        "wizball/sprites/level_5_tiles_new[set][16][16][0][0].bmp"
+      ]
+    },
+    {
+      "id": 21,
+      "file": "pack-7eede8c42a5a.zip",
+      "bytes": 176136,
+      "paths": [
+        "wizball/sprites/level_6_tiles_new[set][16][16][0][0].bmp"
+      ]
+    },
+    {
+      "id": 22,
+      "file": "pack-ef30b77e7732.zip",
+      "bytes": 175266,
+      "paths": [
+        "wizball/sprites/level_7_tiles_new[set][16][16][0][0].bmp"
+      ]
+    },
+    {
+      "id": 23,
+      "file": "pack-853c9d37732b.zip",
+      "bytes": 150056,
+      "paths": [
+        "wizball/sprites/level_8_tiles_new[set][16][16][0][0].bmp"
+      ]
+    },
+    {
+      "id": 24,
+      "file": "pack-d20b3ae6e4ed.zip",
+      "bytes": 21375,
+      "paths": [
+        "wizball/sprites/paintballs_and_drips[arb].bmp"
+      ]
+    },
+    {
+      "id": 25,
+      "file": "pack-20f5bac83d66.zip",
+      "bytes": 3979,
+      "paths": [
+        "wizball/sprites/pickup[arb].bmp"
+      ]
+    },
+    {
+      "id": 26,
+      "file": "pack-fbeea88c329a.zip",
+      "bytes": 12031,
+      "paths": [
+        "wizball/sprites/player_bullets[arb].bmp"
+      ]
+    },
+    {
+      "id": 27,
+      "file": "pack-34ae99f8069d.zip",
+      "bytes": 258,
+      "paths": [
+        "wizball/sprites/test_obj[set][32][32][16][16].bmp"
+      ]
+    },
+    {
+      "id": 28,
+      "file": "pack-edbd49662058.zip",
+      "bytes": 345964,
+      "paths": [
+        "wizball/sprites/wizball[set][48][48][24][24].bmp"
+      ]
+    },
+    {
+      "id": 29,
+      "file": "pack-8a82849b89bc.zip",
+      "bytes": 2391440,
+      "paths": [
+        "wizball/streams/wizball_bonus.mp3"
+      ]
+    },
+    {
+      "id": 30,
+      "file": "pack-6003cba9041c.zip",
+      "bytes": 4454357,
+      "paths": [
+        "wizball/streams/wizball_completion.mp3"
+      ]
+    },
+    {
+      "id": 31,
+      "file": "pack-1f38e7dd9b69.zip",
+      "bytes": 94529,
+      "paths": [
+        "wizball/streams/wizball_game_over.mp3"
+      ]
+    },
+    {
+      "id": 32,
+      "file": "pack-02f3b4e839ce.zip",
+      "bytes": 1463573,
+      "paths": [
+        "wizball/streams/wizball_hi_score.mp3"
+      ]
+    },
+    {
+      "id": 34,
+      "file": "pack-f5982d798ea6.zip",
+      "bytes": 703181,
+      "paths": [
+        "wizball/streams/wizball_laboratory.mp3"
+      ]
+    },
+    {
+      "id": 35,
+      "file": "pack-78e277055385.zip",
+      "bytes": 127546,
+      "paths": [
+        "wizball/streams/wizball_pre_life.mp3"
+      ]
+    }
+  ],
+  "spriteSizes": {
+    "wizball/sprites/background_level_1[arb].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/background_level_2[arb].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/background_level_3[arb].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/background_level_4[arb].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/background_level_5[arb].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/background_level_6[arb].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/background_level_7[arb].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/background_level_8[arb].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/catellite[arb].bmp": [
+      128,
+      128
+    ],
+    "wizball/sprites/completion_effect[arb].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/enemies01[set][48][48][24][24].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/enemies_01[set][48][48][24][24].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/enemies_02[set][48][48][24][24].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/fuzz_base[set][64][64][32][32].bmp": [
+      256,
+      256
+    ],
+    "wizball/sprites/fuzz_overlay[set][64][64][32][32].bmp": [
+      256,
+      256
+    ],
+    "wizball/sprites/level_1_tiles_new[set][16][16][0][0].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/level_2_tiles_new[set][16][16][0][0].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/level_3_tiles_new[set][16][16][0][0].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/level_4_tiles_new[set][16][16][0][0].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/level_5_tiles_new[set][16][16][0][0].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/level_6_tiles_new[set][16][16][0][0].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/level_7_tiles_new[set][16][16][0][0].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/level_8_tiles_new[set][16][16][0][0].bmp": [
+      512,
+      512
+    ],
+    "wizball/sprites/paintballs_and_drips[arb].bmp": [
+      128,
+      128
+    ],
+    "wizball/sprites/pickup[arb].bmp": [
+      64,
+      64
+    ],
+    "wizball/sprites/player_bullets[arb].bmp": [
+      128,
+      128
+    ],
+    "wizball/sprites/test_obj[set][32][32][16][16].bmp": [
+      32,
+      32
+    ],
+    "wizball/sprites/wizball[set][48][48][24][24].bmp": [
+      512,
+      512
+    ]
+  },
+  "backgroundBytes": 17699324
 }

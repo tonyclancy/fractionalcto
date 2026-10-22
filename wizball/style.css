@@ -5,3 +5,5 @@
 .exit-fullscreen{display:none;position:absolute;top:12px;right:12px;z-index:10;background:#10181ed9;border:1px solid #536164;border-radius:4px;padding:7px 12px;font-size:12px}.game-stage:fullscreen .exit-fullscreen{display:block}.game-stage:fullscreen canvas{width:min(100vw,calc(100dvh * 4 / 3));height:min(100dvh,75vw)}
 @media(pointer:coarse){.game-stage:fullscreen canvas{width:min(100vw,calc((100dvh - 115px) * 4 / 3));height:min(calc(100dvh - 115px),75vw)}}
 .game-stage>canvas{position:absolute;inset:0;min-width:0;min-height:0}.game-stage:fullscreen>canvas{position:static}
+
+.asset-wait{position:absolute;inset:0;z-index:8;display:grid;place-items:center;background:#091114e8;color:var(--lime);font-size:15px}

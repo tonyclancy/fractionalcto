@@ -47,6 +47,61 @@ window.wizballExited = function () {
   el('play').onclick = () => location.reload();
   flushSaves();
 };
+// Packs contain complete original files; a single promise serves background
+// prefetches and first-use requests so concurrent callers never duplicate work.
+const packDownloads = new Map(), readyPacks = new Set();
+let assetWaiters = 0;
+function logicalAssetPath(path) {
+  const clean = path.replaceAll('\\','/').toLowerCase();
+  const start = clean.lastIndexOf('wizball/');
+  return start >= 0 ? clean.slice(start) : clean;
+}
+window.wizballAssetId = path => {
+  const logical = logicalAssetPath(path);
+  return assetBuild?.packs?.find(pack => pack.paths.includes(logical))?.id || 0;
+};
+window.wizballSpriteSize = (path, axis) => assetBuild?.spriteSizes?.[logicalAssetPath(path)]?.[axis] || 0;
+async function downloadPack(id) {
+  if (packDownloads.has(id)) return packDownloads.get(id);
+  const pack = assetBuild.packs.find(pack => pack.id === id);
+  if (!pack) throw new Error('Unknown asset pack');
+  const pending = (async () => {
+    let lastError;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(new URL(pack.file, location.href));
+        if (!response.ok) throw new Error('Game asset download failed');
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (bytes.length !== pack.bytes) throw new Error('Incomplete game asset pack');
+        Module.FS.writeFile(`/web-packs/${id}.zip`, bytes);
+        readyPacks.add(id);
+        return;
+      } catch (error) { lastError = error; }
+    }
+    throw lastError;
+  })();
+  packDownloads.set(id, pending);
+  try { await pending; } catch(error) { packDownloads.delete(id); throw error; }
+}
+window.wizballEnsurePack = async id => {
+  if (readyPacks.has(id)) return;
+  assetWaiters++;
+  el('asset-wait').hidden = false;
+  try { await downloadPack(id); }
+  catch (error) { fail('Could not load the next game assets. Reload to try again.'); throw error; }
+  finally { assetWaiters--; el('asset-wait').hidden = assetWaiters === 0; }
+};
+async function prefetchGameAssets() {
+  const queue = [...(assetBuild.packs || [])];
+  const worker = async () => {
+    while (queue.length) {
+      const pack = queue.shift();
+      try { await downloadPack(pack.id); } catch(error) { console.warn('Background asset will retry when needed:',pack.file); }
+    }
+  };
+  await Promise.all([worker(), worker()]);
+}
+
 var Module = {
   canvas,
   noInitialRun: true,
@@ -70,6 +125,7 @@ var Module = {
   onExit: () => window.wizballExited(),
   onRuntimeInitialized: () => {
     try {
+      Module.FS.mkdir('/web-packs');
       Module.FS.mkdir('/wizball-saves');
       Module.FS.mount(Module.IDBFS, {}, '/wizball-saves');
       Module.FS.syncfs(true, error => {
@@ -81,7 +137,8 @@ var Module = {
         el('play').textContent = 'Play Wizball ↗';
         el('progress-bar').style.width = '100%';
         el('progress-track').hidden = true;
-        el('load-status').textContent = 'Ready when you are.';
+        el('load-status').textContent = 'Ready — later levels and music load in the background.';
+        prefetchGameAssets();
         saveStatus(storageAvailable ? 'Saves on this device' : 'Session only — browser storage unavailable');
       });
     } catch (error) { fail(error); }
